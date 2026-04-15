@@ -1,0 +1,165 @@
+/**
+ * ITERRA Design System — CSS Custom Properties
+ *
+ * 自動生成ファイル。手動編集禁止。
+ * ソース: tokens/*.ts
+ * 生成: npm run tokens:css
+ *
+ * Astro / 外部プロジェクトでの使用方法:
+ *   @import 'path/to/tokens.css';
+ *   color: var(--color-terra);
+ *   padding: var(--spacing-md);
+ *   border-radius: var(--radius-card);
+ */
+
+:root {
+  /* ── Colors — ブランド色・テキスト・グレースケール・ステータス・セマンティック ── */
+  --color-terra: #3C3F58;
+  --color-terra-dark: #2A2D40;
+  --color-soleil: #D7775D;
+  --color-sage: #7AA592;
+  --color-amber: #E5C47F;
+  --color-text-title: #030303;
+  --color-text-body: #1D1D1F;
+  --color-text-list: #3C4043;
+  --color-sumi900: #1A1A1C;
+  --color-sumi800: #414143;
+  --color-sumi700: #626264;
+  --color-sumi600: #757578;
+  --color-sumi500: #949497;
+  --color-sumi400: #B4B4B7;
+  --color-sumi300: #D8D8DB;
+  --color-sumi200: #E8E8EB;
+  --color-sumi100: #F1F1F4;
+  --color-sumi50: #F8F8FB;
+  --color-success: #10B981;
+  --color-warning: #F59E0B;
+  --color-error: #EF4444;
+  --color-info: #3B82F6;
+  --color-border-default: #E8E8EB;
+  --color-border-strong: #B4B4B7;
+  --color-border-focus: #D7775D;
+  --color-border-error: #EF4444;
+  --color-bg-default: #F8F8FB;
+  --color-bg-alt: #F1F1F4;
+  --color-bg-hover: #F1F1F4;
+  --color-bg-active: #E8E8EB;
+  --color-bg-selected: #3C3F580D;
+  --color-bg-disabled: #F1F1F4;
+  --color-text-disabled: #949497;
+  --color-text-placeholder: #B4B4B7;
+  --color-text-link: #3C3F58;
+  --color-text-link-hover: #D7775D;
+  --color-focus-ring: #D7775D40;
+  --color-overlay: #00000080;
+
+  /* ── Gradients — ブランドグラデーション（9種） ── */
+  --gradient-terra: linear-gradient(135deg, #2A2D40 0%, #3C3F58 50%, #8B8EA8 100%);
+  --gradient-soleil: linear-gradient(135deg, #A85843 0%, #D7775D 50%, #EDAA97 100%);
+  --gradient-sage: linear-gradient(135deg, #4F7264 0%, #7AA592 50%, #AECFC4 100%);
+  --gradient-depth: linear-gradient(150deg, #1A1A1C 0%, #3C3F58 100%);
+  --gradient-celadon: linear-gradient(135deg, #3C3F58 0%, #7AA592 100%);
+  --gradient-pewter: linear-gradient(120deg, #2A2D40 0%, #626264 100%);
+  --gradient-iterra: linear-gradient(135deg, #3C3F58 0%, #D7775D 100%);
+  --gradient-solstice: linear-gradient(135deg, #D7775D 0%, #E5C47F 100%);
+  --gradient-horizon: linear-gradient(90deg, #3C3F58 0%, #7AA592 50%, #E5C47F 100%);
+
+  /* ── Spacing — 4px ベースの余白スケール（2xs: 4px 〜 5xl: 96px） ── */
+  --spacing-2xs: 0.25rem;
+  --spacing-xs: 0.5rem;
+  --spacing-sm: 0.75rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+  --spacing-xl: 2rem;
+  --spacing-2xl: 3rem;
+  --spacing-3xl: 4rem;
+  --spacing-4xl: 5rem;
+  --spacing-5xl: 6rem;
+
+  /* ── Radius — 角丸（none: 0 〜 full: 9999px） ── */
+  --radius-none: 0;
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.5rem;
+  --radius-full: 9999px;
+
+  /* ── Radius Semantic — 用途別エイリアス（button, input, card 等） ── */
+  --radius-button: 9999px;
+  --radius-input: 0.5rem;
+  --radius-card: 0.75rem;
+  --radius-modal: 1rem;
+  --radius-badge: 0.25rem;
+  --radius-panel: 0.75rem;
+  --radius-image: 0.5rem;
+
+  /* ── Elevation — 影の5段階（none 〜 overlay） ── */
+  --elevation-none: none;
+  --elevation-low: 0 1px 3px rgba(60, 63, 88, 0.06);
+  --elevation-medium: 0 2px 8px rgba(60, 63, 88, 0.08);
+  --elevation-high: 0 8px 24px rgba(60, 63, 88, 0.12);
+  --elevation-overlay: 0 16px 48px rgba(60, 63, 88, 0.16);
+
+  /* ── Elevation Hover — hover 時の1段階アップ ── */
+  --elevation-hover-none: 0 1px 3px rgba(60, 63, 88, 0.06);
+  --elevation-hover-low: 0 2px 8px rgba(60, 63, 88, 0.08);
+  --elevation-hover-medium: 0 8px 24px rgba(60, 63, 88, 0.12);
+  --elevation-hover-high: 0 16px 48px rgba(60, 63, 88, 0.16);
+  --elevation-hover-overlay: 0 16px 48px rgba(60, 63, 88, 0.16);
+
+  /* ── Z-Index — レイヤー順序（base: 0 〜 tooltip: 60） ── */
+  --zindex-base: 0;
+  --zindex-dropdown: 10;
+  --zindex-sticky: 20;
+  --zindex-drawer: 30;
+  --zindex-modal: 40;
+  --zindex-overlay: 50;
+  --zindex-tooltip: 60;
+
+  /* ── Font Family — フォントファミリー ── */
+  --font-sans: "Noto Sans JP", "Noto Sans", sans-serif;
+  --font-en: "Noto Sans", sans-serif;
+
+  /* ── Font Size — フォントサイズスケール（2xs: 10px 〜 6xl: 48px） ── */
+  --font-size-2xs: 0.625rem;
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.25rem;
+  --font-size-2xl: 1.5rem;
+  --font-size-3xl: 1.75rem;
+  --font-size-4xl: 2rem;
+  --font-size-5xl: 2.25rem;
+  --font-size-6xl: 3rem;
+
+  /* ── Font Weight — フォントウェイト（normal: 400 〜 bold: 700） ── */
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* ── Line Height — 行間（tight: 1.25 〜 loose: 2） ── */
+  --line-height-tight: 1.25;
+  --line-height-snug: 1.375;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.625;
+  --line-height-loose: 2;
+
+  /* ── Letter Spacing — 文字間隔（tighter: -0.04em 〜 widest: 0.2em） ── */
+  --letter-spacing-tighter: -0.04em;
+  --letter-spacing-tight: -0.02em;
+  --letter-spacing-normal: 0em;
+  --letter-spacing-wide: 0.04em;
+  --letter-spacing-wider: 0.08em;
+  --letter-spacing-widest: 0.2em;
+
+  /* ── Icon Size — アイコンサイズ（inline: 16px 〜 hero: 48px） ── */
+  --icon-inline: 16px;
+  --icon-button: 20px;
+  --icon-nav: 24px;
+  --icon-decorative: 32px;
+  --icon-hero: 48px;
+
+}

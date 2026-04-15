@@ -1,0 +1,17 @@
+@import "tailwindcss";
+@import "../styles/tokens.css";
+
+@theme inline {
+  --font-sans: "Noto Sans JP", "Noto Sans", sans-serif;
+  --color-terra: #3C3F58;
+  --color-terra-dark: #2A2D40;
+  --color-soleil: #D7775D;
+  --color-sage: #7AA592;
+  --color-amber: #E5C47F;
+}
+
+body {
+  font-family: var(--font-sans);
+  color: var(--color-text-body);
+  background-color: var(--color-bg-default);
+}

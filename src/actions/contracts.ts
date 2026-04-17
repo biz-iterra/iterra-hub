@@ -1,0 +1,162 @@
+"use server";
+
+import { createClient } from "@/lib/supabase/server";
+import {
+  createContractSchema,
+  updateContractSchema,
+} from "@/lib/validators";
+import type { z } from "zod";
+
+type ActionResult<T> = { data: T | null; error: string | null };
+
+async function getAuthenticatedUser() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { supabase: null, user: null, role: null };
+  const { data: crmUser } = await supabase
+    .from("crm_users")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+  return { supabase, user, role: crmUser?.role ?? null };
+}
+
+const CONTRACT_LIST_SELECT = `
+  *,
+  deal:deals(id, deal_code, name),
+  contract_type:contract_types(id, name),
+  counterparty_company:companies(id, name),
+  counterparty_contact:contacts!contracts_counterparty_contact_id_fkey(id, last_name, first_name),
+  registered_user:crm_users!contracts_registered_by_fkey(id, full_name)
+` as const;
+
+// ---------- 一覧取得 ----------
+export async function getContracts(params?: {
+  search?: string;
+  dealId?: string;
+  page?: number;
+  perPage?: number;
+}): Promise<ActionResult<{ items: any[]; count: number }>> {
+  const { supabase, user } = await getAuthenticatedUser();
+  if (!supabase || !user) return { data: null, error: "認証が必要です" };
+
+  const page = params?.page ?? 1;
+  const perPage = params?.perPage ?? 20;
+  const from = (page - 1) * perPage;
+  const to = from + perPage - 1;
+
+  let query = supabase
+    .from("contracts")
+    .select(CONTRACT_LIST_SELECT, { count: "exact" })
+    .is("deleted_at", null)
+    .order("created_at", { ascending: false })
+    .range(from, to);
+
+  if (params?.search) {
+    query = query.or(
+      `contract_code.ilike.%${params.search}%,contract_name.ilike.%${params.search}%`
+    );
+  }
+  if (params?.dealId) {
+    query = query.eq("deal_id", params.dealId);
+  }
+
+  const { data, error, count } = await query;
+  if (error) return { data: null, error: error.message };
+  return { data: { items: data ?? [], count: count ?? 0 }, error: null };
+}
+
+// ---------- 詳細取得 ----------
+export async function getContract(id: string): Promise<ActionResult<any>> {
+  const { supabase, user } = await getAuthenticatedUser();
+  if (!supabase || !user) return { data: null, error: "認証が必要です" };
+
+  const { data, error } = await supabase
+    .from("contracts")
+    .select(
+      `
+      ${CONTRACT_LIST_SELECT},
+      counterparty_manager:contacts!contracts_counterparty_manager_id_fkey(id, last_name, first_name, department, job_title)
+    `
+    )
+    .eq("id", id)
+    .single();
+
+  if (error) return { data: null, error: error.message };
+  return { data, error: null };
+}
+
+// ---------- 作成 ----------
+export async function createContract(
+  input: z.infer<typeof createContractSchema>
+): Promise<ActionResult<any>> {
+  const { supabase, user, role } = await getAuthenticatedUser();
+  if (!supabase || !user) return { data: null, error: "認証が必要です" };
+  if (role !== "manager" && role !== "admin") {
+    return { data: null, error: "manager 以上の権限が必要です" };
+  }
+
+  const parsed = createContractSchema.safeParse(input);
+  if (!parsed.success) return { data: null, error: parsed.error.issues[0].message };
+
+  const contractData = {
+    ...parsed.data,
+    registered_by: user.id,
+  };
+
+  const { data, error } = await supabase
+    .from("contracts")
+    .insert(contractData)
+    .select()
+    .single();
+
+  if (error) return { data: null, error: error.message };
+  return { data, error: null };
+}
+
+// ---------- 更新 ----------
+export async function updateContract(
+  id: string,
+  input: z.infer<typeof updateContractSchema>
+): Promise<ActionResult<any>> {
+  const { supabase, user, role } = await getAuthenticatedUser();
+  if (!supabase || !user) return { data: null, error: "認証が必要です" };
+  if (role !== "manager" && role !== "admin") {
+    return { data: null, error: "manager 以上の権限が必要です" };
+  }
+
+  const parsed = updateContractSchema.safeParse(input);
+  if (!parsed.success) return { data: null, error: parsed.error.issues[0].message };
+
+  const { data, error } = await supabase
+    .from("contracts")
+    .update(parsed.data)
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) return { data: null, error: error.message };
+  return { data, error: null };
+}
+
+// ---------- 論理削除 ----------
+export async function deleteContract(id: string): Promise<ActionResult<null>> {
+  const { supabase, user, role } = await getAuthenticatedUser();
+  if (!supabase || !user) return { data: null, error: "認証が必要です" };
+  if (role !== "admin") {
+    return { data: null, error: "管理者権限が必要です" };
+  }
+
+  const { error } = await supabase
+    .from("contracts")
+    .update({
+      deleted_at: new Date().toISOString(),
+      deleted_by: user.id,
+    })
+    .eq("id", id);
+
+  if (error) return { data: null, error: error.message };
+  return { data: null, error: null };
+}

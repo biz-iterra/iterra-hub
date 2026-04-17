@@ -20,7 +20,9 @@ type Timestamps = {
 };
 
 type SoftDeletable = {
-  is_active: boolean;
+  deleted_at: string | null;
+  deleted_by: string | null;
+  deletion_reason: string | null;
 };
 
 // === マスタ型 ===
@@ -122,8 +124,8 @@ export type CrmUser = {
   full_name_kana: string | null;
   role: CrmUserRole;
   avatar_url: string | null;
-} & SoftDeletable &
-  Timestamps;
+  is_active: boolean;
+} & Timestamps;
 
 export type Company = {
   id: string;
@@ -213,7 +215,8 @@ export type Deal = {
   stage_updated_at: string | null;
   closed_at: string | null;
   last_updated_by: string | null;
-} & Timestamps;
+} & SoftDeletable &
+  Timestamps;
 
 export type Contract = {
   id: string;

@@ -1,0 +1,30 @@
+import { getCorporateTypes, getLeadSources } from "@/actions/masters";
+import { getCrmUsers } from "@/actions/users";
+import { CompanyNewForm } from "./company-new-form";
+
+export default async function CompanyNewPage() {
+  const [corporateTypesResult, leadSourcesResult, usersResult] = await Promise.all([
+    getCorporateTypes(),
+    getLeadSources(),
+    getCrmUsers(),
+  ]);
+
+  type MasterItem = { id: string; name: string };
+
+  const masters = {
+    corporateTypes: ((corporateTypesResult.data ?? []) as MasterItem[]).map((t) => ({
+      value: t.id,
+      label: t.name,
+    })),
+    leadSources: ((leadSourcesResult.data ?? []) as MasterItem[]).map((l) => ({
+      value: l.id,
+      label: l.name,
+    })),
+    owners: (usersResult.data ?? []).map((u) => ({
+      value: u.id,
+      label: u.full_name,
+    })),
+  };
+
+  return <CompanyNewForm masters={masters} />;
+}

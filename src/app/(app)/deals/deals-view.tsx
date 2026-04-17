@@ -144,6 +144,7 @@ export function DealsView({
               borderRadius: "var(--radius-button)",
               color: "var(--color-text-title)",
               backgroundColor: "#fff",
+              cursor: "pointer",
             }}
             onClick={() => setPipelineOpen(!pipelineOpen)}
           >
@@ -173,6 +174,7 @@ export function DealsView({
                       p.id === selectedPipelineId
                         ? "var(--color-sumi50)"
                         : "transparent",
+                    cursor: "pointer",
                   }}
                   onClick={() => handlePipelineChange(p.id)}
                 >
@@ -198,6 +200,7 @@ export function DealsView({
               backgroundColor:
                 view === "kanban" ? "var(--color-terra)" : "#fff",
               color: view === "kanban" ? "#fff" : "var(--color-sumi600)",
+              cursor: "pointer",
             }}
             onClick={() => setView("kanban")}
           >
@@ -210,6 +213,7 @@ export function DealsView({
               backgroundColor:
                 view === "table" ? "var(--color-terra)" : "#fff",
               color: view === "table" ? "#fff" : "var(--color-sumi600)",
+              cursor: "pointer",
             }}
             onClick={() => setView("table")}
           >
@@ -235,6 +239,7 @@ export function DealsView({
                   backgroundColor:
                     groupBy === "stage" ? "var(--color-terra)" : "#fff",
                   color: groupBy === "stage" ? "#fff" : "var(--color-sumi600)",
+                  cursor: "pointer",
                 }}
                 onClick={() => setGroupBy("stage")}
               >
@@ -246,6 +251,7 @@ export function DealsView({
                   backgroundColor:
                     groupBy === "status" ? "var(--color-terra)" : "#fff",
                   color: groupBy === "status" ? "#fff" : "var(--color-sumi600)",
+                  cursor: "pointer",
                 }}
                 onClick={() => setGroupBy("status")}
               >
@@ -265,6 +271,7 @@ export function DealsView({
                   backgroundColor: "#fff",
                   color: "var(--color-text-title)",
                   outline: "none",
+                  cursor: "pointer",
                 }}
               >
                 <option value="">全ステージ</option>
@@ -286,6 +293,7 @@ export function DealsView({
                   backgroundColor: "#fff",
                   color: "var(--color-text-title)",
                   outline: "none",
+                  cursor: "pointer",
                 }}
               >
                 <option value="">全ステータス</option>
@@ -393,14 +401,20 @@ function KanbanView({
   }
 
   // カラム一覧とカラー割当を準備
+  const stagesList = data.stages ?? [];
+  const statusesList = data.statuses ?? [];
   const rawColumns: Column[] =
     groupBy === "stage"
-      ? data.stages.map(({ stage, deals }) => ({ ...stage, deals }))
-      : data.statuses.map(({ status, deals }) => ({ ...status, deals }));
+      ? stagesList.map(({ stage, deals }) => ({ ...stage, deals }))
+      : statusesList.map(({ status, deals }) => ({ ...status, deals }));
 
-  // 絞り込み
+  // 絞り込み: カラムは常に全表示、未選択カラムはディールのみ非表示
   const filter = groupBy === "stage" ? stageFilter : statusFilter;
-  const columns = filter ? rawColumns.filter((c) => c.id === filter) : rawColumns;
+  const columns = filter
+    ? rawColumns.map((c) =>
+        c.id === filter ? c : { ...c, deals: [] as any[] }
+      )
+    : rawColumns;
 
   // sort_order 順（rawColumns の index）で色を固定
   const colorByColumnId = new Map<string, ReturnType<typeof getScaleColor>>();
@@ -408,7 +422,7 @@ function KanbanView({
 
   // ステータス色（カードのバッジ用）— groupBy に関わらず status 側の index を使用
   const statusColorById = new Map<string, ReturnType<typeof getScaleColor>>();
-  data.statuses.forEach(({ status }, i) =>
+  statusesList.forEach(({ status }, i) =>
     statusColorById.set(status.id, getScaleColor(i))
   );
 
@@ -431,14 +445,28 @@ function KanbanView({
   }
 
   return (
-    <div className="flex gap-4 overflow-x-auto pb-4">
+    <div
+      className="no-scrollbar"
+      style={{
+        display: "flex",
+        flexDirection: "row",
+        gap: "1rem",
+        overflowX: "auto",
+        paddingBottom: "1rem",
+        alignItems: "flex-start",
+      }}
+    >
       {columns.map((col) => {
         const color = colorByColumnId.get(col.id) ?? getScaleColor(0);
         return (
         <div
           key={col.id}
-          className="flex-shrink-0 flex flex-col"
-          style={{ width: 280 }}
+          style={{
+            width: 280,
+            flexShrink: 0,
+            display: "flex",
+            flexDirection: "column",
+          }}
         >
           {/* カラムヘッダー */}
           <div
@@ -446,7 +474,6 @@ function KanbanView({
             style={{
               backgroundColor: color.bg,
               borderRadius: "var(--radius-button)",
-              borderLeft: `3px solid ${color.solid}`,
             }}
           >
             <span

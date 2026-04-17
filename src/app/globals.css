@@ -15,3 +15,16 @@ body {
   color: var(--color-text-body);
   background-color: var(--color-bg-default);
 }
+
+/* スクロールバー非表示ユーティリティ（スクロールは可能） */
+@layer utilities {
+  .no-scrollbar {
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+  }
+}

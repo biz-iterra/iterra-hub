@@ -173,7 +173,7 @@ function onFocus(e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HT
   e.currentTarget.style.boxShadow = "0 0 0 3px var(--color-focus-ring)";
 }
 function onBlur(e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {
-  e.currentTarget.style.borderColor = "";
+  e.currentTarget.style.borderColor = "var(--color-border-default)";
   e.currentTarget.style.boxShadow = "";
 }
 
@@ -335,7 +335,7 @@ export function CompanyEditForm({
               />
             </div>
             <div>
-              <label style={styles.label}>事業者種別</label>
+              <label style={styles.label}>法人格</label>
               <select
                 style={styles.input}
                 value={values.corporate_type_id}

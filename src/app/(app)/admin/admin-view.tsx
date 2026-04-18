@@ -13,6 +13,7 @@ import {
   getAccountStatuses, createAccountStatusAction, updateAccountStatus, deleteAccountStatus,
   getContactStatuses, createContactStatusAction, updateContactStatus, deleteContactStatus,
   getCompanyStatuses, createCompanyStatusAction, updateCompanyStatus, deleteCompanyStatus,
+  getProjectStatusesMasters, createProjectStatus, updateProjectStatus, deleteProjectStatus,
   getSkillCategories, createSkillCategory, updateSkillCategory, deleteSkillCategory,
   getSkills, createSkill, updateSkill, deleteSkill,
 } from "@/actions/masters";
@@ -27,20 +28,21 @@ type MasterItem = Record<string, unknown> & { id: string; name: string };
 
 const TAB_KEYS = [
   "pipeline", "contract_types", "corporate_types", "services",
-  "lead_sources", "account_types", "account_statuses", "contact_statuses", "company_statuses", "skills",
+  "lead_sources", "account_types", "account_statuses", "contact_statuses", "company_statuses", "project_statuses", "skills",
 ] as const;
 type TabKey = (typeof TAB_KEYS)[number];
 
 const TAB_LABELS: Record<TabKey, string> = {
   pipeline: "パイプライン",
   contract_types: "契約種別",
-  corporate_types: "事業者種別",
+  corporate_types: "法人格",
   services: "サービス",
   lead_sources: "リードソース",
   account_types: "アカウント種別",
   account_statuses: "アカウントステータス",
   contact_statuses: "コンタクトステータス",
   company_statuses: "カンパニーステータス",
+  project_statuses: "プロジェクトステータス",
   skills: "スキル",
 };
 
@@ -220,7 +222,7 @@ function FormModal({
                     e.currentTarget.style.boxShadow = "0 0 0 3px var(--color-focus-ring)";
                   }}
                   onBlur={(e) => {
-                    e.currentTarget.style.borderColor = "";
+                    e.currentTarget.style.borderColor = "var(--color-border-default)";
                     e.currentTarget.style.boxShadow = "";
                   }}
                 />
@@ -234,7 +236,7 @@ function FormModal({
                     e.currentTarget.style.boxShadow = "0 0 0 3px var(--color-focus-ring)";
                   }}
                   onBlur={(e) => {
-                    e.currentTarget.style.borderColor = "";
+                    e.currentTarget.style.borderColor = "var(--color-border-default)";
                     e.currentTarget.style.boxShadow = "";
                   }}
                 >
@@ -254,7 +256,7 @@ function FormModal({
                     e.currentTarget.style.boxShadow = "0 0 0 3px var(--color-focus-ring)";
                   }}
                   onBlur={(e) => {
-                    e.currentTarget.style.borderColor = "";
+                    e.currentTarget.style.borderColor = "var(--color-border-default)";
                     e.currentTarget.style.boxShadow = "";
                   }}
                 />
@@ -269,7 +271,7 @@ function FormModal({
                     e.currentTarget.style.boxShadow = "0 0 0 3px var(--color-focus-ring)";
                   }}
                   onBlur={(e) => {
-                    e.currentTarget.style.borderColor = "";
+                    e.currentTarget.style.borderColor = "var(--color-border-default)";
                     e.currentTarget.style.boxShadow = "";
                   }}
                 />
@@ -396,11 +398,23 @@ function SimpleMasterTab({
             ) : (
               items.map((item) => (
                 <TableRow key={item.id}>
-                  {fields.map((f) => (
-                    <td key={f.key} style={{ padding: "0.75rem", fontSize: "0.875rem" }}>
-                      {String(item[f.key] ?? "-")}
-                    </td>
-                  ))}
+                  {fields.map((f) => {
+                    const raw = item[f.key];
+                    let display: string;
+                    if (raw == null || raw === "") {
+                      display = "-";
+                    } else if (f.type === "select" && f.options) {
+                      const opt = f.options.find((o) => o.value === raw);
+                      display = opt?.label ?? String(raw);
+                    } else {
+                      display = String(raw);
+                    }
+                    return (
+                      <td key={f.key} style={{ padding: "0.75rem", fontSize: "0.875rem" }}>
+                        {display}
+                      </td>
+                    );
+                  })}
                   <td style={{ padding: "0.75rem", textAlign: "right" }}>
                     <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
                       <button
@@ -714,11 +728,12 @@ export function AdminView() {
   const [accountStatuses, setAccountStatuses] = useState<MasterItem[]>([]);
   const [contactStatuses, setContactStatuses] = useState<MasterItem[]>([]);
   const [companyStatuses, setCompanyStatuses] = useState<MasterItem[]>([]);
+  const [projectStatuses, setProjectStatuses] = useState<MasterItem[]>([]);
   const [loadingData, setLoadingData] = useState(true);
 
   const loadAllSimpleMasters = useCallback(async () => {
     setLoadingData(true);
-    const [ct, corp, svc, ls, at, as_, cs, cps] = await Promise.all([
+    const [ct, corp, svc, ls, at, as_, cs, cps, ps] = await Promise.all([
       getContractTypes(),
       getCorporateTypes(),
       getServices(),
@@ -727,6 +742,7 @@ export function AdminView() {
       getAccountStatuses(),
       getContactStatuses(),
       getCompanyStatuses(),
+      getProjectStatusesMasters(),
     ]);
     setContractTypes((ct.data as MasterItem[]) ?? []);
     setCorporateTypes((corp.data as MasterItem[]) ?? []);
@@ -736,6 +752,7 @@ export function AdminView() {
     setAccountStatuses((as_.data as MasterItem[]) ?? []);
     setContactStatuses((cs.data as MasterItem[]) ?? []);
     setCompanyStatuses((cps.data as MasterItem[]) ?? []);
+    setProjectStatuses((ps.data as MasterItem[]) ?? []);
     setLoadingData(false);
   }, []);
 
@@ -775,6 +792,10 @@ export function AdminView() {
     const r = await getCompanyStatuses();
     setCompanyStatuses((r.data as MasterItem[]) ?? []);
   };
+  const refreshProjectStatuses = async () => {
+    const r = await getProjectStatusesMasters();
+    setProjectStatuses((r.data as MasterItem[]) ?? []);
+  };
 
   const renderTab = () => {
     if (activeTab === "pipeline") return <PipelineTab />;
@@ -798,7 +819,7 @@ export function AdminView() {
       case "corporate_types":
         return (
           <SimpleMasterTab
-            title="事業者種別"
+            title="法人格"
             items={corporateTypes}
             onCreate={createCorporateType}
             onUpdate={updateCorporateType}
@@ -885,6 +906,21 @@ export function AdminView() {
             fields={[{ key: "name", label: "名前", type: "text" }]}
           />
         );
+      case "project_statuses":
+        return (
+          <SimpleMasterTab
+            title="プロジェクトステータス"
+            items={projectStatuses}
+            onCreate={createProjectStatus}
+            onUpdate={updateProjectStatus}
+            onDelete={deleteProjectStatus}
+            onRefresh={refreshProjectStatuses}
+            fields={[
+              { key: "name", label: "名前", type: "text" },
+              { key: "sort_order", label: "表示順", type: "number" },
+            ]}
+          />
+        );
       default:
         return null;
     }
@@ -897,25 +933,46 @@ export function AdminView() {
         <h1 style={{ ...styles.title, fontSize: "1.5rem", fontWeight: 700, margin: 0 }}>
           マスタ管理
         </h1>
-        <a
-          href="/admin/deleted"
-          className="hover:bg-[var(--color-bg-hover)]"
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "0.25rem",
-            color: "var(--color-terra)",
-            textDecoration: "none",
-            padding: "0.375rem 0.75rem",
-            borderRadius: "var(--radius-sm)",
-            fontSize: "0.875rem",
-            fontWeight: 500,
-            border: "1px solid var(--color-border-default)",
-            transition: "background-color 0.15s",
-          }}
-        >
-          削除済みレコードを管理 →
-        </a>
+        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+          <a
+            href="/admin/inside-sales/import"
+            className="hover:bg-[var(--color-bg-hover)]"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "0.25rem",
+              color: "var(--color-terra)",
+              textDecoration: "none",
+              padding: "0.375rem 0.75rem",
+              borderRadius: "var(--radius-sm)",
+              fontSize: "0.875rem",
+              fontWeight: 500,
+              border: "1px solid var(--color-border-default)",
+              transition: "background-color 0.15s",
+            }}
+          >
+            IS 取込 →
+          </a>
+          <a
+            href="/admin/deleted"
+            className="hover:bg-[var(--color-bg-hover)]"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "0.25rem",
+              color: "var(--color-terra)",
+              textDecoration: "none",
+              padding: "0.375rem 0.75rem",
+              borderRadius: "var(--radius-sm)",
+              fontSize: "0.875rem",
+              fontWeight: 500,
+              border: "1px solid var(--color-border-default)",
+              transition: "background-color 0.15s",
+            }}
+          >
+            削除済みレコードを管理 →
+          </a>
+        </div>
       </div>
 
       {/* Tab bar */}

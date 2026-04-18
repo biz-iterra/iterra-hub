@@ -307,38 +307,40 @@ export function DealsView({
           </>
         )}
 
-        {/* 検索（テーブルビュー時） */}
-        {view === "table" && (
-          <div className="relative flex-1 max-w-sm">
-            <Search
-              size={16}
-              className="absolute left-3 top-1/2 -translate-y-1/2"
-              style={{ color: "var(--color-sumi400)" }}
-            />
-            <input
-              type="text"
-              placeholder="ディール名 / コードで検索..."
-              value={search}
-              onChange={(e) => handleSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 text-sm outline-none bg-transparent"
-              style={{
-                borderBottom: "1px solid var(--color-border-default)",
-                color: "var(--color-text-title)",
-              }}
-              onFocus={(e) => {
-                e.currentTarget.style.borderBottomColor =
-                  "var(--color-border-focus)";
-                e.currentTarget.style.boxShadow =
-                  "0 0 0 3px var(--color-focus-ring)";
-              }}
-              onBlur={(e) => {
-                e.currentTarget.style.borderBottomColor =
-                  "var(--color-border-default)";
-                e.currentTarget.style.boxShadow = "none";
-              }}
-            />
-          </div>
-        )}
+        {/* 検索（両ビュー共通） */}
+        <div className="relative flex-1 max-w-sm">
+          <Search
+            size={16}
+            className="absolute left-3 top-1/2 -translate-y-1/2"
+            style={{ color: "var(--color-sumi400)" }}
+          />
+          <input
+            type="text"
+            placeholder={
+              view === "table"
+                ? "ディール名 / コードで検索..."
+                : "ディール名 / コード / アカウントで絞り込み..."
+            }
+            value={search}
+            onChange={(e) => handleSearch(e.target.value)}
+            className="w-full pl-9 pr-3 py-2 text-sm outline-none bg-transparent"
+            style={{
+              borderBottom: "1px solid var(--color-border-default)",
+              color: "var(--color-text-title)",
+            }}
+            onFocus={(e) => {
+              e.currentTarget.style.borderBottomColor =
+                "var(--color-border-focus)";
+              e.currentTarget.style.boxShadow =
+                "0 0 0 3px var(--color-focus-ring)";
+            }}
+            onBlur={(e) => {
+              e.currentTarget.style.borderBottomColor =
+                "var(--color-border-default)";
+              e.currentTarget.style.boxShadow = "none";
+            }}
+          />
+        </div>
 
         {isPending && (
           <span
@@ -357,6 +359,7 @@ export function DealsView({
           groupBy={groupBy}
           stageFilter={stageFilter}
           statusFilter={statusFilter}
+          searchQuery={search}
         />
       ) : (
         <TableView data={listData} />
@@ -378,11 +381,13 @@ function KanbanView({
   groupBy,
   stageFilter,
   statusFilter,
+  searchQuery,
 }: {
   data: KanbanData;
   groupBy: GroupBy;
   stageFilter: string | null;
   statusFilter: string | null;
+  searchQuery: string;
 }) {
   if (!data) {
     return (
@@ -410,11 +415,25 @@ function KanbanView({
 
   // 絞り込み: カラムは常に全表示、未選択カラムはディールのみ非表示
   const filter = groupBy === "stage" ? stageFilter : statusFilter;
-  const columns = filter
+  const filteredByColumn = filter
     ? rawColumns.map((c) =>
         c.id === filter ? c : { ...c, deals: [] as any[] }
       )
     : rawColumns;
+
+  // 検索クエリによるクライアントサイド絞り込み（ディール名 / コード / アカウント名 を大文字小文字区別なし部分一致）
+  const q = searchQuery.trim().toLowerCase();
+  const columns = q
+    ? filteredByColumn.map((c) => ({
+        ...c,
+        deals: c.deals.filter((d: any) => {
+          const name = String(d.name ?? "").toLowerCase();
+          const code = String(d.deal_code ?? "").toLowerCase();
+          const accountName = String(d.account?.name ?? "").toLowerCase();
+          return name.includes(q) || code.includes(q) || accountName.includes(q);
+        }),
+      }))
+    : filteredByColumn;
 
   // sort_order 順（rawColumns の index）で色を固定
   const colorByColumnId = new Map<string, ReturnType<typeof getScaleColor>>();
@@ -642,7 +661,18 @@ function TableView({ data }: { data: ListData }) {
         boxShadow: "var(--elevation-low)",
       }}
     >
-      <table className="w-full text-sm">
+      <table className="w-full text-sm" style={{ tableLayout: "auto" }}>
+        <colgroup>
+          <col style={{ width: "110px" }} />
+          <col style={{ minWidth: "220px" }} />
+          <col style={{ width: "120px" }} />
+          <col style={{ width: "120px" }} />
+          <col style={{ width: "110px" }} />
+          <col style={{ minWidth: "220px" }} />
+          <col style={{ width: "140px" }} />
+          <col style={{ width: "110px" }} />
+          <col style={{ width: "88px" }} />
+        </colgroup>
         <thead>
           <tr style={{ backgroundColor: "var(--color-sumi50)" }}>
             {[
@@ -657,7 +687,7 @@ function TableView({ data }: { data: ListData }) {
             ].map((label, i) => (
               <th
                 key={label}
-                className={`px-4 py-3 font-semibold text-xs ${
+                className={`px-4 py-3 font-semibold text-xs whitespace-nowrap ${
                   i === 4 ? "text-right" : "text-left"
                 }`}
                 style={{ color: "var(--color-sumi600)" }}
@@ -666,7 +696,7 @@ function TableView({ data }: { data: ListData }) {
               </th>
             ))}
             <th
-              className="px-4 py-3 font-semibold text-xs text-right"
+              className="px-4 py-3 font-semibold text-xs text-right whitespace-nowrap"
               style={{ color: "var(--color-sumi600)" }}
             >
               操作
@@ -706,7 +736,7 @@ function TableView({ data }: { data: ListData }) {
                   {deal.name}
                 </Link>
               </td>
-              <td className="px-4 py-3">
+              <td className="px-4 py-3 whitespace-nowrap">
                 {deal.deal_stage?.name ? (() => {
                   const c = getScaleColor(hashToIndex(deal.deal_stage.id));
                   return (
@@ -719,6 +749,7 @@ function TableView({ data }: { data: ListData }) {
                         padding: "0.125rem 0.5rem",
                         fontSize: "0.75rem",
                         fontWeight: 500,
+                        whiteSpace: "nowrap",
                       }}
                     >
                       {deal.deal_stage.name}
@@ -728,7 +759,7 @@ function TableView({ data }: { data: ListData }) {
                   <span style={{ color: "var(--color-sumi500)" }}>—</span>
                 )}
               </td>
-              <td className="px-4 py-3">
+              <td className="px-4 py-3 whitespace-nowrap">
                 {deal.deal_status?.name ? (() => {
                   const c = getScaleColor(hashToIndex(deal.deal_status.id));
                   return (
@@ -741,6 +772,7 @@ function TableView({ data }: { data: ListData }) {
                         padding: "0.125rem 0.5rem",
                         fontSize: "0.75rem",
                         fontWeight: 500,
+                        whiteSpace: "nowrap",
                       }}
                     >
                       {deal.deal_status.name}
@@ -751,19 +783,26 @@ function TableView({ data }: { data: ListData }) {
                 )}
               </td>
               <td
-                className="px-4 py-3 text-right font-mono"
+                className="px-4 py-3 text-right font-mono whitespace-nowrap"
                 style={{ color: "var(--color-text-title)" }}
               >
                 {formatAmount(deal.amount)}
               </td>
-              <td className="px-4 py-3" style={{ color: "var(--color-sumi600)" }}>
+              <td
+                className="px-4 py-3 truncate"
+                style={{ color: "var(--color-sumi600)", maxWidth: "260px" }}
+                title={deal.account?.name ?? ""}
+              >
                 {deal.account?.name ?? "—"}
               </td>
-              <td className="px-4 py-3" style={{ color: "var(--color-sumi600)" }}>
+              <td
+                className="px-4 py-3 whitespace-nowrap"
+                style={{ color: "var(--color-sumi600)" }}
+              >
                 {deal.owner?.full_name ?? "—"}
               </td>
               <td
-                className="px-4 py-3 text-xs"
+                className="px-4 py-3 text-xs whitespace-nowrap"
                 style={{ color: "var(--color-sumi500)" }}
               >
                 {deal.created_at

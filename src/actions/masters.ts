@@ -15,6 +15,7 @@ import {
   createCompanyStatusSchema, updateCompanyStatusSchema,
   createSkillCategorySchema, updateSkillCategorySchema,
   createSkillSchema, updateSkillSchema,
+  createProjectStatusSchema, updateProjectStatusSchema,
 } from "@/lib/validators";
 import type { z } from "zod";
 
@@ -76,7 +77,7 @@ export async function createMasterRecord(
   const parsed = schema.safeParse(input);
   if (!parsed.success) return { data: null, error: parsed.error.issues[0].message };
 
-  const { data, error } = await supabase.from(tableName).insert(parsed.data as Record<string, unknown>).select().single();
+  const { data, error } = await supabase.from(tableName).insert({ ...(parsed.data as Record<string, unknown>), created_by: user.id }).select().single();
   if (error) return { data: null, error: error.message };
   return { data, error: null };
 }
@@ -97,7 +98,7 @@ export async function updateMasterRecord(
   const parsed = schema.safeParse(input);
   if (!parsed.success) return { data: null, error: parsed.error.issues[0].message };
 
-  const { data, error } = await supabase.from(tableName).update(parsed.data as Record<string, unknown>).eq("id", id).select().single();
+  const { data, error } = await supabase.from(tableName).update({ ...(parsed.data as Record<string, unknown>), last_updated_by: user.id }).eq("id", id).select().single();
   if (error) return { data: null, error: error.message };
   return { data, error: null };
 }
@@ -113,6 +114,7 @@ export async function deleteMasterRecord(tableName: string, id: string): Promise
   const { error } = await supabase.from(tableName).update({
     deleted_at: new Date().toISOString(),
     deleted_by: user.id,
+    last_updated_by: user.id,
   }).eq("id", id);
   if (error) return { data: null, error: error.message };
   return { data: null, error: null };
@@ -246,6 +248,16 @@ export async function updateCompanyStatus(id: string, input: Record<string, unkn
   return updateMasterRecord("company_statuses", id, input, updateCompanyStatusSchema);
 }
 export async function deleteCompanyStatus(id: string) { return deleteMasterRecord("company_statuses", id); }
+
+// Project Statuses
+export async function getProjectStatusesMasters() { return getMasterList("project_statuses", { useSortOrder: true }); }
+export async function createProjectStatus(input: Record<string, unknown>) {
+  return createMasterRecord("project_statuses", input, createProjectStatusSchema);
+}
+export async function updateProjectStatus(id: string, input: Record<string, unknown>) {
+  return updateMasterRecord("project_statuses", id, input, updateProjectStatusSchema);
+}
+export async function deleteProjectStatus(id: string) { return deleteMasterRecord("project_statuses", id); }
 
 // Skill Categories
 export async function getSkillCategories() { return getMasterList("skill_categories", { useSortOrder: true }); }

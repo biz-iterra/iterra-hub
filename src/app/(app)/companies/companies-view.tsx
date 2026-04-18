@@ -142,7 +142,7 @@ export function CompaniesView({ initialData }: { initialData: CompaniesData }) {
                   >
                     <th className="px-4 py-3 text-left">会社コード</th>
                     <th className="px-4 py-3 text-left">会社名</th>
-                    <th className="px-4 py-3 text-left">事業者種別</th>
+                    <th className="px-4 py-3 text-left">法人格</th>
                     <th className="px-4 py-3 text-left">ステータス</th>
                     <th className="px-4 py-3 text-left">代表電話</th>
                     <th className="px-4 py-3 text-left">担当者</th>

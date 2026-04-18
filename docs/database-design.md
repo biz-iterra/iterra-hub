@@ -21,7 +21,7 @@ ITERRAの営業・取引管理CRMシステムを新規構築する。現在ス�
 |---|-------------|-------------|------|----------|
 | M01 | パイプライン種別 | `pipeline_types` | 取引の種類（営業、仕入れ等） | 静的マスタ |
 | M02 | 契約種別 | `contract_types` | 契約の分類 | 静的マスタ |
-| M03 | 事業者種別 | `corporate_types` | 法人/個人事業主等 | 静的マスタ |
+| M03 | 法人格 | `corporate_types` | 株式会社・合同会社・個人事業主等 | 静的マスタ |
 | M04 | サービス | `services` | ITERRAが提供するサービス | 静的マスタ |
 | M05 | リードソース | `lead_sources` | 顧客獲得経路 | 静的マスタ |
 | M06 | アカウント種別 | `account_types` | アカウントの分類 | 静的マスタ |
@@ -29,6 +29,14 @@ ITERRAの営業・取引管理CRMシステムを新規構築する。現在ス�
 | M08 | コンタクトステータス | `contact_statuses` | コンタクトの状態 | 静的マスタ |
 | M09 | スキルカテゴリ | `skill_categories` | スキルの分類（技術/ビジネス等） | 静的マスタ |
 | M10 | スキル | `skills` | 個別スキル定義 | 静的マスタ |
+| M12 | プロジェクトステータス | `project_statuses` | プロジェクトの状態 | 静的マスタ |
+| M11 | カンパニーステータス | `company_statuses` | カンパニーの状態 | 静的マスタ |
+| M12 | （欠番） | — | — | — |
+| M13 | IS フェーズ | `inside_sales_phases` | インサイドセールス固有フェーズ（ホット/ウォーム/コールド） | パイプライン固有マスタ |
+| M14 | IS 大セグメント | `inside_sales_large_segments` | インサイドセールス 大セグメント | パイプライン固有マスタ |
+| M15 | IS 小セグメント | `inside_sales_small_segments` | インサイドセールス 小セグメント（M14従属） | パイプライン固有マスタ |
+| M16 | IS 架電ステータス | `inside_sales_call_statuses` | 架電結果の分類 | パイプライン固有マスタ |
+| M17 | IS 架電担当者 | `inside_sales_callers` | 架電担当者（社内/社外BPO対応） | パイプライン固有マスタ |
 
 ### 2.2 構造化マスタ（階層・依存関係あり）
 他マスタとの依存関係を持つ。参照整合性が重要。
@@ -59,6 +67,7 @@ ITERRAの営業・取引管理CRMシステムを新規構築する。現在ス�
 | T05 | ディール | `deals` | 取引 |
 | T06 | 契約 | `contracts` | 契約情報 |
 | T07 | タレント | `talents` | コンタクトに紐づく人材特性情報 |
+| T08 | プロジェクト | `projects` | 複数ディールをグルーピングする業務イニシアチブ |
 
 ### 2.5 従属エンティティ（親に依存）
 親エンティティのライフサイクルに従う。親削除時にCASCADE。
@@ -71,6 +80,15 @@ ITERRAの営業・取引管理CRMシステムを新規構築する。現在ス�
 | D04 | 追加住所 | `other_addresses` | T02/T04 | Company/Contact 1 : N Addr |
 | D05 | タレントスキル | `talent_skills` | T07 talents | Talent N : M Skills |
 | D06 | タレント経歴 | `talent_careers` | T07 talents | Talent 1 : N Career |
+| D07 | プロジェクトメンバー | `project_members` | T08 projects | Project 1 : N Member（crm_users参照） |
+
+### 2.5b パイプライン拡張（Deal 1:1 / 1:N）
+パイプラインごとに固有カラムを保持する拡張テーブル。共通規約については §9 参照。
+
+| # | テーブル論理名 | テーブル物理名 | 親 | 多重度 | 対応パイプライン |
+|---|-------------|-------------|---|--------|----------------|
+| EX01 | IS 拡張本体 | `deal_ext_inside_sales` | T05 deals | Deal 1:1 | `inside_sales` |
+| EX02 | IS 架電記録 | `deal_ext_inside_sales_calls` | T05 deals | Deal 1:N | `inside_sales` |
 
 ### 2.6 中間テーブル（N:M関係）
 
@@ -78,6 +96,7 @@ ITERRAの営業・取引管理CRMシステムを新規構築する。現在ス�
 |---|-------------|-------------|------|
 | J01 | ディール×サービス | `deal_services` | Deal N : M Service |
 | J02 | アカウント×コンタクト | `account_contacts` | Account N : M Contact |
+| J03 | ディール×プロジェクト | `deal_projects` | Deal N : M Project |
 
 ### 2.7 アクティビティ / ログ
 
@@ -93,6 +112,7 @@ ITERRAの営業・取引管理CRMシステムを新規構築する。現在ス�
 | A08 | コンタクト変更履歴 | `contact_change_histories` | コンタクトのフィールド変更履歴 |
 | A09 | ディール変更履歴 | `deal_change_histories` | ディールのフィールド変更履歴 |
 | A10 | タレント変更履歴 | `talent_change_histories` | タレントのフィールド変更履歴 |
+| A11 | プロジェクト変更履歴 | `project_change_histories` | プロジェクトのフィールド変更履歴 |
 
 ---
 
@@ -133,6 +153,11 @@ ITERRAの営業・取引管理CRMシステムを新規構築する。現在ス�
 [companies] 1──N [other_addresses]
 [contacts]  1──N [financial_info]
 [contacts]  1──N [other_addresses]
+
+[projects] N──M [deals] via [deal_projects]
+[projects] 1──N [project_members] N──1 [crm_users]
+[projects] N──1 [project_statuses]
+[projects] N──1 [crm_users] (owner)
 ```
 
 **コンタクトの紐づけルール（contact_typeで制御）:**
@@ -195,6 +220,13 @@ ITERRAの営業・取引管理CRMシステムを新規構築する。現在ス�
 | talents | talent_change_histories | 1:N | 任意 | タレントのフィールド変更履歴 |
 | crm_users | deals (owner) | 1:N | 任意 | 担当者未割当のディールも存在可能 |
 | crm_users | accounts (owner) | 1:N | 任意 | 担当者未割当のアカウントも存在可能 |
+| project_statuses | projects | 1:N | 必須 | プロジェクトは必ず1つのステータスに属する |
+| crm_users | projects (owner) | 1:N | 任意 | プロジェクト責任者未割当も可能 |
+| projects | project_members | 1:N | 任意 | メンバー0件のプロジェクトも可（初期作成直後など） |
+| crm_users | project_members | 1:N | 任意 | 1ユーザーが複数プロジェクトに所属可能 |
+| deals | deal_projects | 1:N | 任意 | ディールは複数プロジェクトに紐づきうる（OEM契約等） |
+| projects | deal_projects | 1:N | 任意 | プロジェクトは複数ディールを束ねる |
+| projects | project_change_histories | 1:N | 任意 | プロジェクトのフィールド変更履歴 |
 
 ---
 
@@ -207,6 +239,31 @@ ITERRAの営業・取引管理CRMシステムを新規構築する。現在ス�
 - **デフォルト**: DEFAULT値
 - **バリデーション**: アプリ層(Zod)での追加検証ルール
 
+### 共通監査カラム（Phase E 以降、全テーブル共通）
+
+以下の監査カラムは全エンティティ（マスタ・トランザクション・従属・中間）に適用される。個別の表では省略する場合がある（簡潔化のため）。
+
+| 論理名 | 物理名 | 型 | NN | デフォルト | 用途 |
+|---|---|---|---|---|---|
+| 作成日時 | `created_at` | TIMESTAMPTZ | NN | NOW() | 作成時刻。更新不可。 |
+| 更新日時 | `updated_at` | TIMESTAMPTZ | NN | NOW() | `update_updated_at()` トリガーで自動更新。中間テーブルのみ省略。 |
+| **作成者** | `created_by` | UUID FK→T01.id | NN | admin UUID | Server Action で `auth.uid()` を設定。未指定時は admin にフォールバック。 |
+| **最終更新者** | `last_updated_by` | UUID FK→T01.id | | | UPDATE 時に Server Action で設定。中間テーブルは保持しない。 |
+| 削除日時 | `deleted_at` | TIMESTAMPTZ | | NULL | 論理削除日時。`is_active` は廃止し本カラムで代替。 |
+| 削除実行者 | `deleted_by` | UUID FK→T01.id | | | 論理削除実行者。 |
+| 削除理由 | `deletion_reason` | TEXT | | | 任意入力の削除理由。 |
+
+**除外テーブル:**
+- `crm_users` / `activity_logs` / `*_change_histories` / `R01 constellation_fortune_telling` / `R02 number_diagnosis`
+- 理由: 既に相当カラム保有 / INSERT ONLY / 読み取り専用
+
+**「いつ・誰が・何を・どのように」追跡の役割分担:**
+| 操作 | 「いつ・誰が」の捕捉 | 「何を・どのように」の捕捉 |
+|---|---|---|
+| CREATE | `created_at` + `created_by` | INSERT レコード自体 |
+| UPDATE | `updated_at` + `last_updated_by` | `*_change_histories`（フィールド単位の old/new） |
+| DELETE（論理） | `deleted_at` + `deleted_by` | `deletion_reason` |
+
 ---
 
 ### M01: pipeline_types（パイプライン種別）
@@ -218,8 +275,13 @@ ITERRAの営業・取引管理CRMシステムを新規構築する。現在ス�
 | 3 | パイプライン説明 | `description` | TEXT | | | | | | | max 500文字 |
 | 4 | 表示順 | `sort_order` | INTEGER | | | | NN | 0 | >= 0 | |
 | 5 | 有効フラグ | `is_active` | BOOLEAN | | | | NN | TRUE | | |
-| 6 | 作成日時 | `created_at` | TIMESTAMPTZ | | | | NN | NOW() | | 更新不可 |
-| 7 | 更新日時 | `updated_at` | TIMESTAMPTZ | | | | NN | NOW() | | トリガー自動更新 |
+| 6 | **識別子** | **`slug`** | **VARCHAR(32)** | | | **UK** | **NN** | | **`^[a-z][a-z0-9_]{0,31}$`** | **拡張テーブル・UI解決キー** |
+| 7 | 作成日時 | `created_at` | TIMESTAMPTZ | | | | NN | NOW() | | 更新不可 |
+| 8 | 更新日時 | `updated_at` | TIMESTAMPTZ | | | | NN | NOW() | | トリガー自動更新 |
+
+**slug について:**
+- パイプラインごとのUI拡張コンポーネント（`src/components/deals/pipelines/<slug>/`）および拡張テーブル（`deal_ext_<slug>` 等）を解決するプログラムキー
+- バックフィル済み値: `sales` / `procurement` / `outsourcing` / `inside_sales`
 
 **CRUD:** 管理者のみ作成・更新・論理削除（is_active=FALSE）。物理削除不可（FKで参照される）。
 
@@ -239,12 +301,12 @@ ITERRAの営業・取引管理CRMシステムを新規構築する。現在ス�
 
 ---
 
-### M03: corporate_types（事業者種別）
+### M03: corporate_types（法人格）
 
 | # | 論理名 | 物理名 | 型 | PK | FK | UK | NN | デフォルト | 区分値/CHECK | バリデーション |
 |---|--------|--------|-----|----|----|----|----|----------|-------------|-------------|
 | 1 | ID | `id` | UUID | PK | | | NN | gen_random_uuid() | | |
-| 2 | 事業者種別名 | `name` | TEXT | | | UK | NN | | | 1-50文字 |
+| 2 | 法人格名 | `name` | TEXT | | | UK | NN | | | 1-50文字 |
 | 3 | 有効フラグ | `is_active` | BOOLEAN | | | | NN | TRUE | | |
 | 4 | 作成日時 | `created_at` | TIMESTAMPTZ | | | | NN | NOW() | | 更新不可 |
 | 5 | 更新日時 | `updated_at` | TIMESTAMPTZ | | | | NN | NOW() | | トリガー自動更新 |
@@ -303,9 +365,12 @@ ITERRAの営業・取引管理CRMシステムを新規構築する。現在ス�
 |---|--------|--------|-----|----|----|----|----|----------|-------------|-------------|
 | 1 | ID | `id` | UUID | PK | | | NN | gen_random_uuid() | | |
 | 2 | アカウントステータス名 | `name` | TEXT | | | UK | NN | | | 1-50文字 |
-| 3 | 有効フラグ | `is_active` | BOOLEAN | | | | NN | TRUE | | |
-| 4 | 作成日時 | `created_at` | TIMESTAMPTZ | | | | NN | NOW() | | 更新不可 |
-| 5 | 更新日時 | `updated_at` | TIMESTAMPTZ | | | | NN | NOW() | | トリガー自動更新 |
+| 3 | **コード** | **`code`** | **VARCHAR(32)** | | | **UK** | **NN** | | **`^[a-z][a-z0-9_]{0,31}$`** | **CSV取込キー** |
+| 4 | 有効フラグ | `is_active` | BOOLEAN | | | | NN | TRUE | | |
+| 5 | 作成日時 | `created_at` | TIMESTAMPTZ | | | | NN | NOW() | | 更新不可 |
+| 6 | 更新日時 | `updated_at` | TIMESTAMPTZ | | | | NN | NOW() | | トリガー自動更新 |
+
+**既存バックフィル:** `active` / `inactive` / `churned` / `prospect`（インサイドセールスの見込みリードは `prospect` を使用）
 
 **CRUD:** M01と同じパターン。
 
@@ -339,6 +404,22 @@ ITERRAの営業・取引管理CRMシステムを新規構築する。現在ス�
 
 **CRUD:** M01と同じパターン（SELECT は認証済み全員、INSERT/UPDATE/DELETE は admin のみ）。
 **初期値:** アクティブ / 休眠 / 取引停止 / 見込み
+
+---
+
+### M12: project_statuses（プロジェクトステータス）
+
+| # | 論理名 | 物理名 | 型 | PK | FK | UK | NN | デフォルト | 区分値/CHECK | バリデーション |
+|---|--------|--------|-----|----|----|----|----|----------|-------------|-------------|
+| 1 | ID | `id` | UUID | PK | | | NN | gen_random_uuid() | | |
+| 2 | プロジェクトステータス名 | `name` | TEXT | | | UK | NN | | | 1-50文字 |
+| 3 | 表示順 | `sort_order` | INTEGER | | | | NN | 0 | >= 0 | |
+| 4 | 有効フラグ | `is_active` | BOOLEAN | | | | NN | TRUE | | |
+| 5 | 作成日時 | `created_at` | TIMESTAMPTZ | | | | NN | NOW() | | 更新不可 |
+| 6 | 更新日時 | `updated_at` | TIMESTAMPTZ | | | | NN | NOW() | | トリガー自動更新 |
+
+**CRUD:** M01と同じパターン（SELECT は認証済み全員、INSERT/UPDATE/DELETE は admin のみ）。
+**初期値:** 計画中 / 進行中 / 保留 / 完了 / 中止
 
 ---
 
@@ -387,10 +468,18 @@ ITERRAの営業・取引管理CRMシステムを新規構築する。現在ス�
 | 7 | ステージ変更条件 | `transition_condition` | TEXT | | | | | | | max 500文字 |
 | 8 | 表示順 | `sort_order` | INTEGER | | | | NN | 0 | >= 0 | |
 | 9 | 有効フラグ | `is_active` | BOOLEAN | | | | NN | TRUE | | |
-| 10 | 作成日時 | `created_at` | TIMESTAMPTZ | | | | NN | NOW() | | 更新不可 |
-| 11 | 更新日時 | `updated_at` | TIMESTAMPTZ | | | | NN | NOW() | | トリガー自動更新 |
+| 10 | **フェーズID** | **`phase_id`** | **UUID** | | **（DB-FKなし）** | | | | **パイプライン固有 `<slug>_phases` を参照** | **アプリ層で整合性検証** |
+| 11 | 作成日時 | `created_at` | TIMESTAMPTZ | | | | NN | NOW() | | 更新不可 |
+| 12 | 更新日時 | `updated_at` | TIMESTAMPTZ | | | | NN | NOW() | | トリガー自動更新 |
 
 **UK:** (pipeline_type_id, name) — 同一パイプライン内でステージ名は一意
+
+**phase_id について:**
+- パイプライン単位の「フェーズ」（ステージの上位グルーピング）を表現
+- 参照先テーブルは `<pipeline_type.slug>_phases`（例: `inside_sales_phases`）。パイプラインごとに独立したテーブル
+- **DB層ではFK制約を張らない**。パイプライン追加時に `deal_stages` のスキーマ変更を不要にするため
+- 整合性はアプリ層で担保：`pipeline_type.slug` をキーに対応するphasesテーブルを解決し、phase_idがそのテーブルに存在することを検証
+
 **CRUD:** 管理者のみ。論理削除。FK参照により物理削除不可。
 
 ---
@@ -531,7 +620,7 @@ ITERRAの営業・取引管理CRMシステムを新規構築する。現在ス�
 |---|--------|--------|-----|----|----|----|----|----------|-------------|-------------|
 | 1 | ID | `id` | UUID | PK | | | NN | gen_random_uuid() | | |
 | 2 | 会社コード | `company_code` | VARCHAR(10) | | | UK | NN | トリガー自動採番 | 'CMP-'＋6桁連番 | 更新不可 |
-| 3 | 事業者種別ID | `corporate_type_id` | UUID | | FK→M03.id | | | | | |
+| 3 | 法人格ID | `corporate_type_id` | UUID | | FK→M03.id | | | | | |
 | 4 | 会社名 | `name` | TEXT | | | | NN | | | 1-200文字 |
 | 5 | 会社名フリガナ | `name_kana` | TEXT | | | | | | | カタカナのみ, max 200文字 |
 | 6 | 代表者名 | `representative_name` | TEXT | | | | | | | max 100文字 |
@@ -706,6 +795,99 @@ ITERRAの営業・取引管理CRMシステムを新規構築する。現在ス�
 
 ---
 
+## 5.X パイプライン拡張の共通規約
+
+パイプラインごとに管理カラムが大きく異なる場合、`deals` 本体は共通のまま、固有カラムは拡張テーブルへ切り出す。新規パイプライン追加時は以下の規約に従う。
+
+### 命名規則
+| 種別 | 命名 | 例 |
+|---|---|---|
+| パイプライン識別子 | `pipeline_types.slug` | `inside_sales` |
+| 拡張本体（Deal 1:1） | `deal_ext_<slug>` | `deal_ext_inside_sales` |
+| 拡張子テーブル（Deal 1:N） | `deal_ext_<slug>_<entity>` | `deal_ext_inside_sales_calls` |
+| パイプライン固有マスタ | `<slug>_<master>` | `inside_sales_phases`, `inside_sales_call_statuses` |
+
+### 構造ルール
+1. 拡張本体の主キーは `deal_id UUID PK, FK→deals.id ON DELETE CASCADE`（1:1保証）
+2. 子テーブルも `deal_id` を FK 保持、`ON DELETE CASCADE`
+3. 拡張カラムの中で**繰り返し構造**（例: 架電N回分）は必ず子テーブルに正規化する
+4. `created_at / updated_at` を全拡張テーブルに付与。`updated_at` は `update_updated_at()` トリガーで自動更新
+5. パイプライン固有マスタには **`code VARCHAR(32) UK NN`** を必ず持たせる（CSV取込・外部連携キー）
+
+### RLS
+- 拡張テーブルは **`is_deal_accessible(deal_id)`** 関数を使用した一元ポリシーを適用
+- 親dealが生きていて、呼び出しユーザーがオーナー or manager/admin の場合のみアクセス可
+
+### アプリ層
+```
+src/
+├── actions/deals/
+│   ├── inside-sales.ts   # パイプライン固有Server Action
+│   └── ...
+├── lib/validators/deals/
+│   ├── inside-sales.ts   # パイプライン固有Zodスキーマ
+│   └── ...
+└── components/deals/pipelines/
+    └── <slug>/            # 拡張UIコンポーネント（form / detail / 補助）
+```
+UIは `pipeline_types.slug` をキーにしたレジストリパターンで拡張コンポーネントを解決する。
+
+### フェーズ設計（パイプライン単位独立）
+- フェーズは **パイプラインごとに独立したマスタテーブル**（`<slug>_phases`）で定義
+- `deal_stages.phase_id` で該当パイプラインのフェーズに紐づけるが、**DB-FKは張らない**（新規パイプライン追加時の schema 変更を避けるため）
+- 整合性はアプリ層で担保：`pipeline_type.slug` → `<slug>_phases` を解決し `phase_id` の妥当性を検証
+
+### アカウント×パイプラインの現在フェーズ
+派生ビュー **`v_account_current_phase`** が以下を返す：
+- (account_id, pipeline_type_id, phase_id, leading_deal_id)
+- 集約ルール: 当該パイプラインで closed でない deal のうち `stage_updated_at` が最新のものを代表とする
+
+アカウントのステータスはフェーズの組み合わせから**業務ロジックで決定される想定**だが、現状は手動設定のまま（自動導出は将来拡張）。
+
+---
+
+## 5.Y インサイドセールス拡張（slug='inside_sales'）
+
+### EX01: deal_ext_inside_sales（Deal 1:1拡張本体）
+
+| # | 論理名 | 物理名 | 型 | PK | FK | UK | NN | デフォルト | 区分値/CHECK | バリデーション |
+|---|--------|--------|-----|----|----|----|----|----------|-------------|-------------|
+| 1 | ディールID | `deal_id` | UUID | PK | FK→T05.id CASCADE | | NN | | | |
+| 2 | 大セグメントID | `large_segment_id` | UUID | | FK→M14.id | | | | | |
+| 3 | 小セグメントID | `small_segment_id` | UUID | | FK→M15.id | | | | | `large_segment_id` 一致をアプリ層検証 |
+| 4 | 企業名 | `prospect_company_name` | TEXT | | | | | | | 1-200文字。**NULL=個人Account扱い** |
+| 5 | URL | `url` | TEXT | | | | | | | max 500文字 |
+| 6 | 電話番号 | `phone` | VARCHAR(20) | | | | | | | |
+| 7 | 主架電担当者ID | `primary_caller_id` | UUID | | FK→M17.id | | | | | |
+| 8 | 作成日時 | `created_at` | TIMESTAMPTZ | | | | NN | NOW() | | |
+| 9 | 更新日時 | `updated_at` | TIMESTAMPTZ | | | | NN | NOW() | | トリガー自動更新 |
+
+**Account作成ルール（Server Action `createInsideSalesLead`）:**
+- `prospect_company_name NOT NULL` → 同名Company検索 → 無ければ最小構成で作成 → **法人Account**（company_id セット、ステータス=prospect）
+- `prospect_company_name NULL` → **個人Account**（company_id NULL、ステータス=prospect）。Account名は Deal名を流用
+
+### EX02: deal_ext_inside_sales_calls（Deal 1:N 架電記録）
+
+| # | 論理名 | 物理名 | 型 | PK | FK | UK | NN | デフォルト | 区分値/CHECK | バリデーション |
+|---|--------|--------|-----|----|----|----|----|----------|-------------|-------------|
+| 1 | ID | `id` | UUID | PK | | | NN | gen_random_uuid() | | |
+| 2 | ディールID | `deal_id` | UUID | | FK→T05.id CASCADE | | NN | | | |
+| 3 | 架電回次 | `call_number` | SMALLINT | | | | NN | | >= 1 | アプリ層で max+1 採番 |
+| 4 | 架電日 | `called_on` | DATE | | | | NN | | | |
+| 5 | 架電時間 | `called_at_time` | TIME | | | | | | | |
+| 6 | 架電ステータスID | `call_status_id` | UUID | | FK→M16.id | | NN | | | |
+| 7 | 架電担当者ID | `caller_id` | UUID | | FK→M17.id | | NN | | | |
+| 8 | 備考 | `note` | TEXT | | | | | | | max 1000文字 |
+| 9 | 作成日時 | `created_at` | TIMESTAMPTZ | | | | NN | NOW() | | |
+| 10 | 更新日時 | `updated_at` | TIMESTAMPTZ | | | | NN | NOW() | | トリガー自動更新 |
+
+**UK:** `(deal_id, call_number)`
+**INDEX:** `(deal_id, called_on DESC)`, caller_id, call_status_id
+**RLS:** `is_deal_accessible(deal_id)` に委譲
+**補足:** 削除時は call_number の gap を許容（詰めない）。CSV取込では deal_id ごとにまとめて投入
+
+---
+
 ### T06: contracts（契約）
 
 | # | 論理名 | 物理名 | 型 | PK | FK | UK | NN | デフォルト | 区分値/CHECK | バリデーション |
@@ -785,6 +967,43 @@ ITERRAの営業・取引管理CRMシステムを新規構築する。現在ス�
 - READ: コンタクトのアクセス権に従う
 - UPDATE: member=自分の担当コンタクトのタレントのみ、admin=全件
 - DELETE: コンタクト削除時にCASCADE
+
+---
+
+### T08: projects（プロジェクト）
+
+複数ディールを横断的にグルーピングする業務イニシアチブ。単一アカウントに閉じず、複数アカウント・複数パイプライン種別のディールを 1 つのプロジェクトで束ねられる（例: 万博プロジェクト = A社への営業取引 + B社との仕入れ取引 + OEM 契約取引）。ディールとは N:M（`deal_projects`）、メンバーとは 1:N（`project_members`）で関連。
+
+| # | 論理名 | 物理名 | 型 | PK | FK | UK | NN | デフォルト | 区分値/CHECK | バリデーション |
+|---|--------|--------|-----|----|----|----|----|----------|-------------|-------------|
+| 1 | ID | `id` | UUID | PK | | | NN | gen_random_uuid() | | |
+| 2 | プロジェクトコード | `project_code` | VARCHAR(10) | | | UK | NN | トリガー自動採番 | 'PRJ-'＋6桁連番 | 更新不可 |
+| 3 | プロジェクト名 | `name` | TEXT | | | | NN | | | 1-200文字 |
+| 4 | 説明 | `description` | TEXT | | | | | | | max 1000文字 |
+| 5 | プロジェクトステータスID | `project_status_id` | UUID | | FK→M12.id | | NN | | | 初回作成時にデフォルトステータス（計画中）をアプリ層で設定 |
+| 6 | 開始日 | `start_date` | DATE | | | | | | | |
+| 7 | 終了予定日 | `end_date` | DATE | | | | | | end_date >= start_date | |
+| 8 | 責任者ID | `owner_user_id` | UUID | | FK→T01.id | | | | | プロジェクト責任者（1 名） |
+| 9 | 社内メモ | `internal_memo` | TEXT | | | | | | | max 2000文字 |
+| 10 | 有効フラグ | `is_active` | BOOLEAN | | | | NN | TRUE | | 論理削除 |
+| 11 | ステータス更新日時 | `status_updated_at` | TIMESTAMPTZ | | | | | | | ステータス変更時にアプリ層で更新 |
+| 12 | 作成日時 | `created_at` | TIMESTAMPTZ | | | | NN | NOW() | | 更新不可 |
+| 13 | 更新日時 | `updated_at` | TIMESTAMPTZ | | | | NN | NOW() | | トリガー自動更新 |
+
+**CHECK:** end_date IS NULL OR start_date IS NULL OR end_date >= start_date
+**INDEX:** project_status_id, owner_user_id, start_date, created_at DESC
+
+**Phase A の RLS 方針（暫定）:**
+- SELECT: 認証済み全員（新 3 段階ロール方針の先行適用）
+- INSERT: manager / admin
+- UPDATE: manager / admin（Phase D で既存エンティティも同方針へ統一予定）
+- DELETE: 論理削除（is_active=FALSE）。admin のみ
+
+**CRUD（UI 観点）:**
+- CREATE: manager 以上。project_code はトリガーで自動採番
+- READ: 全認証ユーザー
+- UPDATE: manager / admin
+- DELETE: 論理削除。admin のみ。配下の deal_projects は残置（プロジェクト側が非表示になっても過去の紐づけは保持）
 
 ---
 
@@ -940,6 +1159,30 @@ ITERRAの営業・取引管理CRMシステムを新規構築する。現在ス�
 
 ---
 
+### D07: project_members（プロジェクトメンバー）
+
+| # | 論理名 | 物理名 | 型 | PK | FK | UK | NN | デフォルト | 区分値/CHECK | バリデーション |
+|---|--------|--------|-----|----|----|----|----|----------|-------------|-------------|
+| 1 | ID | `id` | UUID | PK | | | NN | gen_random_uuid() | | |
+| 2 | プロジェクトID | `project_id` | UUID | | FK→T08.id (CASCADE) | | NN | | | |
+| 3 | ユーザーID | `user_id` | UUID | | FK→T01.id | | NN | | | |
+| 4 | 作成日時 | `created_at` | TIMESTAMPTZ | | | | NN | NOW() | | 更新不可 |
+
+**UK:** (project_id, user_id) — 同一プロジェクトに同じユーザーは 1 回のみ
+**INDEX:** project_id, user_id
+
+**運用方針:**
+- プロジェクト配下ディールの `owner_user_id` との自動同期は**行わない**（手動管理）
+- UI には「このプロジェクト配下のディール担当者を一括追加」アクションを設ける
+- プロジェクトロール（lead/member 等）は初版では持たない。`owner_user_id`（T08）で責任者 1 名を特定し、残りのメンバーはフラット
+
+**CRUD:**
+- CREATE / DELETE: プロジェクトの owner_user_id もしくは manager / admin
+- READ: 認証済み全員
+- UPDATE: 不要（メンバーシップの編集は DELETE + INSERT で表現）
+
+---
+
 ### J01: deal_services（ディール×サービス）
 
 | # | 論理名 | 物理名 | 型 | PK | FK | UK | NN | デフォルト | 区分値/CHECK | バリデーション |
@@ -974,6 +1217,27 @@ ITERRAの営業・取引管理CRMシステムを新規構築する。現在ス�
 
 **UK:** (account_id, contact_id) — 同一アカウントに同じコンタクトは1回のみ
 **CRUD:** アカウントのCRUD権限に従う。
+
+---
+
+### J03: deal_projects（ディール×プロジェクト）
+
+ディールとプロジェクトを紐づける中間テーブル。1 ディールが複数プロジェクトに属しうる（例: OEM 契約取引が複数プロジェクトで共用される）前提で N:M で設計。
+
+| # | 論理名 | 物理名 | 型 | PK | FK | UK | NN | デフォルト | 区分値/CHECK | バリデーション |
+|---|--------|--------|-----|----|----|----|----|----------|-------------|-------------|
+| 1 | ID | `id` | UUID | PK | | | NN | gen_random_uuid() | | |
+| 2 | ディールID | `deal_id` | UUID | | FK→T05.id (CASCADE) | | NN | | | |
+| 3 | プロジェクトID | `project_id` | UUID | | FK→T08.id (CASCADE) | | NN | | | |
+| 4 | 作成日時 | `created_at` | TIMESTAMPTZ | | | | NN | NOW() | | 更新不可 |
+
+**UK:** (deal_id, project_id) — 同一ディールに同じプロジェクトは 1 回のみ
+**INDEX:** deal_id, project_id
+
+**CRUD:**
+- CREATE / DELETE: ディールの owner_user_id もしくは manager / admin（deal_services と同じパターン）
+- READ: 認証済み全員
+- UPDATE: 不要（紐づけの編集は DELETE + INSERT）
 
 ---
 
@@ -1140,6 +1404,12 @@ deal_activitiesの `activity_type='email'` の場合のメール固有情報。
 - 対象ID: `talent_id` FK→T07.id (CASCADE)
 - **INDEX:** talent_id, changed_at DESC
 - **CRUD:** INSERT ONLY。タレント更新時にアプリ層で自動挿入
+
+#### A11: project_change_histories
+
+- 対象ID: `project_id` FK→T08.id (CASCADE)
+- **INDEX:** project_id, changed_at DESC
+- **CRUD:** INSERT ONLY。プロジェクト更新時にアプリ層で自動挿入
 
 ---
 
@@ -1316,6 +1586,39 @@ type Talent = {
   overall_assessment: string | null;
 } & SoftDeletable & Timestamps;
 
+type ProjectStatus = {
+  id: string;
+  name: string;
+  sort_order: number;
+} & SoftDeletable & Timestamps;
+
+type Project = {
+  id: string;
+  project_code: string;
+  name: string;
+  description: string | null;
+  project_status_id: string;
+  start_date: string | null;   // ISO date
+  end_date: string | null;     // ISO date
+  owner_user_id: string | null;
+  internal_memo: string | null;
+  status_updated_at: string | null;
+} & SoftDeletable & Timestamps;
+
+type ProjectMember = {
+  id: string;
+  project_id: string;
+  user_id: string;
+  created_at: string;
+};
+
+type DealProject = {
+  id: string;
+  deal_id: string;
+  project_id: string;
+  created_at: string;
+};
+
 // === リレーション付き型（JOIN結果） ===
 type ContactWithRelations = Contact & {
   emails: ContactEmail[];
@@ -1354,7 +1657,7 @@ type AccountWithRelations = Account & {
 ### Phase 1: プロジェクト初期設定
 Next.js 15プロジェクト初期化、Supabase設定、共通ライブラリ
 
-### Phase 2: DBマイグレーション（13ファイル）
+### Phase 2: DBマイグレーション（18ファイル＋拡張5ファイル）
 1. `00001_create_master_tables.sql` — M01-M08 マスタテーブル
 2. `00002_create_skill_masters.sql` — M09-M10 スキルマスタ
 3. `00003_create_structured_masters.sql` — S01-S03 構造化マスタ
@@ -1368,6 +1671,20 @@ Next.js 15プロジェクト初期化、Supabase設定、共通ライブラリ
 11. `00011_create_shared_entities.sql` — D03-D04 金融機関/住所
 12. `00012_create_activities.sql` — A01-A03 アクティビティ/ログ
 13. `00013_create_functions_triggers_rls.sql` — トリガー/関数/RLSポリシー
+14. `20260416040014_fix_dependent_table_rls.sql` — 従属テーブル RLS 修正
+15. `20260417000001_add_soft_delete_columns.sql` — 論理削除列の追加
+16. `20260417000002_drop_is_active_and_setup_cron.sql` — is_active 廃止 + cron 設定
+17. `20260418000001_add_company_statuses.sql` — M11 カンパニーステータス
+18. `20260418000002_add_contact_blood_type.sql` — コンタクトの血液型追加
+19. `20260418000003_add_company_primary_contact.sql` — カンパニー代表コンタクト紐付け
+20. `20260418000004_add_slug_to_pipeline_types.sql` — M01 slug 追加
+21. `20260418000005_add_code_to_account_statuses.sql` — M07 code 追加
+22. `20260418000006_alter_deal_stages_add_phase.sql` — S01 phase_id 追加（DB-FKなし）
+23. `20260418000007_create_inside_sales_masters.sql` — M13-M17 インサイドセールス専用マスタ
+24. `20260418000008_create_deal_ext_inside_sales.sql` — EX01/EX02 拡張＋`is_deal_accessible`関数＋`v_account_current_phase`ビュー
+25. `20260418000009_add_audit_columns.sql` — Phase E: 全テーブルに created_by（NN, DEFAULT admin）+ last_updated_by 追加（35テーブル）
+26. `20260418000010_relax_inside_sales_url_length.sql` — EX01 URL の長さ制約を 500 → 1000 文字に緩和
+27. `20260418000011_create_projects.sql` — M12 project_statuses + T08 projects + D07 project_members + J03 deal_projects + A11 project_change_histories（Phase A）
 
 ### Phase 3: 型定義・Zodバリデーション
 - `src/types/index.ts`

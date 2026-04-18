@@ -94,6 +94,7 @@ export async function createAccount(
   const values = {
     ...parsed.data,
     owner_user_id: parsed.data.owner_user_id ?? user.id,
+    created_by: user.id,
   };
 
   const { data, error } = await supabase
@@ -147,7 +148,7 @@ export async function updateAccount(
 
   const { data, error } = await supabase
     .from("accounts")
-    .update(updates)
+    .update({ ...updates, last_updated_by: user.id })
     .eq("id", id)
     .select()
     .single();
@@ -203,6 +204,7 @@ export async function deleteAccount(
     .update({
       deleted_at: new Date().toISOString(),
       deleted_by: user.id,
+      last_updated_by: user.id,
     })
     .eq("id", id);
 
@@ -226,7 +228,7 @@ export async function addAccountContact(
 
   const { data, error } = await supabase
     .from("account_contacts")
-    .insert(parsed.data)
+    .insert({ ...parsed.data, created_by: user.id })
     .select()
     .single();
 

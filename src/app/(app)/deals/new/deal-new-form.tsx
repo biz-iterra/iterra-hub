@@ -127,7 +127,7 @@ function onFocus(
 function onBlur(
   e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
 ) {
-  e.currentTarget.style.borderColor = "";
+  e.currentTarget.style.borderColor = "var(--color-border-default)";
   e.currentTarget.style.boxShadow = "";
 }
 

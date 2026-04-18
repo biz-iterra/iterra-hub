@@ -4,6 +4,8 @@ export * from "./companies";
 export * from "./accounts";
 export * from "./contacts";
 export * from "./deals";
+export * as insideSalesValidators from "./deals/inside-sales";
 export * from "./contracts";
 export * from "./talents";
 export * from "./activities";
+export * from "./projects";

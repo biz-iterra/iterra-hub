@@ -104,6 +104,7 @@ export async function createContract(
   const contractData = {
     ...parsed.data,
     registered_by: user.id,
+    created_by: user.id,
   };
 
   const { data, error } = await supabase
@@ -132,7 +133,7 @@ export async function updateContract(
 
   const { data, error } = await supabase
     .from("contracts")
-    .update(parsed.data)
+    .update({ ...parsed.data, last_updated_by: user.id })
     .eq("id", id)
     .select()
     .single();
@@ -154,6 +155,7 @@ export async function deleteContract(id: string): Promise<ActionResult<null>> {
     .update({
       deleted_at: new Date().toISOString(),
       deleted_by: user.id,
+      last_updated_by: user.id,
     })
     .eq("id", id);
 

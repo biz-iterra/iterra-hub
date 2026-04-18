@@ -141,6 +141,7 @@ export async function createContact(
   const values: Record<string, unknown> = {
     ...parsed.data,
     owner_user_id: parsed.data.owner_user_id ?? user.id,
+    created_by: user.id,
   };
 
   if (parsed.data.birth_date) {
@@ -224,7 +225,7 @@ export async function updateContact(
 
   const { data, error } = await supabase
     .from("contacts")
-    .update(updates)
+    .update({ ...updates, last_updated_by: user.id })
     .eq("id", id)
     .select()
     .single();
@@ -270,6 +271,7 @@ export async function deleteContact(
     .update({
       deleted_at: new Date().toISOString(),
       deleted_by: user.id,
+      last_updated_by: user.id,
     })
     .eq("id", id);
 
@@ -293,7 +295,7 @@ export async function addContactEmail(
 
   const { data, error } = await supabase
     .from("contact_emails")
-    .insert(parsed.data)
+    .insert({ ...parsed.data, created_by: user.id })
     .select()
     .single();
 
@@ -313,7 +315,7 @@ export async function updateContactEmail(
 
   const { data, error } = await supabase
     .from("contact_emails")
-    .update(input)
+    .update({ ...input, last_updated_by: user.id })
     .eq("id", id)
     .select()
     .single();
@@ -356,7 +358,7 @@ export async function addContactPhone(
 
   const { data, error } = await supabase
     .from("contact_phones")
-    .insert(parsed.data)
+    .insert({ ...parsed.data, created_by: user.id })
     .select()
     .single();
 
@@ -376,7 +378,7 @@ export async function updateContactPhone(
 
   const { data, error } = await supabase
     .from("contact_phones")
-    .update(input)
+    .update({ ...input, last_updated_by: user.id })
     .eq("id", id)
     .select()
     .single();

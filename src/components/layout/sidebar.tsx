@@ -13,6 +13,7 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
+  FolderKanban,
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -28,6 +29,7 @@ type NavItem = {
 const navItems: NavItem[] = [
   { label: "ダッシュボード", href: "/dashboard", icon: LayoutDashboard },
   { label: "ディール", href: "/deals", icon: Handshake },
+  { label: "プロジェクト", href: "/projects", icon: FolderKanban },
   { label: "コンタクト", href: "/contacts", icon: Users },
   { label: "カンパニー", href: "/companies", icon: Building2 },
   { label: "アカウント", href: "/accounts", icon: Briefcase },

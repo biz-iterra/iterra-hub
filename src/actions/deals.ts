@@ -150,7 +150,8 @@ export async function getDeal(id: string): Promise<ActionResult<any>> {
       `
       ${DEAL_SELECT},
       contracts(id, contract_code, contract_name, contract_method, start_date, end_date, deleted_at),
-      deal_activities(id, activity_type, activity_at, subject, performed_by, crm_users!deal_activities_performed_by_fkey(full_name))
+      deal_activities(id, activity_type, activity_at, subject, performed_by, crm_users!deal_activities_performed_by_fkey(full_name)),
+      deal_projects(id, project:projects(id, project_code, name, project_status:project_statuses(id, name), deleted_at))
     `
     )
     .eq("id", id)
@@ -174,6 +175,8 @@ export async function createDeal(
   const dealData = {
     ...parsed.data,
     owner_user_id: parsed.data.owner_user_id ?? user.id,
+    created_by: user.id,
+    last_updated_by: user.id,
   };
 
   const { data: deal, error } = await supabase
@@ -311,6 +314,7 @@ export async function deleteDeal(id: string): Promise<ActionResult<null>> {
     .update({
       deleted_at: new Date().toISOString(),
       deleted_by: user.id,
+      last_updated_by: user.id,
     })
     .eq("id", id);
 
@@ -330,7 +334,7 @@ export async function addDealService(
 
   const { data, error } = await supabase
     .from("deal_services")
-    .insert(parsed.data)
+    .insert({ ...parsed.data, created_by: user.id })
     .select()
     .single();
 

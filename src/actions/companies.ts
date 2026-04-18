@@ -78,7 +78,7 @@ export async function createCompany(input: Record<string, unknown>): Promise<Act
 
   const { data, error } = await supabase
     .from("companies")
-    .insert({ ...parsed.data, owner_user_id: parsed.data.owner_user_id ?? user.id })
+    .insert({ ...parsed.data, owner_user_id: parsed.data.owner_user_id ?? user.id, created_by: user.id })
     .select()
     .single();
 
@@ -114,7 +114,7 @@ export async function updateCompany(id: string, input: Record<string, unknown>):
     updates.status_updated_at = new Date().toISOString();
   }
 
-  const { data, error } = await supabase.from("companies").update(updates).eq("id", id).select().single();
+  const { data, error } = await supabase.from("companies").update({ ...updates, last_updated_by: user.id }).eq("id", id).select().single();
   if (error) return { data: null, error: error.message };
 
   // 変更履歴記録
@@ -149,6 +149,7 @@ export async function deleteCompany(id: string): Promise<ActionResult<null>> {
   const { error } = await supabase.from("companies").update({
     deleted_at: new Date().toISOString(),
     deleted_by: user.id,
+    last_updated_by: user.id,
   }).eq("id", id);
   if (error) return { data: null, error: error.message };
   return { data: null, error: null };

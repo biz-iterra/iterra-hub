@@ -103,7 +103,7 @@ export async function createTalent(
 
   const { data, error } = await supabase
     .from("talents")
-    .insert(parsed.data)
+    .insert({ ...parsed.data, created_by: user.id })
     .select()
     .single();
 
@@ -133,7 +133,7 @@ export async function updateTalent(
 
   const { data, error } = await supabase
     .from("talents")
-    .update(parsed.data)
+    .update({ ...parsed.data, last_updated_by: user.id })
     .eq("id", id)
     .select()
     .single();
@@ -172,6 +172,7 @@ export async function deleteTalent(id: string): Promise<ActionResult<null>> {
     .update({
       deleted_at: new Date().toISOString(),
       deleted_by: user.id,
+      last_updated_by: user.id,
     })
     .eq("id", id);
 
@@ -191,7 +192,7 @@ export async function addTalentSkill(
 
   const { data, error } = await supabase
     .from("talent_skills")
-    .insert(parsed.data)
+    .insert({ ...parsed.data, created_by: user.id })
     .select()
     .single();
 
@@ -212,7 +213,7 @@ export async function updateTalentSkill(
 
   const { data, error } = await supabase
     .from("talent_skills")
-    .update(parsed.data)
+    .update({ ...parsed.data, last_updated_by: user.id })
     .eq("id", id)
     .select()
     .single();
@@ -247,7 +248,7 @@ export async function addTalentCareer(
 
   const { data, error } = await supabase
     .from("talent_careers")
-    .insert(parsed.data)
+    .insert({ ...parsed.data, created_by: user.id })
     .select()
     .single();
 
@@ -268,7 +269,7 @@ export async function updateTalentCareer(
 
   const { data, error } = await supabase
     .from("talent_careers")
-    .update(parsed.data)
+    .update({ ...parsed.data, last_updated_by: user.id })
     .eq("id", id)
     .select()
     .single();

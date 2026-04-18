@@ -221,7 +221,7 @@ export default async function CompanyDetailPage({
               <InfoItem label="フリガナ" value={company.name_kana} />
               <InfoItem label="代表者名" value={company.representative_name} />
               <InfoItem
-                label="事業者種別"
+                label="法人格"
                 value={company.corporate_types?.name}
               />
               <InfoItem label="法人番号" value={company.corporate_number} />

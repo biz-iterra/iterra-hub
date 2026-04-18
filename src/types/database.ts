@@ -100,6 +100,12 @@ export type ContactStatus = {
 } & SoftDeletable &
   Timestamps;
 
+export type CompanyStatus = {
+  id: string;
+  name: string;
+} & SoftDeletable &
+  Timestamps;
+
 export type SkillCategory = {
   id: string;
   name: string;
@@ -150,6 +156,9 @@ export type Company = {
   internal_memo: string | null;
   lead_source_id: string | null;
   owner_user_id: string | null;
+  primary_contact_id: string | null;
+  company_status_id: string;
+  status_updated_at: string | null;
 } & SoftDeletable &
   Timestamps;
 
@@ -189,6 +198,7 @@ export type Contact = {
   department: string | null;
   job_title: string | null;
   birth_date: string | null;
+  blood_type: "A" | "B" | "AB" | "O" | null;
   potential_number: number | null;
   constellation_id: string | null;
   lead_source_id: string | null;

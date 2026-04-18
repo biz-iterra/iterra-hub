@@ -1,11 +1,12 @@
-import { getCorporateTypes, getLeadSources } from "@/actions/masters";
+import { getCorporateTypes, getLeadSources, getCompanyStatuses } from "@/actions/masters";
 import { getCrmUsers } from "@/actions/users";
 import { CompanyNewForm } from "./company-new-form";
 
 export default async function CompanyNewPage() {
-  const [corporateTypesResult, leadSourcesResult, usersResult] = await Promise.all([
+  const [corporateTypesResult, leadSourcesResult, companyStatusesResult, usersResult] = await Promise.all([
     getCorporateTypes(),
     getLeadSources(),
+    getCompanyStatuses(),
     getCrmUsers(),
   ]);
 
@@ -19,6 +20,10 @@ export default async function CompanyNewPage() {
     leadSources: ((leadSourcesResult.data ?? []) as MasterItem[]).map((l) => ({
       value: l.id,
       label: l.name,
+    })),
+    companyStatuses: ((companyStatusesResult.data ?? []) as MasterItem[]).map((s) => ({
+      value: s.id,
+      label: s.name,
     })),
     owners: (usersResult.data ?? []).map((u) => ({
       value: u.id,

@@ -16,6 +16,86 @@ function formatDate(value: string | null | undefined): string {
   return new Date(value).toLocaleDateString("ja-JP");
 }
 
+function DiagnosisBlock({
+  label,
+  value,
+  span2 = false,
+}: {
+  label: string;
+  value: string;
+  span2?: boolean;
+}) {
+  return (
+    <div style={{ gridColumn: span2 ? "1 / -1" : undefined }}>
+      <div
+        style={{
+          color: "var(--color-sumi600)",
+          fontSize: "0.75rem",
+          fontWeight: 600,
+          marginBottom: "0.25rem",
+        }}
+      >
+        {label}
+      </div>
+      <div
+        style={{
+          color: "var(--color-text-body)",
+          fontSize: "0.875rem",
+          whiteSpace: "pre-wrap",
+          lineHeight: 1.5,
+        }}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function InfoRow({
+  label,
+  value,
+  emphasis = false,
+}: {
+  label: string;
+  value: string;
+  emphasis?: boolean;
+}) {
+  return (
+    <div>
+      <div
+        style={{
+          color: "var(--color-sumi600)",
+          fontSize: "0.75rem",
+          fontWeight: 600,
+          marginBottom: "0.125rem",
+        }}
+      >
+        {label}
+      </div>
+      {emphasis ? (
+        <span
+          style={{
+            display: "inline-block",
+            backgroundColor: "var(--color-terra)",
+            color: "#fff",
+            borderRadius: "var(--radius-badge)",
+            padding: "0.125rem 0.5rem",
+            fontSize: "0.75rem",
+            fontWeight: 600,
+            letterSpacing: "0.02em",
+          }}
+        >
+          {value}
+        </span>
+      ) : (
+        <div style={{ color: "var(--color-text-body)", fontSize: "0.875rem" }}>
+          {value}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function CareerTypeIcon({ type }: { type: string }) {
   switch (type) {
     case "work":
@@ -182,6 +262,170 @@ export default async function TalentDetailPage({
       >
         {/* 左カラム */}
         <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+          {/* 診断結果（自動）カード - DB書換なし、ポテンシャルタイプ・星座マスタから表示 */}
+          {(numberDiagnosis?.strengths ||
+            numberDiagnosis?.weaknesses ||
+            constellation?.strengths ||
+            constellation?.weaknesses ||
+            constellation?.characteristics ||
+            constellation?.keywords ||
+            constellation?.element_description ||
+            constellation?.nature_description) && (
+            <div
+              style={{
+                backgroundColor: "#fff",
+                borderRadius: "var(--radius-card)",
+                boxShadow: "var(--elevation-low)",
+                padding: "1.5rem",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  marginBottom: "0.25rem",
+                }}
+              >
+                <h2
+                  style={{
+                    color: "var(--color-text-title)",
+                    fontSize: "1rem",
+                    fontWeight: 600,
+                    margin: 0,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                  }}
+                >
+                  <Star size={18} />
+                  診断結果（自動）
+                </h2>
+                <span
+                  style={{
+                    color: "var(--color-sumi600)",
+                    fontSize: "0.6875rem",
+                    backgroundColor: "var(--color-sumi100)",
+                    borderRadius: "var(--radius-badge)",
+                    padding: "0.125rem 0.5rem",
+                  }}
+                >
+                  生年月日から算出
+                </span>
+              </div>
+              <p style={{ color: "var(--color-sumi500)", fontSize: "0.75rem", margin: "0 0 1rem 0" }}>
+                下記は診断マスタの定型値です。個別の評価は下の手入力項目を参照してください。
+              </p>
+
+              {(numberDiagnosis?.strengths || numberDiagnosis?.weaknesses) && (
+                <div
+                  style={{
+                    paddingBottom: "1rem",
+                    marginBottom: "1rem",
+                    borderBottom: "1px solid var(--color-border-default)",
+                  }}
+                >
+                  <div
+                    style={{
+                      color: "var(--color-sumi700)",
+                      fontSize: "0.8125rem",
+                      fontWeight: 600,
+                      marginBottom: "0.5rem",
+                    }}
+                  >
+                    ポテンシャルタイプ
+                    {numberDiagnosis?.type && (
+                      <span
+                        style={{
+                          marginLeft: "0.5rem",
+                          backgroundColor: "var(--color-terra)",
+                          color: "#fff",
+                          borderRadius: "var(--radius-badge)",
+                          padding: "0.125rem 0.5rem",
+                          fontSize: "0.75rem",
+                        }}
+                      >
+                        {numberDiagnosis.type}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+                    {numberDiagnosis?.strengths && (
+                      <DiagnosisBlock label="強み" value={numberDiagnosis.strengths} />
+                    )}
+                    {numberDiagnosis?.weaknesses && (
+                      <DiagnosisBlock label="弱み" value={numberDiagnosis.weaknesses} />
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {(constellation?.strengths ||
+                constellation?.weaknesses ||
+                constellation?.characteristics ||
+                constellation?.keywords ||
+                constellation?.element_description ||
+                constellation?.nature_description) && (
+                <div>
+                  <div
+                    style={{
+                      color: "var(--color-sumi700)",
+                      fontSize: "0.8125rem",
+                      fontWeight: 600,
+                      marginBottom: "0.5rem",
+                    }}
+                  >
+                    星座
+                    {constellation?.constellation && (
+                      <span
+                        style={{
+                          marginLeft: "0.5rem",
+                          backgroundColor: "var(--color-sage)",
+                          color: "#fff",
+                          borderRadius: "var(--radius-badge)",
+                          padding: "0.125rem 0.5rem",
+                          fontSize: "0.75rem",
+                        }}
+                      >
+                        {constellation.constellation}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+                    {constellation?.characteristics && (
+                      <DiagnosisBlock
+                        label="特徴"
+                        value={constellation.characteristics}
+                        span2
+                      />
+                    )}
+                    {constellation?.keywords && (
+                      <DiagnosisBlock label="キーワード" value={constellation.keywords} span2 />
+                    )}
+                    {constellation?.element_description && (
+                      <DiagnosisBlock
+                        label="エレメント特性"
+                        value={constellation.element_description}
+                      />
+                    )}
+                    {constellation?.nature_description && (
+                      <DiagnosisBlock
+                        label="性質特性"
+                        value={constellation.nature_description}
+                      />
+                    )}
+                    {constellation?.strengths && (
+                      <DiagnosisBlock label="強み" value={constellation.strengths} />
+                    )}
+                    {constellation?.weaknesses && (
+                      <DiagnosisBlock label="弱み" value={constellation.weaknesses} />
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* 性格分析カード */}
           {talent.personality_memo && (
             <div
@@ -229,20 +473,40 @@ export default async function TalentDetailPage({
                 padding: "1.5rem",
               }}
             >
-              <h2
+              <div
                 style={{
-                  color: "var(--color-text-title)",
-                  fontSize: "1rem",
-                  fontWeight: 600,
-                  marginBottom: "1rem",
                   display: "flex",
                   alignItems: "center",
-                  gap: "0.5rem",
+                  justifyContent: "space-between",
+                  marginBottom: "1rem",
                 }}
               >
-                <Star size={18} />
-                強み・弱み
-              </h2>
+                <h2
+                  style={{
+                    color: "var(--color-text-title)",
+                    fontSize: "1rem",
+                    fontWeight: 600,
+                    margin: 0,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                  }}
+                >
+                  <Star size={18} />
+                  強み・弱み
+                </h2>
+                <span
+                  style={{
+                    color: "var(--color-sumi600)",
+                    fontSize: "0.6875rem",
+                    backgroundColor: "var(--color-sumi100)",
+                    borderRadius: "var(--radius-badge)",
+                    padding: "0.125rem 0.5rem",
+                  }}
+                >
+                  手入力
+                </span>
+              </div>
               <div
                 style={{
                   display: "grid",
@@ -490,123 +754,35 @@ export default async function TalentDetailPage({
                 占い情報
               </h2>
               <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-                {numberDiagnosis && (
-                  <>
-                    {numberDiagnosis.potential_number != null && (
-                      <div>
-                        <div
-                          style={{
-                            color: "var(--color-sumi600)",
-                            fontSize: "0.75rem",
-                            fontWeight: 600,
-                            marginBottom: "0.125rem",
-                          }}
-                        >
-                          ポテンシャル番号
-                        </div>
-                        <div
-                          style={{
-                            color: "var(--color-text-body)",
-                            fontSize: "0.875rem",
-                          }}
-                        >
-                          {numberDiagnosis.potential_number}
-                        </div>
-                      </div>
-                    )}
-                    {numberDiagnosis.animal_name && (
-                      <div>
-                        <div
-                          style={{
-                            color: "var(--color-sumi600)",
-                            fontSize: "0.75rem",
-                            fontWeight: 600,
-                            marginBottom: "0.125rem",
-                          }}
-                        >
-                          動物名
-                        </div>
-                        <div
-                          style={{
-                            color: "var(--color-text-body)",
-                            fontSize: "0.875rem",
-                          }}
-                        >
-                          {numberDiagnosis.animal_name}
-                        </div>
-                      </div>
-                    )}
-                    {numberDiagnosis.character_name && (
-                      <div>
-                        <div
-                          style={{
-                            color: "var(--color-sumi600)",
-                            fontSize: "0.75rem",
-                            fontWeight: 600,
-                            marginBottom: "0.125rem",
-                          }}
-                        >
-                          キャラクター
-                        </div>
-                        <div
-                          style={{
-                            color: "var(--color-text-body)",
-                            fontSize: "0.875rem",
-                          }}
-                        >
-                          {numberDiagnosis.character_name}
-                        </div>
-                      </div>
-                    )}
-                  </>
+                {numberDiagnosis?.type && (
+                  <InfoRow label="ポテンシャルタイプ" value={numberDiagnosis.type} emphasis />
                 )}
-                {constellation && (
-                  <>
-                    {constellation.constellation_name && (
-                      <div>
-                        <div
-                          style={{
-                            color: "var(--color-sumi600)",
-                            fontSize: "0.75rem",
-                            fontWeight: 600,
-                            marginBottom: "0.125rem",
-                          }}
-                        >
-                          星座名
-                        </div>
-                        <div
-                          style={{
-                            color: "var(--color-text-body)",
-                            fontSize: "0.875rem",
-                          }}
-                        >
-                          {constellation.constellation_name}
-                        </div>
-                      </div>
-                    )}
-                    {constellation.element && (
-                      <div>
-                        <div
-                          style={{
-                            color: "var(--color-sumi600)",
-                            fontSize: "0.75rem",
-                            fontWeight: 600,
-                            marginBottom: "0.125rem",
-                          }}
-                        >
-                          エレメント
-                        </div>
-                        <div
-                          style={{
-                            color: "var(--color-text-body)",
-                            fontSize: "0.875rem",
-                          }}
-                        >
-                          {constellation.element}
-                        </div>
-                      </div>
-                    )}
-                  </>
+                {numberDiagnosis?.dominant_brain && (
+                  <InfoRow label="優位脳" value={numberDiagnosis.dominant_brain} />
+                )}
+                {numberDiagnosis?.brain_characteristics && (
+                  <InfoRow label="脳特徴" value={numberDiagnosis.brain_characteristics} />
+                )}
+                {numberDiagnosis?.animal && (
+                  <InfoRow label="動物占い" value={numberDiagnosis.animal} />
+                )}
+                {numberDiagnosis?.character && (
+                  <InfoRow label="キャラクター" value={numberDiagnosis.character} />
+                )}
+                {numberDiagnosis?.rhythm && (
+                  <InfoRow label="リズム" value={numberDiagnosis.rhythm} />
+                )}
+                {numberDiagnosis?.three_classification && (
+                  <InfoRow label="3分類" value={numberDiagnosis.three_classification} />
+                )}
+                {constellation?.constellation && (
+                  <InfoRow label="星座" value={constellation.constellation} />
+                )}
+                {constellation?.element && (
+                  <InfoRow label="エレメント" value={constellation.element} />
+                )}
+                {constellation?.nature && (
+                  <InfoRow label="性質" value={constellation.nature} />
                 )}
               </div>
             </div>
@@ -736,9 +912,9 @@ export default async function TalentDetailPage({
                           fontWeight: 600,
                         }}
                       >
-                        {career.organization_name ?? "—"}
+                        {career.organization ?? "—"}
                       </div>
-                      {(career.position || career.degree) && (
+                      {career.title && (
                         <div
                           style={{
                             color: "var(--color-sumi600)",
@@ -746,7 +922,7 @@ export default async function TalentDetailPage({
                             marginTop: "0.125rem",
                           }}
                         >
-                          {career.position || career.degree}
+                          {career.title}
                         </div>
                       )}
                       <div

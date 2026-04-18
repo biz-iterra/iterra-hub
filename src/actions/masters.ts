@@ -12,6 +12,7 @@ import {
   createAccountTypeSchema, updateAccountTypeSchema,
   createAccountStatusSchema, updateAccountStatusSchema,
   createContactStatusSchema, updateContactStatusSchema,
+  createCompanyStatusSchema, updateCompanyStatusSchema,
   createSkillCategorySchema, updateSkillCategorySchema,
   createSkillSchema, updateSkillSchema,
 } from "@/lib/validators";
@@ -38,17 +39,24 @@ async function requireAdmin(supabase: any, userId: string): Promise<string | nul
 }
 
 // 汎用: マスタ一覧取得（認証済みユーザー全員）
-export async function getMasterList(tableName: string): Promise<ActionResult<any[]>> {
+// sort_order カラムを持つテーブル（pipeline_types / skill_categories / skills など）は
+// { useSortOrder: true } を指定する。未指定なら name と created_at で並べる。
+export async function getMasterList(
+  tableName: string,
+  options?: { useSortOrder?: boolean },
+): Promise<ActionResult<any[]>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
-  const { data, error } = await supabase
-    .from(tableName)
-    .select("*")
-    .is("deleted_at", null)
-    .order("sort_order", { ascending: true })
-    .order("name", { ascending: true });
+  let query = supabase.from(tableName).select("*").is("deleted_at", null);
+  if (options?.useSortOrder) {
+    query = query.order("sort_order", { ascending: true });
+  }
+  query = query
+    .order("name", { ascending: true })
+    .order("created_at", { ascending: true });
 
+  const { data, error } = await query;
   if (error) return { data: null, error: error.message };
   return { data, error: null };
 }
@@ -113,7 +121,7 @@ export async function deleteMasterRecord(tableName: string, id: string): Promise
 // ===== 具体的な関数（型安全なラッパー） =====
 
 // Pipeline Types
-export async function getPipelineTypes() { return getMasterList("pipeline_types"); }
+export async function getPipelineTypes() { return getMasterList("pipeline_types", { useSortOrder: true }); }
 export async function createPipelineType(input: Record<string, unknown>) {
   return createMasterRecord("pipeline_types", input, createPipelineTypeSchema);
 }
@@ -229,8 +237,18 @@ export async function updateContactStatus(id: string, input: Record<string, unkn
 }
 export async function deleteContactStatus(id: string) { return deleteMasterRecord("contact_statuses", id); }
 
+// Company Statuses
+export async function getCompanyStatuses() { return getMasterList("company_statuses"); }
+export async function createCompanyStatusAction(input: Record<string, unknown>) {
+  return createMasterRecord("company_statuses", input, createCompanyStatusSchema);
+}
+export async function updateCompanyStatus(id: string, input: Record<string, unknown>) {
+  return updateMasterRecord("company_statuses", id, input, updateCompanyStatusSchema);
+}
+export async function deleteCompanyStatus(id: string) { return deleteMasterRecord("company_statuses", id); }
+
 // Skill Categories
-export async function getSkillCategories() { return getMasterList("skill_categories"); }
+export async function getSkillCategories() { return getMasterList("skill_categories", { useSortOrder: true }); }
 export async function createSkillCategory(input: Record<string, unknown>) {
   return createMasterRecord("skill_categories", input, createSkillCategorySchema);
 }

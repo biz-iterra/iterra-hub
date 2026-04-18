@@ -1,10 +1,18 @@
 import { z } from "zod";
 
+// PostgreSQL UUID 型は RFC 4122 のバージョンビットを検査せず、8-4-4-4-12 の hex 形式なら受け入れる。
+// 一方 Zod 標準の .uuid() は version/variant ビットまで検査するため、開発用 seed（c0000000-0000-...）が弾かれる。
+// 両者を橋渡しするため、Postgres と同じ寛容な形式でチェックする。
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export const uuidString = (message?: string) =>
+  z.string().regex(UUID_REGEX, message ?? "UUID 形式で指定してください");
+
 // UUID
-export const uuidSchema = z.string().uuid();
+export const uuidSchema = uuidString();
 
 // 任意UUID（nullable フォームフィールド用）
-export const optionalUuidSchema = z.string().uuid().nullable().optional();
+export const optionalUuidSchema = uuidString().nullable().optional();
 
 // ページネーション
 export const paginationSchema = z.object({

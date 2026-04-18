@@ -23,14 +23,13 @@ type ContactData = {
   department: string | null;
   job_title: string | null;
   birth_date: string | null;
-  invoice_registered: boolean | null;
+  blood_type: "A" | "B" | "AB" | "O" | null;
   invoice_registration_number: string | null;
   postal_code: string | null;
   prefecture: string | null;
   city: string | null;
   address_line1: string | null;
   address_line2: string | null;
-  potential_number: number | null;
   lead_source_id: string | null;
   line_user_id: string | null;
   owner_user_id: string | null;
@@ -51,6 +50,14 @@ const CONTACT_TYPE_OPTIONS: { value: Exclude<ContactType, "">; label: string }[]
   { value: "corporate_rep", label: "法人代表" },
   { value: "employee", label: "法人従業員" },
   { value: "other", label: "その他" },
+];
+
+type BloodType = "" | "A" | "B" | "AB" | "O";
+const BLOOD_TYPE_OPTIONS: { value: Exclude<BloodType, "">; label: string }[] = [
+  { value: "A", label: "A 型" },
+  { value: "B", label: "B 型" },
+  { value: "AB", label: "AB 型" },
+  { value: "O", label: "O 型" },
 ];
 
 const PREFECTURES = [
@@ -217,15 +224,13 @@ export function ContactEditForm({
     department: contact.department ?? "",
     job_title: contact.job_title ?? "",
     birth_date: contact.birth_date ?? "",
-    invoice_registered: Boolean(contact.invoice_registered),
+    blood_type: (contact.blood_type ?? "") as BloodType,
     invoice_registration_number: contact.invoice_registration_number ?? "",
     postal_code: contact.postal_code ?? "",
     prefecture: contact.prefecture ?? "",
     city: contact.city ?? "",
     address_line1: contact.address_line1 ?? "",
     address_line2: contact.address_line2 ?? "",
-    potential_number:
-      contact.potential_number != null ? String(contact.potential_number) : "",
     lead_source_id: contact.lead_source_id ?? "",
     line_user_id: contact.line_user_id ?? "",
     owner_user_id: contact.owner_user_id ?? "",
@@ -244,18 +249,6 @@ export function ContactEditForm({
     setSaving(true);
     setError(null);
 
-    const potentialNum = values.potential_number
-      ? Number(values.potential_number)
-      : null;
-    if (
-      potentialNum != null &&
-      (!Number.isInteger(potentialNum) || potentialNum < 1 || potentialNum > 60)
-    ) {
-      setSaving(false);
-      setError("ポテンシャル数は 1〜60 の整数で入力してください");
-      return;
-    }
-
     const payload: Record<string, unknown> = {
       last_name: values.last_name,
       middle_name: values.middle_name || null,
@@ -269,28 +262,35 @@ export function ContactEditForm({
       department: values.department || null,
       job_title: values.job_title || null,
       birth_date: values.birth_date || null,
-      invoice_registered: values.invoice_registered,
+      blood_type: values.blood_type || null,
+      invoice_registered: !!values.invoice_registration_number,
       invoice_registration_number: values.invoice_registration_number || null,
       postal_code: values.postal_code || null,
       prefecture: values.prefecture || null,
       city: values.city || null,
       address_line1: values.address_line1 || null,
       address_line2: values.address_line2 || null,
-      potential_number: potentialNum,
       lead_source_id: values.lead_source_id || null,
       line_user_id: values.line_user_id || null,
       owner_user_id: values.owner_user_id || null,
       internal_memo: values.internal_memo || null,
     };
 
-    const result = await updateContact(contact.id, payload);
-    setSaving(false);
-    if (result.error) {
-      setError(result.error);
-      return;
+    try {
+      const result = await updateContact(contact.id, payload);
+      if (result.error) {
+        setError(result.error);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        setSaving(false);
+        return;
+      }
+      // 遷移先で画面が切り替わるため saving は解除しない（再クリック防止）
+      router.push(`/contacts/${contact.id}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      setSaving(false);
     }
-    router.push(`/contacts/${contact.id}`);
-    router.refresh();
   };
 
   const handleDelete = async () => {
@@ -324,6 +324,24 @@ export function ContactEditForm({
       <div style={styles.headerRow}>
         <h1 style={styles.title}>コンタクトを編集</h1>
       </div>
+
+      {error && (
+        <div
+          style={{
+            backgroundColor: "var(--color-error-bg, #fdecea)",
+            color: "var(--color-error)",
+            border: "1px solid var(--color-error)",
+            borderRadius: "var(--radius-card)",
+            padding: "0.75rem 1rem",
+            marginBottom: "1rem",
+            fontSize: "0.875rem",
+            whiteSpace: "pre-wrap",
+          }}
+          role="alert"
+        >
+          {error}
+        </div>
+      )}
 
       <form onSubmit={handleSubmit}>
         {/* 氏名 */}
@@ -500,6 +518,21 @@ export function ContactEditForm({
               />
             </div>
             <div>
+              <label style={styles.label}>血液型</label>
+              <select
+                style={styles.input}
+                value={values.blood_type}
+                onChange={(e) => set("blood_type", e.target.value as BloodType)}
+                onFocus={onFocus}
+                onBlur={onBlur}
+              >
+                <option value="">-- 選択 --</option>
+                {BLOOD_TYPE_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
               <label style={styles.label}>リードソース</label>
               <select
                 style={styles.input}
@@ -587,30 +620,20 @@ export function ContactEditForm({
         {/* インボイス */}
         <div style={styles.card}>
           <h2 style={styles.sectionTitle}>インボイス</h2>
-          <div style={styles.grid}>
-            <div style={styles.checkboxRow}>
-              <input
-                id="invoice_registered"
-                type="checkbox"
-                checked={values.invoice_registered}
-                onChange={(e) => set("invoice_registered", e.target.checked)}
-              />
-              <label htmlFor="invoice_registered" style={{ ...styles.label, marginBottom: 0 }}>
-                インボイス登録済み
-              </label>
-            </div>
-            <div>
-              <label style={styles.label}>登録番号（T+13桁）</label>
-              <input
-                type="text"
-                style={styles.input}
-                placeholder="T1234567890123"
-                value={values.invoice_registration_number}
-                onChange={(e) => set("invoice_registration_number", e.target.value)}
-                onFocus={onFocus}
-                onBlur={onBlur}
-              />
-            </div>
+          <p style={{ color: "var(--color-sumi600)", fontSize: "0.75rem", margin: "0 0 0.75rem 0" }}>
+            登録番号の有無で登録ステータスを自動判定します。
+          </p>
+          <div>
+            <label style={styles.label}>登録番号（T+13桁）</label>
+            <input
+              type="text"
+              style={styles.input}
+              placeholder="T1234567890123"
+              value={values.invoice_registration_number}
+              onChange={(e) => set("invoice_registration_number", e.target.value)}
+              onFocus={onFocus}
+              onBlur={onBlur}
+            />
           </div>
         </div>
 
@@ -618,20 +641,6 @@ export function ContactEditForm({
         <div style={styles.card}>
           <h2 style={styles.sectionTitle}>その他情報</h2>
           <div style={styles.grid}>
-            <div>
-              <label style={styles.label}>ポテンシャル数（1〜60）</label>
-              <input
-                type="number"
-                min={1}
-                max={60}
-                step={1}
-                style={styles.input}
-                value={values.potential_number}
-                onChange={(e) => set("potential_number", e.target.value)}
-                onFocus={onFocus}
-                onBlur={onBlur}
-              />
-            </div>
             <div>
               <label style={styles.label}>LINE User ID</label>
               <input

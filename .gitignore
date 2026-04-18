@@ -35,3 +35,8 @@ next-env.d.ts
 
 # supabase
 supabase/.temp/
+
+# local / ephemeral
+.claude/
+screenshots/
+test_*.py

@@ -29,7 +29,7 @@ export async function getCompanies(params?: {
 
   let query = supabase
     .from("companies")
-    .select("*, corporate_types(name), lead_sources(name), crm_users!companies_owner_user_id_fkey(full_name)", { count: "exact" })
+    .select("*, corporate_types(name), lead_sources(name), company_status:company_statuses(id, name), crm_users!companies_owner_user_id_fkey(full_name)", { count: "exact" })
     .is("deleted_at", null)
     .order("created_at", { ascending: false })
     .range(from, to);
@@ -54,8 +54,10 @@ export async function getCompany(id: string): Promise<ActionResult<any>> {
       *,
       corporate_types(id, name),
       lead_sources(id, name),
+      company_status:company_statuses(id, name),
       industry_classifications(id, major_name, middle_name, minor_name),
       crm_users!companies_owner_user_id_fkey(id, full_name),
+      primary_contact:contacts!companies_primary_contact_id_fkey(id, contact_code, last_name, first_name),
       accounts(id, account_code, name, deleted_at),
       contacts!contacts_company_id_fkey(id, contact_code, last_name, first_name, department, job_title, deleted_at)
     `)
@@ -102,7 +104,17 @@ export async function updateCompany(id: string, input: Record<string, unknown>):
   // 変更前データ取得（変更履歴用）
   const { data: before } = await supabase.from("companies").select("*").eq("id", id).single();
 
-  const { data, error } = await supabase.from("companies").update(parsed.data).eq("id", id).select().single();
+  // status_updated_at はステータス変更時に更新
+  const updates: Record<string, unknown> = { ...parsed.data };
+  if (
+    before &&
+    parsed.data.company_status_id &&
+    parsed.data.company_status_id !== before.company_status_id
+  ) {
+    updates.status_updated_at = new Date().toISOString();
+  }
+
+  const { data, error } = await supabase.from("companies").update(updates).eq("id", id).select().single();
   if (error) return { data: null, error: error.message };
 
   // 変更履歴記録

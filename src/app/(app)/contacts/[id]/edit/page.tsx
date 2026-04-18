@@ -21,6 +21,7 @@ type ContactRecord = {
   department: string | null;
   job_title: string | null;
   birth_date: string | null;
+  blood_type: "A" | "B" | "AB" | "O" | null;
   invoice_registered: boolean | null;
   invoice_registration_number: string | null;
   postal_code: string | null;
@@ -28,7 +29,6 @@ type ContactRecord = {
   city: string | null;
   address_line1: string | null;
   address_line2: string | null;
-  potential_number: number | null;
   lead_source_id: string | null;
   line_user_id: string | null;
   owner_user_id: string | null;

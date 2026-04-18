@@ -1,13 +1,14 @@
 import { z } from "zod";
+import { uuidString } from "./common";
 
 export const createDealSchema = z.object({
   name: z.string().min(1, "取引名は必須です").max(200),
-  pipeline_type_id: z.string().uuid("パイプラインは必須です"),
-  deal_stage_id: z.string().uuid("ステージは必須です"),
-  deal_status_id: z.string().uuid("ステータスは必須です"),
+  pipeline_type_id: uuidString("パイプラインは必須です"),
+  deal_stage_id: uuidString("ステージは必須です"),
+  deal_status_id: uuidString("ステータスは必須です"),
   amount: z.number().int().min(0).nullable().optional(),
-  account_id: z.string().uuid("アカウントは必須です"),
-  owner_user_id: z.string().uuid().nullable().optional(),
+  account_id: uuidString("アカウントは必須です"),
+  owner_user_id: uuidString().nullable().optional(),
   contract_name: z.string().max(200).nullable().optional(),
   application_date: z.string().nullable().optional(),
   review_completed_date: z.string().nullable().optional(),
@@ -23,12 +24,12 @@ export const createDealSchema = z.object({
 
 export const updateDealSchema = z.object({
   name: z.string().min(1).max(200).optional(),
-  pipeline_type_id: z.string().uuid().optional(),
-  deal_stage_id: z.string().uuid().optional(),
-  deal_status_id: z.string().uuid().optional(),
+  pipeline_type_id: uuidString().optional(),
+  deal_stage_id: uuidString().optional(),
+  deal_status_id: uuidString().optional(),
   amount: z.number().int().min(0).nullable().optional(),
-  account_id: z.string().uuid().optional(),
-  owner_user_id: z.string().uuid().nullable().optional(),
+  account_id: uuidString().optional(),
+  owner_user_id: uuidString().nullable().optional(),
   contract_name: z.string().max(200).nullable().optional(),
   application_date: z.string().nullable().optional(),
   review_completed_date: z.string().nullable().optional(),
@@ -37,6 +38,6 @@ export const updateDealSchema = z.object({
 
 // deal_services
 export const createDealServiceSchema = z.object({
-  deal_id: z.string().uuid(),
-  service_id: z.string().uuid(),
+  deal_id: uuidString(),
+  service_id: uuidString(),
 });

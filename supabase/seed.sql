@@ -163,6 +163,61 @@ INSERT INTO skills (skill_category_id, name, sort_order) VALUES
   ('e0000000-0000-0000-0000-000000000006', '要件定義', 2);
 
 -- ============================================================
+-- R01: 星座占いマスタ（12件固定）
+-- 星座名は src/lib/diagnosis の calcZodiacSign() の戻り値と完全一致させる必要がある
+-- ============================================================
+INSERT INTO constellation_fortune_telling (sort_number, month, boundary_day, constellation, element) VALUES
+  ( 1,  3, 21, '牡羊座', '火'),
+  ( 2,  4, 20, '牡牛座', '地'),
+  ( 3,  5, 21, '双子座', '風'),
+  ( 4,  6, 22, '蟹座',   '水'),
+  ( 5,  7, 23, '獅子座', '火'),
+  ( 6,  8, 23, '乙女座', '地'),
+  ( 7,  9, 23, '天秤座', '風'),
+  ( 8, 10, 24, '蠍座',   '水'),
+  ( 9, 11, 23, '射手座', '火'),
+  (10, 12, 22, '山羊座', '地'),
+  (11,  1, 20, '水瓶座', '風'),
+  (12,  2, 19, '魚座',   '水');
+
+-- ============================================================
+-- R02: ポテンシャル診断マスタ（60件）
+-- contacts.potential_number の FK 先。
+-- number (1〜60) と 12 ポテンシャルタイプ（IL+ / PR+ 等）の対応を投入する。
+-- 12 タイプのメタ情報（優位脳・脳特徴・強み・弱み）は potential-profiling から移植。
+-- その他の詳細カラム（animal/character/rhythm 等）は後日整備する想定で NULL のまま。
+-- ============================================================
+WITH potential_type_master (t, dominant_brain, brain_characteristics, strengths, weaknesses) AS (
+  VALUES
+    ('IL+', '左脳', '前頭葉', '情報の構造を見抜き、複雑なテーマでも筋道を立てて整理できる', '感情より理屈を優先しやすく、温度感の共有が後回しになりやすい'),
+    ('IR+', '右脳', '前頭葉', '発想の飛躍力があり、場の空気を重くしすぎず前向きに動かせる', '細かな詰めやリスクの見落としが出やすく、勢い任せになることがある'),
+    ('IR-', '右脳', '前頭葉', '常識に縛られない独創性があり、人の視点を動かす発案が得意', '興味の移り変わりが早く、継続や一点集中に負荷を感じやすい'),
+    ('IL-', '左脳', '前頭葉', '精度の高い準備と検証ができ、抜け漏れの少ない判断を積み重ねられる', '基準が高くなりすぎると、周囲にも自分にも厳しくなりやすい'),
+    ('EL+', '左脳', '扁桃体', '誠実で義理堅く、信頼関係を時間をかけて築くことができる', '気分の波や照れが行動を鈍らせ、本音を引っ込めやすい'),
+    ('ER+', '右脳', '扁桃体', '感受性と理想の高さがあり、物事に意味や美しさを見いだすのが得意', '気持ちが揺れると判断がぶれやすく、冷静な整理が後手になりやすい'),
+    ('EL-', '左脳', '扁桃体', '慎重さと継続力があり、目立たない場面でも安定して価値を出せる', '急な変化やスピード勝負では、慎重さが足かせになることがある'),
+    ('ER-', '右脳', '扁桃体', '人の感情の機微をよく捉え、粘り強く関係を育てることができる', '情に引っ張られやすく、気分や空気で判断が左右されやすい'),
+    ('PL+', '左脳', '小脳',   '迷いすぎずに動ける実行力があり、成果に向けた積み上げが得意', '情緒的な配慮や足並みを合わせる場面では、説明不足になりやすい'),
+    ('PR+', '右脳', '小脳',   '決断と初動が速く、誰も着手していない領域へ踏み出す胆力がある', '結論を急ぎやすく、検討不足のまま先へ進んでしまうことがある'),
+    ('PL-', '左脳', '小脳',   '現実を見ながら柔軟に打ち手を変えられ、判断と行動のバランスが良い', '合理性を優先するあまり、気持ちの整理に付き合うのが苦手になりやすい'),
+    ('PR-', '右脳', '小脳',   '直感の鋭さと反応速度が高く、土壇場でのひらめきに強い', '長期設計や論理の積み上げは後回しになりやすく、場当たりになりやすい')
+),
+number_to_type (n, t) AS (
+  VALUES
+    ( 1,'IR+'),( 2,'IR+'),( 3,'ER+'),( 4,'IL-'),( 5,'IL-'),( 6,'ER+'),( 7,'IR+'),( 8,'PR+'),( 9,'ER-'),(10,'PL-'),
+    (11,'PR-'),(12,'ER+'),(13,'IR+'),(14,'PR+'),(15,'ER-'),(16,'PL-'),(17,'PR-'),(18,'EL+'),(19,'PL+'),(20,'IL+'),
+    (21,'EL-'),(22,'PL-'),(23,'PR-'),(24,'EL+'),(25,'PL+'),(26,'IL+'),(27,'EL-'),(28,'IR-'),(29,'IR-'),(30,'EL-'),
+    (31,'IL+'),(32,'IL+'),(33,'EL-'),(34,'IR-'),(35,'IR-'),(36,'EL-'),(37,'IL+'),(38,'PL+'),(39,'EL+'),(40,'PR-'),
+    (41,'PL-'),(42,'EL-'),(43,'IL+'),(44,'PL+'),(45,'EL+'),(46,'PR-'),(47,'PL-'),(48,'ER-'),(49,'PR+'),(50,'IR+'),
+    (51,'ER+'),(52,'PR-'),(53,'PL-'),(54,'ER-'),(55,'PR+'),(56,'IR+'),(57,'ER+'),(58,'IL-'),(59,'IL-'),(60,'ER+')
+)
+INSERT INTO number_diagnosis (number, type, dominant_brain, brain_characteristics, strengths, weaknesses)
+SELECT nt.n, nt.t, tm.dominant_brain, tm.brain_characteristics, tm.strengths, tm.weaknesses
+FROM number_to_type nt
+JOIN potential_type_master tm ON tm.t = nt.t
+ORDER BY nt.n;
+
+-- ============================================================
 -- S01: ディールステージ（営業パイプライン）
 -- ============================================================
 INSERT INTO deal_stages (id, pipeline_type_id, name, current_situation, required_action, sort_order) VALUES
@@ -192,9 +247,10 @@ INSERT INTO deal_statuses (id, name, pipeline_type_id, deal_stage_id, sort_order
 -- ============================================================
 
 -- カンパニー
-INSERT INTO companies (id, name, name_kana, corporate_type_id, phone, owner_user_id) VALUES
+INSERT INTO companies (id, name, name_kana, corporate_type_id, company_status_id, phone, owner_user_id) VALUES
   ('10000000-0000-0000-0000-000000000001', '株式会社サンプル', 'カブシキガイシャサンプル',
     (SELECT id FROM corporate_types WHERE name = '株式会社'),
+    'c1000000-0000-0000-0000-000000000001',
     '03-1234-5678', 'a0000000-0000-0000-0000-000000000002');
 
 -- アカウント
@@ -205,11 +261,19 @@ INSERT INTO accounts (id, name, company_id, account_status_id, owner_user_id) VA
     'a0000000-0000-0000-0000-000000000002');
 
 -- コンタクト
-INSERT INTO contacts (id, last_name, first_name, last_name_kana, first_name_kana, contact_status_id, contact_type, company_id, department, job_title, owner_user_id) VALUES
+-- 生年月日 1975-08-15 → 獅子座 / potential_number=37（type=IL+）。§10 の算出式に基づく
+INSERT INTO contacts (
+  id, last_name, first_name, last_name_kana, first_name_kana,
+  contact_status_id, contact_type, company_id, department, job_title,
+  birth_date, blood_type, potential_number, constellation_id,
+  owner_user_id
+) VALUES
   ('30000000-0000-0000-0000-000000000001', '山田', '太郎', 'ヤマダ', 'タロウ',
     'd0000000-0000-0000-0000-000000000001', 'corporate_rep',
     '10000000-0000-0000-0000-000000000001',
     '営業部', '部長',
+    '1975-08-15', 'A', 37,
+    (SELECT id FROM constellation_fortune_telling WHERE constellation = '獅子座'),
     'a0000000-0000-0000-0000-000000000003');
 
 -- コンタクトメール
@@ -237,3 +301,36 @@ INSERT INTO deals (id, name, pipeline_type_id, deal_stage_id, deal_status_id, am
 -- ディール×サービス
 INSERT INTO deal_services (deal_id, service_id) VALUES
   ('40000000-0000-0000-0000-000000000001', (SELECT id FROM services WHERE name = 'Web制作'));
+
+-- ============================================================
+-- タレント（サンプルコンタクト 山田太郎 に紐付く）
+-- ============================================================
+INSERT INTO talents (
+  id, contact_id, personality_memo, custom_strengths, custom_weaknesses, aptitude_notes, overall_assessment
+) VALUES (
+  '50000000-0000-0000-0000-000000000001',
+  '30000000-0000-0000-0000-000000000001',
+  '物腰が柔らかく、相手の意図を引き出すヒアリングが得意。商談では結論を急がず、関係構築を優先する傾向。',
+  '顧客折衝、提案資料の作成、チームビルディング',
+  '細かな数値管理や事務作業は後回しにしがち',
+  '営業責任者や事業開発ポジションに適性。若手育成のメンター役にも向く。',
+  '継続取引を生むリレーションシップ型の営業人材。マネジメント経験あり、スケール志向。'
+);
+
+-- タレント×スキル
+INSERT INTO talent_skills (talent_id, skill_id, proficiency_level, years_experience, note) VALUES
+  ('50000000-0000-0000-0000-000000000001',
+    (SELECT id FROM skills WHERE name = 'プロジェクトマネジメント'),
+    4, 10, '大型Web制作案件の PM 経験'),
+  ('50000000-0000-0000-0000-000000000001',
+    (SELECT id FROM skills WHERE name = '要件定義'),
+    4,  8, 'クライアント要件整理を主導'),
+  ('50000000-0000-0000-0000-000000000001',
+    (SELECT id FROM skills WHERE name = 'Figma'),
+    2,  2, 'ワイヤーレベルの作成は可能');
+
+-- タレント経歴
+INSERT INTO talent_careers (talent_id, career_type, organization, title, description, start_date, end_date, is_current, sort_order) VALUES
+  ('50000000-0000-0000-0000-000000000001', 'work', '株式会社サンプル', '営業部 部長', '営業部門の統括、主要顧客の担当', '2020-04-01', NULL, TRUE, 1),
+  ('50000000-0000-0000-0000-000000000001', 'work', '前職株式会社', '営業課長', 'BtoB 新規開拓とチームリード', '2015-04-01', '2020-03-31', FALSE, 2),
+  ('50000000-0000-0000-0000-000000000001', 'education', '〇〇大学 経済学部', '学士（経済学）', NULL, '2007-04-01', '2011-03-31', FALSE, 3);

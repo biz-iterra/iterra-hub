@@ -131,16 +131,18 @@ export default async function CompanyDetailPage({
           >
             {company.name}
           </h1>
-          {company.corporate_types?.name && (
+          {company.company_status?.name && (
             <span
               style={{
-                backgroundColor: "var(--color-sumi100)",
+                backgroundColor: "var(--color-sage)",
+                color: "#fff",
                 borderRadius: "var(--radius-badge)",
                 padding: "0.125rem 0.5rem",
                 fontSize: "0.75rem",
+                fontWeight: 600,
               }}
             >
-              {company.corporate_types.name}
+              {company.company_status.name}
             </span>
           )}
           <Link
@@ -222,13 +224,57 @@ export default async function CompanyDetailPage({
                 label="事業者種別"
                 value={company.corporate_types?.name}
               />
+              <InfoItem label="法人番号" value={company.corporate_number} />
+              <InfoItem
+                label="ステータス"
+                value={company.company_status?.name}
+              />
               <InfoItem label="業種分類" value={industryLabel} />
               <InfoItem
                 label="リードソース"
                 value={company.lead_sources?.name}
               />
+              <div>
+                <span
+                  style={{
+                    color: "var(--color-sumi600)",
+                    fontSize: "0.75rem",
+                    fontWeight: 600,
+                    display: "block",
+                    marginBottom: "0.25rem",
+                  }}
+                >
+                  担当者
+                </span>
+                {company.primary_contact ? (
+                  <Link
+                    href={`/contacts/${company.primary_contact.id}`}
+                    className="hover:bg-[var(--color-bg-hover)]"
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "0.25rem",
+                      color: "var(--color-terra)",
+                      textDecoration: "none",
+                      padding: "0.125rem 0.375rem",
+                      margin: "-0.125rem -0.375rem",
+                      borderRadius: "var(--radius-sm)",
+                      transition: "background-color 0.15s",
+                      fontSize: "0.875rem",
+                    }}
+                  >
+                    {company.primary_contact.last_name}{" "}
+                    {company.primary_contact.first_name}
+                    <ArrowUpRight size={14} />
+                  </Link>
+                ) : (
+                  <span style={{ color: "var(--color-sumi400)", fontSize: "0.875rem" }}>
+                    -
+                  </span>
+                )}
+              </div>
               <InfoItem
-                label="担当者"
+                label="社内担当者"
                 value={company.crm_users?.full_name}
               />
             </div>
@@ -400,10 +446,9 @@ export default async function CompanyDetailPage({
                 gap: "1rem",
               }}
             >
-              <InfoItem label="法人番号" value={company.corporate_number} />
               <InfoItem
                 label="インボイス登録"
-                value={company.is_invoice_registered ? "登録済み" : "未登録"}
+                value={company.invoice_registration_number ? "登録済み" : "未登録"}
               />
               <InfoItem
                 label="登録番号"

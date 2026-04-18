@@ -325,6 +325,23 @@ ITERRAの営業・取引管理CRMシステムを新規構築する。現在ス�
 
 ---
 
+### M11: company_statuses（カンパニーステータス）
+
+| # | 論理名 | 物理名 | 型 | PK | FK | UK | NN | デフォルト | 区分値/CHECK | バリデーション |
+|---|--------|--------|-----|----|----|----|----|----------|-------------|-------------|
+| 1 | ID | `id` | UUID | PK | | | NN | gen_random_uuid() | | |
+| 2 | カンパニーステータス名 | `name` | TEXT | | | UK | NN | | | 1-50文字 |
+| 3 | 削除日時 | `deleted_at` | TIMESTAMPTZ | | | | | NULL | | 論理削除 |
+| 4 | 削除実行者 | `deleted_by` | UUID | | FK→T01.id | | | | | |
+| 5 | 削除理由 | `deletion_reason` | TEXT | | | | | | | |
+| 6 | 作成日時 | `created_at` | TIMESTAMPTZ | | | | NN | NOW() | | 更新不可 |
+| 7 | 更新日時 | `updated_at` | TIMESTAMPTZ | | | | NN | NOW() | | トリガー自動更新 |
+
+**CRUD:** M01と同じパターン（SELECT は認証済み全員、INSERT/UPDATE/DELETE は admin のみ）。
+**初期値:** アクティブ / 休眠 / 取引停止 / 見込み
+
+---
+
 ### M09: skill_categories（スキルカテゴリ）
 
 | # | 論理名 | 物理名 | 型 | PK | FK | UK | NN | デフォルト | 区分値/CHECK | バリデーション |
@@ -534,12 +551,14 @@ ITERRAの営業・取引管理CRMシステムを新規構築する。現在ス�
 | 20 | 社内メモ | `internal_memo` | TEXT | | | | | | | max 2000文字 |
 | 21 | リードソースID | `lead_source_id` | UUID | | FK→M05.id | | | | | |
 | 22 | 担当者ID | `owner_user_id` | UUID | | FK→T01.id | | | | | |
-| 23 | 有効フラグ | `is_active` | BOOLEAN | | | | NN | TRUE | | |
-| 24 | 作成日時 | `created_at` | TIMESTAMPTZ | | | | NN | NOW() | | 更新不可 |
-| 25 | 更新日時 | `updated_at` | TIMESTAMPTZ | | | | NN | NOW() | | トリガー自動更新 |
+| 23 | カンパニーステータスID | `company_status_id` | UUID | | FK→M11.id | | NN | | | |
+| 24 | ステータス更新日時 | `status_updated_at` | TIMESTAMPTZ | | | | | NULL | | ステータス変更時に自動更新 |
+| 25 | 有効フラグ | `is_active` | BOOLEAN | | | | NN | TRUE | | |
+| 26 | 作成日時 | `created_at` | TIMESTAMPTZ | | | | NN | NOW() | | 更新不可 |
+| 27 | 更新日時 | `updated_at` | TIMESTAMPTZ | | | | NN | NOW() | | トリガー自動更新 |
 
 **CHECK:** invoice_registered = FALSE OR invoice_registration_number IS NOT NULL
-**INDEX:** name, owner_user_id, corporate_type_id
+**INDEX:** name, owner_user_id, corporate_type_id, company_status_id
 **CRUD:**
 - CREATE: member以上。company_codeはトリガーで自動採番
 - READ: member=自分の担当のみ、manager/admin=全件
@@ -610,8 +629,9 @@ ITERRAの営業・取引管理CRMシステムを新規構築する。現在ス�
 | 18 | 部署 | `department` | TEXT | | | | | | | max 100文字 |
 | 19 | 役職 | `job_title` | TEXT | | | | | | | max 100文字 |
 | 20 | 生年月日 | `birth_date` | DATE | | | | | | | 未来日不可 |
-| 21 | ポテンシャル番号 | `potential_number` | INTEGER | | FK→R02.number | | | | 1-60 | |
-| 22 | 星座ID | `constellation_id` | UUID | | FK→R01.id | | | | | |
+| 20a | 血液型 | `blood_type` | TEXT | | | | | NULL | A/B/AB/O | CHECK 制約で4値に限定 |
+| 21 | ポテンシャル番号 | `potential_number` | INTEGER | | FK→R02.number | | | | 1-60 | birth_date から自動算出（§10）。内部キーとして保持し、画面表示は R02.type（ポテンシャルタイプ）を使用。ユーザー明示指定は優先 |
+| 22 | 星座ID | `constellation_id` | UUID | | FK→R01.id | | | | | birth_date から自動算出（§10）。ユーザーが明示指定した場合はそれを優先 |
 | 23 | リードソースID | `lead_source_id` | UUID | | FK→M05.id | | | | | |
 | 24 | LINEユーザーID | `line_user_id` | TEXT | | | UK(NULLable) | | | | |
 | 25 | 社内メモ | `internal_memo` | TEXT | | | | | | | max 2000文字 |
@@ -1372,3 +1392,110 @@ Next.js 15プロジェクト初期化、Supabase設定、共通ライブラリ
 - `work-talent-hub/src/types/index.ts` — 型定義パターン
 - `work-talent-hub/src/actions/` — Server Actionパターン
 - `work-talent-hub/src/lib/supabase/` — Supabaseクライアント設定
+
+---
+
+## 10. 自動診断ロジック（コンタクト生年月日 → ポテンシャル番号 / 星座ID）
+
+### 10.1 目的
+
+タレントの「要素になる診断」を、別プロジェクト `potential-profiling` と同じ算出式で CRM 側でも自動付与する。
+**本書の範囲は算出値（数値・ID）の付与のみ。** LLM によるテキスト生成・診断履歴保存・トキ算出等は対象外（potential-profiling 側の責務）。
+
+### 10.2 入出力
+
+**入力**
+- `contacts.birth_date`（DATE, nullable）
+
+**出力（contacts 内に書込み）**
+- `contacts.potential_number` — INTEGER 1–60（FK→R02.number）
+- `contacts.constellation_id` — UUID（FK→R01.id）
+
+### 10.3 発火タイミング
+
+| 操作 | 条件 | 挙動 |
+|------|------|------|
+| `createContact` | `birth_date` が入力にある | 下記 10.5 の計算結果で `potential_number` / `constellation_id` を埋める |
+| `updateContact` | `birth_date` が入力にあり、かつ変更前の値と異なる | 同上で再計算して上書き |
+| `updateContact` | `birth_date` が入力にない／変わっていない | 何もしない |
+
+**明示指定の優先:** 同じリクエスト内でユーザーが `potential_number` / `constellation_id` を明示的に送っている場合、そのフィールドについては自動算出値を**差し込まない**（ユーザー指定を尊重）。判定は Zod パース後の値ではなく「入力オブジェクトに当該キーが含まれるか」で行う（undefined と未指定を区別するため）。
+
+### 10.4 算出定数
+
+potential-profiling の `system_settings` をハードコード（CRM 側には `system_settings` テーブルを設けない）。実装位置: `src/lib/diagnosis/index.ts`。
+
+| 定数 | 値 | 用途 |
+|------|------|------|
+| `POTENTIAL_BASE_DATE` | `1920-01-01` | ポテンシャル番号算出用基準日 |
+
+> 変更が発生した場合は同ファイルの定数を書換える。potential-profiling 側の値が変わった場合は要同期。
+
+### 10.5 算出式
+
+**potential_number（1–60）**
+
+```
+diffDays = floor((birthdate_UTC - POTENTIAL_BASE_DATE_UTC) / 1日)
+potential_number = ((diffDays + 1) mod 60 + 60) mod 60 + 1
+```
+
+- `potential-profiling` の `calcPotentialValue`（0-59）に +1 して 1-60 の FK 範囲に収めたもの。
+- この番号で R02 `number_diagnosis` を引くと `type`（IL+ / PR+ 等 12 種）が取得でき、画面はこの `type` を表示する。
+- UTC 0時基準で差分日数を算出しタイムゾーン依存を排除。
+- 負値対応のため二重 mod。
+
+**constellation_id（UUID）**
+
+1. 生年月日から西洋占星術の星座名を判定（12通りの境界日ハードコード、`calcZodiacSign` と同一）。
+2. `constellation_fortune_telling.constellation` 列で完全一致する行を検索し、その `id` を採用。
+
+星座名は日本語（牡羊座 / 牡牛座 / 双子座 / 蟹座 / 獅子座 / 乙女座 / 天秤座 / 蠍座 / 射手座 / 山羊座 / 水瓶座 / 魚座）で、R01 マスタの `constellation` 値と一致させる必要がある。
+
+### 10.6 マスタデータ依存（重要）
+
+本機能は以下のマスタが投入済みであることを**必須の前提**とする。
+
+| マスタ | 必要な内容 |
+|--------|-----------|
+| R02: number_diagnosis | `number` = 1〜60 の 60行（他列は任意だが FK 成立のため 60 行完備） |
+| R01: constellation_fortune_telling | 12星座分。`constellation` 列が 10.5 記載の日本語名と一致していること |
+
+**R02 の FK 制約:** `contacts.potential_number` は `number_diagnosis(number)` に FK を張っているため、R02 に対応行がない場合は INSERT/UPDATE が FK 違反で失敗する。
+
+**R01 の lookup:** `constellation_id` は UUID ルックアップ。マッチする行がなければ自動付与できない。
+
+### 10.7 マスタ未投入時の挙動
+
+**エラーを返して書込自体を中止する。** 暗黙のスキップ（空欄のまま作成）は行わない。
+
+| 状況 | 挙動 |
+|------|------|
+| R02 に対応行あり | 自動算出して埋めて書込 |
+| R02 に対応行なし | **エラー:** 「ポテンシャル診断マスタ（number=N）が見つかりません。マスタを整備してください」を Server Action の返却 error にセットし、コンタクトの insert/update を中止 |
+| R01 に一致星座あり | 自動算出して埋めて書込 |
+| R01 に一致星座なし | **エラー:** 「星座マスタ（constellation=…）が見つかりません。マスタを整備してください」を返却して書込中止 |
+
+→ マスタ未投入の環境では `birth_date` を伴うコンタクト作成・更新が落ちる。運用上はマスタ投入を前提とし、未整備時はエラーで明示的に気づけるようにする。
+
+### 10.8 エッジケース
+
+- `birth_date` が未来日: バリデータ層（Zod）で弾く方針（既存未実装なら TODO）。自動診断ロジック自体はエラーにはしない。
+- `birth_date` が極端に古い/新しい: 計算式は整数範囲内で完結（diff が大きくても mod 60 で丸まる）ので破綻しない。
+- **`birth_date` を null 化する更新:** `potential_number` と `constellation_id` も同じタイミングで自動的に null にリセットする。診断結果は `birth_date` に従属する派生値であり、単独では保持しない。ユーザーが同じリクエストで明示的に両フィールドを送っている場合はその値を優先。
+
+### 10.9 実装ファイル
+
+- `src/lib/diagnosis/index.ts` — pure functions（`calcPotentialNumber` / `calcZodiacSign`）と定数
+- `src/actions/contacts.ts` — `createContact` / `updateContact` に組込（マスタ未投入時ガードを含む）
+
+### 10.10 移植元との差分メモ
+
+potential-profiling から**移植しなかった**要素：
+
+- `Character` / `PotentialType` / `Rhythm` / `Toki` の独立マスタ（iterra-hub では R01/R02 に集約済み）
+- `system_settings` テーブル（定数で代替）
+- `calcPotentialValue` (0–59) / `calcTokiNo` / LLM 生成系 / 診断履歴テーブル / プライバシー同意フロー
+- Prisma スキーマ・関連 API ルート
+
+理由: CRM の要件は「コンタクトにポテンシャル番号と星座を付与する」のみで、詳細プロファイリング UI や履歴管理は別プロジェクトに委ねる。

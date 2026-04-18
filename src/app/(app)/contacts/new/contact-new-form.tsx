@@ -16,6 +16,13 @@ type Masters = {
 };
 
 type ContactType = "" | "individual" | "corporate_rep" | "employee" | "other";
+type BloodType = "" | "A" | "B" | "AB" | "O";
+const BLOOD_TYPE_OPTIONS: { value: Exclude<BloodType, "">; label: string }[] = [
+  { value: "A", label: "A 型" },
+  { value: "B", label: "B 型" },
+  { value: "AB", label: "AB 型" },
+  { value: "O", label: "O 型" },
+];
 
 const CONTACT_TYPE_OPTIONS: { value: Exclude<ContactType, "">; label: string }[] = [
   { value: "individual", label: "個人" },
@@ -168,14 +175,13 @@ export function ContactNewForm({ masters }: { masters: Masters }) {
     department: "",
     job_title: "",
     birth_date: "",
-    invoice_registered: false,
+    blood_type: "" as BloodType,
     invoice_registration_number: "",
     postal_code: "",
     prefecture: "",
     city: "",
     address_line1: "",
     address_line2: "",
-    potential_number: "",
     lead_source_id: "",
     line_user_id: "",
     owner_user_id: "",
@@ -196,18 +202,6 @@ export function ContactNewForm({ masters }: { masters: Masters }) {
     setSaving(true);
     setError(null);
 
-    const potentialNum = values.potential_number
-      ? Number(values.potential_number)
-      : null;
-    if (
-      potentialNum != null &&
-      (!Number.isInteger(potentialNum) || potentialNum < 1 || potentialNum > 60)
-    ) {
-      setSaving(false);
-      setError("ポテンシャル数は 1〜60 の整数で入力してください");
-      return;
-    }
-
     const payload: Record<string, unknown> = {
       last_name: values.last_name,
       middle_name: values.middle_name || null,
@@ -221,14 +215,14 @@ export function ContactNewForm({ masters }: { masters: Masters }) {
       department: values.department || null,
       job_title: values.job_title || null,
       birth_date: values.birth_date || null,
-      invoice_registered: values.invoice_registered,
+      blood_type: values.blood_type || null,
+      invoice_registered: !!values.invoice_registration_number,
       invoice_registration_number: values.invoice_registration_number || null,
       postal_code: values.postal_code || null,
       prefecture: values.prefecture || null,
       city: values.city || null,
       address_line1: values.address_line1 || null,
       address_line2: values.address_line2 || null,
-      potential_number: potentialNum,
       lead_source_id: values.lead_source_id || null,
       line_user_id: values.line_user_id || null,
       owner_user_id: values.owner_user_id || null,
@@ -445,6 +439,21 @@ export function ContactNewForm({ masters }: { masters: Masters }) {
               />
             </div>
             <div>
+              <label style={styles.label}>血液型</label>
+              <select
+                style={styles.input}
+                value={values.blood_type}
+                onChange={(e) => set("blood_type", e.target.value as BloodType)}
+                onFocus={onFocus}
+                onBlur={onBlur}
+              >
+                <option value="">-- 選択 --</option>
+                {BLOOD_TYPE_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
               <label style={styles.label}>リードソース</label>
               <select
                 style={styles.input}
@@ -532,30 +541,20 @@ export function ContactNewForm({ masters }: { masters: Masters }) {
         {/* インボイス */}
         <div style={styles.card}>
           <h2 style={styles.sectionTitle}>インボイス</h2>
-          <div style={styles.grid}>
-            <div style={styles.checkboxRow}>
-              <input
-                id="invoice_registered"
-                type="checkbox"
-                checked={values.invoice_registered}
-                onChange={(e) => set("invoice_registered", e.target.checked)}
-              />
-              <label htmlFor="invoice_registered" style={{ ...styles.label, marginBottom: 0 }}>
-                インボイス登録済み
-              </label>
-            </div>
-            <div>
-              <label style={styles.label}>登録番号(T+13桁)</label>
-              <input
-                type="text"
-                style={styles.input}
-                placeholder="T1234567890123"
-                value={values.invoice_registration_number}
-                onChange={(e) => set("invoice_registration_number", e.target.value)}
-                onFocus={onFocus}
-                onBlur={onBlur}
-              />
-            </div>
+          <p style={{ color: "var(--color-sumi600)", fontSize: "0.75rem", margin: "0 0 0.75rem 0" }}>
+            登録番号の有無で登録ステータスを自動判定します。
+          </p>
+          <div>
+            <label style={styles.label}>登録番号(T+13桁)</label>
+            <input
+              type="text"
+              style={styles.input}
+              placeholder="T1234567890123"
+              value={values.invoice_registration_number}
+              onChange={(e) => set("invoice_registration_number", e.target.value)}
+              onFocus={onFocus}
+              onBlur={onBlur}
+            />
           </div>
         </div>
 
@@ -563,20 +562,6 @@ export function ContactNewForm({ masters }: { masters: Masters }) {
         <div style={styles.card}>
           <h2 style={styles.sectionTitle}>その他情報</h2>
           <div style={styles.grid}>
-            <div>
-              <label style={styles.label}>ポテンシャル数(1〜60)</label>
-              <input
-                type="number"
-                min={1}
-                max={60}
-                step={1}
-                style={styles.input}
-                value={values.potential_number}
-                onChange={(e) => set("potential_number", e.target.value)}
-                onFocus={onFocus}
-                onBlur={onBlur}
-              />
-            </div>
             <div>
               <label style={styles.label}>LINE User ID</label>
               <input

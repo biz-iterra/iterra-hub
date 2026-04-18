@@ -143,6 +143,7 @@ export function CompaniesView({ initialData }: { initialData: CompaniesData }) {
                     <th className="px-4 py-3 text-left">会社コード</th>
                     <th className="px-4 py-3 text-left">会社名</th>
                     <th className="px-4 py-3 text-left">事業者種別</th>
+                    <th className="px-4 py-3 text-left">ステータス</th>
                     <th className="px-4 py-3 text-left">代表電話</th>
                     <th className="px-4 py-3 text-left">担当者</th>
                     <th className="px-4 py-3 text-left">作成日</th>
@@ -178,6 +179,23 @@ export function CompaniesView({ initialData }: { initialData: CompaniesData }) {
                       </td>
                       <td className="px-4 py-3">
                         {company.corporate_types?.name ?? "-"}
+                      </td>
+                      <td className="px-4 py-3">
+                        {company.company_status ? (
+                          <span
+                            style={{
+                              display: "inline-block",
+                              backgroundColor: "var(--color-sumi100)",
+                              borderRadius: "var(--radius-badge)",
+                              padding: "0.125rem 0.5rem",
+                              fontSize: "0.75rem",
+                            }}
+                          >
+                            {company.company_status.name}
+                          </span>
+                        ) : (
+                          <span style={{ color: "var(--color-sumi400)" }}>-</span>
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         {company.phone_main ?? "-"}

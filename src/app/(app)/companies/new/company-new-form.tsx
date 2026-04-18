@@ -11,6 +11,7 @@ type SelectOption = { value: string; label: string };
 type Masters = {
   corporateTypes: SelectOption[];
   leadSources: SelectOption[];
+  companyStatuses: SelectOption[];
   owners: SelectOption[];
 };
 
@@ -146,10 +147,10 @@ export function CompanyNewForm({ masters }: { masters: Masters }) {
     name_kana: "",
     representative_name: "",
     corporate_type_id: "",
+    company_status_id: "",
     lead_source_id: "",
     owner_user_id: "",
     corporate_number: "",
-    invoice_registered: false,
     invoice_registration_number: "",
     postal_code: "",
     prefecture: "",
@@ -168,6 +169,18 @@ export function CompanyNewForm({ masters }: { masters: Masters }) {
     setValues((v) => ({ ...v, [key]: value }));
   };
 
+  // 法人番号（13桁数字）を入力したらインボイス番号を T+法人番号 で自動補完する。
+  // 既に invoice_registration_number に手入力があれば上書きしない。
+  const onCorporateNumberChange = (raw: string) => {
+    setValues((v) => {
+      const next = { ...v, corporate_number: raw };
+      if (/^\d{13}$/.test(raw) && !v.invoice_registration_number) {
+        next.invoice_registration_number = `T${raw}`;
+      }
+      return next;
+    });
+  };
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -178,10 +191,11 @@ export function CompanyNewForm({ masters }: { masters: Masters }) {
       name_kana: values.name_kana || null,
       representative_name: values.representative_name || null,
       corporate_type_id: values.corporate_type_id || null,
+      company_status_id: values.company_status_id,
       lead_source_id: values.lead_source_id || null,
       owner_user_id: values.owner_user_id || null,
       corporate_number: values.corporate_number || null,
-      invoice_registered: values.invoice_registered,
+      invoice_registered: !!values.invoice_registration_number,
       invoice_registration_number: values.invoice_registration_number || null,
       postal_code: values.postal_code || null,
       prefecture: values.prefecture || null,
@@ -284,6 +298,34 @@ export function CompanyNewForm({ masters }: { masters: Masters }) {
               </select>
             </div>
             <div>
+              <label style={styles.label}>法人番号（13桁）</label>
+              <input
+                type="text"
+                style={styles.input}
+                placeholder="1234567890123"
+                value={values.corporate_number}
+                onChange={(e) => onCorporateNumberChange(e.target.value)}
+                onFocus={onFocus}
+                onBlur={onBlur}
+              />
+            </div>
+            <div>
+              <label style={styles.label}>ステータス *</label>
+              <select
+                style={styles.input}
+                value={values.company_status_id}
+                onChange={(e) => set("company_status_id", e.target.value)}
+                required
+                onFocus={onFocus}
+                onBlur={onBlur}
+              >
+                <option value="">-- 選択 --</option>
+                {masters.companyStatuses.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
               <label style={styles.label}>リードソース</label>
               <select
                 style={styles.input}
@@ -299,7 +341,7 @@ export function CompanyNewForm({ masters }: { masters: Masters }) {
               </select>
             </div>
             <div>
-              <label style={styles.label}>担当者</label>
+              <label style={styles.label}>社内担当者</label>
               <select
                 style={styles.input}
                 value={values.owner_user_id}
@@ -426,42 +468,20 @@ export function CompanyNewForm({ masters }: { masters: Masters }) {
         {/* インボイス */}
         <div style={styles.card}>
           <h2 style={styles.sectionTitle}>インボイス</h2>
-          <div style={styles.grid}>
-            <div>
-              <label style={styles.label}>法人番号（13桁）</label>
-              <input
-                type="text"
-                style={styles.input}
-                placeholder="1234567890123"
-                value={values.corporate_number}
-                onChange={(e) => set("corporate_number", e.target.value)}
-                onFocus={onFocus}
-                onBlur={onBlur}
-              />
-            </div>
-            <div style={styles.checkboxRow}>
-              <input
-                id="invoice_registered"
-                type="checkbox"
-                checked={values.invoice_registered}
-                onChange={(e) => set("invoice_registered", e.target.checked)}
-              />
-              <label htmlFor="invoice_registered" style={{ ...styles.label, marginBottom: 0 }}>
-                インボイス登録済み
-              </label>
-            </div>
-            <div style={{ gridColumn: "1 / -1" }}>
-              <label style={styles.label}>インボイス登録番号（T+13桁）</label>
-              <input
-                type="text"
-                style={styles.input}
-                placeholder="T1234567890123"
-                value={values.invoice_registration_number}
-                onChange={(e) => set("invoice_registration_number", e.target.value)}
-                onFocus={onFocus}
-                onBlur={onBlur}
-              />
-            </div>
+          <p style={{ color: "var(--color-sumi600)", fontSize: "0.75rem", margin: "0 0 0.75rem 0" }}>
+            登録番号の有無で登録ステータスを自動判定します。基本情報の法人番号を 13 桁入力すると登録番号が自動で補完されます。
+          </p>
+          <div>
+            <label style={styles.label}>インボイス登録番号（T+13桁）</label>
+            <input
+              type="text"
+              style={styles.input}
+              placeholder="T1234567890123"
+              value={values.invoice_registration_number}
+              onChange={(e) => set("invoice_registration_number", e.target.value)}
+              onFocus={onFocus}
+              onBlur={onBlur}
+            />
           </div>
         </div>
 

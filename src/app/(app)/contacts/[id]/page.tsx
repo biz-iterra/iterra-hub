@@ -148,18 +148,21 @@ export default async function ContactDetailPage({
             {c.last_name} {c.first_name}
           </h1>
         </div>
-        <span
-          style={{
-            backgroundColor: typeBadge.bg,
-            borderRadius: "var(--radius-badge)",
-            padding: "0.125rem 0.5rem",
-            fontSize: "0.75rem",
-            color: "var(--color-text-body)",
-            alignSelf: "flex-end",
-          }}
-        >
-          {typeBadge.label}
-        </span>
+        {c.contact_status?.name && (
+          <span
+            style={{
+              backgroundColor: "var(--color-sage)",
+              color: "#fff",
+              borderRadius: "var(--radius-badge)",
+              padding: "0.125rem 0.5rem",
+              fontSize: "0.75rem",
+              fontWeight: 600,
+              alignSelf: "flex-end",
+            }}
+          >
+            {c.contact_status.name}
+          </span>
+        )}
         <Link
           href={`/contacts/${c.id}/edit`}
           style={{
@@ -380,13 +383,39 @@ export default async function ContactDetailPage({
               </div>
             </div>
 
-            <div>
-              <p style={{ color: "var(--color-sumi600)", fontSize: "0.75rem", fontWeight: 600, marginBottom: "0.25rem" }}>
-                {"\u751F\u5E74\u6708\u65E5"}
-              </p>
-              <p style={{ color: "var(--color-text-body)", fontSize: "0.875rem", margin: 0 }}>
-                {formatDate(c.birth_date)}
-              </p>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+              <div>
+                <p style={{ color: "var(--color-sumi600)", fontSize: "0.75rem", fontWeight: 600, marginBottom: "0.25rem" }}>
+                  生年月日
+                </p>
+                <p style={{ color: "var(--color-text-body)", fontSize: "0.875rem", margin: 0 }}>
+                  {formatDate(c.birth_date)}
+                </p>
+              </div>
+              <div>
+                <p style={{ color: "var(--color-sumi600)", fontSize: "0.75rem", fontWeight: 600, marginBottom: "0.25rem" }}>
+                  血液型
+                </p>
+                <p style={{ color: "var(--color-text-body)", fontSize: "0.875rem", margin: 0 }}>
+                  {c.blood_type ? `${c.blood_type} 型` : "\u2014"}
+                </p>
+              </div>
+              <div>
+                <p style={{ color: "var(--color-sumi600)", fontSize: "0.75rem", fontWeight: 600, marginBottom: "0.25rem" }}>
+                  星座
+                </p>
+                <p style={{ color: "var(--color-text-body)", fontSize: "0.875rem", margin: 0 }}>
+                  {c.constellation_fortune_telling?.constellation ?? "\u2014"}
+                </p>
+              </div>
+              <div>
+                <p style={{ color: "var(--color-sumi600)", fontSize: "0.75rem", fontWeight: 600, marginBottom: "0.25rem" }}>
+                  ポテンシャルタイプ
+                </p>
+                <p style={{ color: "var(--color-text-body)", fontSize: "0.875rem", margin: 0 }}>
+                  {c.number_diagnosis?.type ?? "\u2014"}
+                </p>
+              </div>
             </div>
           </div>
 
@@ -468,7 +497,7 @@ export default async function ContactDetailPage({
                 {"\u767B\u9332\u6709\u7121"}
               </p>
               <p style={{ color: "var(--color-text-body)", fontSize: "0.875rem", margin: 0 }}>
-                {c.has_invoice_registration ? "\u767B\u9332\u6E08\u307F" : "\u672A\u767B\u9332"}
+                {c.invoice_registration_number ? "登録済み" : "未登録"}
               </p>
             </div>
 
@@ -704,20 +733,50 @@ export default async function ContactDetailPage({
                 padding: "1.5rem",
               }}
             >
-              <h2
+              <div
                 style={{
-                  color: "var(--color-text-title)",
-                  fontSize: "1rem",
-                  fontWeight: 700,
-                  margin: "0 0 1rem 0",
                   display: "flex",
                   alignItems: "center",
+                  justifyContent: "space-between",
                   gap: "0.5rem",
+                  marginBottom: "1rem",
                 }}
               >
-                <Star size={16} />
-                {"\u30BF\u30EC\u30F3\u30C8\u60C5\u5831"}
-              </h2>
+                <h2
+                  style={{
+                    color: "var(--color-text-title)",
+                    fontSize: "1rem",
+                    fontWeight: 700,
+                    margin: 0,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                  }}
+                >
+                  <Star size={16} />
+                  タレント情報
+                </h2>
+                <Link
+                  href={`/talents/${talent.id}`}
+                  className="hover:bg-[var(--color-bg-hover)]"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "0.25rem",
+                    color: "var(--color-terra)",
+                    textDecoration: "none",
+                    padding: "0.25rem 0.5rem",
+                    borderRadius: "var(--radius-sm)",
+                    fontSize: "0.75rem",
+                    fontWeight: 500,
+                    border: "1px solid var(--color-border-default)",
+                    transition: "background-color 0.15s",
+                  }}
+                >
+                  タレント詳細
+                  <ArrowUpRight size={14} />
+                </Link>
+              </div>
 
               {/* Personality Memo */}
               {talent.personality_memo && (
@@ -769,6 +828,42 @@ export default async function ContactDetailPage({
                 </div>
               </div>
 
+              {/* Aptitude Notes */}
+              {talent.aptitude_notes && (
+                <div
+                  style={{
+                    borderBottom: "1px solid var(--color-border-default)",
+                    paddingBottom: "16px",
+                    marginBottom: "16px",
+                  }}
+                >
+                  <p style={{ color: "var(--color-sumi600)", fontSize: "0.75rem", fontWeight: 600, marginBottom: "0.25rem" }}>
+                    適性メモ
+                  </p>
+                  <p style={{ color: "var(--color-text-body)", fontSize: "0.875rem", margin: 0, whiteSpace: "pre-wrap" }}>
+                    {talent.aptitude_notes}
+                  </p>
+                </div>
+              )}
+
+              {/* Overall Assessment */}
+              {talent.overall_assessment && (
+                <div
+                  style={{
+                    borderBottom: "1px solid var(--color-border-default)",
+                    paddingBottom: "16px",
+                    marginBottom: "16px",
+                  }}
+                >
+                  <p style={{ color: "var(--color-sumi600)", fontSize: "0.75rem", fontWeight: 600, marginBottom: "0.25rem" }}>
+                    総合評価
+                  </p>
+                  <p style={{ color: "var(--color-text-body)", fontSize: "0.875rem", margin: 0, whiteSpace: "pre-wrap" }}>
+                    {talent.overall_assessment}
+                  </p>
+                </div>
+              )}
+
               {/* Skills */}
               {talentSkills.length > 0 && (
                 <div
@@ -794,7 +889,8 @@ export default async function ContactDetailPage({
                         }}
                       >
                         {ts.skill?.name}
-                        {ts.level != null && ` Lv.${ts.level}`}
+                        {ts.proficiency_level != null && ` Lv.${ts.proficiency_level}`}
+                        {ts.years_experience != null && `（${ts.years_experience}年）`}
                       </span>
                     ))}
                   </div>
@@ -831,12 +927,42 @@ export default async function ContactDetailPage({
                             </span>
                           )}
                           <span style={{ color: "var(--color-text-body)", fontSize: "0.875rem", fontWeight: 600 }}>
-                            {career.organization_name ?? "\u2014"}
+                            {career.organization ?? "\u2014"}
                           </span>
+                          {career.title && (
+                            <span style={{ color: "var(--color-sumi600)", fontSize: "0.75rem" }}>
+                              / {career.title}
+                            </span>
+                          )}
+                          {career.is_current && (
+                            <span
+                              style={{
+                                backgroundColor: "var(--color-sage)",
+                                color: "#fff",
+                                borderRadius: "var(--radius-badge)",
+                                padding: "0.125rem 0.375rem",
+                                fontSize: "0.625rem",
+                                fontWeight: 600,
+                              }}
+                            >
+                              現在
+                            </span>
+                          )}
                         </div>
                         <span style={{ color: "var(--color-sumi600)", fontSize: "0.75rem" }}>
-                          {formatDate(career.start_date)} ~ {formatDate(career.end_date)}
+                          {formatDate(career.start_date)} ~ {career.is_current ? "現在" : formatDate(career.end_date)}
                         </span>
+                        {career.description && (
+                          <p
+                            style={{
+                              color: "var(--color-text-body)",
+                              fontSize: "0.75rem",
+                              margin: "0.25rem 0 0 0",
+                            }}
+                          >
+                            {career.description}
+                          </p>
+                        )}
                       </div>
                     ))}
                   </div>

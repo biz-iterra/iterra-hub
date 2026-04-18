@@ -16,7 +16,23 @@ body {
   background-color: var(--color-bg-default);
 }
 
-/* スクロールバー非表示ユーティリティ（スクロールは可能） */
+/* スクロールバー非表示（システム全体）。スクロール自体は有効のまま。 */
+html,
+body,
+* {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+html::-webkit-scrollbar,
+body::-webkit-scrollbar,
+*::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
+}
+
+/* 互換: 既存コードに残っている .no-scrollbar クラスもそのまま動作させる */
 @layer utilities {
   .no-scrollbar {
     scrollbar-width: none !important;

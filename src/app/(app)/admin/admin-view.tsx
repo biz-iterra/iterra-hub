@@ -12,6 +12,7 @@ import {
   getAccountTypes, createAccountTypeAction, updateAccountType, deleteAccountType,
   getAccountStatuses, createAccountStatusAction, updateAccountStatus, deleteAccountStatus,
   getContactStatuses, createContactStatusAction, updateContactStatus, deleteContactStatus,
+  getCompanyStatuses, createCompanyStatusAction, updateCompanyStatus, deleteCompanyStatus,
   getSkillCategories, createSkillCategory, updateSkillCategory, deleteSkillCategory,
   getSkills, createSkill, updateSkill, deleteSkill,
 } from "@/actions/masters";
@@ -26,7 +27,7 @@ type MasterItem = Record<string, unknown> & { id: string; name: string };
 
 const TAB_KEYS = [
   "pipeline", "contract_types", "corporate_types", "services",
-  "lead_sources", "account_types", "account_statuses", "contact_statuses", "skills",
+  "lead_sources", "account_types", "account_statuses", "contact_statuses", "company_statuses", "skills",
 ] as const;
 type TabKey = (typeof TAB_KEYS)[number];
 
@@ -39,6 +40,7 @@ const TAB_LABELS: Record<TabKey, string> = {
   account_types: "アカウント種別",
   account_statuses: "アカウントステータス",
   contact_statuses: "コンタクトステータス",
+  company_statuses: "カンパニーステータス",
   skills: "スキル",
 };
 
@@ -711,11 +713,12 @@ export function AdminView() {
   const [accountTypes, setAccountTypes] = useState<MasterItem[]>([]);
   const [accountStatuses, setAccountStatuses] = useState<MasterItem[]>([]);
   const [contactStatuses, setContactStatuses] = useState<MasterItem[]>([]);
+  const [companyStatuses, setCompanyStatuses] = useState<MasterItem[]>([]);
   const [loadingData, setLoadingData] = useState(true);
 
   const loadAllSimpleMasters = useCallback(async () => {
     setLoadingData(true);
-    const [ct, corp, svc, ls, at, as_, cs] = await Promise.all([
+    const [ct, corp, svc, ls, at, as_, cs, cps] = await Promise.all([
       getContractTypes(),
       getCorporateTypes(),
       getServices(),
@@ -723,6 +726,7 @@ export function AdminView() {
       getAccountTypes(),
       getAccountStatuses(),
       getContactStatuses(),
+      getCompanyStatuses(),
     ]);
     setContractTypes((ct.data as MasterItem[]) ?? []);
     setCorporateTypes((corp.data as MasterItem[]) ?? []);
@@ -731,6 +735,7 @@ export function AdminView() {
     setAccountTypes((at.data as MasterItem[]) ?? []);
     setAccountStatuses((as_.data as MasterItem[]) ?? []);
     setContactStatuses((cs.data as MasterItem[]) ?? []);
+    setCompanyStatuses((cps.data as MasterItem[]) ?? []);
     setLoadingData(false);
   }, []);
 
@@ -765,6 +770,10 @@ export function AdminView() {
   const refreshContactStatuses = async () => {
     const r = await getContactStatuses();
     setContactStatuses((r.data as MasterItem[]) ?? []);
+  };
+  const refreshCompanyStatuses = async () => {
+    const r = await getCompanyStatuses();
+    setCompanyStatuses((r.data as MasterItem[]) ?? []);
   };
 
   const renderTab = () => {
@@ -861,6 +870,18 @@ export function AdminView() {
             onUpdate={updateContactStatus}
             onDelete={deleteContactStatus}
             onRefresh={refreshContactStatuses}
+            fields={[{ key: "name", label: "名前", type: "text" }]}
+          />
+        );
+      case "company_statuses":
+        return (
+          <SimpleMasterTab
+            title="カンパニーステータス"
+            items={companyStatuses}
+            onCreate={createCompanyStatusAction}
+            onUpdate={updateCompanyStatus}
+            onDelete={deleteCompanyStatus}
+            onRefresh={refreshCompanyStatuses}
             fields={[{ key: "name", label: "名前", type: "text" }]}
           />
         );

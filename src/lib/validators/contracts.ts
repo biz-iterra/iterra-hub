@@ -1,14 +1,15 @@
 import { z } from "zod";
+import { uuidString } from "./common";
 
 const contractBaseSchema = z.object({
-  deal_id: z.string().uuid("ディールは必須です"),
+  deal_id: uuidString("ディールは必須です"),
   contract_method: z.enum(["paper", "electronic", "verbal"]).nullable().optional(),
-  contract_type_id: z.string().uuid().nullable().optional(),
+  contract_type_id: uuidString().nullable().optional(),
   contract_name: z.string().max(200).nullable().optional(),
   counterparty_type: z.enum(["company", "individual"]).nullable().optional(),
-  counterparty_company_id: z.string().uuid().nullable().optional(),
-  counterparty_contact_id: z.string().uuid().nullable().optional(),
-  counterparty_manager_id: z.string().uuid().nullable().optional(),
+  counterparty_company_id: uuidString().nullable().optional(),
+  counterparty_contact_id: uuidString().nullable().optional(),
+  counterparty_manager_id: uuidString().nullable().optional(),
   contract_content: z.string().max(5000).nullable().optional(),
   sent_date: z.string().nullable().optional(),
   signback_date: z.string().nullable().optional(),
@@ -19,7 +20,7 @@ const contractBaseSchema = z.object({
   cancellation_date: z.string().nullable().optional(),
   original_document_url: z.string().url().nullable().optional(),
   contract_url: z.string().url().nullable().optional(),
-  registered_by: z.string().uuid().nullable().optional(),
+  registered_by: uuidString().nullable().optional(),
 });
 
 export const createContractSchema = contractBaseSchema.refine(

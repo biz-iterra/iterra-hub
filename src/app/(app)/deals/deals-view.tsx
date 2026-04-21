@@ -721,7 +721,7 @@ function TableView({ data }: { data: ListData }) {
               <td className="px-4 py-3">
                 <Link
                   href={`/deals/${deal.id}`}
-                  className="font-mono text-xs hover:underline"
+                  className="font-mono text-xs"
                   style={{ color: "var(--color-terra)" }}
                 >
                   {deal.deal_code}
@@ -730,7 +730,7 @@ function TableView({ data }: { data: ListData }) {
               <td className="px-4 py-3">
                 <Link
                   href={`/deals/${deal.id}`}
-                  className="font-medium hover:underline"
+                  className="font-medium"
                   style={{ color: "var(--color-text-title)" }}
                 >
                   {deal.name}

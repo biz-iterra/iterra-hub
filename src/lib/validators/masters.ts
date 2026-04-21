@@ -74,6 +74,24 @@ export const createSkillSchema = z.object({
 });
 export const updateSkillSchema = createSkillSchema.partial();
 
+// --- M22: lead_categories ---
+export const leadCategoryCreateSchema = z.object({
+  code: z.string().min(1).max(32).regex(/^[a-z][a-z0-9_]{0,31}$/, "codeは小文字英字始まり、英数字とアンダースコアのみ使用可"),
+  name: z.string().min(1).max(50),
+  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "colorは #RRGGBB 形式で指定").nullable().optional(),
+  sort_order: z.number().int().min(0, { message: "[sort_order] 表示順は 0 以上の整数を指定してください" }).default(0),
+});
+export const leadCategoryUpdateSchema = leadCategoryCreateSchema.partial();
+
+// --- M23: lead_activity_types ---
+export const leadActivityTypeCreateSchema = z.object({
+  code: z.string().min(1).max(32).regex(/^[a-z][a-z0-9_]{0,31}$/, "codeは小文字英字始まり、英数字とアンダースコアのみ使用可"),
+  name: z.string().min(1).max(50),
+  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "colorは #RRGGBB 形式で指定").nullable().optional(),
+  sort_order: z.number().int().min(0, { message: "[sort_order] 表示順は 0 以上の整数を指定してください" }).default(0),
+});
+export const leadActivityTypeUpdateSchema = leadActivityTypeCreateSchema.partial();
+
 // --- S01: deal_stages ---
 export const createDealStageSchema = z.object({
   pipeline_type_id: uuidString(),
@@ -94,3 +112,51 @@ export const createDealStatusSchema = z.object({
   sort_order: z.number().int().min(0).default(0),
 });
 export const updateDealStatusSchema = createDealStatusSchema.partial();
+
+// --- lead_stages ---
+export const leadStageCreateSchema = z.object({
+  name: z.string().min(1).max(100),
+  sort_order: z.number().int().min(0).default(0),
+});
+export const leadStageUpdateSchema = leadStageCreateSchema.partial();
+
+// --- lead_statuses ---
+export const leadStatusCreateSchema = z.object({
+  name: z.string().min(1).max(100),
+  stage_id: uuidString().nullable().optional(),
+  sort_order: z.number().int().min(0).default(0),
+});
+export const leadStatusUpdateSchema = leadStatusCreateSchema.partial();
+
+// --- lead_temperatures ---
+export const leadTemperatureCreateSchema = z.object({
+  name: z.string().min(1).max(50),
+  sort_order: z.number().int().min(0).default(0),
+});
+export const leadTemperatureUpdateSchema = leadTemperatureCreateSchema.partial();
+
+// --- lead_callers ---
+export const leadCallerCreateSchema = z.object({
+  name: z.string().min(1).max(100),
+});
+export const leadCallerUpdateSchema = leadCallerCreateSchema.partial();
+
+// --- lead_call_statuses ---
+export const leadCallStatusCreateSchema = z.object({
+  name: z.string().min(1).max(100),
+  sort_order: z.number().int().min(0).default(0),
+});
+export const leadCallStatusUpdateSchema = leadCallStatusCreateSchema.partial();
+
+// --- lead_large_segments ---
+export const leadLargeSegmentCreateSchema = z.object({
+  name: z.string().min(1).max(100),
+});
+export const leadLargeSegmentUpdateSchema = leadLargeSegmentCreateSchema.partial();
+
+// --- lead_small_segments ---
+export const leadSmallSegmentCreateSchema = z.object({
+  name: z.string().min(1).max(100),
+  large_segment_id: uuidString().nullable().optional(),
+});
+export const leadSmallSegmentUpdateSchema = leadSmallSegmentCreateSchema.partial();

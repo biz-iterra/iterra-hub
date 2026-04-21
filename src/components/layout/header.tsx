@@ -6,6 +6,8 @@ import { createClient } from "@/lib/supabase/client";
 
 const pathLabels: Record<string, string> = {
   "/dashboard": "ダッシュボード",
+  "/leads": "リード",
+  "/campaigns": "キャンペーン",
   "/deals": "ディール",
   "/contacts": "コンタクト",
   "/companies": "カンパニー",
@@ -15,8 +17,6 @@ const pathLabels: Record<string, string> = {
   "/projects": "プロジェクト",
   "/admin": "管理",
   "/admin/deleted": "削除済みレコード",
-  "/admin/inside-sales": "インサイドセールス",
-  "/admin/inside-sales/import": "CSV取込",
 };
 
 // パスセグメントの変換辞書（末尾 / 中間両方で使用）
@@ -24,8 +24,6 @@ const segmentLabels: Record<string, string> = {
   new: "新規作成",
   edit: "編集",
   deleted: "削除済み",
-  import: "CSV取込",
-  "inside-sales": "インサイドセールス",
 };
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

@@ -14,6 +14,8 @@ import {
   ChevronLeft,
   ChevronRight,
   FolderKanban,
+  UserSearch,
+  Megaphone,
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -26,19 +28,48 @@ type NavItem = {
   roles?: CrmUserRole[];
 };
 
-const navItems: NavItem[] = [
-  { label: "ダッシュボード", href: "/dashboard", icon: LayoutDashboard },
-  { label: "ディール", href: "/deals", icon: Handshake },
-  { label: "プロジェクト", href: "/projects", icon: FolderKanban },
-  { label: "コンタクト", href: "/contacts", icon: Users },
-  { label: "カンパニー", href: "/companies", icon: Building2 },
-  { label: "アカウント", href: "/accounts", icon: Briefcase },
-  { label: "契約", href: "/contracts", icon: FileText, roles: ["manager", "admin"] },
-  { label: "タレント", href: "/talents", icon: UserCircle },
-];
+type NavGroup = {
+  label: string;
+  items: NavItem[];
+};
 
-const adminItems: NavItem[] = [
-  { label: "管理", href: "/admin", icon: Settings, roles: ["admin"] },
+const navGroups: NavGroup[] = [
+  {
+    label: "ダッシュボード",
+    items: [
+      { label: "ダッシュボード", href: "/dashboard", icon: LayoutDashboard },
+    ],
+  },
+  {
+    label: "MA",
+    items: [
+      { label: "リード", href: "/leads", icon: UserSearch },
+      { label: "キャンペーン", href: "/campaigns", icon: Megaphone },
+    ],
+  },
+  {
+    label: "SFA",
+    items: [
+      { label: "ディール", href: "/deals", icon: Handshake },
+      { label: "プロジェクト", href: "/projects", icon: FolderKanban },
+      { label: "契約", href: "/contracts", icon: FileText, roles: ["manager", "admin"] },
+    ],
+  },
+  {
+    label: "CRM",
+    items: [
+      { label: "コンタクト", href: "/contacts", icon: Users },
+      { label: "カンパニー", href: "/companies", icon: Building2 },
+      { label: "アカウント", href: "/accounts", icon: Briefcase },
+      { label: "タレント", href: "/talents", icon: UserCircle },
+    ],
+  },
+  {
+    label: "管理",
+    items: [
+      { label: "各種設定", href: "/admin", icon: Settings, roles: ["admin"] },
+    ],
+  },
 ];
 
 export function Sidebar({ userRole = "admin" }: { userRole?: CrmUserRole }) {
@@ -71,72 +102,59 @@ export function Sidebar({ userRole = "admin" }: { userRole?: CrmUserRole }) {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 py-2 space-y-0.5 overflow-y-auto">
-        {navItems.filter(canAccess).map((item) => {
-          const active = isActive(item.href);
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                "flex items-center gap-3 mx-2 px-3 py-2.5 text-sm transition-colors",
-                collapsed && "justify-center px-0"
-              )}
-              style={{
-                color: active ? "#fff" : "rgba(255,255,255,0.7)",
-                backgroundColor: active ? "var(--color-terra-dark)" : "transparent",
-                borderRadius: "var(--radius-md)",
-              }}
-              onMouseEnter={(e) => {
-                if (!active) e.currentTarget.style.backgroundColor = "var(--color-terra-dark)";
-              }}
-              onMouseLeave={(e) => {
-                if (!active) e.currentTarget.style.backgroundColor = "transparent";
-              }}
-              title={collapsed ? item.label : undefined}
-            >
-              <item.icon size={20} />
-              {!collapsed && <span>{item.label}</span>}
-            </Link>
-          );
-        })}
+      <nav className="flex-1 py-2 overflow-y-auto">
+        {navGroups.map((group, groupIndex) => {
+          const visibleItems = group.items.filter(canAccess);
+          if (visibleItems.length === 0) return null;
 
-        {/* Separator */}
-        {adminItems.some(canAccess) && (
-          <div
-            className="mx-4 my-3"
-            style={{
-              borderBottom: "1px solid rgba(255,255,255,0.15)",
-            }}
-          />
-        )}
-
-        {adminItems.filter(canAccess).map((item) => {
-          const active = isActive(item.href);
           return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                "flex items-center gap-3 mx-2 px-3 py-2.5 text-sm transition-colors",
-                collapsed && "justify-center px-0"
+            <div key={group.label} className={cn(groupIndex > 0 && "mt-2")}>
+              {/* Group header — hidden when collapsed */}
+              {!collapsed && (
+                <p
+                  className="px-5 mb-1 text-xs font-semibold uppercase tracking-widest select-none"
+                  style={{ color: "rgba(255,255,255,0.4)" }}
+                >
+                  {group.label}
+                </p>
               )}
-              style={{
-                color: active ? "#fff" : "rgba(255,255,255,0.7)",
-                backgroundColor: active ? "var(--color-terra-dark)" : "transparent",
-                borderRadius: "var(--radius-md)",
-              }}
-              onMouseEnter={(e) => {
-                if (!active) e.currentTarget.style.backgroundColor = "var(--color-terra-dark)";
-              }}
-              onMouseLeave={(e) => {
-                if (!active) e.currentTarget.style.backgroundColor = "transparent";
-              }}
-              title={collapsed ? item.label : undefined}
-            >
-              <item.icon size={20} />
-              {!collapsed && <span>{item.label}</span>}
-            </Link>
+
+              <div className="space-y-0.5">
+                {visibleItems.map((item) => {
+                  const active = isActive(item.href);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={cn(
+                        "flex items-center gap-3 mx-2 px-3 py-2.5 text-sm transition-colors",
+                        collapsed && "justify-center px-0"
+                      )}
+                      style={{
+                        color: active ? "#fff" : "rgba(255,255,255,0.7)",
+                        backgroundColor: active
+                          ? "var(--color-terra-dark)"
+                          : "transparent",
+                        borderRadius: "var(--radius-md)",
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!active)
+                          e.currentTarget.style.backgroundColor =
+                            "var(--color-terra-dark)";
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!active)
+                          e.currentTarget.style.backgroundColor = "transparent";
+                      }}
+                      title={collapsed ? item.label : undefined}
+                    >
+                      <item.icon size={20} />
+                      {!collapsed && <span>{item.label}</span>}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
           );
         })}
       </nav>
@@ -144,7 +162,10 @@ export function Sidebar({ userRole = "admin" }: { userRole?: CrmUserRole }) {
       {/* Collapse toggle */}
       <button
         onClick={() => setCollapsed(!collapsed)}
-        className="flex items-center justify-center h-10 mx-2 mb-3 cursor-pointer transition-colors"
+        className={cn(
+          "flex items-center h-10 mx-2 mb-3 cursor-pointer transition-colors",
+          collapsed ? "justify-center" : "justify-end px-3"
+        )}
         style={{
           color: "rgba(255,255,255,0.5)",
           borderRadius: "var(--radius-md)",

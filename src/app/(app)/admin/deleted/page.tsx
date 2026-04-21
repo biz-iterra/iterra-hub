@@ -48,6 +48,7 @@ export default async function DeletedPage() {
           deals: 0,
           contracts: 0,
           talents: 0,
+          leads: 0,
         }
       }
     />

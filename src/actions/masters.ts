@@ -16,10 +16,49 @@ import {
   createSkillCategorySchema, updateSkillCategorySchema,
   createSkillSchema, updateSkillSchema,
   createProjectStatusSchema, updateProjectStatusSchema,
+  leadCategoryCreateSchema, leadCategoryUpdateSchema,
+  leadActivityTypeCreateSchema, leadActivityTypeUpdateSchema,
+  leadStageCreateSchema, leadStageUpdateSchema,
+  leadStatusCreateSchema, leadStatusUpdateSchema,
+  leadTemperatureCreateSchema, leadTemperatureUpdateSchema,
+  leadCallerCreateSchema, leadCallerUpdateSchema,
+  leadCallStatusCreateSchema, leadCallStatusUpdateSchema,
+  leadLargeSegmentCreateSchema, leadLargeSegmentUpdateSchema,
+  leadSmallSegmentCreateSchema, leadSmallSegmentUpdateSchema,
 } from "@/lib/validators";
 import type { z } from "zod";
 
 type ActionResult<T> = { data: T | null; error: string | null };
+
+/**
+ * 監査カラム（created_by / last_updated_by / deleted_by）を持つテーブルのセット。
+ * 新マスタ追加時はマイグレーションで監査カラムを追加した場合のみここに追記する。
+ * Lead 系の新マスタ（20260419以降）は監査カラム無しで作成されているため含まない。
+ */
+const TABLES_WITH_AUDIT_COLUMNS = new Set([
+  // マスタ（20260416040001 + 20260418000009 で監査カラム追加済み）
+  "pipeline_types",
+  "contract_types",
+  "corporate_types",
+  "services",
+  "lead_sources",
+  "account_types",
+  "account_statuses",
+  "contact_statuses",
+  "skill_categories",
+  "skills",
+  "company_statuses",
+  "deal_stages",
+  "deal_statuses",
+  "industry_classifications",
+  // project_statuses（20260418000011 で定義時から監査カラム付き）
+  "project_statuses",
+]);
+
+/** テーブルが監査カラムを持つか判定 */
+function hasAuditColumns(tableName: string): boolean {
+  return TABLES_WITH_AUDIT_COLUMNS.has(tableName);
+}
 
 async function getAuthenticatedUser() {
   const supabase = await createClient();
@@ -77,7 +116,8 @@ export async function createMasterRecord(
   const parsed = schema.safeParse(input);
   if (!parsed.success) return { data: null, error: parsed.error.issues[0].message };
 
-  const { data, error } = await supabase.from(tableName).insert({ ...(parsed.data as Record<string, unknown>), created_by: user.id }).select().single();
+  const auditCreate = hasAuditColumns(tableName) ? { created_by: user.id } : {};
+  const { data, error } = await supabase.from(tableName).insert({ ...(parsed.data as Record<string, unknown>), ...auditCreate }).select().single();
   if (error) return { data: null, error: error.message };
   return { data, error: null };
 }
@@ -98,7 +138,8 @@ export async function updateMasterRecord(
   const parsed = schema.safeParse(input);
   if (!parsed.success) return { data: null, error: parsed.error.issues[0].message };
 
-  const { data, error } = await supabase.from(tableName).update({ ...(parsed.data as Record<string, unknown>), last_updated_by: user.id }).eq("id", id).select().single();
+  const auditUpdate = hasAuditColumns(tableName) ? { last_updated_by: user.id } : {};
+  const { data, error } = await supabase.from(tableName).update({ ...(parsed.data as Record<string, unknown>), ...auditUpdate }).eq("id", id).select().single();
   if (error) return { data: null, error: error.message };
   return { data, error: null };
 }
@@ -111,10 +152,11 @@ export async function deleteMasterRecord(tableName: string, id: string): Promise
   const adminError = await requireAdmin(supabase, user.id);
   if (adminError) return { data: null, error: adminError };
 
+  const auditDelete = hasAuditColumns(tableName) ? { last_updated_by: user.id } : {};
   const { error } = await supabase.from(tableName).update({
     deleted_at: new Date().toISOString(),
     deleted_by: user.id,
-    last_updated_by: user.id,
+    ...auditDelete,
   }).eq("id", id);
   if (error) return { data: null, error: error.message };
   return { data: null, error: null };
@@ -286,3 +328,187 @@ export async function updateSkill(id: string, input: Record<string, unknown>) {
   return updateMasterRecord("skills", id, input, updateSkillSchema);
 }
 export async function deleteSkill(id: string) { return deleteMasterRecord("skills", id); }
+
+// Lead Categories
+// ※ lead_categories は created_by / last_updated_by カラムを持たないため専用実装
+export async function getLeadCategories() { return getMasterList("lead_categories", { useSortOrder: true }); }
+export async function createLeadCategory(input: Record<string, unknown>): Promise<ActionResult<any>> {
+  const { supabase, user } = await getAuthenticatedUser();
+  if (!supabase || !user) return { data: null, error: "認証が必要です" };
+  const adminError = await requireAdmin(supabase, user.id);
+  if (adminError) return { data: null, error: adminError };
+  const parsed = leadCategoryCreateSchema.safeParse(input);
+  if (!parsed.success) return { data: null, error: parsed.error.issues[0].message };
+  const { data, error } = await supabase.from("lead_categories").insert(parsed.data as Record<string, unknown>).select().single();
+  if (error) return { data: null, error: error.message };
+  return { data, error: null };
+}
+export async function updateLeadCategory(id: string, input: Record<string, unknown>): Promise<ActionResult<any>> {
+  const { supabase, user } = await getAuthenticatedUser();
+  if (!supabase || !user) return { data: null, error: "認証が必要です" };
+  const adminError = await requireAdmin(supabase, user.id);
+  if (adminError) return { data: null, error: adminError };
+  const parsed = leadCategoryUpdateSchema.safeParse(input);
+  if (!parsed.success) return { data: null, error: parsed.error.issues[0].message };
+  const { data, error } = await supabase.from("lead_categories").update(parsed.data as Record<string, unknown>).eq("id", id).select().single();
+  if (error) return { data: null, error: error.message };
+  return { data, error: null };
+}
+export async function deleteLeadCategory(id: string): Promise<ActionResult<null>> {
+  const { supabase, user } = await getAuthenticatedUser();
+  if (!supabase || !user) return { data: null, error: "認証が必要です" };
+  const adminError = await requireAdmin(supabase, user.id);
+  if (adminError) return { data: null, error: adminError };
+  const { error } = await supabase.from("lead_categories").update({
+    deleted_at: new Date().toISOString(),
+    deleted_by: user.id,
+  }).eq("id", id);
+  if (error) return { data: null, error: error.message };
+  return { data: null, error: null };
+}
+
+// Lead Stages
+export async function getLeadStages() { return getMasterList("lead_stages", { useSortOrder: true }); }
+
+// Lead Statuses（stage_id でフィルタ可能）
+export async function getLeadStatuses(stageId?: string) {
+  const { supabase, user } = await getAuthenticatedUser();
+  if (!supabase || !user) return { data: null, error: "認証が必要です" };
+  let query = supabase
+    .from("lead_statuses")
+    .select("*, stage:lead_stages(id, name)")
+    .is("deleted_at", null)
+    .order("sort_order", { ascending: true });
+  if (stageId) query = query.eq("stage_id", stageId);
+  const { data, error } = await query;
+  if (error) return { data: null, error: error.message };
+  return { data, error: null };
+}
+
+// Lead Temperatures
+export async function getLeadTemperatures() { return getMasterList("lead_temperatures", { useSortOrder: true }); }
+
+// Lead Callers
+export async function getLeadCallers() { return getMasterList("lead_callers"); }
+
+// Lead Call Statuses
+export async function getLeadCallStatuses() { return getMasterList("lead_call_statuses", { useSortOrder: true }); }
+
+// Lead Large Segments
+export async function getLeadLargeSegments() { return getMasterList("lead_large_segments"); }
+
+// Lead Small Segments（large_segment_id でフィルタ可能）
+export async function getLeadSmallSegments(largeSegmentId?: string) {
+  const { supabase, user } = await getAuthenticatedUser();
+  if (!supabase || !user) return { data: null, error: "認証が必要です" };
+  let query = supabase
+    .from("lead_small_segments")
+    .select("*")
+    .is("deleted_at", null)
+    .order("name", { ascending: true });
+  if (largeSegmentId) query = query.eq("large_segment_id", largeSegmentId);
+  const { data, error } = await query;
+  if (error) return { data: null, error: error.message };
+  return { data, error: null };
+}
+
+// Lead Activity Types
+// ※ lead_activity_types は created_by / last_updated_by カラムを持たないため専用実装
+export async function getLeadActivityTypes() { return getMasterList("lead_activity_types", { useSortOrder: true }); }
+export async function createLeadActivityType(input: Record<string, unknown>): Promise<ActionResult<any>> {
+  const { supabase, user } = await getAuthenticatedUser();
+  if (!supabase || !user) return { data: null, error: "認証が必要です" };
+  const adminError = await requireAdmin(supabase, user.id);
+  if (adminError) return { data: null, error: adminError };
+  const parsed = leadActivityTypeCreateSchema.safeParse(input);
+  if (!parsed.success) return { data: null, error: parsed.error.issues[0].message };
+  const { data, error } = await supabase.from("lead_activity_types").insert(parsed.data as Record<string, unknown>).select().single();
+  if (error) return { data: null, error: error.message };
+  return { data, error: null };
+}
+export async function updateLeadActivityType(id: string, input: Record<string, unknown>): Promise<ActionResult<any>> {
+  const { supabase, user } = await getAuthenticatedUser();
+  if (!supabase || !user) return { data: null, error: "認証が必要です" };
+  const adminError = await requireAdmin(supabase, user.id);
+  if (adminError) return { data: null, error: adminError };
+  const parsed = leadActivityTypeUpdateSchema.safeParse(input);
+  if (!parsed.success) return { data: null, error: parsed.error.issues[0].message };
+  const { data, error } = await supabase.from("lead_activity_types").update(parsed.data as Record<string, unknown>).eq("id", id).select().single();
+  if (error) return { data: null, error: error.message };
+  return { data, error: null };
+}
+export async function deleteLeadActivityType(id: string): Promise<ActionResult<null>> {
+  const { supabase, user } = await getAuthenticatedUser();
+  if (!supabase || !user) return { data: null, error: "認証が必要です" };
+  const adminError = await requireAdmin(supabase, user.id);
+  if (adminError) return { data: null, error: adminError };
+  const { error } = await supabase.from("lead_activity_types").update({
+    deleted_at: new Date().toISOString(),
+    deleted_by: user.id,
+  }).eq("id", id);
+  if (error) return { data: null, error: error.message };
+  return { data: null, error: null };
+}
+
+// Lead Stages CRUD
+export async function createLeadStage(input: Record<string, unknown>) {
+  return createMasterRecord("lead_stages", input, leadStageCreateSchema);
+}
+export async function updateLeadStage(id: string, input: Record<string, unknown>) {
+  return updateMasterRecord("lead_stages", id, input, leadStageUpdateSchema);
+}
+export async function deleteLeadStage(id: string) { return deleteMasterRecord("lead_stages", id); }
+
+// Lead Statuses CRUD
+export async function createLeadStatus(input: Record<string, unknown>) {
+  return createMasterRecord("lead_statuses", input, leadStatusCreateSchema);
+}
+export async function updateLeadStatus(id: string, input: Record<string, unknown>) {
+  return updateMasterRecord("lead_statuses", id, input, leadStatusUpdateSchema);
+}
+export async function deleteLeadStatus(id: string) { return deleteMasterRecord("lead_statuses", id); }
+
+// Lead Temperatures CRUD
+export async function createLeadTemperature(input: Record<string, unknown>) {
+  return createMasterRecord("lead_temperatures", input, leadTemperatureCreateSchema);
+}
+export async function updateLeadTemperature(id: string, input: Record<string, unknown>) {
+  return updateMasterRecord("lead_temperatures", id, input, leadTemperatureUpdateSchema);
+}
+export async function deleteLeadTemperature(id: string) { return deleteMasterRecord("lead_temperatures", id); }
+
+// Lead Callers CRUD
+export async function createLeadCaller(input: Record<string, unknown>) {
+  return createMasterRecord("lead_callers", input, leadCallerCreateSchema);
+}
+export async function updateLeadCaller(id: string, input: Record<string, unknown>) {
+  return updateMasterRecord("lead_callers", id, input, leadCallerUpdateSchema);
+}
+export async function deleteLeadCaller(id: string) { return deleteMasterRecord("lead_callers", id); }
+
+// Lead Call Statuses CRUD
+export async function createLeadCallStatus(input: Record<string, unknown>) {
+  return createMasterRecord("lead_call_statuses", input, leadCallStatusCreateSchema);
+}
+export async function updateLeadCallStatus(id: string, input: Record<string, unknown>) {
+  return updateMasterRecord("lead_call_statuses", id, input, leadCallStatusUpdateSchema);
+}
+export async function deleteLeadCallStatus(id: string) { return deleteMasterRecord("lead_call_statuses", id); }
+
+// Lead Large Segments CRUD
+export async function createLeadLargeSegment(input: Record<string, unknown>) {
+  return createMasterRecord("lead_large_segments", input, leadLargeSegmentCreateSchema);
+}
+export async function updateLeadLargeSegment(id: string, input: Record<string, unknown>) {
+  return updateMasterRecord("lead_large_segments", id, input, leadLargeSegmentUpdateSchema);
+}
+export async function deleteLeadLargeSegment(id: string) { return deleteMasterRecord("lead_large_segments", id); }
+
+// Lead Small Segments CRUD
+export async function createLeadSmallSegment(input: Record<string, unknown>) {
+  return createMasterRecord("lead_small_segments", input, leadSmallSegmentCreateSchema);
+}
+export async function updateLeadSmallSegment(id: string, input: Record<string, unknown>) {
+  return updateMasterRecord("lead_small_segments", id, input, leadSmallSegmentUpdateSchema);
+}
+export async function deleteLeadSmallSegment(id: string) { return deleteMasterRecord("lead_small_segments", id); }

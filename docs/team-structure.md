@@ -31,13 +31,18 @@ User（プロダクトオーナー）
         │     ├─ project-tester
         │     └─ project-operator
         │
+        ├── Marketing Team
+        │     ├─ marketing-engineer
+        │     ├─ marketing-tester
+        │     └─ marketing-operator
+        │
         └── Platform Team
               ├─ platform-engineer
               ├─ platform-tester
               └─ platform-operator
 ```
 
-**構成**: 統括3名 ＋ エンティティチーム 5×3 = **合計18 agents**
+**構成**: 統括3名 ＋ エンティティチーム 6×3 = **合計 21 agents**
 
 ## 2. 責務分担マトリクス
 
@@ -49,7 +54,7 @@ User（プロダクトオーナー）
 | `tech-pm` | 技術統括。アーキ判断、DB設計、マイグレ方針、セキュリティ | opus |
 | `designer` | UI/UX横断レビュー。ITERRAブランド一貫性の保証 | sonnet |
 
-### エンティティチーム（5チーム × 3ロール）
+### エンティティチーム（6チーム × 3ロール）
 
 | チーム | 担当範囲 |
 |---|---|
@@ -57,6 +62,7 @@ User（プロダクトオーナー）
 | **People** | Contact / Talent（ポテンシャル診断含む） |
 | **Account** | Company / Account / account_contacts |
 | **Project** | Project |
+| **Marketing** | Lead / Campaign / Lead Activity（Lead 系マスタの業務ロジック相談） |
 | **Platform** | マスタ / Admin / 認証 / CSV取込 / 共通基盤 |
 
 各チームは Engineer / Tester / Operator の3ロール。
@@ -122,6 +128,8 @@ User → Agent Manager
 | 「デザインを整えて」 | Designer |
 | 「マスタに項目追加」 | Platform Engineer |
 | 「CSV取込したい」 | Platform Engineer ＋ 該当エンティティ Engineer |
+| 「リード / キャンペーン / 対応履歴」系 | Marketing Engineer（Lead 系マスタは Platform と共同） |
+| 「リードを Deal に昇格させたい」 | Marketing Engineer ＋ Sales Engineer（Tech PM 調停） |
 
 ### エージェント自身での主な禁止事項
 
@@ -163,6 +171,8 @@ User → Agent Manager
 | `src/app/(app)/companies/**` | account-engineer |
 | `src/app/(app)/accounts/**` | account-engineer |
 | `src/app/(app)/projects/**` | project-engineer |
+| `src/app/(app)/leads/**` | marketing-engineer |
+| `src/app/(app)/campaigns/**` | marketing-engineer |
 | `src/app/(app)/dashboard/**` | platform-engineer |
 | `src/app/(app)/admin/**` | platform-engineer |
 | `src/app/(auth)/**` (login等) | platform-engineer |
@@ -173,11 +183,20 @@ User → Agent Manager
 | `src/actions/companies.ts` | account-engineer |
 | `src/actions/accounts.ts` | account-engineer |
 | `src/actions/projects.ts` | project-engineer |
+| `src/actions/leads.ts` | marketing-engineer |
+| `src/actions/campaigns.ts` | marketing-engineer |
+| `src/actions/lead-activities.ts` | marketing-engineer |
 | `src/actions/masters.ts`, `users.ts`, `deleted.ts`, `activities.ts` | platform-engineer |
 | `src/lib/validators/<entity>.ts`, `src/lib/validators/<entity>/**` | 該当 Engineer |
 | `src/lib/validators/masters.ts` | platform-engineer |
+| `src/lib/validators/leads.ts` | marketing-engineer |
+| `src/lib/validators/campaigns.ts` | marketing-engineer |
+| `src/lib/validators/lead-activities.ts` | marketing-engineer |
+| `src/lib/leads/**` | marketing-engineer |
 | `src/lib/inside-sales/**` | sales-engineer（platform-engineer と共同保守） |
 | `src/lib/diagnosis/**` | people-engineer |
+
+> **注記:** leads テーブル schema 変更・`v_leads_with_category`・`promoted_deal_id` 関連は Marketing / Sales 共同レビュー。Deal 昇格以降は sales-engineer primary。
 
 ### 6-2 横断基盤（Platform Engineer 所有 / 変更時に関係者通知）
 
@@ -240,6 +259,7 @@ User → Agent Manager
 | `scripts/test-contacts-*.{py,ts}` / `test-talents-*` | people-tester |
 | `scripts/test-companies-*.{py,ts}` / `test-accounts-*` | account-tester |
 | `scripts/test-projects-*.{py,ts}` | project-tester |
+| `scripts/test-leads-*.{py,ts}`, `test-campaigns-*`, `test-lead-activities-*`, `test-phase-c-*`, `test-lead-campaign-*`, `test-recon*`, `test-final*`, `test-fix-verification*` | marketing-tester |
 | `scripts/test-bulk-insert.ts`, `test-import-ui.py`, `test-lists-audit.py` など横断系 | platform-tester |
 
 ---
@@ -310,3 +330,10 @@ agent-manager が状況ヒアリング
 - エンティティ分離の粒度見直し（プロジェクト規模拡大時）
 - チーム間コミュニケーションパターンの標準化
 - エージェント呼び出し頻度の統計取得
+
+**2026-04-19 Marketing チーム追加:**
+- Lead / Campaign / Lead Activity 機能本格化に伴い Marketing Team 新設（3 agents）
+- Lead 系マスタ（M18-M22）の業務要件は Marketing 相談、CRUD 実装は Platform 担当で分掌
+- 既存 Lead マイグレーション（20260419000001〜000012）はそのまま、新規分から Marketing 所有
+- 本フェーズの Lead 実装は sales-engineer が暫定担当したが、成果物の所有権は marketing-engineer に移管済み
+- 合計 21 agents

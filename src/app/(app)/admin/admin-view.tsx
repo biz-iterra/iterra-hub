@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, type FormEvent } from "react";
+import { ArrowUpRight } from "lucide-react";
 import {
   getPipelineTypes, createPipelineType, updatePipelineType, deletePipelineType,
   getDealStages, createDealStage, updateDealStage, deleteDealStage,
@@ -16,35 +17,111 @@ import {
   getProjectStatusesMasters, createProjectStatus, updateProjectStatus, deleteProjectStatus,
   getSkillCategories, createSkillCategory, updateSkillCategory, deleteSkillCategory,
   getSkills, createSkill, updateSkill, deleteSkill,
+  getLeadCategories, createLeadCategory, updateLeadCategory, deleteLeadCategory,
+  getLeadActivityTypes, createLeadActivityType, updateLeadActivityType, deleteLeadActivityType,
+  getLeadStages, createLeadStage, updateLeadStage, deleteLeadStage,
+  getLeadStatuses, createLeadStatus, updateLeadStatus, deleteLeadStatus,
+  getLeadTemperatures, createLeadTemperature, updateLeadTemperature, deleteLeadTemperature,
+  getLeadCallers, createLeadCaller, updateLeadCaller, deleteLeadCaller,
+  getLeadCallStatuses, createLeadCallStatus, updateLeadCallStatus, deleteLeadCallStatus,
+  getLeadLargeSegments, createLeadLargeSegment, updateLeadLargeSegment, deleteLeadLargeSegment,
+  getLeadSmallSegments, createLeadSmallSegment, updateLeadSmallSegment, deleteLeadSmallSegment,
 } from "@/actions/masters";
 
 // ===== Types =====
 
-type FieldDef = { key: string; label: string; type?: "text" | "textarea" | "number" | "select"; options?: { value: string; label: string }[] };
+type FieldDef = { key: string; label: string; type?: "text" | "textarea" | "number" | "select"; options?: { value: string; label: string }[]; colorSwatch?: boolean; min?: number };
 
 type MasterItem = Record<string, unknown> & { id: string; name: string };
 
-// ===== Tab definitions =====
+// ===== Tab & Group definitions =====
 
 const TAB_KEYS = [
-  "pipeline", "contract_types", "corporate_types", "services",
-  "lead_sources", "account_types", "account_statuses", "contact_statuses", "company_statuses", "project_statuses", "skills",
+  // 共通・取引
+  "pipeline", "contract_types", "services",
+  // カンパニー
+  "corporate_types", "company_statuses",
+  // アカウント
+  "account_types", "account_statuses",
+  // コンタクト
+  "contact_statuses",
+  // リード・MA（lead_statuses は lead_stages タブ内で管理、lead_small_segments は lead_large_segments タブ内で管理）
+  "lead_sources", "lead_categories", "lead_stages",
+  "lead_temperatures", "lead_callers", "lead_call_statuses",
+  "lead_large_segments", "lead_activity_types",
+  // プロジェクト
+  "project_statuses",
+  // タレント
+  "skills",
 ] as const;
 type TabKey = (typeof TAB_KEYS)[number];
 
 const TAB_LABELS: Record<TabKey, string> = {
   pipeline: "パイプライン",
   contract_types: "契約種別",
-  corporate_types: "法人格",
   services: "サービス",
-  lead_sources: "リードソース",
+  corporate_types: "法人格",
+  company_statuses: "カンパニーステータス",
   account_types: "アカウント種別",
   account_statuses: "アカウントステータス",
   contact_statuses: "コンタクトステータス",
-  company_statuses: "カンパニーステータス",
+  lead_sources: "リードソース",
+  lead_categories: "リードカテゴリ",
+  lead_stages: "ステージ・ステータス",
+  lead_temperatures: "温度感",
+  lead_callers: "担当者",
+  lead_call_statuses: "コールステータス",
+  lead_large_segments: "セグメント",
+  lead_activity_types: "対応種別",
   project_statuses: "プロジェクトステータス",
   skills: "スキル",
 };
+
+type GroupKey = "common" | "company" | "account" | "contact" | "lead" | "project" | "talent";
+
+const GROUPS: { key: GroupKey; label: string; tabs: TabKey[] }[] = [
+  {
+    key: "common",
+    label: "共通・取引",
+    tabs: ["pipeline", "contract_types", "services"],
+  },
+  {
+    key: "company",
+    label: "カンパニー",
+    tabs: ["corporate_types", "company_statuses"],
+  },
+  {
+    key: "account",
+    label: "アカウント",
+    tabs: ["account_types", "account_statuses"],
+  },
+  {
+    key: "contact",
+    label: "コンタクト",
+    tabs: ["contact_statuses"],
+  },
+  {
+    key: "lead",
+    label: "リード・MA",
+    tabs: [
+      "lead_sources", "lead_categories",
+      "lead_stages",        // ステージ + ステータスを 1 画面で管理
+      "lead_temperatures", "lead_callers", "lead_call_statuses",
+      "lead_large_segments", // 大セグメント + 小セグメントを 1 画面で管理
+      "lead_activity_types",
+    ],
+  },
+  {
+    key: "project",
+    label: "プロジェクト",
+    tabs: ["project_statuses"],
+  },
+  {
+    key: "talent",
+    label: "タレント",
+    tabs: ["skills"],
+  },
+];
 
 // ===== Styles =====
 
@@ -250,6 +327,7 @@ function FormModal({
                   type="number"
                   style={styles.input}
                   value={(values[field.key] as number) ?? 0}
+                  min={field.min}
                   onChange={(e) => setValues((v) => ({ ...v, [field.key]: parseInt(e.target.value) || 0 }))}
                   onFocus={(e) => {
                     e.currentTarget.style.borderColor = "var(--color-border-focus)";
@@ -400,6 +478,27 @@ function SimpleMasterTab({
                 <TableRow key={item.id}>
                   {fields.map((f) => {
                     const raw = item[f.key];
+                    if (f.colorSwatch && raw) {
+                      const hex = String(raw);
+                      return (
+                        <td key={f.key} style={{ padding: "0.75rem", fontSize: "0.875rem" }}>
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem" }}>
+                            <span
+                              style={{
+                                display: "inline-block",
+                                width: 14,
+                                height: 14,
+                                borderRadius: "var(--radius-badge)",
+                                backgroundColor: hex,
+                                border: "1px solid var(--color-border-default)",
+                                flexShrink: 0,
+                              }}
+                            />
+                            <span style={{ color: "var(--color-sumi600)", fontFamily: "monospace" }}>{hex}</span>
+                          </span>
+                        </td>
+                      );
+                    }
                     let display: string;
                     if (raw == null || raw === "") {
                       display = "-";
@@ -714,16 +813,276 @@ function SkillsTab() {
   );
 }
 
+// ===== Lead Stages & Statuses Tab =====
+
+function LeadStagesTab() {
+  const [stages, setStages] = useState<MasterItem[]>([]);
+  const [statuses, setStatuses] = useState<MasterItem[]>([]);
+  const [selectedStage, setSelectedStage] = useState<string | null>(null);
+  const [loadingData, setLoadingData] = useState(true);
+
+  const loadStages = useCallback(async () => {
+    setLoadingData(true);
+    const result = await getLeadStages();
+    setStages((result.data as MasterItem[]) ?? []);
+    setLoadingData(false);
+  }, []);
+
+  const loadStatuses = useCallback(async (stageId?: string) => {
+    const result = await getLeadStatuses(stageId);
+    setStatuses((result.data as MasterItem[]) ?? []);
+  }, []);
+
+  useEffect(() => {
+    loadStages();
+  }, [loadStages]);
+
+  useEffect(() => {
+    loadStatuses(selectedStage ?? undefined);
+  }, [selectedStage, loadStatuses]);
+
+  const stageFields: FieldDef[] = [
+    { key: "name", label: "名前", type: "text" },
+    { key: "sort_order", label: "表示順", type: "number" },
+  ];
+
+  const stageOptions = [
+    { value: "", label: "（未分類）" },
+    ...stages.map((s) => ({ value: s.id, label: s.name })),
+  ];
+  const statusFields: FieldDef[] = [
+    { key: "name", label: "名前", type: "text" },
+    { key: "stage_id", label: "リードステージ", type: "select", options: stageOptions },
+    { key: "sort_order", label: "表示順", type: "number" },
+  ];
+
+  if (loadingData) {
+    return <p style={styles.sub}>読み込み中...</p>;
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "2rem" }}>
+      <SimpleMasterTab
+        title="リードステージ"
+        items={stages}
+        onCreate={createLeadStage}
+        onUpdate={updateLeadStage}
+        onDelete={deleteLeadStage}
+        onRefresh={() => { loadStages(); setSelectedStage(null); }}
+        fields={stageFields}
+      />
+
+      <div>
+        <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "var(--color-sumi700)", marginBottom: "0.25rem", display: "block" }}>
+          ステージでフィルタしてステータスを管理
+        </label>
+        <select
+          style={{ ...styles.input, maxWidth: 320 }}
+          value={selectedStage ?? ""}
+          onChange={(e) => setSelectedStage(e.target.value || null)}
+        >
+          <option value="">すべてのステータスを表示</option>
+          {stages.map((s) => (
+            <option key={s.id} value={s.id}>{s.name}</option>
+          ))}
+        </select>
+      </div>
+
+      <div style={{ ...styles.card, padding: "1.25rem" }}>
+        <SimpleMasterTab
+          title="リードステータス"
+          items={statuses}
+          onCreate={createLeadStatus}
+          onUpdate={updateLeadStatus}
+          onDelete={deleteLeadStatus}
+          onRefresh={() => loadStatuses(selectedStage ?? undefined)}
+          fields={statusFields}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ===== Lead Segments Tab =====
+
+function LeadSegmentsTab() {
+  const [largeSegments, setLargeSegments] = useState<MasterItem[]>([]);
+  const [smallSegments, setSmallSegments] = useState<MasterItem[]>([]);
+  const [selectedLarge, setSelectedLarge] = useState<string | null>(null);
+  const [loadingData, setLoadingData] = useState(true);
+
+  const loadLarge = useCallback(async () => {
+    setLoadingData(true);
+    const result = await getLeadLargeSegments();
+    setLargeSegments((result.data as MasterItem[]) ?? []);
+    setLoadingData(false);
+  }, []);
+
+  const loadSmall = useCallback(async (largeId?: string) => {
+    const result = await getLeadSmallSegments(largeId);
+    setSmallSegments((result.data as MasterItem[]) ?? []);
+  }, []);
+
+  useEffect(() => {
+    loadLarge();
+  }, [loadLarge]);
+
+  useEffect(() => {
+    loadSmall(selectedLarge ?? undefined);
+  }, [selectedLarge, loadSmall]);
+
+  const largeFields: FieldDef[] = [
+    { key: "name", label: "名前", type: "text" },
+  ];
+
+  const largeOptions = [
+    { value: "", label: "（未分類）" },
+    ...largeSegments.map((s) => ({ value: s.id, label: s.name })),
+  ];
+  const smallFields: FieldDef[] = [
+    { key: "name", label: "名前", type: "text" },
+    { key: "large_segment_id", label: "大セグメント", type: "select", options: largeOptions },
+  ];
+
+  if (loadingData) {
+    return <p style={styles.sub}>読み込み中...</p>;
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "2rem" }}>
+      <SimpleMasterTab
+        title="大セグメント"
+        items={largeSegments}
+        onCreate={createLeadLargeSegment}
+        onUpdate={updateLeadLargeSegment}
+        onDelete={deleteLeadLargeSegment}
+        onRefresh={() => { loadLarge(); setSelectedLarge(null); }}
+        fields={largeFields}
+      />
+
+      <div>
+        <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "var(--color-sumi700)", marginBottom: "0.25rem", display: "block" }}>
+          大セグメントでフィルタして小セグメントを管理
+        </label>
+        <select
+          style={{ ...styles.input, maxWidth: 320 }}
+          value={selectedLarge ?? ""}
+          onChange={(e) => setSelectedLarge(e.target.value || null)}
+        >
+          <option value="">すべての小セグメントを表示</option>
+          {largeSegments.map((s) => (
+            <option key={s.id} value={s.id}>{s.name}</option>
+          ))}
+        </select>
+      </div>
+
+      <div style={{ ...styles.card, padding: "1.25rem" }}>
+        <SimpleMasterTab
+          title="小セグメント"
+          items={smallSegments}
+          onCreate={createLeadSmallSegment}
+          onUpdate={updateLeadSmallSegment}
+          onDelete={deleteLeadSmallSegment}
+          onRefresh={() => loadSmall(selectedLarge ?? undefined)}
+          fields={smallFields}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ===== Group Tab Button =====
+
+function GroupTabButton({
+  label,
+  isActive,
+  onClick,
+}: {
+  label: string;
+  isActive: boolean;
+  onClick: () => void;
+}) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        padding: "0.625rem 1.25rem",
+        fontSize: "0.9375rem",
+        fontWeight: isActive ? 700 : 500,
+        color: isActive ? "var(--color-terra)" : hovered ? "var(--color-text-title)" : "var(--color-sumi600)",
+        borderBottom: isActive ? "3px solid var(--color-terra)" : "3px solid transparent",
+        background: "none",
+        border: "none",
+        borderBottomWidth: 3,
+        borderBottomStyle: "solid",
+        borderBottomColor: isActive ? "var(--color-terra)" : "transparent",
+        cursor: "pointer",
+        whiteSpace: "nowrap",
+        transition: "color 0.15s, border-color 0.15s",
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
+// ===== Master Tab Button =====
+
+function MasterTabButton({
+  label,
+  isActive,
+  onClick,
+}: {
+  label: string;
+  isActive: boolean;
+  onClick: () => void;
+}) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        padding: "0.375rem 0.875rem",
+        fontSize: "0.8125rem",
+        fontWeight: isActive ? 600 : 400,
+        color: isActive ? "var(--color-terra)" : hovered ? "var(--color-text-title)" : "var(--color-sumi600)",
+        borderBottom: isActive ? "2px solid var(--color-terra)" : "2px solid transparent",
+        background: "none",
+        border: "none",
+        borderBottomWidth: 2,
+        borderBottomStyle: "solid",
+        borderBottomColor: isActive ? "var(--color-terra)" : "transparent",
+        cursor: "pointer",
+        whiteSpace: "nowrap",
+        transition: "color 0.15s, border-color 0.15s",
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
 // ===== Main AdminView =====
 
 export function AdminView() {
-  const [activeTab, setActiveTab] = useState<TabKey>("pipeline");
+  const [activeGroup, setActiveGroup] = useState<GroupKey>(GROUPS[0].key);
+  const [activeTab, setActiveTab] = useState<TabKey>(GROUPS[0].tabs[0]);
 
   // Data state for simple masters
   const [contractTypes, setContractTypes] = useState<MasterItem[]>([]);
   const [corporateTypes, setCorporateTypes] = useState<MasterItem[]>([]);
   const [services, setServices] = useState<MasterItem[]>([]);
   const [leadSources, setLeadSources] = useState<MasterItem[]>([]);
+  const [leadCategories, setLeadCategories] = useState<MasterItem[]>([]);
+  const [leadActivityTypes, setLeadActivityTypes] = useState<MasterItem[]>([]);
+  const [leadTemperatures, setLeadTemperatures] = useState<MasterItem[]>([]);
+  const [leadCallers, setLeadCallers] = useState<MasterItem[]>([]);
+  const [leadCallStatuses, setLeadCallStatuses] = useState<MasterItem[]>([]);
   const [accountTypes, setAccountTypes] = useState<MasterItem[]>([]);
   const [accountStatuses, setAccountStatuses] = useState<MasterItem[]>([]);
   const [contactStatuses, setContactStatuses] = useState<MasterItem[]>([]);
@@ -733,11 +1092,16 @@ export function AdminView() {
 
   const loadAllSimpleMasters = useCallback(async () => {
     setLoadingData(true);
-    const [ct, corp, svc, ls, at, as_, cs, cps, ps] = await Promise.all([
+    const [ct, corp, svc, ls, lc, lat, ltemp, lcall, lcs, at, as_, cs, cps, ps] = await Promise.all([
       getContractTypes(),
       getCorporateTypes(),
       getServices(),
       getLeadSources(),
+      getLeadCategories(),
+      getLeadActivityTypes(),
+      getLeadTemperatures(),
+      getLeadCallers(),
+      getLeadCallStatuses(),
       getAccountTypes(),
       getAccountStatuses(),
       getContactStatuses(),
@@ -748,6 +1112,11 @@ export function AdminView() {
     setCorporateTypes((corp.data as MasterItem[]) ?? []);
     setServices((svc.data as MasterItem[]) ?? []);
     setLeadSources((ls.data as MasterItem[]) ?? []);
+    setLeadCategories((lc.data as MasterItem[]) ?? []);
+    setLeadActivityTypes((lat.data as MasterItem[]) ?? []);
+    setLeadTemperatures((ltemp.data as MasterItem[]) ?? []);
+    setLeadCallers((lcall.data as MasterItem[]) ?? []);
+    setLeadCallStatuses((lcs.data as MasterItem[]) ?? []);
     setAccountTypes((at.data as MasterItem[]) ?? []);
     setAccountStatuses((as_.data as MasterItem[]) ?? []);
     setContactStatuses((cs.data as MasterItem[]) ?? []);
@@ -759,6 +1128,13 @@ export function AdminView() {
   useEffect(() => {
     loadAllSimpleMasters();
   }, [loadAllSimpleMasters]);
+
+  // グループ切替時にそのグループの最初のタブを選択
+  const handleGroupChange = (groupKey: GroupKey) => {
+    setActiveGroup(groupKey);
+    const group = GROUPS.find((g) => g.key === groupKey);
+    if (group) setActiveTab(group.tabs[0]);
+  };
 
   const refreshContractTypes = async () => {
     const r = await getContractTypes();
@@ -775,6 +1151,26 @@ export function AdminView() {
   const refreshLeadSources = async () => {
     const r = await getLeadSources();
     setLeadSources((r.data as MasterItem[]) ?? []);
+  };
+  const refreshLeadCategories = async () => {
+    const r = await getLeadCategories();
+    setLeadCategories((r.data as MasterItem[]) ?? []);
+  };
+  const refreshLeadActivityTypes = async () => {
+    const r = await getLeadActivityTypes();
+    setLeadActivityTypes((r.data as MasterItem[]) ?? []);
+  };
+  const refreshLeadTemperatures = async () => {
+    const r = await getLeadTemperatures();
+    setLeadTemperatures((r.data as MasterItem[]) ?? []);
+  };
+  const refreshLeadCallers = async () => {
+    const r = await getLeadCallers();
+    setLeadCallers((r.data as MasterItem[]) ?? []);
+  };
+  const refreshLeadCallStatuses = async () => {
+    const r = await getLeadCallStatuses();
+    setLeadCallStatuses((r.data as MasterItem[]) ?? []);
   };
   const refreshAccountTypes = async () => {
     const r = await getAccountTypes();
@@ -798,8 +1194,11 @@ export function AdminView() {
   };
 
   const renderTab = () => {
+    // Special compound tabs
     if (activeTab === "pipeline") return <PipelineTab />;
     if (activeTab === "skills") return <SkillsTab />;
+    if (activeTab === "lead_stages") return <LeadStagesTab />;
+    if (activeTab === "lead_large_segments") return <LeadSegmentsTab />;
 
     if (loadingData) return <p style={styles.sub}>読み込み中...</p>;
 
@@ -825,6 +1224,18 @@ export function AdminView() {
             onUpdate={updateCorporateType}
             onDelete={deleteCorporateType}
             onRefresh={refreshCorporateTypes}
+            fields={[{ key: "name", label: "名前", type: "text" }]}
+          />
+        );
+      case "company_statuses":
+        return (
+          <SimpleMasterTab
+            title="カンパニーステータス"
+            items={companyStatuses}
+            onCreate={createCompanyStatusAction}
+            onUpdate={updateCompanyStatus}
+            onDelete={deleteCompanyStatus}
+            onRefresh={refreshCompanyStatuses}
             fields={[{ key: "name", label: "名前", type: "text" }]}
           />
         );
@@ -855,6 +1266,82 @@ export function AdminView() {
             fields={[
               { key: "name", label: "名前", type: "text" },
               { key: "description", label: "説明", type: "textarea" },
+            ]}
+          />
+        );
+      case "lead_categories":
+        return (
+          <SimpleMasterTab
+            title="リードカテゴリ"
+            items={leadCategories}
+            onCreate={createLeadCategory}
+            onUpdate={updateLeadCategory}
+            onDelete={deleteLeadCategory}
+            onRefresh={refreshLeadCategories}
+            fields={[
+              { key: "code", label: "コード (例: inquiry)", type: "text" },
+              { key: "name", label: "名前", type: "text" },
+              { key: "color", label: "カラー (#RRGGBB)", type: "text", colorSwatch: true },
+              { key: "sort_order", label: "表示順", type: "number", min: 0 },
+            ]}
+          />
+        );
+      case "lead_temperatures":
+        return (
+          <SimpleMasterTab
+            title="温度感"
+            items={leadTemperatures}
+            onCreate={createLeadTemperature}
+            onUpdate={updateLeadTemperature}
+            onDelete={deleteLeadTemperature}
+            onRefresh={refreshLeadTemperatures}
+            fields={[
+              { key: "name", label: "名前", type: "text" },
+              { key: "sort_order", label: "表示順", type: "number", min: 0 },
+            ]}
+          />
+        );
+      case "lead_callers":
+        return (
+          <SimpleMasterTab
+            title="担当者"
+            items={leadCallers}
+            onCreate={createLeadCaller}
+            onUpdate={updateLeadCaller}
+            onDelete={deleteLeadCaller}
+            onRefresh={refreshLeadCallers}
+            fields={[{ key: "name", label: "名前", type: "text" }]}
+          />
+        );
+      case "lead_call_statuses":
+        return (
+          <SimpleMasterTab
+            title="コールステータス"
+            items={leadCallStatuses}
+            onCreate={createLeadCallStatus}
+            onUpdate={updateLeadCallStatus}
+            onDelete={deleteLeadCallStatus}
+            onRefresh={refreshLeadCallStatuses}
+            fields={[
+              { key: "name", label: "名前", type: "text" },
+              { key: "sort_order", label: "表示順", type: "number", min: 0 },
+            ]}
+          />
+        );
+      case "lead_activity_types":
+        return (
+          <SimpleMasterTab
+            title="対応種別"
+            items={leadActivityTypes}
+            onCreate={createLeadActivityType}
+            onUpdate={updateLeadActivityType}
+            onDelete={deleteLeadActivityType}
+            onRefresh={refreshLeadActivityTypes}
+            fields={[
+              { key: "code", label: "コード (例: call)", type: "text" },
+              { key: "name", label: "名前", type: "text" },
+              { key: "color", label: "カラー (#RRGGBB)", type: "text", colorSwatch: true },
+              { key: "sort_order", label: "表示順", type: "number", min: 0 },
             ]}
           />
         );
@@ -894,18 +1381,6 @@ export function AdminView() {
             fields={[{ key: "name", label: "名前", type: "text" }]}
           />
         );
-      case "company_statuses":
-        return (
-          <SimpleMasterTab
-            title="カンパニーステータス"
-            items={companyStatuses}
-            onCreate={createCompanyStatusAction}
-            onUpdate={updateCompanyStatus}
-            onDelete={deleteCompanyStatus}
-            onRefresh={refreshCompanyStatuses}
-            fields={[{ key: "name", label: "名前", type: "text" }]}
-          />
-        );
       case "project_statuses":
         return (
           <SimpleMasterTab
@@ -926,6 +1401,8 @@ export function AdminView() {
     }
   };
 
+  const currentGroup = GROUPS.find((g) => g.key === activeGroup) ?? GROUPS[0];
+
   return (
     <div>
       {/* Page title */}
@@ -934,25 +1411,6 @@ export function AdminView() {
           マスタ管理
         </h1>
         <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-          <a
-            href="/admin/inside-sales/import"
-            className="hover:bg-[var(--color-bg-hover)]"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "0.25rem",
-              color: "var(--color-terra)",
-              textDecoration: "none",
-              padding: "0.375rem 0.75rem",
-              borderRadius: "var(--radius-sm)",
-              fontSize: "0.875rem",
-              fontWeight: 500,
-              border: "1px solid var(--color-border-default)",
-              transition: "background-color 0.15s",
-            }}
-          >
-            IS 取込 →
-          </a>
           <a
             href="/admin/deleted"
             className="hover:bg-[var(--color-bg-hover)]"
@@ -970,47 +1428,52 @@ export function AdminView() {
               transition: "background-color 0.15s",
             }}
           >
-            削除済みレコードを管理 →
+            削除済みレコードを管理
+            <ArrowUpRight size={14} />
           </a>
         </div>
       </div>
 
-      {/* Tab bar */}
+      {/* === 上段: グループタブ === */}
       <div
         style={{
           display: "flex",
-          gap: "0",
+          gap: 0,
+          overflowX: "auto",
+          borderBottom: "1px solid var(--color-border-default)",
+          marginBottom: 0,
+        }}
+      >
+        {GROUPS.map((group) => (
+          <GroupTabButton
+            key={group.key}
+            label={group.label}
+            isActive={activeGroup === group.key}
+            onClick={() => handleGroupChange(group.key)}
+          />
+        ))}
+      </div>
+
+      {/* === 下段: マスタタブ === */}
+      <div
+        style={{
+          display: "flex",
+          gap: 0,
           overflowX: "auto",
           borderBottom: "1px solid var(--color-border-default)",
           marginBottom: "1.5rem",
+          backgroundColor: "var(--color-sumi50)",
+          paddingLeft: "0.25rem",
         }}
       >
-        {TAB_KEYS.map((key) => {
-          const isActive = activeTab === key;
-          return (
-            <button
-              key={key}
-              onClick={() => setActiveTab(key)}
-              style={{
-                padding: "0.75rem 1.25rem",
-                fontSize: "0.875rem",
-                fontWeight: isActive ? 600 : 400,
-                color: isActive ? "var(--color-terra)" : "var(--color-sumi600)",
-                borderBottom: isActive ? "2px solid var(--color-terra)" : "2px solid transparent",
-                background: "none",
-                border: "none",
-                borderBottomWidth: 2,
-                borderBottomStyle: "solid",
-                borderBottomColor: isActive ? "var(--color-terra)" : "transparent",
-                cursor: "pointer",
-                whiteSpace: "nowrap",
-                transition: "color 0.15s, border-color 0.15s",
-              }}
-            >
-              {TAB_LABELS[key]}
-            </button>
-          );
-        })}
+        {currentGroup.tabs.map((tabKey) => (
+          <MasterTabButton
+            key={tabKey}
+            label={TAB_LABELS[tabKey]}
+            isActive={activeTab === tabKey}
+            onClick={() => setActiveTab(tabKey)}
+          />
+        ))}
       </div>
 
       {/* Tab content */}

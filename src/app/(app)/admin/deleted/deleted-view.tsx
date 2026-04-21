@@ -17,6 +17,7 @@ const ENTITY_LABELS: Record<DeletedEntity, string> = {
   deals: "ディール",
   contracts: "契約",
   talents: "タレント",
+  leads: "リード",
 };
 
 const ENTITIES: DeletedEntity[] = [
@@ -26,6 +27,7 @@ const ENTITIES: DeletedEntity[] = [
   "deals",
   "contracts",
   "talents",
+  "leads",
 ];
 
 const PER_PAGE = 20;
@@ -135,6 +137,8 @@ function displayName(entity: DeletedEntity, r: RecordItem): string {
       if (!c) return "（コンタクト不明）";
       return `${c.last_name ?? ""} ${c.first_name ?? ""}`.trim() || "-";
     }
+    case "leads":
+      return (r.lead_name as string) ?? "-";
   }
 }
 
@@ -152,6 +156,15 @@ function displayCode(entity: DeletedEntity, r: RecordItem): string {
       return (r.contract_code as string) ?? "";
     case "talents":
       return "";
+    case "leads": {
+      // ステージ名 / オーナー名をコードセルに表示（コード列はなし）
+      const stage = r.stage as { name?: string } | null;
+      const owner = r.owner as { full_name?: string } | null;
+      const parts: string[] = [];
+      if (stage?.name) parts.push(stage.name);
+      if (owner?.full_name) parts.push(owner.full_name);
+      return parts.join(" / ");
+    }
   }
 }
 

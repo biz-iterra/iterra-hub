@@ -29,14 +29,19 @@ ITERRAの営業・取引管理CRMシステムを新規構築する。現在ス�
 | M08 | コンタクトステータス | `contact_statuses` | コンタクトの状態 | 静的マスタ |
 | M09 | スキルカテゴリ | `skill_categories` | スキルの分類（技術/ビジネス等） | 静的マスタ |
 | M10 | スキル | `skills` | 個別スキル定義 | 静的マスタ |
-| M12 | プロジェクトステータス | `project_statuses` | プロジェクトの状態 | 静的マスタ |
 | M11 | カンパニーステータス | `company_statuses` | カンパニーの状態 | 静的マスタ |
-| M12 | （欠番） | — | — | — |
-| M13 | IS フェーズ | `inside_sales_phases` | インサイドセールス固有フェーズ（ホット/ウォーム/コールド） | パイプライン固有マスタ |
-| M14 | IS 大セグメント | `inside_sales_large_segments` | インサイドセールス 大セグメント | パイプライン固有マスタ |
-| M15 | IS 小セグメント | `inside_sales_small_segments` | インサイドセールス 小セグメント（M14従属） | パイプライン固有マスタ |
-| M16 | IS 架電ステータス | `inside_sales_call_statuses` | 架電結果の分類 | パイプライン固有マスタ |
-| M17 | IS 架電担当者 | `inside_sales_callers` | 架電担当者（社内/社外BPO対応） | パイプライン固有マスタ |
+| M12 | プロジェクトステータス | `project_statuses` | プロジェクトの状態 | 静的マスタ |
+| M13 | ~~IS フェーズ~~ | ~~`inside_sales_phases`~~ | **廃止**（20260419000002。lead_temperatures に統合） | — |
+| M14 | リード 大セグメント | `lead_large_segments` | リード 大セグメント（旧: inside_sales_large_segments） | リード共通マスタ |
+| M15 | リード 小セグメント | `lead_small_segments` | リード 小セグメント（M14従属）（旧: inside_sales_small_segments） | リード共通マスタ |
+| M16 | リード 架電ステータス | `lead_call_statuses` | 架電結果の分類（旧: inside_sales_call_statuses） | リード共通マスタ |
+| M17 | リード 架電担当者 | `lead_callers` | 架電担当者（社内/社外BPO対応）（旧: inside_sales_callers） | リード共通マスタ |
+| M18 | リードステージ | `lead_stages` | リード進捗ステージ（7段階）。`slug`/`is_terminal`/`auto_promote_to_deal` を持つ | リード共通マスタ |
+| M19 | リードステータス | `lead_statuses` | ステージ内の状態（stage_id FK、UNIQUE(stage_id, code)） | リード共通マスタ |
+| M20 | リード温度感 | `lead_temperatures` | 温度感マスタ（hot/warm/cold） | リード共通マスタ |
+| M21 | リードスコアリングルール | `lead_scoring_rules` | score範囲→temperature_id マッピングルール | リード共通マスタ |
+| M22 | リードカテゴリ | `lead_categories` | リードカテゴリマスタ（Inquiry/MQL/TQL/SQL）。Lead.category_id で参照。ステージとは独立した分類軸 | リード共通マスタ |
+| M23 | キャンペーン | `campaigns` | マーケティングキャンペーン（generation/nurturing/qualification） | リード共通マスタ |
 
 ### 2.2 構造化マスタ（階層・依存関係あり）
 他マスタとの依存関係を持つ。参照整合性が重要。
@@ -68,6 +73,7 @@ ITERRAの営業・取引管理CRMシステムを新規構築する。現在ス�
 | T06 | 契約 | `contracts` | 契約情報 |
 | T07 | タレント | `talents` | コンタクトに紐づく人材特性情報 |
 | T08 | プロジェクト | `projects` | 複数ディールをグルーピングする業務イニシアチブ |
+| T09 | リード | `leads` | 見込み客（Lead）エンティティ。stage/status/temperature/score/segment/category を管理 |
 
 ### 2.5 従属エンティティ（親に依存）
 親エンティティのライフサイクルに従う。親削除時にCASCADE。
@@ -81,14 +87,17 @@ ITERRAの営業・取引管理CRMシステムを新規構築する。現在ス�
 | D05 | タレントスキル | `talent_skills` | T07 talents | Talent N : M Skills |
 | D06 | タレント経歴 | `talent_careers` | T07 talents | Talent 1 : N Career |
 | D07 | プロジェクトメンバー | `project_members` | T08 projects | Project 1 : N Member（crm_users参照） |
+| D08 | リード架電記録 | `lead_activities` | T09 leads | Lead 1 : N 架電記録（call_number UNIQUE） |
 
 ### 2.5b パイプライン拡張（Deal 1:1 / 1:N）
 パイプラインごとに固有カラムを保持する拡張テーブル。共通規約については §9 参照。
 
 | # | テーブル論理名 | テーブル物理名 | 親 | 多重度 | 対応パイプライン |
 |---|-------------|-------------|---|--------|----------------|
-| EX01 | IS 拡張本体 | `deal_ext_inside_sales` | T05 deals | Deal 1:1 | `inside_sales` |
-| EX02 | IS 架電記録 | `deal_ext_inside_sales_calls` | T05 deals | Deal 1:N | `inside_sales` |
+| ~~EX01~~ | ~~IS 拡張本体~~ | ~~`deal_ext_inside_sales`~~ | — | — | **Phase D で撤去済み（2026-04-19）** |
+| ~~EX02~~ | ~~IS 架電記録~~ | ~~`deal_ext_inside_sales_calls`~~ | — | — | **Phase D で撤去済み（2026-04-19）** |
+
+> **注意:** 現時点で有効なパイプライン拡張テーブルは存在しない。新規パイプライン追加時は §5.X の規約に従うこと。
 
 ### 2.6 中間テーブル（N:M関係）
 
@@ -97,6 +106,7 @@ ITERRAの営業・取引管理CRMシステムを新規構築する。現在ス�
 | J01 | ディール×サービス | `deal_services` | Deal N : M Service |
 | J02 | アカウント×コンタクト | `account_contacts` | Account N : M Contact |
 | J03 | ディール×プロジェクト | `deal_projects` | Deal N : M Project |
+| J04 | リード×キャンペーン | `lead_campaigns` | Lead N : M Campaign |
 
 ### 2.7 アクティビティ / ログ
 
@@ -281,7 +291,8 @@ ITERRAの営業・取引管理CRMシステムを新規構築する。現在ス�
 
 **slug について:**
 - パイプラインごとのUI拡張コンポーネント（`src/components/deals/pipelines/<slug>/`）および拡張テーブル（`deal_ext_<slug>` 等）を解決するプログラムキー
-- バックフィル済み値: `sales` / `procurement` / `outsourcing` / `inside_sales`
+- 現在の値: `sales` / `procurement` / `outsourcing`
+  （`inside_sales` は Phase D で撤去済み。2026-04-19）
 
 **CRUD:** 管理者のみ作成・更新・論理削除（is_active=FALSE）。物理削除不可（FKで参照される）。
 
@@ -336,10 +347,13 @@ ITERRAの営業・取引管理CRMシステムを新規構築する。現在ス�
 |---|--------|--------|-----|----|----|----|----|----------|-------------|-------------|
 | 1 | ID | `id` | UUID | PK | | | NN | gen_random_uuid() | | |
 | 2 | リードソース名 | `name` | TEXT | | | UK | NN | | | 1-100文字 |
-| 3 | リードソース説明 | `description` | TEXT | | | | | | | max 500文字 |
-| 4 | 有効フラグ | `is_active` | BOOLEAN | | | | NN | TRUE | | |
-| 5 | 作成日時 | `created_at` | TIMESTAMPTZ | | | | NN | NOW() | | 更新不可 |
-| 6 | 更新日時 | `updated_at` | TIMESTAMPTZ | | | | NN | NOW() | | トリガー自動更新 |
+| 3 | **識別子** | **`slug`** | **VARCHAR(32)** | | | **UK** | **NN** | | **`^[a-z][a-z0-9_]{0,31}$`** | **CSV取込・Lead作成のプログラムキー** |
+| 4 | リードソース説明 | `description` | TEXT | | | | | | | max 500文字 |
+| 5 | 有効フラグ | `is_active` | BOOLEAN | | | | NN | TRUE | | |
+| 6 | 作成日時 | `created_at` | TIMESTAMPTZ | | | | NN | NOW() | | 更新不可 |
+| 7 | 更新日時 | `updated_at` | TIMESTAMPTZ | | | | NN | NOW() | | トリガー自動更新 |
+
+**既存バックフィル（20260419000003）:** `tele_appo` / `dm` / `web_form` / `referral` / `event` / `sns` / `line` / `other`
 
 **CRUD:** M01と同じパターン。
 
@@ -468,17 +482,11 @@ ITERRAの営業・取引管理CRMシステムを新規構築する。現在ス�
 | 7 | ステージ変更条件 | `transition_condition` | TEXT | | | | | | | max 500文字 |
 | 8 | 表示順 | `sort_order` | INTEGER | | | | NN | 0 | >= 0 | |
 | 9 | 有効フラグ | `is_active` | BOOLEAN | | | | NN | TRUE | | |
-| 10 | **フェーズID** | **`phase_id`** | **UUID** | | **（DB-FKなし）** | | | | **パイプライン固有 `<slug>_phases` を参照** | **アプリ層で整合性検証** |
+| 10 | ~~フェーズID~~ | ~~`phase_id`~~ | — | | — | | | | **廃止（20260419000002）** | `inside_sales_phases` 廃止に伴い削除。温度感は `lead_temperatures` で管理 |
 | 11 | 作成日時 | `created_at` | TIMESTAMPTZ | | | | NN | NOW() | | 更新不可 |
 | 12 | 更新日時 | `updated_at` | TIMESTAMPTZ | | | | NN | NOW() | | トリガー自動更新 |
 
 **UK:** (pipeline_type_id, name) — 同一パイプライン内でステージ名は一意
-
-**phase_id について:**
-- パイプライン単位の「フェーズ」（ステージの上位グルーピング）を表現
-- 参照先テーブルは `<pipeline_type.slug>_phases`（例: `inside_sales_phases`）。パイプラインごとに独立したテーブル
-- **DB層ではFK制約を張らない**。パイプライン追加時に `deal_stages` のスキーマ変更を不要にするため
-- 整合性はアプリ層で担保：`pipeline_type.slug` をキーに対応するphasesテーブルを解決し、phase_idがそのテーブルに存在することを検証
 
 **CRUD:** 管理者のみ。論理削除。FK参照により物理削除不可。
 
@@ -846,43 +854,15 @@ UIは `pipeline_types.slug` をキーにしたレジストリパターンで拡�
 
 ---
 
-## 5.Y インサイドセールス拡張（slug='inside_sales'）
+## ~~5.Y インサイドセールス拡張（slug='inside_sales'）~~
 
-### EX01: deal_ext_inside_sales（Deal 1:1拡張本体）
-
-| # | 論理名 | 物理名 | 型 | PK | FK | UK | NN | デフォルト | 区分値/CHECK | バリデーション |
-|---|--------|--------|-----|----|----|----|----|----------|-------------|-------------|
-| 1 | ディールID | `deal_id` | UUID | PK | FK→T05.id CASCADE | | NN | | | |
-| 2 | 大セグメントID | `large_segment_id` | UUID | | FK→M14.id | | | | | |
-| 3 | 小セグメントID | `small_segment_id` | UUID | | FK→M15.id | | | | | `large_segment_id` 一致をアプリ層検証 |
-| 4 | 企業名 | `prospect_company_name` | TEXT | | | | | | | 1-200文字。**NULL=個人Account扱い** |
-| 5 | URL | `url` | TEXT | | | | | | | max 500文字 |
-| 6 | 電話番号 | `phone` | VARCHAR(20) | | | | | | | |
-| 7 | 主架電担当者ID | `primary_caller_id` | UUID | | FK→M17.id | | | | | |
-| 8 | 作成日時 | `created_at` | TIMESTAMPTZ | | | | NN | NOW() | | |
-| 9 | 更新日時 | `updated_at` | TIMESTAMPTZ | | | | NN | NOW() | | トリガー自動更新 |
-
-**Account作成ルール（Server Action `createInsideSalesLead`）:**
-- `prospect_company_name NOT NULL` → 同名Company検索 → 無ければ最小構成で作成 → **法人Account**（company_id セット、ステータス=prospect）
-- `prospect_company_name NULL` → **個人Account**（company_id NULL、ステータス=prospect）。Account名は Deal名を流用
-
-### EX02: deal_ext_inside_sales_calls（Deal 1:N 架電記録）
-
-| # | 論理名 | 物理名 | 型 | PK | FK | UK | NN | デフォルト | 区分値/CHECK | バリデーション |
-|---|--------|--------|-----|----|----|----|----|----------|-------------|-------------|
-| 1 | ID | `id` | UUID | PK | | | NN | gen_random_uuid() | | |
-| 2 | ディールID | `deal_id` | UUID | | FK→T05.id CASCADE | | NN | | | |
-| 3 | 架電回次 | `call_number` | SMALLINT | | | | NN | | >= 1 | アプリ層で max+1 採番 |
-| 4 | 架電日 | `called_on` | DATE | | | | NN | | | |
-| 5 | 架電時間 | `called_at_time` | TIME | | | | | | | |
-| 6 | 架電ステータスID | `call_status_id` | UUID | | FK→M16.id | | NN | | | |
-| 7 | 架電担当者ID | `caller_id` | UUID | | FK→M17.id | | NN | | | |
-| 8 | 備考 | `note` | TEXT | | | | | | | max 1000文字 |
-| 9 | 作成日時 | `created_at` | TIMESTAMPTZ | | | | NN | NOW() | | |
-| 10 | 更新日時 | `updated_at` | TIMESTAMPTZ | | | | NN | NOW() | | トリガー自動更新 |
-
-**UK:** `(deal_id, call_number)`
-**INDEX:** `(deal_id, called_on DESC)`, caller_id, call_status_id
+> **Phase D 完了（2026-04-19）: この拡張は撤去済みです。**
+>
+> `deal_ext_inside_sales` / `deal_ext_inside_sales_calls` テーブルはマイグレーション
+> `20260419000010_drop_inside_sales_legacy.sql` で物理削除されました。
+>
+> 架電記録の機能は Lead エンティティ（§11）の `lead_activities` テーブルに移管済み。
+> 新規パイプライン拡張を追加する場合は §5.X の命名規則・構造ルールに従ってください。
 **RLS:** `is_deal_accessible(deal_id)` に委譲
 **補足:** 削除時は call_number の gap を許容（詰めない）。CSV取込では deal_id ごとにまとめて投入
 
@@ -1685,6 +1665,20 @@ Next.js 15プロジェクト初期化、Supabase設定、共通ライブラリ
 25. `20260418000009_add_audit_columns.sql` — Phase E: 全テーブルに created_by（NN, DEFAULT admin）+ last_updated_by 追加（35テーブル）
 26. `20260418000010_relax_inside_sales_url_length.sql` — EX01 URL の長さ制約を 500 → 1000 文字に緩和
 27. `20260418000011_create_projects.sql` — M12 project_statuses + T08 projects + D07 project_members + J03 deal_projects + A11 project_change_histories（Phase A）
+28. `20260419000001_rename_inside_sales_masters.sql` — M14-M17 をリード共通マスタに改名
+29. `20260419000002_drop_inside_sales_phases.sql` — M13 inside_sales_phases 廃止
+30. `20260419000003_alter_lead_sources_add_slug.sql` — M05 lead_sources に slug 追加
+31. `20260419000004_create_lead_stage_status_masters.sql` — M18-M21 リードステージ/ステータス/温度感/スコアルール
+32. `20260419000005_create_campaigns.sql` — M23 campaigns + J04 lead_campaigns
+33. `20260419000006_create_leads.sql` — T09 leads + RLS
+34. `20260419000007_create_lead_activities.sql` — D08 lead_activities + RLS
+35. `20260419000008_create_v_leads_with_category.sql` — v_leads_with_category ビュー
+36. `20260419000009_alter_leads_status_nullable.sql` — leads.status_id を NULL 許容に変更（Opportunity ステージ対応）
+37. `20260419000010_drop_inside_sales_legacy.sql` — **Phase D**: inside_sales パイプライン deals 物理削除・EX01/EX02 テーブル DROP・pipeline_type 削除（テスト段階1回限りの例外 2026-04-19）
+38. `20260419000013_rename_lead_stage_sql_to_sales.sql` — M18 lead_stages.slug `sql` → `sales` に rename（M22 category との衝突回避・業務呼称統一）
+39. `20260419000014_create_lead_categories.sql` — M22 lead_categories マスタ作成（RLS 標準マスタパターン）
+40. `20260419000015_alter_leads_add_category_id.sql` — T09 leads に category_id（M22 FK、NULL 許容）追加 + idx_leads_category
+41. `20260419000016_recreate_v_leads_with_category.sql` — v_leads_with_category を再定義（CASE 式廃止 → lead_categories LEFT JOIN）
 
 ### Phase 3: 型定義・Zodバリデーション
 - `src/types/index.ts`
@@ -1816,3 +1810,236 @@ potential-profiling から**移植しなかった**要素：
 - Prisma スキーマ・関連 API ルート
 
 理由: CRM の要件は「コンタクトにポテンシャル番号と星座を付与する」のみで、詳細プロファイリング UI や履歴管理は別プロジェクトに委ねる。
+
+---
+
+## 11. Lead / Campaign 設計（Phase A: 2026-04-19 導入）
+
+### 11.1 エンティティ概要
+
+Lead は Deal より上流の「見込み客」を管理するエンティティ。インサイドセールス架電〜アポ獲得〜商談化（Deal 昇格）の一連フローを担う。
+
+```
+[lead_stages] 1──N [lead_statuses]
+                         │
+[leads] ─────────────────┘ (stage_id 必須。status_id は通常ステージでは必須、Opportunity 等 auto_promote_to_deal=true のステージでは NULL 許容)
+  │ N──1 [lead_temperatures]
+  │ N──0..1 [lead_categories] (category_id。M22。ステージとは独立)
+  │ N──1 [lead_large_segments]
+  │ N──1 [lead_small_segments]
+  │ N──1 [lead_callers] (primary_caller)
+  │ N──1 [lead_sources] (M05)
+  │ N──1 [account_types] (M06 流用。slug: corporate/sole_proprietor/government)
+  │ 0..1──1 [companies] (company_id: リード収集時の任意参照。UI からは設定不可)
+  │ 0..1──1 [contacts] (contact_id: リード収集時の任意参照。UI からは設定不可)
+  │ 0..1──1 [deals]    (promoted_deal_id: Opportunity 昇格時に自動生成)
+  │ 0..1──1 [companies] (promoted_company_id: 昇格時に新規作成した Company。法人のみ)
+  │ 0..1──1 [contacts]  (promoted_contact_id: 昇格時に新規作成した Contact)
+  │ 0..1──1 [accounts]  (promoted_account_id: 昇格時に新規作成した Account)
+  │ 1──N [lead_activities]
+  │ N──M [campaigns] via [lead_campaigns]
+  │ N──1 [crm_users] (owner)
+```
+
+### 11.2 ステージ階層（M18 lead_stages）
+
+| slug | 名称 | is_terminal | auto_promote_to_deal | 説明 |
+|------|------|-------------|---------------------|------|
+| `generation` | 獲得 | false | false | リスト化〜未架電段階 |
+| `nurturing` | 育成 | false | false | 架電試行〜資料送付段階 |
+| `qualification` | 選定 | false | false | アポ獲得〜確定段階 |
+| `sales` | Sales | false | false | 商談化〜引継段階（旧 `sql` → `sales` に rename: 20260419000013） |
+| `opportunity` | Opportunity | false | **true** | Deal 昇格トリガー |
+| `customer` | Customer | **true** | false | 成約済み（端末） |
+| `dead` | Dead | **true** | false | 失注・辞退等（端末） |
+
+### 11.3 ステータス一覧（M19 lead_statuses）
+
+> **重要:** `Opportunity` ステージ（`auto_promote_to_deal=true`）にはステータスが定義されていない。Deal 側で進捗を管理するため、`leads.status_id` はこのステージでは `NULL` になる。DB カラムも `NULL 許容`（20260419000009 で NOT NULL 制約を解除）。
+
+| ステージ | code | 名称 |
+|---------|------|------|
+| 獲得 | `list_ready` | リスト化済 |
+| 獲得 | `not_called` | 未架電 |
+| 獲得 | `not_started` | 未着手 |
+| 獲得 | `call_scheduled` | 架電予定 |
+| 育成 | `calling` | 架電試行中 |
+| 育成 | `continuing_call` | 継続架電 |
+| 育成 | `awaiting_recall` | 再架電待ち |
+| 育成 | `material_sent` | 資料送付済 |
+| 選定 | `appointment_obtained` | アポ獲得 |
+| 選定 | `appointment_confirmed` | アポ確定 |
+| Sales | `negotiation` | 商談化 |
+| Sales | `handed_over` | 引継済 |
+| **Opportunity** | —（なし） | **status_id = NULL**（Deal 昇格トリガーステージ。Deal 側で進捗管理） |
+| Customer | `closed_won` | 成約 |
+| Dead | `lost` | 失注 |
+| Dead | `declined` | 辞退 |
+| Dead | `unreachable` | 連絡不能 |
+| Dead | `approach_prohibited` | アプローチ禁止 |
+| Dead | `opt_out` | オプトアウト |
+
+### 11.4 Category マスタ（M22 lead_categories）と v_leads_with_category View
+
+**設計方針: カテゴリとステージは独立した2軸**
+
+リードカテゴリ（Inquiry / MQL / TQL / SQL）とリードステージ（generation / nurturing / qualification / sales / opportunity / customer / dead）は**独立した2軸**として管理する。自動マッピングや推奨連動は実装しない。ユーザーが手動で選択する。
+
+**leads.category_id カラム（20260419000015 で追加）**
+
+`leads.category_id UUID REFERENCES lead_categories(id)` — NULL 許容（未分類リード可）。
+
+| カラム | 型 | 説明 |
+|--------|---|------|
+| `category_id` | UUID | lead_categories FK。NULL = 未分類 |
+
+**インデックス:** `CREATE INDEX idx_leads_category ON leads(category_id) WHERE deleted_at IS NULL AND category_id IS NOT NULL`
+
+**M22 lead_categories シードデータ**
+
+| code | name | color |
+|------|------|-------|
+| `inquiry` | Inquiry | — |
+| `mql` | MQL | — |
+| `tql` | TQL | — |
+| `sql` | SQL | — |
+
+**制約:** `code ~ '^[a-z][a-z0-9_]{0,31}$'` / `color ~ '^#[0-9A-Fa-f]{6}$'`（NULL 許容） / `char_length(name) BETWEEN 1 AND 50`
+
+**v_leads_with_category View（20260419000016 で再定義）**
+
+旧仕様（stage.slug と score から CASE 式で category を算出）を廃止し、`leads.category_id` を `lead_categories` に LEFT JOIN して以下カラムを提供する。
+
+| 追加カラム | 元テーブル | 説明 |
+|-----------|----------|------|
+| `category_code` | lead_categories.code | カテゴリ識別子（NULL=未分類） |
+| `category_name` | lead_categories.name | カテゴリ表示名 |
+| `category_color` | lead_categories.color | カテゴリ色（HEX or NULL） |
+
+> **注意:** category は lead_categories マスタ参照（stage / score とは独立）。CASE 式による自動算出は廃止済み。
+
+### 11.5 温度感の自動判定ルール（M20/M21）
+
+| code | 名称 | score 範囲 |
+|------|------|-----------|
+| `hot` | ホット | 80 以上 |
+| `warm` | ウォーム | 50〜79 |
+| `cold` | コールド | 0〜49 |
+
+**実装方針:** `temperature_id` は Server Action 側で `lead_scoring_rules` を参照して設定する。DB トリガーによる自動更新は行わない（Phase B で Server Action 実装時に対応）。
+
+### 11.6 Lead→Opportunity 昇格フロー（20260420000001 で拡張）
+
+Lead は「仮の情報保持」を目的とし、既存の Company/Contact を UI から紐付ける機能は持たない。
+Opportunity ステージへの遷移時に初めて Company/Contact/Account/Deal を**自動新規作成**する。
+
+#### 昇格トリガー
+1. `updateLead` で `stage_id` が変更され、新ステージの `auto_promote_to_deal = true` の場合
+2. `promoted_deal_id` が既に存在する場合は昇格をスキップ（二重発火防止）
+3. `lead_name` と `account_type_id` が必須（欠落時は `[ステージ遷移] Opportunity 昇格には lead_name と account_type_id が必要です` を返す）
+
+#### 法人昇格（account_types.slug = `corporate` または `government`）
+1. `companies` に新規挿入（`company_name` 優先、なければ `lead_name`）
+2. `contacts` に `contact_type=corporate_rep` で挿入（`lead_name` をスペース分割して姓/名）
+3. `companies.primary_contact_id` を新 Contact で更新
+4. `accounts` に新規挿入（`company_id` を設定）
+5. `account_contacts` で Account と Contact を紐付け（`role=primary`）
+6. `deals` に新規挿入（`name = lead_name + " 案件"`、pipeline_type=standard の先頭ステージ）
+7. `leads` の `promoted_deal_id / promoted_company_id / promoted_contact_id / promoted_account_id` を一括更新
+
+#### 個人昇格（account_types.slug = `sole_proprietor`、またはスラッグ未設定かつ company_name が空の場合）
+1. `contacts` に `contact_type=individual` で挿入
+2. `accounts` に新規挿入（`company_id=null`）
+3. `account_contacts` で Account と Contact を紐付け
+4. `deals` に新規挿入
+5. `leads` の `promoted_*` を更新
+
+#### エラー時ロールバック
+各エンティティ作成で失敗した場合、作成済みのエンティティを逆順に物理削除する（手動補償トランザクション）。
+Lead 更新は成功済みのため、`error` 文字列を警告として返し UI に表示する。
+
+#### promoted_* カラム（20260420000001 追加）
+| カラム | 型 | 説明 |
+|-------|----|------|
+| `promoted_deal_id`    | UUID FK → deals(id) ON DELETE SET NULL    | 昇格先 Deal |
+| `promoted_company_id` | UUID FK → companies(id) ON DELETE SET NULL | 昇格時に作成した Company（法人のみ）|
+| `promoted_contact_id` | UUID FK → contacts(id) ON DELETE SET NULL  | 昇格時に作成した Contact |
+| `promoted_account_id` | UUID FK → accounts(id) ON DELETE SET NULL  | 昇格時に作成した Account |
+
+昇格後に再度 Opportunity 以外のステージに戻した場合も、作成済みの Company/Contact/Account/Deal は削除しない（業務的に不自然）。
+
+**注意:** `leads.promoted_deal_id` は `ON DELETE SET NULL` なので Deal 物理削除時も無効化される。テスト段階での Deal 物理削除は Phase D で許容するが、運用後は禁止（§11.8 参照）。
+
+### 11.7 マスタリネームマッピング（20260419000001）
+
+| 旧テーブル名 | 新テーブル名 | 理由 |
+|------------|------------|------|
+| `inside_sales_large_segments` | `lead_large_segments` | Lead 共通リソースへ昇格 |
+| `inside_sales_small_segments` | `lead_small_segments` | 同上 |
+| `inside_sales_call_statuses` | `lead_call_statuses` | 同上 |
+| `inside_sales_callers` | `lead_callers` | 同上 |
+| `inside_sales_phases` | **廃止** | `lead_temperatures` に統合 |
+
+`deal_stages.phase_id` カラムも 20260419000002 で削除。`v_account_current_phase` View も同マイグレーションで廃止。
+
+### 11.8 運用後の deals 物理削除禁止ポリシー
+
+以下の理由により、**運用後の deals レコード物理削除は禁止**とする。
+
+| 制約 | 詳細 |
+|------|------|
+| `contracts.deal_id NOT NULL FK` | 契約情報が deal に依存。物理削除時に契約が孤立 |
+| `deal_change_histories` / `deal_stage_histories` / `deal_status_histories` | 3テーブルが deal_id を参照。削除時に履歴が消失 |
+| `deal_activities` / `deal_activity_emails` | 対応履歴が消失 |
+| `leads.promoted_deal_id` | Lead の昇格先が不明になる（ON DELETE SET NULL だが追跡不能に） |
+
+**例外:** Phase D での既存 inside_sales pipeline の leads への移行作業は **テスト段階の1回限りの例外**（2026-04-19 ユーザー承認済み）。`deal_ext_inside_sales` / `deal_ext_inside_sales_calls` の物理削除も同様に Phase D 限定で許容する。
+
+### 11.9 inside_sales pipeline 撤去完了（Phase D: 2026-04-19）
+
+以下のファイルは Phase D で物理削除済み。残骸なし。
+
+| 削除ファイル | 理由 |
+|------------|------|
+| `src/actions/deals/inside-sales.ts` | Lead エンティティに機能移管 |
+| `src/actions/deals/inside-sales-import.ts` | CSV 取込は Lead フロー経由に変更 |
+| `src/lib/validators/deals/inside-sales.ts` | Zod スキーマ不要 |
+| `src/lib/inside-sales/import-helpers.ts`（ディレクトリごと） | IS 固有ヘルパー不要 |
+| `src/app/(app)/admin/inside-sales/`（ディレクトリごと） | 管理UI削除 |
+| `scripts/test-inside-sales-dryrun.ts` | テストスクリプト削除 |
+
+`src/types/database.ts` の `InsideSales*` deprecated alias 型定義も同時削除。
+`src/lib/validators/index.ts` の `insideSalesValidators` エクスポートも削除。
+`supabase/seed.sql` から inside_sales の pipeline_types / deal_stages / deal_statuses エントリを削除。
+
+### 11.10 lead_source 自動同期（Phase D 追加）
+
+Lead 登録・更新時に `lead_source_id` が設定されている場合、紐づく `companies` / `contacts` の
+`lead_source_id` が **NULL の場合のみ** 自動コピーする。
+
+**実装場所:** `src/actions/leads.ts` — `createLead` / `updateLead` の末尾で `syncLeadSourceToRelated` を呼び出す。
+
+| 挙動 | 詳細 |
+|------|------|
+| 未設定のみコピー | 対象の `lead_source_id` が `NULL` の場合だけ上書きする |
+| 既存値は保持 | 手動設定済みの `lead_source` を上書きしない |
+| company + contact 並列処理 | `Promise.all` で同時実行 |
+| Server Action 内で実行 | RLS が効く `createClient()` 経由。多層防御を維持 |
+
+**理由:** テレアポ→架電リード登録時に contact の `lead_source_id='teleappointment'` を自動セットするなど、
+初回流入チャネルをトラッキングしやすくするため。ただし手動で設定した値は尊重する。
+
+### 11.11 移行マッピング表（旧 IS → Lead）（参考）
+
+Phase D で実施する移行の参考として、既存 deal_stages/deal_statuses → lead_stages/lead_statuses の対応。
+
+| 既存 deal_stages (IS) | → lead_stages slug | 既存 deal_statuses (IS) | → lead_statuses code |
+|----------------------|-------------------|----------------------|---------------------|
+| リスト化済 | `generation` | 未着手 | `not_started` |
+| 未架電 | `generation` | 架電予定 | `call_scheduled` |
+| 架電試行中 | `nurturing` | 継続架電 | `continuing_call` |
+| 再架電待ち | `nurturing` | 再架電待ち | `awaiting_recall` |
+| アポ獲得 | `qualification` | アポ確定 | `appointment_confirmed` |
+| 商談化 | `sales` | 引継済 | `handed_over` |
+| クローズ（成約） | `customer` | 成約 | `closed_won` |
+| クローズ（失注） | `dead` | 失注 | `lost` |

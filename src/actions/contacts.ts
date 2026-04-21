@@ -85,7 +85,7 @@ export async function getContacts(
   let query = supabase
     .from("contacts")
     .select(
-      `*, contact_status:contact_statuses(id, name), company:companies(id, name), owner:crm_users!contacts_owner_user_id_fkey(id, full_name), contact_emails(id, email, label, is_primary), contact_phones(id, phone, label, is_primary)`,
+      `*, contact_status:contact_statuses(id, name), company:companies!contacts_company_id_fkey(id, name), owner:crm_users!contacts_owner_user_id_fkey(id, full_name), contact_emails(id, email, label, is_primary), contact_phones(id, phone, label, is_primary)`,
       { count: "exact" }
     )
     .is("deleted_at", null)
@@ -113,7 +113,7 @@ export async function getContact(id: string): Promise<ActionResult<unknown>> {
   const { data, error } = await supabase
     .from("contacts")
     .select(
-      `*, contact_status:contact_statuses(id, name), company:companies(id, name), owner:crm_users!contacts_owner_user_id_fkey(id, full_name), contact_emails(id, email, label, is_primary), contact_phones(id, phone, label, is_primary), talent:talents(*, talent_skills(*, skill:skills(id, name, skill_categories(name))), talent_careers(*)), number_diagnosis(*), constellation_fortune_telling:constellation_fortune_telling(*), account_contacts(id, role, account:accounts(id, account_code, name))`
+      `*, contact_status:contact_statuses(id, name), company:companies!contacts_company_id_fkey(id, name), owner:crm_users!contacts_owner_user_id_fkey(id, full_name), contact_emails(id, email, label, is_primary), contact_phones(id, phone, label, is_primary), talent:talents(*, talent_skills(*, skill:skills(id, name, skill_categories(name))), talent_careers(*)), number_diagnosis(*), constellation_fortune_telling:constellation_fortune_telling(*), account_contacts(id, role, account:accounts(id, account_code, name))`
     )
     .eq("id", id)
     .single();

@@ -10,7 +10,8 @@ export type DeletedEntity =
   | "contacts"
   | "deals"
   | "contracts"
-  | "talents";
+  | "talents"
+  | "leads";
 
 const ENTITY_SELECT: Record<DeletedEntity, string> = {
   companies:
@@ -24,6 +25,8 @@ const ENTITY_SELECT: Record<DeletedEntity, string> = {
     "id, contract_code, contract_name, deleted_at, deleted_by, deletion_reason",
   talents:
     "id, contact_id, deleted_at, deleted_by, deletion_reason, contact:contacts(last_name, first_name)",
+  leads:
+    "id, lead_name, deleted_at, deleted_by, deletion_reason, stage:lead_stages(name), status:lead_statuses(name), owner:crm_users!leads_owner_user_id_fkey(full_name)",
 };
 
 async function getAuthenticatedAdmin() {
@@ -105,6 +108,7 @@ export async function getDeletedCounts(): Promise<
     "deals",
     "contracts",
     "talents",
+    "leads",
   ];
 
   const counts: Record<string, number> = {};

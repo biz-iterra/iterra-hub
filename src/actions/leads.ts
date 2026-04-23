@@ -53,18 +53,18 @@ const LEAD_SELECT = `
   account_type:account_types(id, name, slug),
   large_segment:lead_large_segments(id, code, name),
   small_segment:lead_small_segments(id, code, name),
-  primary_caller:lead_callers(id, code, name, caller_type),
   owner:crm_users!leads_owner_user_id_fkey(id, full_name),
   company_size:lead_company_sizes(id, code, name),
   score_breakdowns:lead_score_breakdowns(id, score_delta, applied_at, rule:lead_score_rules(id, category, condition_type, description)),
   customer_activities:lead_customer_activities(id, occurred_at, detail, source, created_at, activity_type:lead_customer_activity_types(id, code, name)),
-  lead_campaigns(campaign_id)
+  lead_campaigns(campaign_id),
+  sub_owners:lead_owners(user_id, user:crm_users!lead_owners_user_id_fkey(id, full_name))
 ` as const;
 
 // ---------- 一覧取得（v_leads_with_category View を使用）----------
 export async function getLeads(
   params?: z.infer<typeof leadFiltersSchema>
-): Promise<ActionResult<{ items: any[]; count: number }>> {
+): Promise<ActionResult<{ rows: any[]; total: number }>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
@@ -90,7 +90,6 @@ export async function getLeads(
       account_type:account_types(id, name, slug),
       large_segment:lead_large_segments(id, code, name),
       small_segment:lead_small_segments(id, code, name),
-      primary_caller:lead_callers(id, code, name, caller_type),
       owner:crm_users!leads_owner_user_id_fkey(id, full_name)
     `,
       { count: "exact" }
@@ -131,7 +130,7 @@ export async function getLeads(
     }
   }
 
-  return { data: { items, count: count ?? 0 }, error: null };
+  return { data: { rows: items, total: count ?? 0 }, error: null };
 }
 
 // ---------- 詳細取得 ----------
@@ -251,10 +250,17 @@ export async function createLead(
   // score / temperature_id は recalculate_lead_score で算出されるため手動設定不可。
   // Zod スキーマから削除済みのため d にはこれらのフィールドは存在しない。
 
+  // sub_owner_user_ids から主担当と重複するものを除外
+  const rawSubOwnerIds = d.sub_owner_user_ids ?? [];
+  const subOwnerIds = rawSubOwnerIds.filter((uid) => uid !== d.owner_user_id);
+
+  // sub_owner_user_ids は leads テーブルには存在しないため除外して insert
+  const { sub_owner_user_ids: _sub, ...leadInsertData } = d;
+
   const { data: lead, error } = await supabase
     .from("leads")
     .insert({
-      ...d,
+      ...leadInsertData,
       status_id: resolvedStatusId,
       created_by: user.id,
       last_updated_by: user.id,
@@ -263,6 +269,15 @@ export async function createLead(
     .single();
 
   if (error) return { ok: false, errors: { _: [error.message] } };
+
+  // 副担当を lead_owners に bulk insert（best effort）
+  if (subOwnerIds.length > 0) {
+    const rows = subOwnerIds.map((uid) => ({ lead_id: lead.id, user_id: uid }));
+    const { error: ownerErr } = await supabase.from("lead_owners").insert(rows);
+    if (ownerErr) {
+      console.warn("[createLead] lead_owners insert WARN:", ownerErr.message);
+    }
+  }
 
   // score / temperature_id / breakdowns を DB 関数で算出（失敗はログのみ。Lead 登録自体は成功扱い）
   const adminClient = createAdminClient();
@@ -290,7 +305,7 @@ export async function updateLead(
 
   const { id, ...updates } = parsed.data;
 
-  // 既存レコード取得（オーナーチェック用）
+  // 既存レコード取得（オーナーチェック用・副担当チェック用）
   const { data: existing, error: fetchErr } = await supabase
     .from("leads")
     .select("id, owner_user_id, stage_id, status_id, score, temperature_id")
@@ -301,9 +316,21 @@ export async function updateLead(
     return { ok: false, errors: { _: ["リードが見つかりません"] } };
   }
 
-  // オーナーチェック（member のみ自分担当のみ。manager/admin はスキップ）
-  if (role === "member" && existing.owner_user_id !== user.id) {
-    return { ok: false, errors: { _: ["このリードを編集する権限がありません"] } };
+  // オーナーチェック（member のみ: 主担当 OR 副担当のみ編集可）
+  if (role === "member") {
+    let canEdit = existing.owner_user_id === user.id;
+    if (!canEdit) {
+      const { data: subOwner } = await supabase
+        .from("lead_owners")
+        .select("user_id")
+        .eq("lead_id", id)
+        .eq("user_id", user.id)
+        .maybeSingle();
+      canEdit = !!subOwner;
+    }
+    if (!canEdit) {
+      return { ok: false, errors: { _: ["このリードを編集する権限がありません"] } };
+    }
   }
 
   // stage_id ↔ status_id 親子整合性チェック（両方指定された場合、またはどちらかが変わる場合）
@@ -366,8 +393,12 @@ export async function updateLead(
     if (corpWarn) warnings.push(corpWarn);
   }
 
+  // sub_owner_user_ids が含まれている場合は lead_owners を更新（leads テーブルには不要）
+  const subOwnerIdsRaw = (safeUpdates as any).sub_owner_user_ids as string[] | undefined;
+  const { sub_owner_user_ids: _subOwner, ...safeUpdatesWithoutSub } = safeUpdates as any;
+
   const updatePayload = {
-    ...safeUpdates,
+    ...safeUpdatesWithoutSub,
     last_updated_by: user.id,
   };
 
@@ -379,6 +410,20 @@ export async function updateLead(
     .single();
 
   if (updateErr) return { ok: false, errors: { _: [updateErr.message] } };
+
+  // 副担当更新（sub_owner_user_ids が渡された場合のみ: 全削除 → bulk insert）
+  if (subOwnerIdsRaw !== undefined) {
+    await supabase.from("lead_owners").delete().eq("lead_id", id);
+    const newOwnerId = (safeUpdatesWithoutSub as any).owner_user_id ?? existing.owner_user_id;
+    const filteredSubIds = subOwnerIdsRaw.filter((uid) => uid !== newOwnerId);
+    if (filteredSubIds.length > 0) {
+      const ownerRows = filteredSubIds.map((uid: string) => ({ lead_id: id, user_id: uid }));
+      const { error: ownerErr } = await supabase.from("lead_owners").insert(ownerRows);
+      if (ownerErr) {
+        console.warn("[updateLead] lead_owners re-insert WARN:", ownerErr.message);
+      }
+    }
+  }
 
   // score / temperature_id / breakdowns を DB 関数で算出（失敗はログのみ。Lead 更新自体は成功扱い）
   const adminClient = createAdminClient();

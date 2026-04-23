@@ -1,10 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
 import Link from "next/link";
+import { UserCircle, Plus } from "lucide-react";
 import { getTalents } from "@/actions/talents";
-import { UserCircle, Search, Star, Pencil } from "lucide-react";
+import { SearchInput } from "@/components/ui/SearchInput";
+import { FilterGroup, FilterClearButton } from "@/components/ui/FilterGroup";
+import { Pagination } from "@/components/ui/Pagination";
+import { DEFAULT_PAGE_SIZE } from "@/lib/constants/pagination";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -18,6 +21,7 @@ interface Skill {
 interface TalentRow {
   id: string;
   overall_assessment: string | null;
+  updated_at: string | null;
   contact: {
     id: string;
     contact_code: string;
@@ -30,12 +34,23 @@ interface TalentRow {
 }
 
 interface Props {
-  initialData: { items: TalentRow[]; count: number } | null;
+  initialData: { rows: TalentRow[]; total: number } | null;
 }
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+function formatDateTime(value: string | null | undefined): string {
+  if (!value) return "—";
+  const d = new Date(value);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mi = String(d.getMinutes()).padStart(2, "0");
+  return `${yyyy}/${mm}/${dd} ${hh}:${mi}`;
+}
+
 function getTopSkills(skills: Skill[], limit = 3): Skill[] {
   return [...skills]
     .sort((a, b) => b.proficiency_level - a.proficiency_level)
@@ -43,339 +58,255 @@ function getTopSkills(skills: Skill[], limit = 3): Skill[] {
 }
 
 function truncate(text: string | null, max: number): string {
-  if (!text) return "\u2014";
+  if (!text) return "—";
   return text.length > max ? text.slice(0, max) + "..." : text;
 }
 
-const PER_PAGE = 20;
+const PER_PAGE = DEFAULT_PAGE_SIZE;
 
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 export function TalentsView({ initialData }: Props) {
-  const router = useRouter();
+  const [data, setData] = useState(initialData);
+  const [keyword, setKeyword] = useState("");
+  const [page, setPage] = useState(1);
   const [isPending, startTransition] = useTransition();
 
-  const [rows, setRows] = useState<TalentRow[]>(initialData?.items ?? []);
-  const [totalCount, setTotalCount] = useState(initialData?.count ?? 0);
-  const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
-
-  const totalPages = Math.max(1, Math.ceil(totalCount / PER_PAGE));
-
-  const fetchData = useCallback(
-    (s: string, p: number) => {
-      startTransition(async () => {
-        const { data } = await getTalents({ search: s || undefined, page: p, perPage: PER_PAGE });
-        if (data) {
-          setRows(data.items as TalentRow[]);
-          setTotalCount(data.count);
-        }
+  function handleSearch(value: string) {
+    setKeyword(value);
+    setPage(1);
+    startTransition(async () => {
+      const { data: result } = await getTalents({
+        search: value || undefined,
+        perPage: PER_PAGE,
+        page: 1,
       });
-    },
-    [],
-  );
+      setData(result);
+    });
+  }
 
-  // 検索変更時にページを1にリセット
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setPage(1);
-      fetchData(search, 1);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [search, fetchData]);
+  function handleClear() {
+    setKeyword("");
+    setPage(1);
+    startTransition(async () => {
+      const { data: result } = await getTalents({ perPage: PER_PAGE, page: 1 });
+      setData(result);
+    });
+  }
 
-  // ページ変更
-  useEffect(() => {
-    if (page > 1) fetchData(search, page);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page]);
+  function handlePageChange(next: number) {
+    setPage(next);
+    startTransition(async () => {
+      const { data: result } = await getTalents({
+        search: keyword || undefined,
+        perPage: PER_PAGE,
+        page: next,
+      });
+      setData(result);
+    });
+  }
+
+  const items = (data?.rows ?? []) as TalentRow[];
+  const totalCount = data?.total ?? 0;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-      {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div>
-          <h1
-            style={{
-              fontSize: "1.5rem",
-              fontWeight: 700,
-              color: "var(--color-text-title)",
-              margin: 0,
-            }}
-          >
-            タレント
-          </h1>
-          <p
-            style={{
-              fontSize: "0.875rem",
-              color: "var(--color-sumi600)",
-              margin: "0.25rem 0 0",
-            }}
-          >
-            {totalCount} 件のタレント
-          </p>
-        </div>
+    <div>
+      {/* ヘッダー */}
+      <div className="flex items-center justify-between mb-6">
+        <h1
+          className="text-2xl font-bold"
+          style={{ color: "var(--color-text-title)" }}
+        >
+          タレント
+        </h1>
+        <Link
+          href="/talents/new"
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white transition-colors"
+          style={{
+            backgroundColor: "var(--color-terra)",
+            borderRadius: "var(--radius-button)",
+            textDecoration: "none",
+          }}
+          onMouseEnter={(e) =>
+            (e.currentTarget.style.backgroundColor = "var(--color-terra-dark)")
+          }
+          onMouseLeave={(e) =>
+            (e.currentTarget.style.backgroundColor = "var(--color-terra)")
+          }
+        >
+          <Plus size={16} />
+          新規作成
+        </Link>
       </div>
 
-      {/* Card */}
-      <div
-        style={{
-          backgroundColor: "#fff",
-          borderRadius: "var(--radius-card)",
-          boxShadow: "var(--elevation-low)",
-          overflow: "hidden",
-        }}
-      >
-        {/* Search */}
-        <div style={{ padding: "1rem 1.5rem", borderBottom: "1px solid var(--color-border-default)" }}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "0.5rem",
-              backgroundColor: "var(--color-sumi50)",
-              borderRadius: "var(--radius-button)",
-              padding: "0.5rem 0.75rem",
-              maxWidth: "24rem",
-            }}
+      {/* フィルター行 */}
+      <FilterGroup className="mb-4">
+        <SearchInput
+          value={keyword}
+          placeholder="氏名で検索..."
+          onChange={handleSearch}
+        />
+        <FilterClearButton onClear={handleClear} />
+        {isPending && (
+          <span
+            className="text-xs"
+            style={{ color: "var(--color-sumi500)", alignSelf: "flex-end", paddingBottom: "0.45rem" }}
           >
-            <Search size={16} style={{ color: "var(--color-sumi600)", flexShrink: 0 }} />
-            <input
-              type="text"
-              placeholder="コンタクト名で検索..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              style={{
-                border: "none",
-                outline: "none",
-                backgroundColor: "transparent",
-                fontSize: "0.875rem",
-                width: "100%",
-                color: "var(--color-text-title)",
-              }}
-            />
-          </div>
-        </div>
-
-        {/* Table */}
-        {rows.length === 0 ? (
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: "4rem 1rem",
-              gap: "0.75rem",
-            }}
-          >
-            <UserCircle size={48} style={{ color: "var(--color-sumi300)" }} />
-            <p
-              style={{
-                fontSize: "0.875rem",
-                color: "var(--color-sumi600)",
-                margin: 0,
-              }}
-            >
-              タレントがまだありません
-            </p>
-          </div>
-        ) : (
-          <>
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead>
-                  <tr
-                    style={{
-                      backgroundColor: "var(--color-sumi50)",
-                      fontSize: "0.75rem",
-                      fontWeight: 600,
-                      color: "var(--color-sumi700)",
-                      textAlign: "left",
-                    }}
-                  >
-                    <th style={{ padding: "0.75rem 1rem" }}>コンタクト名</th>
-                    <th style={{ padding: "0.75rem 1rem" }}>部署・役職</th>
-                    <th style={{ padding: "0.75rem 1rem" }}>スキル</th>
-                    <th style={{ padding: "0.75rem 1rem" }}>総合評価</th>
-                    <th style={{ padding: "0.75rem 1rem", textAlign: "right" }}>
-                      操作
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((row) => {
-                    const topSkills = getTopSkills(row.talent_skills ?? []);
-
-                    return (
-                      <tr
-                        key={row.id}
-                        onClick={() => router.push(`/talents/${row.id}`)}
-                        style={{
-                          borderBottom: "1px solid var(--color-border-default)",
-                          cursor: "pointer",
-                          fontSize: "0.875rem",
-                        }}
-                        onMouseEnter={(e) =>
-                          (e.currentTarget.style.backgroundColor = "var(--color-bg-hover)")
-                        }
-                        onMouseLeave={(e) =>
-                          (e.currentTarget.style.backgroundColor = "transparent")
-                        }
-                      >
-                        <td
-                          style={{
-                            padding: "0.75rem 1rem",
-                            fontWeight: 600,
-                            color: "var(--color-text-title)",
-                            whiteSpace: "nowrap",
-                          }}
-                        >
-                          {row.contact
-                            ? `${row.contact.last_name} ${row.contact.first_name}`
-                            : "\u2014"}
-                        </td>
-                        <td
-                          style={{
-                            padding: "0.75rem 1rem",
-                            color: "var(--color-sumi600)",
-                            whiteSpace: "nowrap",
-                          }}
-                        >
-                          {row.contact?.department || row.contact?.job_title
-                            ? [row.contact.department, row.contact.job_title]
-                                .filter(Boolean)
-                                .join(" / ")
-                            : "\u2014"}
-                        </td>
-                        <td style={{ padding: "0.75rem 1rem" }}>
-                          <div style={{ display: "flex", gap: "0.375rem", flexWrap: "wrap" }}>
-                            {topSkills.length === 0 && (
-                              <span style={{ color: "var(--color-sumi400)" }}>{"\u2014"}</span>
-                            )}
-                            {topSkills.map((s) => (
-                              <span
-                                key={s.id}
-                                style={{
-                                  display: "inline-block",
-                                  borderRadius: "var(--radius-badge)",
-                                  padding: "0.125rem 0.5rem",
-                                  fontSize: "0.75rem",
-                                  fontWeight: 600,
-                                  whiteSpace: "nowrap",
-                                  ...(s.proficiency_level >= 4
-                                    ? { backgroundColor: "var(--color-sage)", color: "#fff" }
-                                    : {
-                                        backgroundColor: "var(--color-sumi100)",
-                                        color: "var(--color-sumi700)",
-                                      }),
-                                }}
-                              >
-                                {s.skill.name} Lv.{s.proficiency_level}
-                              </span>
-                            ))}
-                          </div>
-                        </td>
-                        <td
-                          style={{
-                            padding: "0.75rem 1rem",
-                            color: "var(--color-sumi600)",
-                            maxWidth: "20rem",
-                            fontSize: "0.8125rem",
-                          }}
-                        >
-                          {truncate(row.overall_assessment, 50)}
-                        </td>
-                        <td
-                          style={{
-                            padding: "0.75rem 1rem",
-                            textAlign: "right",
-                          }}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <Link
-                            href={`/talents/${row.id}/edit`}
-                            className="hover:bg-[var(--color-bg-hover)]"
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: "0.25rem",
-                              color: "var(--color-terra)",
-                              textDecoration: "none",
-                              padding: "0.25rem 0.5rem",
-                              borderRadius: "var(--radius-sm)",
-                              fontSize: "0.75rem",
-                              fontWeight: 500,
-                              border: "1px solid var(--color-border-default)",
-                              transition: "background-color 0.15s",
-                            }}
-                          >
-                            <Pencil size={12} />
-                            編集
-                          </Link>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  padding: "0.75rem 1.5rem",
-                  borderTop: "1px solid var(--color-border-default)",
-                  fontSize: "0.8125rem",
-                  color: "var(--color-sumi600)",
-                }}
-              >
-                <span>
-                  {(page - 1) * PER_PAGE + 1}\u2013{Math.min(page * PER_PAGE, totalCount)} /{" "}
-                  {totalCount} 件
-                </span>
-                <div style={{ display: "flex", gap: "0.5rem" }}>
-                  <button
-                    disabled={page <= 1 || isPending}
-                    onClick={() => setPage((p) => p - 1)}
-                    style={{
-                      padding: "0.375rem 0.75rem",
-                      borderRadius: "var(--radius-button)",
-                      border: "1px solid var(--color-border-default)",
-                      backgroundColor: "#fff",
-                      cursor: page <= 1 ? "not-allowed" : "pointer",
-                      opacity: page <= 1 ? 0.5 : 1,
-                      fontSize: "0.8125rem",
-                    }}
-                  >
-                    前へ
-                  </button>
-                  <button
-                    disabled={page >= totalPages || isPending}
-                    onClick={() => setPage((p) => p + 1)}
-                    style={{
-                      padding: "0.375rem 0.75rem",
-                      borderRadius: "var(--radius-button)",
-                      border: "1px solid var(--color-border-default)",
-                      backgroundColor: "#fff",
-                      cursor: page >= totalPages ? "not-allowed" : "pointer",
-                      opacity: page >= totalPages ? 0.5 : 1,
-                      fontSize: "0.8125rem",
-                    }}
-                  >
-                    次へ
-                  </button>
-                </div>
-              </div>
-            )}
-          </>
+            読み込み中...
+          </span>
         )}
-      </div>
+      </FilterGroup>
+
+      {/* テーブル */}
+      {items.length === 0 ? (
+        <div
+          className="p-10 text-center text-sm"
+          style={{
+            backgroundColor: "#fff",
+            borderRadius: "var(--radius-card)",
+            boxShadow: "var(--elevation-low)",
+            color: "var(--color-sumi500)",
+          }}
+        >
+          <UserCircle
+            size={48}
+            style={{ color: "var(--color-sumi300)", margin: "0 auto 0.75rem" }}
+          />
+          タレントが見つかりません
+        </div>
+      ) : (
+        <div
+          className="overflow-x-auto no-scrollbar"
+          style={{
+            backgroundColor: "#fff",
+            borderRadius: "var(--radius-card)",
+            boxShadow: "var(--elevation-low)",
+          }}
+        >
+          <table className="w-full text-sm" style={{ tableLayout: "auto" }}>
+            <thead>
+              <tr style={{ backgroundColor: "var(--color-sumi50)" }}>
+                {[
+                  "コンタクト名",
+                  "総合評価",
+                  "スキル",
+                  "部署・役職",
+                  "最終更新日",
+                ].map((label) => (
+                  <th
+                    key={label}
+                    className="px-4 py-3 text-left font-semibold text-xs whitespace-nowrap"
+                    style={{ color: "var(--color-sumi600)" }}
+                  >
+                    {label}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((row) => {
+                const topSkills = getTopSkills(row.talent_skills ?? []);
+                return (
+                  <tr
+                    key={row.id}
+                    className="transition-colors cursor-pointer"
+                    style={{ borderBottom: "1px solid var(--color-border-default)" }}
+                    onMouseEnter={(e) =>
+                      (e.currentTarget.style.backgroundColor = "var(--color-bg-hover)")
+                    }
+                    onMouseLeave={(e) =>
+                      (e.currentTarget.style.backgroundColor = "transparent")
+                    }
+                    onClick={() => (window.location.href = `/talents/${row.id}`)}
+                  >
+                    {/* コンタクト名 */}
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <Link
+                        href={`/talents/${row.id}`}
+                        className="font-medium"
+                        style={{ color: "var(--color-text-list)" }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {row.contact
+                          ? `${row.contact.last_name} ${row.contact.first_name}`
+                          : "—"}
+                      </Link>
+                    </td>
+                    {/* 総合評価 */}
+                    <td
+                      className="px-4 py-3"
+                      style={{
+                        color: "var(--color-text-list)",
+                        fontSize: "0.8125rem",
+                        maxWidth: "20rem",
+                      }}
+                    >
+                      {truncate(row.overall_assessment, 35)}
+                    </td>
+                    {/* スキル */}
+                    <td className="px-4 py-3">
+                      <div style={{ display: "flex", gap: "0.375rem", flexWrap: "wrap" }}>
+                        {topSkills.length === 0 ? (
+                          <span style={{ color: "var(--color-text-list)" }}>—</span>
+                        ) : (
+                          topSkills.map((s) => (
+                            <span
+                              key={s.id}
+                              style={{
+                                display: "inline-block",
+                                borderRadius: "var(--radius-badge)",
+                                padding: "0.125rem 0.5rem",
+                                fontSize: "0.75rem",
+                                fontWeight: 600,
+                                whiteSpace: "nowrap",
+                                ...(s.proficiency_level >= 4
+                                  ? { backgroundColor: "var(--color-sage)", color: "#fff" }
+                                  : {
+                                      backgroundColor: "var(--color-sumi100)",
+                                      color: "var(--color-sumi700)",
+                                    }),
+                              }}
+                            >
+                              {s.skill.name} Lv.{s.proficiency_level}
+                            </span>
+                          ))
+                        )}
+                      </div>
+                    </td>
+                    {/* 部署・役職 */}
+                    <td
+                      className="px-4 py-3 whitespace-nowrap"
+                      style={{ color: "var(--color-text-list)", fontSize: "0.8125rem" }}
+                    >
+                      {row.contact?.department || row.contact?.job_title
+                        ? [row.contact.department, row.contact.job_title]
+                            .filter(Boolean)
+                            .join(" / ")
+                        : "—"}
+                    </td>
+                    {/* 最終更新日 */}
+                    <td
+                      className="px-4 py-3 text-xs whitespace-nowrap"
+                      style={{ color: "var(--color-text-list)" }}
+                    >
+                      {formatDateTime(row.updated_at)}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* ページネーション */}
+      <Pagination
+        page={page}
+        totalCount={totalCount}
+        pageSize={PER_PAGE}
+        onPageChange={handlePageChange}
+      />
     </div>
   );
 }

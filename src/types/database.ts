@@ -369,19 +369,6 @@ export type LeadCallStatus = {
 } & SoftDeletable &
   Timestamps;
 
-export type LeadCaller = {
-  id: string;
-  code: string;
-  name: string;
-  caller_type: "internal" | "external";
-  organization: string | null;
-  email: string | null;
-  phone: string | null;
-  linked_user_id: string | null;
-  note: string | null;
-} & SoftDeletable &
-  Timestamps;
-
 // === Lead / Campaign マスタ型 ===
 
 export type LeadCategory = {
@@ -532,7 +519,6 @@ export type Lead = {
   corporate_number: string | null;
   large_segment_id: string | null;
   small_segment_id: string | null;
-  primary_caller_id: string | null;
   category_id: string | null;
   /** 従業員数（判定用。スコア算出では company_size_id 経由で参照） */
   employee_count: number | null;
@@ -547,10 +533,20 @@ export type Lead = {
   promoted_account_id: string | null;
   created_by: string | null;
   last_updated_by: string | null;
+  /** 副担当（lead_owners 中間テーブル JOIN 結果）。SELECT 時のみ付与 */
+  sub_owners?: LeadOwner[];
 } & SoftDeletable &
   Timestamps;
 
 // === Lead 中間・従属テーブル型 ===
+
+// T10: リード副担当中間テーブル（Phase 10b-1）
+export type LeadOwner = {
+  lead_id: string;
+  user_id: string;
+  assigned_at: string;
+  user?: { id: string; full_name: string };
+};
 
 export type LeadCampaign = {
   lead_id: string;
@@ -565,10 +561,12 @@ export type LeadActivity = {
   called_on: string;
   called_at_time: string | null;
   call_status_id: string;
-  caller_id: string;
+  caller_user_id: string;
   note: string | null;
   activity_type_id: string | null;
   created_at: string;
+  /** JOIN: crm_users */
+  caller?: { id: string; full_name: string };
 };
 
 // D09

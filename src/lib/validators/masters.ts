@@ -150,13 +150,6 @@ export const leadTemperatureCreateSchema = z.object({
 });
 export const leadTemperatureUpdateSchema = leadTemperatureCreateSchema.partial();
 
-// --- lead_callers ---
-export const leadCallerCreateSchema = z.object({
-  name: z.string().min(1).max(100),
-  definition: z.string().max(1000).nullable().optional(),
-});
-export const leadCallerUpdateSchema = leadCallerCreateSchema.partial();
-
 // --- lead_call_statuses ---
 export const leadCallStatusCreateSchema = z.object({
   name: z.string().min(1).max(100),

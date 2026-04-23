@@ -106,7 +106,7 @@ export default async function AccountEditPage({
       value: l.id,
       label: l.name,
     })),
-    companies: ((companiesResult.data?.items ?? []) as { id: string; name: string }[]).map(
+    companies: ((companiesResult.data?.rows ?? []) as { id: string; name: string }[]).map(
       (c) => ({ value: c.id, label: c.name })
     ),
     owners: (usersResult.data ?? []).map((u) => ({

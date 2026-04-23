@@ -6,6 +6,7 @@ import {
   getLeadCategories,
 } from "@/actions/masters";
 import { getCrmUsers, getCurrentUser } from "@/actions/users";
+import { DEFAULT_PAGE_SIZE } from "@/lib/constants/pagination";
 import { LeadsView } from "./leads-view";
 
 export default async function LeadsPage() {
@@ -18,7 +19,7 @@ export default async function LeadsPage() {
     usersResult,
     currentUserResult,
   ] = await Promise.all([
-    getLeads({ perPage: 50, page: 1 }),
+    getLeads({ perPage: DEFAULT_PAGE_SIZE, page: 1 }),
     getLeadStages(),
     getLeadStatuses(),
     getLeadTemperatures(),

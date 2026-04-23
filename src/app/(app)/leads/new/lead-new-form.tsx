@@ -18,7 +18,6 @@ type Masters = {
   temperatures: TempOption[];
   sources: SelectOption[];
   accountTypes: AccountTypeOption[];
-  callers: SelectOption[];
   largeSegments: SelectOption[];
   smallSegments: SmallSegmentOption[];
   owners: SelectOption[];
@@ -141,15 +140,31 @@ export function LeadNewForm({
     small_segment_id: "",
     lead_source_id: "",
     account_type_id: "",
-    primary_caller_id: "",
     owner_user_id: currentUser.id,
   });
+  // 副担当（主担当と別管理）
+  const [subOwnerUserIds, setSubOwnerUserIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
 
   const set = <K extends keyof typeof values>(key: K, value: (typeof values)[K]) => {
     setValues((v) => ({ ...v, [key]: value }));
+  };
+
+  // 主担当変更時: 新主担当が副担当に含まれていたら自動除外
+  const handleOwnerChange = (newOwnerId: string) => {
+    set("owner_user_id", newOwnerId);
+    setSubOwnerUserIds((prev) => prev.filter((id) => id !== newOwnerId));
+  };
+
+  // 副担当チェックボックス操作
+  const handleSubOwnerToggle = (userId: string, checked: boolean) => {
+    if (checked) {
+      setSubOwnerUserIds((prev) => [...prev, userId]);
+    } else {
+      setSubOwnerUserIds((prev) => prev.filter((id) => id !== userId));
+    }
   };
 
   // stage_id に応じて status の選択肢を Cascading filter
@@ -237,8 +252,8 @@ export function LeadNewForm({
       capital: capitalNum,
       large_segment_id: values.large_segment_id || null,
       small_segment_id: values.small_segment_id || null,
-      primary_caller_id: values.primary_caller_id || null,
       owner_user_id: values.owner_user_id,
+      sub_owner_user_ids: subOwnerUserIds,
       contact_last_name: values.contact_last_name || null,
       contact_middle_name: values.contact_middle_name || null,
       contact_first_name: values.contact_first_name || null,
@@ -757,28 +772,11 @@ export function LeadNewForm({
               </select>
             </div>
             <div>
-              <label style={styles.label}>主担当</label>
-              <select
-                style={styles.input}
-                value={values.primary_caller_id}
-                onChange={(e) => set("primary_caller_id", e.target.value)}
-                onFocus={onFocus}
-                onBlur={onBlur}
-              >
-                <option value="">-- 未選択 --</option>
-                {masters.callers.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label style={styles.label}>社内担当者 *</label>
+              <label style={styles.label}>社内担当者（主）*</label>
               <select
                 style={styles.input}
                 value={values.owner_user_id}
-                onChange={(e) => set("owner_user_id", e.target.value)}
+                onChange={(e) => handleOwnerChange(e.target.value)}
                 disabled={!isManagerOrAbove}
                 onFocus={onFocus}
                 onBlur={onBlur}
@@ -793,6 +791,64 @@ export function LeadNewForm({
                 <p style={styles.helpText}>member は自分のみ担当者に設定できます</p>
               )}
             </div>
+          </div>
+          {/* 副担当 Multi-select */}
+          <div>
+            <label style={styles.label}>社内担当者（副）</label>
+            {masters.owners.filter((u) => u.value !== values.owner_user_id).length === 0 ? (
+              <p style={styles.helpText}>主担当以外のユーザーがいません</p>
+            ) : (
+              <div
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: "0.5rem",
+                  padding: "0.5rem 0.75rem",
+                  border: "1px solid var(--color-border-default)",
+                  borderRadius: "var(--radius-input)",
+                  backgroundColor: "#fff",
+                }}
+              >
+                {masters.owners
+                  .filter((u) => u.value !== values.owner_user_id)
+                  .map((u) => {
+                    const checked = subOwnerUserIds.includes(u.value);
+                    return (
+                      <label
+                        key={u.value}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "0.375rem",
+                          padding: "0.25rem 0.625rem",
+                          borderRadius: "var(--radius-badge)",
+                          backgroundColor: checked
+                            ? "rgba(60,63,88,0.12)"
+                            : "var(--color-sumi100)",
+                          color: checked ? "var(--color-terra)" : "var(--color-sumi600)",
+                          fontSize: "0.8125rem",
+                          fontWeight: checked ? 600 : 400,
+                          cursor: "pointer",
+                          border: checked
+                            ? "1px solid rgba(60,63,88,0.25)"
+                            : "1px solid transparent",
+                          transition: "background-color 0.15s, color 0.15s",
+                          userSelect: "none",
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) => handleSubOwnerToggle(u.value, e.target.checked)}
+                          style={{ accentColor: "var(--color-terra)", width: "0.875rem", height: "0.875rem" }}
+                        />
+                        {u.label}
+                      </label>
+                    );
+                  })}
+              </div>
+            )}
+            <p style={styles.helpText}>副担当者を複数選択できます（任意）</p>
           </div>
         </div>
 

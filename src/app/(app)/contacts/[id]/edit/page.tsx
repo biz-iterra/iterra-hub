@@ -117,7 +117,7 @@ export default async function ContactEditPage({
       value: l.id,
       label: l.name,
     })),
-    companies: ((companiesResult.data?.items ?? []) as CompanyItem[]).map((c) => ({
+    companies: ((companiesResult.data?.rows ?? []) as CompanyItem[]).map((c) => ({
       value: c.id,
       label: c.name,
     })),

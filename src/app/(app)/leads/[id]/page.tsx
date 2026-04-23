@@ -6,7 +6,6 @@ import {
   getLeadTemperatures,
   getLeadSources,
   getAccountTypes,
-  getLeadCallers,
   getLeadCallStatuses,
   getLeadLargeSegments,
   getLeadSmallSegments,
@@ -114,7 +113,6 @@ export default async function LeadDetailPage({
     temperaturesResult,
     sourcesResult,
     accountTypesResult,
-    callersResult,
     callStatusesResult,
     largeSegmentsResult,
     smallSegmentsResult,
@@ -131,7 +129,6 @@ export default async function LeadDetailPage({
     getLeadTemperatures(),
     getLeadSources(),
     getAccountTypes(),
-    getLeadCallers(),
     getLeadCallStatuses(),
     getLeadLargeSegments(),
     getLeadSmallSegments(),
@@ -167,10 +164,6 @@ export default async function LeadDetailPage({
       value: a.id,
       label: a.name,
     })),
-    callers: (callersResult.data ?? []).map((c: any) => ({
-      value: c.id,
-      label: c.name,
-    })),
     callStatuses: (callStatusesResult.data ?? []).map((c: any) => ({
       value: c.id,
       label: c.name,
@@ -204,7 +197,7 @@ export default async function LeadDetailPage({
   };
 
   const campaignIdSet = new Set<string>(lead.campaign_ids ?? []);
-  const initialLeadCampaigns = (campaignsResult.data?.items ?? [])
+  const initialLeadCampaigns = (campaignsResult.data?.rows ?? [])
     .filter((c: any) => campaignIdSet.has(c.id))
     .map((c: any) => ({ id: c.id, name: c.name }));
 

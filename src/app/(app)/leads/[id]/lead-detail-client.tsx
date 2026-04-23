@@ -45,7 +45,6 @@ type Masters = {
   temperatures: TempOption[];
   sources: SelectOption[];
   accountTypes: SelectOption[];
-  callers: SelectOption[];
   callStatuses: SelectOption[];
   largeSegments: SelectOption[];
   smallSegments: SmallSegmentOption[];
@@ -239,14 +238,14 @@ function ActivityAccordionItem({
             <StatusBadge name={act.call_status.name} />
           )}
 
-          {act.caller?.name && (
+          {act.caller?.full_name && (
             <span
               style={{
                 color: "var(--color-sumi600)",
                 fontSize: "0.75rem",
               }}
             >
-              {act.caller.name}
+              {act.caller.full_name}
             </span>
           )}
         </div>
@@ -498,7 +497,7 @@ export function LeadDetailClient({
     called_on: new Date().toISOString().slice(0, 10),
     called_at_time: "",
     call_status_id: "",
-    caller_id: "",
+    caller_user_id: "",
     activity_type_id: "",
     note: "",
   });
@@ -514,7 +513,7 @@ export function LeadDetailClient({
   };
 
   const handleAddActivity = async () => {
-    if (!actForm.call_status_id || !actForm.caller_id) {
+    if (!actForm.call_status_id || !actForm.caller_user_id) {
       setActError("対応ステータスと対応者は必須です");
       return;
     }
@@ -526,7 +525,7 @@ export function LeadDetailClient({
       called_on: actForm.called_on,
       called_at_time: actForm.called_at_time || null,
       call_status_id: actForm.call_status_id,
-      caller_id: actForm.caller_id,
+      caller_user_id: actForm.caller_user_id,
       activity_type_id: actForm.activity_type_id || null,
       note: actForm.note || null,
     });
@@ -540,7 +539,7 @@ export function LeadDetailClient({
       called_on: new Date().toISOString().slice(0, 10),
       called_at_time: "",
       call_status_id: "",
-      caller_id: "",
+      caller_user_id: "",
       activity_type_id: "",
       note: "",
     });
@@ -879,10 +878,33 @@ export function LeadDetailClient({
                 value={lead.account_type?.name ?? findLabel(masters.accountTypes, lead.account_type_id)}
               />
               <Field
-                label="社内担当者"
+                label="社内担当者（主）"
                 value={lead.owner?.full_name ?? findLabel(masters.owners, lead.owner_user_id)}
               />
             </div>
+            {lead.sub_owners && lead.sub_owners.length > 0 && (
+              <div style={{ marginTop: "1rem" }}>
+                <span style={styles.label}>社内担当者（副）</span>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.375rem", marginTop: "0.25rem" }}>
+                  {lead.sub_owners.map((o: any) => (
+                    <span
+                      key={o.user_id}
+                      style={{
+                        display: "inline-block",
+                        padding: "0.125rem 0.625rem",
+                        borderRadius: "var(--radius-badge)",
+                        backgroundColor: "var(--color-sumi100)",
+                        color: "var(--color-sumi700)",
+                        fontSize: "0.75rem",
+                        fontWeight: 500,
+                      }}
+                    >
+                      {o.user?.full_name ?? o.user_id}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1457,13 +1479,13 @@ export function LeadDetailClient({
                   <label style={styles.label}>対応者 *</label>
                   <select
                     style={styles.input}
-                    value={actForm.caller_id}
-                    onChange={(e) => setAct("caller_id", e.target.value)}
+                    value={actForm.caller_user_id}
+                    onChange={(e) => setAct("caller_user_id", e.target.value)}
                     onFocus={onFocus}
                     onBlur={onBlur}
                   >
                     <option value="">-- 選択 --</option>
-                    {masters.callers.map((o) => (
+                    {masters.owners.map((o) => (
                       <option key={o.value} value={o.value}>
                         {o.label}
                       </option>

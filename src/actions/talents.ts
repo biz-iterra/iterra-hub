@@ -30,7 +30,7 @@ async function getAuthenticatedUser() {
 const TALENT_LIST_SELECT = `
   *,
   contact:contacts(id, contact_code, last_name, first_name, department, job_title),
-  talent_skills(id, proficiency_level, skill:skills(id, name, skill_categories(name)))
+  talent_skills(id, proficiency_level, years_experience, skill:skills(id, skill_code, axis, name, system_tags, skill_categories(name)))
 ` as const;
 
 // ---------- 一覧取得 ----------
@@ -38,7 +38,7 @@ export async function getTalents(params?: {
   search?: string;
   page?: number;
   perPage?: number;
-}): Promise<ActionResult<{ items: any[]; count: number }>> {
+}): Promise<ActionResult<{ rows: any[]; total: number }>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
@@ -61,7 +61,7 @@ export async function getTalents(params?: {
 
   const { data, error, count } = await query;
   if (error) return { data: null, error: error.message };
-  return { data: { items: data ?? [], count: count ?? 0 }, error: null };
+  return { data: { rows: data ?? [], total: count ?? 0 }, error: null };
 }
 
 // ---------- 詳細取得 ----------
@@ -79,7 +79,7 @@ export async function getTalent(id: string): Promise<ActionResult<any>> {
         number_diagnosis(*),
         constellation_fortune_telling:constellation_fortune_telling(*)
       ),
-      talent_skills(id, proficiency_level, skill:skills(id, name, skill_categories(name))),
+      talent_skills(id, proficiency_level, years_experience, note, skill:skills(id, skill_code, axis, name, system_tags, skill_categories(name))),
       talent_careers(*)
     `
     )

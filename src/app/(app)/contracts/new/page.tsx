@@ -65,11 +65,11 @@ export default async function ContractNewPage() {
   const contractTypes = ((contractTypesResult.data ?? []) as MasterItem[]).map(
     (t) => ({ value: t.id, label: t.name })
   );
-  const deals = ((dealsResult.data?.items ?? []) as DealItem[]).map((d) => ({
+  const deals = ((dealsResult.data?.rows ?? []) as DealItem[]).map((d) => ({
     value: d.id,
     label: `${d.deal_code} ${d.name}`,
   }));
-  const companies = ((companiesResult.data?.items ?? []) as CompanyItem[]).map(
+  const companies = ((companiesResult.data?.rows ?? []) as CompanyItem[]).map(
     (c) => ({ value: c.id, label: c.name })
   );
   const contacts = ((contactsResult.data?.rows ?? []) as ContactItem[]).map(

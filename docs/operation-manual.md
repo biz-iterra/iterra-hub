@@ -465,7 +465,6 @@ Lead（Opportunity 遷移を保存）
 |  | リードカテゴリ | `lead_categories` |
 |  | ステージ・ステータス | `lead_stages` / `lead_statuses`（階層） |
 |  | 温度感 | `lead_temperatures` |
-|  | 担当者 | `lead_callers` |
 |  | コールステータス | `lead_call_statuses` |
 |  | セグメント | `lead_large_segments` / `lead_small_segments`（階層） |
 |  | 対応種別 | `lead_activity_types` |

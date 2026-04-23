@@ -1,44 +1,107 @@
 "use client";
 
-import { getCompanies } from "@/actions/companies";
-import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
 import Link from "next/link";
-import { Search, Plus, Building2, Pencil } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { Plus, Building2 } from "lucide-react";
+import { getCompanies } from "@/actions/companies";
+import { StatusBadge } from "@/components/ui/badges";
+import { SearchInput } from "@/components/ui/SearchInput";
+import { FilterSelect } from "@/components/ui/FilterSelect";
+import { FilterGroup, FilterClearButton } from "@/components/ui/FilterGroup";
+import { Pagination } from "@/components/ui/Pagination";
+import { DEFAULT_PAGE_SIZE } from "@/lib/constants/pagination";
 
-const PER_PAGE = 20;
+function formatDateTime(value: string | null | undefined): string {
+  if (!value) return "—";
+  const d = new Date(value);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mi = String(d.getMinutes()).padStart(2, "0");
+  return `${yyyy}/${mm}/${dd} ${hh}:${mi}`;
+}
 
-type CompaniesData = { items: any[]; total: number } | null;
+type CompanyStatus = { id: string; name: string };
+type CorporateType = { id: string; name: string };
+type CrmUser = { id: string; full_name: string; role: string };
+type CompaniesData = { rows: any[]; total: number } | null;
 
-export function CompaniesView({ initialData }: { initialData: CompaniesData }) {
-  const router = useRouter();
-  const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
+interface CompaniesViewProps {
+  initialData: CompaniesData;
+  statuses: CompanyStatus[];
+  corporateTypes: CorporateType[];
+  users: CrmUser[];
+}
+
+export function CompaniesView({
+  initialData,
+  statuses,
+  corporateTypes,
+  users,
+}: CompaniesViewProps) {
   const [data, setData] = useState<CompaniesData>(initialData);
-  const [loading, setLoading] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [statusFilter, setStatusFilter] = useState("");
+  const [corporateTypeFilter, setCorporateTypeFilter] = useState("");
+  const [ownerFilter, setOwnerFilter] = useState("");
+  const [keyword, setKeyword] = useState("");
+  const [page, setPage] = useState(1);
+  const [isPending, startTransition] = useTransition();
 
-  useEffect(() => {
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(async () => {
-      setLoading(true);
-      const result = await getCompanies({ search, page, perPage: PER_PAGE });
-      setData(result.data);
-      setLoading(false);
-    }, 300);
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
-  }, [search, page]);
+  function handleFilter(
+    key: string,
+    value: string,
+    setter: (v: string) => void
+  ) {
+    setter(value);
+    setPage(1);
+    startTransition(async () => {
+      const { data: result } = await getCompanies({
+        statusId: key === "statusId" ? value || undefined : statusFilter || undefined,
+        corporateTypeId: key === "corporateTypeId" ? value || undefined : corporateTypeFilter || undefined,
+        ownerUserId: key === "ownerUserId" ? value || undefined : ownerFilter || undefined,
+        search: key === "search" ? value || undefined : keyword || undefined,
+        perPage: DEFAULT_PAGE_SIZE,
+        page: 1,
+      });
+      setData(result);
+    });
+  }
 
-  const items = data?.items ?? [];
+  function handleClear() {
+    setStatusFilter("");
+    setCorporateTypeFilter("");
+    setOwnerFilter("");
+    setKeyword("");
+    setPage(1);
+    startTransition(async () => {
+      const { data: result } = await getCompanies({ perPage: DEFAULT_PAGE_SIZE, page: 1 });
+      setData(result);
+    });
+  }
+
+  function handlePageChange(next: number) {
+    setPage(next);
+    startTransition(async () => {
+      const { data: result } = await getCompanies({
+        statusId: statusFilter || undefined,
+        corporateTypeId: corporateTypeFilter || undefined,
+        ownerUserId: ownerFilter || undefined,
+        search: keyword || undefined,
+        perPage: DEFAULT_PAGE_SIZE,
+        page: next,
+      });
+      setData(result);
+    });
+  }
+
+  const items = data?.rows ?? [];
   const total = data?.total ?? 0;
-  const totalPages = Math.max(1, Math.ceil(total / PER_PAGE));
 
   return (
-    <div className="space-y-6">
-      {/* ヘッダー行 */}
-      <div className="flex items-center justify-between">
+    <div>
+      {/* ヘッダー */}
+      <div className="flex items-center justify-between mb-6">
         <h1
           className="text-2xl font-bold"
           style={{ color: "var(--color-text-title)" }}
@@ -47,17 +110,14 @@ export function CompaniesView({ initialData }: { initialData: CompaniesData }) {
         </h1>
         <Link
           href="/companies/new"
-          className="inline-flex items-center gap-2 text-sm font-medium transition-colors"
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white transition-colors"
           style={{
             backgroundColor: "var(--color-terra)",
-            color: "#fff",
             borderRadius: "var(--radius-button)",
-            padding: "0.5rem 1.25rem",
             textDecoration: "none",
           }}
           onMouseEnter={(e) =>
-            (e.currentTarget.style.backgroundColor =
-              "var(--color-terra-dark)")
+            (e.currentTarget.style.backgroundColor = "var(--color-terra-dark)")
           }
           onMouseLeave={(e) =>
             (e.currentTarget.style.backgroundColor = "var(--color-terra)")
@@ -68,215 +128,156 @@ export function CompaniesView({ initialData }: { initialData: CompaniesData }) {
         </Link>
       </div>
 
-      {/* 検索バー */}
-      <div
-        style={{
-          backgroundColor: "#fff",
-          borderRadius: "var(--radius-card)",
-          boxShadow: "var(--elevation-low)",
-        }}
-      >
-        <div className="relative">
-          <Search
-            size={16}
-            className="absolute left-4 top-1/2 -translate-y-1/2"
-            style={{ color: "var(--color-sumi600)" }}
-          />
-          <input
-            type="text"
-            placeholder="会社名・コードで検索..."
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-            className="w-full px-4 py-2 pl-10 text-sm outline-none"
-            style={{
-              borderBottom: "1px solid var(--color-border-default)",
-              borderRadius: "var(--radius-input)",
-            }}
-          />
-        </div>
-      </div>
-
-      {/* テーブル */}
-      <div
-        style={{
-          backgroundColor: "#fff",
-          borderRadius: "var(--radius-card)",
-          boxShadow: "var(--elevation-low)",
-        }}
-      >
-        {loading ? (
-          <div
-            className="flex items-center justify-center py-16 text-sm"
-            style={{ color: "var(--color-sumi600)" }}
+      {/* フィルター行 */}
+      <FilterGroup className="mb-4">
+        <FilterSelect
+          label="ステータス"
+          value={statusFilter}
+          options={statuses.map((s) => ({ value: s.id, label: s.name }))}
+          onChange={(v) => handleFilter("statusId", v, setStatusFilter)}
+        />
+        <FilterSelect
+          label="法人格"
+          value={corporateTypeFilter}
+          options={corporateTypes.map((c) => ({ value: c.id, label: c.name }))}
+          onChange={(v) => handleFilter("corporateTypeId", v, setCorporateTypeFilter)}
+        />
+        <FilterSelect
+          label="担当者"
+          value={ownerFilter}
+          options={users.map((u) => ({ value: u.id, label: u.full_name }))}
+          onChange={(v) => handleFilter("ownerUserId", v, setOwnerFilter)}
+        />
+        <SearchInput
+          value={keyword}
+          placeholder="会社名で検索..."
+          onChange={(v) => handleFilter("search", v, setKeyword)}
+        />
+        <FilterClearButton onClear={handleClear} />
+        {isPending && (
+          <span
+            className="text-xs"
+            style={{ color: "var(--color-sumi500)", alignSelf: "flex-end", paddingBottom: "0.45rem" }}
           >
             読み込み中...
-          </div>
-        ) : items.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-3 py-16">
-            <Building2
-              size={40}
-              style={{ color: "var(--color-sumi600)" }}
-            />
-            <p
-              className="text-sm"
-              style={{ color: "var(--color-sumi600)" }}
-            >
-              カンパニーがまだありません
-            </p>
-          </div>
-        ) : (
-          <>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr
-                    style={{
-                      backgroundColor: "var(--color-sumi50)",
-                      fontSize: "0.75rem",
-                      fontWeight: 600,
-                      color: "var(--color-sumi700)",
-                    }}
-                  >
-                    <th className="px-4 py-3 text-left">会社コード</th>
-                    <th className="px-4 py-3 text-left">会社名</th>
-                    <th className="px-4 py-3 text-left">法人格</th>
-                    <th className="px-4 py-3 text-left">ステータス</th>
-                    <th className="px-4 py-3 text-left">代表電話</th>
-                    <th className="px-4 py-3 text-left">担当者</th>
-                    <th className="px-4 py-3 text-left">作成日</th>
-                    <th className="px-4 py-3 text-right">操作</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((company: any) => (
-                    <tr
-                      key={company.id}
-                      onClick={() => router.push(`/companies/${company.id}`)}
-                      className="cursor-pointer transition-colors"
-                      style={{
-                        borderBottom:
-                          "1px solid var(--color-border-default)",
-                      }}
-                      onMouseEnter={(e) =>
-                        (e.currentTarget.style.backgroundColor =
-                          "var(--color-bg-hover)")
-                      }
-                      onMouseLeave={(e) =>
-                        (e.currentTarget.style.backgroundColor = "")
-                      }
-                    >
-                      <td
-                        className="px-4 py-3 font-mono text-xs"
-                        style={{ color: "var(--color-sumi600)" }}
-                      >
-                        {company.company_code}
-                      </td>
-                      <td className="px-4 py-3 font-medium">
-                        {company.name}
-                      </td>
-                      <td className="px-4 py-3">
-                        {company.corporate_types?.name ?? "-"}
-                      </td>
-                      <td className="px-4 py-3">
-                        {company.company_status ? (
-                          <span
-                            style={{
-                              display: "inline-block",
-                              backgroundColor: "var(--color-sumi100)",
-                              borderRadius: "var(--radius-badge)",
-                              padding: "0.125rem 0.5rem",
-                              fontSize: "0.75rem",
-                            }}
-                          >
-                            {company.company_status.name}
-                          </span>
-                        ) : (
-                          <span style={{ color: "var(--color-sumi400)" }}>-</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        {company.phone_main ?? "-"}
-                      </td>
-                      <td className="px-4 py-3">
-                        {company.crm_users?.full_name ?? "-"}
-                      </td>
-                      <td
-                        className="px-4 py-3 text-xs"
-                        style={{ color: "var(--color-sumi600)" }}
-                      >
-                        {company.created_at
-                          ? new Date(company.created_at).toLocaleDateString(
-                              "ja-JP"
-                            )
-                          : "-"}
-                      </td>
-                      <td
-                        className="px-4 py-3 text-right"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <Link
-                          href={`/companies/${company.id}/edit`}
-                          className="hover:bg-[var(--color-bg-hover)]"
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: "0.25rem",
-                            color: "var(--color-terra)",
-                            textDecoration: "none",
-                            padding: "0.25rem 0.5rem",
-                            borderRadius: "var(--radius-sm)",
-                            fontSize: "0.75rem",
-                            fontWeight: 500,
-                            border: "1px solid var(--color-border-default)",
-                            transition: "background-color 0.15s",
-                          }}
-                        >
-                          <Pencil size={12} />
-                          編集
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* ページネーション */}
-            <div
-              className="flex items-center justify-between px-4 py-3"
-              style={{
-                borderTop: "1px solid var(--color-border-default)",
-              }}
-            >
-              <button
-                disabled={page <= 1}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                className="text-sm font-medium disabled:opacity-40"
-                style={{ color: "var(--color-terra)" }}
-              >
-                前へ
-              </button>
-              <span
-                className="text-xs"
-                style={{ color: "var(--color-sumi600)" }}
-              >
-                {page} / {totalPages} ページ
-              </span>
-              <button
-                disabled={page >= totalPages}
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                className="text-sm font-medium disabled:opacity-40"
-                style={{ color: "var(--color-terra)" }}
-              >
-                次へ
-              </button>
-            </div>
-          </>
+          </span>
         )}
-      </div>
+      </FilterGroup>
+
+      {/* テーブル */}
+      {items.length === 0 ? (
+        <div
+          className="flex flex-col items-center justify-center gap-3 py-16"
+          style={{
+            backgroundColor: "#fff",
+            borderRadius: "var(--radius-card)",
+            boxShadow: "var(--elevation-low)",
+          }}
+        >
+          <Building2 size={40} style={{ color: "var(--color-sumi600)" }} />
+          <p className="text-sm" style={{ color: "var(--color-sumi600)" }}>
+            カンパニーが見つかりません
+          </p>
+        </div>
+      ) : (
+        <div
+          className="overflow-x-auto no-scrollbar"
+          style={{
+            backgroundColor: "#fff",
+            borderRadius: "var(--radius-card)",
+            boxShadow: "var(--elevation-low)",
+          }}
+        >
+          <table className="w-full text-sm" style={{ tableLayout: "auto" }}>
+            <thead>
+              <tr style={{ backgroundColor: "var(--color-sumi50)" }}>
+                {["会社名", "ステータス", "法人格", "代表電話", "担当者", "最終更新日"].map(
+                  (label) => (
+                    <th
+                      key={label}
+                      className="px-4 py-3 text-left font-semibold text-xs whitespace-nowrap"
+                      style={{ color: "var(--color-sumi600)" }}
+                    >
+                      {label}
+                    </th>
+                  )
+                )}
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((company: any) => (
+                <tr
+                  key={company.id}
+                  className="transition-colors cursor-pointer"
+                  style={{ borderBottom: "1px solid var(--color-border-default)" }}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.backgroundColor = "var(--color-bg-hover)")
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.backgroundColor = "transparent")
+                  }
+                  onClick={() => (window.location.href = `/companies/${company.id}`)}
+                >
+                  {/* 会社名 */}
+                  <td className="px-4 py-3">
+                    <Link
+                      href={`/companies/${company.id}`}
+                      className="font-medium"
+                      style={{ color: "var(--color-text-list)" }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {company.name}
+                    </Link>
+                  </td>
+                  {/* ステータス */}
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <StatusBadge
+                      name={company.company_status?.name}
+                      seed={company.company_status?.id}
+                    />
+                  </td>
+                  {/* 法人格 */}
+                  <td
+                    className="px-4 py-3 whitespace-nowrap"
+                    style={{ color: "var(--color-text-list)" }}
+                  >
+                    {company.corporate_types?.name ?? "—"}
+                  </td>
+                  {/* 代表電話 */}
+                  <td
+                    className="px-4 py-3"
+                    style={{ color: "var(--color-text-list)" }}
+                  >
+                    {company.phone_main ?? "—"}
+                  </td>
+                  {/* 担当者 */}
+                  <td
+                    className="px-4 py-3 whitespace-nowrap"
+                    style={{ color: "var(--color-text-list)" }}
+                  >
+                    {company.crm_users?.full_name ?? "—"}
+                  </td>
+                  {/* 最終更新日 */}
+                  <td
+                    className="px-4 py-3 text-xs whitespace-nowrap"
+                    style={{ color: "var(--color-text-list)" }}
+                  >
+                    {formatDateTime(company.updated_at)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* ページネーション */}
+      <Pagination
+        page={page}
+        totalCount={total}
+        pageSize={DEFAULT_PAGE_SIZE}
+        onPageChange={handlePageChange}
+      />
     </div>
   );
 }

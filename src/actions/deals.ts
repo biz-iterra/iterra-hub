@@ -28,7 +28,7 @@ const DEAL_SELECT = `
   *,
   pipeline_type:pipeline_types(id, name),
   deal_stage:deal_stages(id, name, sort_order),
-  deal_status:deal_statuses(id, name),
+  deal_status:deal_statuses(id, name, sort_order),
   account:accounts(id, account_code, name, company:companies(id, name)),
   owner:crm_users!deals_owner_user_id_fkey(id, full_name),
   deal_services(service:services(id, name))
@@ -38,9 +38,12 @@ const DEAL_SELECT = `
 export async function getDeals(params?: {
   search?: string;
   pipelineTypeId?: string;
+  stageId?: string;
+  statusId?: string;
+  ownerUserId?: string;
   page?: number;
   perPage?: number;
-}): Promise<ActionResult<{ items: any[]; count: number }>> {
+}): Promise<ActionResult<{ rows: any[]; total: number }>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
@@ -64,10 +67,19 @@ export async function getDeals(params?: {
   if (params?.pipelineTypeId) {
     query = query.eq("pipeline_type_id", params.pipelineTypeId);
   }
+  if (params?.stageId) {
+    query = query.eq("deal_stage_id", params.stageId);
+  }
+  if (params?.statusId) {
+    query = query.eq("deal_status_id", params.statusId);
+  }
+  if (params?.ownerUserId) {
+    query = query.eq("owner_user_id", params.ownerUserId);
+  }
 
   const { data, error, count } = await query;
   if (error) return { data: null, error: error.message };
-  return { data: { items: data ?? [], count: count ?? 0 }, error: null };
+  return { data: { rows: data ?? [], total: count ?? 0 }, error: null };
 }
 
 // ---------- カンバン用取得 ----------

@@ -7,6 +7,8 @@ import { getLeads } from "@/actions/leads";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { FilterSelect } from "@/components/ui/FilterSelect";
 import { FilterGroup, FilterClearButton } from "@/components/ui/FilterGroup";
+import { Pagination } from "@/components/ui/Pagination";
+import { DEFAULT_PAGE_SIZE } from "@/lib/constants/pagination";
 import {
   TemperatureBadge,
   StageBadge,
@@ -41,7 +43,7 @@ type LeadCategory = { id: string; code: string; name: string; color: string | nu
 type CrmUser = { id: string; full_name: string; role: string };
 
 interface LeadsViewProps {
-  initialData: { items: any[]; count: number } | null;
+  initialData: { rows: any[]; total: number } | null;
   stages: LeadStage[];
   statuses: LeadStatus[];
   temperatures: LeadTemperature[];
@@ -67,6 +69,7 @@ export function LeadsView({
   const [ownerFilter, setOwnerFilter] = useState("");
   const [keyword, setKeyword] = useState("");
   const [sortByScore, setSortByScore] = useState(false);
+  const [page, setPage] = useState(1);
   const [isPending, startTransition] = useTransition();
 
   function handleFilter(
@@ -75,6 +78,7 @@ export function LeadsView({
     setter: (v: string) => void
   ) {
     setter(value);
+    setPage(1);
     startTransition(async () => {
       const { data: result } = await getLeads({
         stage_id: key === "stage_id" ? value || undefined : stageFilter || undefined,
@@ -86,7 +90,7 @@ export function LeadsView({
         owner_user_id:
           key === "owner_user_id" ? value || undefined : ownerFilter || undefined,
         keyword: key === "keyword" ? value || undefined : keyword || undefined,
-        perPage: 50,
+        perPage: DEFAULT_PAGE_SIZE,
         page: 1,
       });
       setData(result);
@@ -100,8 +104,26 @@ export function LeadsView({
     setTemperatureFilter("");
     setOwnerFilter("");
     setKeyword("");
+    setPage(1);
     startTransition(async () => {
-      const { data: result } = await getLeads({ perPage: 50, page: 1 });
+      const { data: result } = await getLeads({ perPage: DEFAULT_PAGE_SIZE, page: 1 });
+      setData(result);
+    });
+  }
+
+  function handlePageChange(next: number) {
+    setPage(next);
+    startTransition(async () => {
+      const { data: result } = await getLeads({
+        stage_id: stageFilter || undefined,
+        status_id: statusFilter || undefined,
+        category_id: categoryFilter || undefined,
+        temperature_id: temperatureFilter || undefined,
+        owner_user_id: ownerFilter || undefined,
+        keyword: keyword || undefined,
+        perPage: DEFAULT_PAGE_SIZE,
+        page: next,
+      });
       setData(result);
     });
   }
@@ -111,7 +133,7 @@ export function LeadsView({
     ? statuses.filter((s) => s.stage_id === stageFilter)
     : statuses;
 
-  const items = data?.items ?? [];
+  const items = data?.rows ?? [];
   const sortedItems = sortByScore
     ? [...items].sort((a, b) => (b.score ?? -1) - (a.score ?? -1))
     : items;
@@ -364,15 +386,13 @@ export function LeadsView({
         </div>
       )}
 
-      {/* 件数表示 */}
-      {data && (
-        <p
-          className="mt-3 text-xs"
-          style={{ color: "var(--color-sumi500)" }}
-        >
-          {data.count} 件中 {sortedItems.length} 件を表示
-        </p>
-      )}
+      {/* ページネーション */}
+      <Pagination
+        page={page}
+        totalCount={data?.total ?? 0}
+        pageSize={DEFAULT_PAGE_SIZE}
+        onPageChange={handlePageChange}
+      />
     </div>
   );
 }

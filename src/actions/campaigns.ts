@@ -33,7 +33,7 @@ const CAMPAIGN_SELECT = `*` as const;
 // ---------- 一覧取得 ----------
 export async function getCampaigns(
   params?: z.infer<typeof campaignFiltersSchema>
-): Promise<ActionResult<{ items: any[]; count: number }>> {
+): Promise<ActionResult<{ rows: any[]; total: number }>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
@@ -57,7 +57,7 @@ export async function getCampaigns(
 
   const { data, error, count } = await query;
   if (error) return { data: null, error: error.message };
-  return { data: { items: data ?? [], count: count ?? 0 }, error: null };
+  return { data: { rows: data ?? [], total: count ?? 0 }, error: null };
 }
 
 // ---------- 詳細取得 ----------

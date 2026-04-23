@@ -37,7 +37,7 @@ async function getAuthenticatedUser() {
 const ACTIVITY_SELECT = `
   *,
   call_status:lead_call_statuses(id, code, name, color),
-  caller:lead_callers(id, code, name, caller_type, organization),
+  caller:crm_users!lead_activities_caller_user_id_fkey(id, full_name),
   activity_type:lead_activity_types(id, code, name, color)
 ` as const;
 

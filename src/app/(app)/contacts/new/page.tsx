@@ -27,7 +27,7 @@ export default async function ContactNewPage() {
       value: l.id,
       label: l.name,
     })),
-    companies: ((companiesResult.data?.items ?? []) as CompanyItem[]).map(
+    companies: ((companiesResult.data?.rows ?? []) as CompanyItem[]).map(
       (c) => ({ value: c.id, label: c.name })
     ),
     owners: (usersResult.data ?? []).map((u) => ({

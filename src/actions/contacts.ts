@@ -72,8 +72,15 @@ async function getAuthenticatedUser() {
 // 一覧取得
 // ---------------------------------------------------------------------------
 export async function getContacts(
-  params?: { search?: string; page?: number; perPage?: number }
-): Promise<ActionResult<{ rows: unknown[]; count: number }>> {
+  params?: {
+    search?: string;
+    page?: number;
+    perPage?: number;
+    statusId?: string;
+    contactType?: string;
+    ownerUserId?: string;
+  }
+): Promise<ActionResult<{ rows: unknown[]; total: number }>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
@@ -98,9 +105,21 @@ export async function getContacts(
     );
   }
 
+  if (params?.statusId) {
+    query = query.eq("contact_status_id", params.statusId);
+  }
+
+  if (params?.contactType) {
+    query = query.eq("contact_type", params.contactType);
+  }
+
+  if (params?.ownerUserId) {
+    query = query.eq("owner_user_id", params.ownerUserId);
+  }
+
   const { data, error, count } = await query;
   if (error) return { data: null, error: error.message };
-  return { data: { rows: data ?? [], count: count ?? 0 }, error: null };
+  return { data: { rows: data ?? [], total: count ?? 0 }, error: null };
 }
 
 // ---------------------------------------------------------------------------

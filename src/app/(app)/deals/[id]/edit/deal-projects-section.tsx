@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { FolderKanban, Plus, X, ArrowUpRight } from "lucide-react";
 import { getProjects, addDealProject, removeDealProject } from "@/actions/projects";
+import { ProjectStatusBadge } from "@/components/ui/badges";
 
 type LinkedProject = {
   id: string;
@@ -36,9 +37,9 @@ export function DealProjectsSection({
   useEffect(() => {
     (async () => {
       const res = await getProjects({ perPage: 200 });
-      if (res.data?.items) {
+      if (res.data?.rows) {
         setAllProjects(
-          res.data.items.map((p: any) => ({
+          res.data.rows.map((p: any) => ({
             id: p.id,
             project_code: p.project_code,
             name: p.name,
@@ -203,17 +204,7 @@ export function DealProjectsSection({
                   </span>
                   {p.project.name}
                   {p.project.project_status && (
-                    <span
-                      style={{
-                        backgroundColor: "var(--color-sumi100)",
-                        borderRadius: "var(--radius-badge)",
-                        padding: "0.125rem 0.5rem",
-                        fontSize: "0.7rem",
-                        color: "var(--color-text-body)",
-                      }}
-                    >
-                      {p.project.project_status.name}
-                    </span>
+                    <ProjectStatusBadge name={p.project.project_status.name} seed={p.project.project_status.id} />
                   )}
                   <ArrowUpRight size={14} />
                 </Link>

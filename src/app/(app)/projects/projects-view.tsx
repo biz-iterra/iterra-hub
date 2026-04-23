@@ -3,53 +3,100 @@
 import { getProjects } from "@/actions/projects";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Search, Plus, FolderKanban, Pencil } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { Plus, FolderKanban } from "lucide-react";
+import { ProjectStatusBadge } from "@/components/ui/badges";
+import { SearchInput } from "@/components/ui/SearchInput";
+import { FilterSelect } from "@/components/ui/FilterSelect";
+import { FilterGroup, FilterClearButton } from "@/components/ui/FilterGroup";
+import { Pagination } from "@/components/ui/Pagination";
+import { DEFAULT_PAGE_SIZE } from "@/lib/constants/pagination";
+import { useState, useTransition } from "react";
 
-const PER_PAGE = 20;
+const PER_PAGE = DEFAULT_PAGE_SIZE;
 
-type ProjectsData = { items: any[]; total: number } | null;
+type ProjectsData = { rows: any[]; total: number } | null;
 type StatusOption = { id: string; name: string; sort_order: number };
+type CrmUser = { id: string; full_name: string; role: string };
+
+function formatDateTime(value: string | null | undefined): string {
+  if (!value) return "—";
+  const d = new Date(value);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mi = String(d.getMinutes()).padStart(2, "0");
+  return `${yyyy}/${mm}/${dd} ${hh}:${mi}`;
+}
 
 export function ProjectsView({
   initialData,
   statuses,
+  users,
 }: {
   initialData: ProjectsData;
   statuses: StatusOption[];
+  users: CrmUser[];
 }) {
   const router = useRouter();
-  const [search, setSearch] = useState("");
-  const [statusId, setStatusId] = useState<string>("");
-  const [page, setPage] = useState(1);
   const [data, setData] = useState<ProjectsData>(initialData);
-  const [loading, setLoading] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [statusId, setStatusId] = useState("");
+  const [ownerUserId, setOwnerUserId] = useState("");
+  const [keyword, setKeyword] = useState("");
+  const [page, setPage] = useState(1);
+  const [isPending, startTransition] = useTransition();
 
-  useEffect(() => {
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(async () => {
-      setLoading(true);
+  function handleFilter(
+    key: string,
+    value: string,
+    setter: (v: string) => void
+  ) {
+    setter(value);
+    startTransition(async () => {
       const result = await getProjects({
-        search,
-        statusId: statusId || undefined,
-        page,
+        search: key === "search" ? value || undefined : keyword || undefined,
+        statusId: key === "statusId" ? value || undefined : statusId || undefined,
+        ownerUserId:
+          key === "ownerUserId" ? value || undefined : ownerUserId || undefined,
+        page: 1,
         perPage: PER_PAGE,
       });
       setData(result.data);
-      setLoading(false);
-    }, 300);
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
-  }, [search, statusId, page]);
+      setPage(1);
+    });
+  }
 
-  const items = data?.items ?? [];
+  function handleClear() {
+    setStatusId("");
+    setOwnerUserId("");
+    setKeyword("");
+    startTransition(async () => {
+      const result = await getProjects({ page: 1, perPage: PER_PAGE });
+      setData(result.data);
+      setPage(1);
+    });
+  }
+
+  function handlePageChange(next: number) {
+    startTransition(async () => {
+      const result = await getProjects({
+        search: keyword || undefined,
+        statusId: statusId || undefined,
+        ownerUserId: ownerUserId || undefined,
+        page: next,
+        perPage: PER_PAGE,
+      });
+      setData(result.data);
+      setPage(next);
+    });
+  }
+
+  const items = data?.rows ?? [];
   const total = data?.total ?? 0;
-  const totalPages = Math.max(1, Math.ceil(total / PER_PAGE));
 
   return (
     <div className="space-y-6" style={{ padding: "1.5rem" }}>
+      {/* ヘッダー */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold" style={{ color: "var(--color-text-title)" }}>
           プロジェクト
@@ -64,70 +111,53 @@ export function ProjectsView({
             padding: "0.5rem 1.25rem",
             textDecoration: "none",
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--color-terra-dark)")}
-          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "var(--color-terra)")}
+          onMouseEnter={(e) =>
+            (e.currentTarget.style.backgroundColor = "var(--color-terra-dark)")
+          }
+          onMouseLeave={(e) =>
+            (e.currentTarget.style.backgroundColor = "var(--color-terra)")
+          }
         >
           <Plus size={16} />
           新規作成
         </Link>
       </div>
 
-      {/* 検索 + ステータス */}
-      <div
-        style={{
-          backgroundColor: "#fff",
-          borderRadius: "var(--radius-card)",
-          boxShadow: "var(--elevation-low)",
-          padding: "0.75rem",
-          display: "flex",
-          gap: "0.75rem",
-          alignItems: "center",
-        }}
-      >
-        <div className="relative flex-1">
-          <Search
-            size={16}
-            className="absolute left-4 top-1/2 -translate-y-1/2"
-            style={{ color: "var(--color-sumi600)" }}
-          />
-          <input
-            type="text"
-            placeholder="プロジェクト名・コードで検索..."
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-            className="w-full px-4 py-2 pl-10 text-sm outline-none"
-            style={{
-              border: "1px solid var(--color-border-default)",
-              borderRadius: "var(--radius-input)",
-            }}
-          />
-        </div>
-        <select
+      {/* フィルター行 */}
+      <FilterGroup className="mb-4">
+        <FilterSelect
+          label="ステータス"
           value={statusId}
-          onChange={(e) => {
-            setStatusId(e.target.value);
-            setPage(1);
-          }}
-          className="text-sm outline-none"
-          style={{
-            border: "1px solid var(--color-border-default)",
-            borderRadius: "var(--radius-input)",
-            padding: "0.5rem 0.75rem",
-            backgroundColor: "#fff",
-            minWidth: 140,
-          }}
-        >
-          <option value="">全ステータス</option>
-          {statuses.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-            </option>
-          ))}
-        </select>
-      </div>
+          options={statuses.map((s) => ({ value: s.id, label: s.name }))}
+          onChange={(v) => handleFilter("statusId", v, setStatusId)}
+          placeholder="全ステータス"
+        />
+        <FilterSelect
+          label="責任者"
+          value={ownerUserId}
+          options={users.map((u) => ({ value: u.id, label: u.full_name }))}
+          onChange={(v) => handleFilter("ownerUserId", v, setOwnerUserId)}
+          placeholder="全責任者"
+        />
+        <SearchInput
+          value={keyword}
+          placeholder="プロジェクト名で検索..."
+          onChange={(v) => handleFilter("search", v, setKeyword)}
+        />
+        <FilterClearButton onClear={handleClear} />
+        {isPending && (
+          <span
+            className="text-xs"
+            style={{
+              color: "var(--color-sumi500)",
+              alignSelf: "flex-end",
+              paddingBottom: "0.45rem",
+            }}
+          >
+            読み込み中...
+          </span>
+        )}
+      </FilterGroup>
 
       {/* テーブル */}
       <div
@@ -137,11 +167,7 @@ export function ProjectsView({
           boxShadow: "var(--elevation-low)",
         }}
       >
-        {loading ? (
-          <div className="flex items-center justify-center py-16 text-sm" style={{ color: "var(--color-sumi600)" }}>
-            読み込み中...
-          </div>
-        ) : items.length === 0 ? (
+        {items.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-3 py-16">
             <FolderKanban size={40} style={{ color: "var(--color-sumi600)" }} />
             <p className="text-sm" style={{ color: "var(--color-sumi600)" }}>
@@ -150,24 +176,21 @@ export function ProjectsView({
           </div>
         ) : (
           <>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+            <div className="overflow-x-auto no-scrollbar">
+              <table className="w-full text-sm" style={{ tableLayout: "auto" }}>
                 <thead>
-                  <tr
-                    style={{
-                      backgroundColor: "var(--color-sumi50)",
-                      fontSize: "0.75rem",
-                      fontWeight: 600,
-                      color: "var(--color-sumi700)",
-                    }}
-                  >
-                    <th className="px-4 py-3 text-left">プロジェクトコード</th>
-                    <th className="px-4 py-3 text-left">プロジェクト名</th>
-                    <th className="px-4 py-3 text-left">ステータス</th>
-                    <th className="px-4 py-3 text-left">期間</th>
-                    <th className="px-4 py-3 text-left">責任者</th>
-                    <th className="px-4 py-3 text-left">作成日</th>
-                    <th className="px-4 py-3 text-right">操作</th>
+                  <tr style={{ backgroundColor: "var(--color-sumi50)" }}>
+                    {["プロジェクト名", "ステータス", "期間", "責任者", "最終更新日"].map(
+                      (label) => (
+                        <th
+                          key={label}
+                          className="px-4 py-3 text-left font-semibold text-xs whitespace-nowrap"
+                          style={{ color: "var(--color-sumi600)" }}
+                        >
+                          {label}
+                        </th>
+                      )
+                    )}
                   </tr>
                 </thead>
                 <tbody>
@@ -178,61 +201,54 @@ export function ProjectsView({
                       className="cursor-pointer transition-colors"
                       style={{ borderBottom: "1px solid var(--color-border-default)" }}
                       onMouseEnter={(e) =>
-                        (e.currentTarget.style.backgroundColor = "var(--color-bg-hover)")
+                        (e.currentTarget.style.backgroundColor =
+                          "var(--color-bg-hover)")
                       }
-                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "")}
+                      onMouseLeave={(e) =>
+                        (e.currentTarget.style.backgroundColor = "transparent")
+                      }
                     >
-                      <td className="px-4 py-3 font-mono text-xs" style={{ color: "var(--color-sumi600)" }}>
-                        {p.project_code}
-                      </td>
-                      <td className="px-4 py-3 font-medium">{p.name}</td>
+                      {/* プロジェクト名 */}
                       <td className="px-4 py-3">
-                        {p.project_status ? (
-                          <span
-                            style={{
-                              display: "inline-block",
-                              backgroundColor: "var(--color-sumi100)",
-                              borderRadius: "var(--radius-badge)",
-                              padding: "0.125rem 0.5rem",
-                              fontSize: "0.75rem",
-                            }}
-                          >
-                            {p.project_status.name}
-                          </span>
-                        ) : (
-                          <span style={{ color: "var(--color-sumi400)" }}>-</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-xs" style={{ color: "var(--color-sumi600)" }}>
-                        {p.start_date ? p.start_date : "-"}
-                        {" 〜 "}
-                        {p.end_date ? p.end_date : "-"}
-                      </td>
-                      <td className="px-4 py-3">{p.owner?.full_name ?? "-"}</td>
-                      <td className="px-4 py-3 text-xs" style={{ color: "var(--color-sumi600)" }}>
-                        {p.created_at ? new Date(p.created_at).toLocaleDateString("ja-JP") : "-"}
-                      </td>
-                      <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
                         <Link
-                          href={`/projects/${p.id}/edit`}
-                          className="hover:bg-[var(--color-bg-hover)]"
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: "0.25rem",
-                            color: "var(--color-terra)",
-                            textDecoration: "none",
-                            padding: "0.25rem 0.5rem",
-                            borderRadius: "var(--radius-sm)",
-                            fontSize: "0.75rem",
-                            fontWeight: 500,
-                            border: "1px solid var(--color-border-default)",
-                            transition: "background-color 0.15s",
-                          }}
+                          href={`/projects/${p.id}`}
+                          className="font-medium"
+                          style={{ color: "var(--color-text-list)" }}
+                          onClick={(e) => e.stopPropagation()}
                         >
-                          <Pencil size={12} />
-                          編集
+                          {p.name}
                         </Link>
+                      </td>
+                      {/* ステータス */}
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <ProjectStatusBadge
+                          name={p.project_status?.name}
+                          sortOrder={p.project_status?.sort_order}
+                          seed={p.project_status?.id}
+                        />
+                      </td>
+                      {/* 期間 */}
+                      <td
+                        className="px-4 py-3 text-xs whitespace-nowrap"
+                        style={{ color: "var(--color-text-list)" }}
+                      >
+                        {p.start_date ?? "—"}
+                        {" 〜 "}
+                        {p.end_date ?? "—"}
+                      </td>
+                      {/* 責任者 */}
+                      <td
+                        className="px-4 py-3 whitespace-nowrap"
+                        style={{ color: "var(--color-text-list)" }}
+                      >
+                        {p.owner?.full_name ?? "—"}
+                      </td>
+                      {/* 最終更新日 */}
+                      <td
+                        className="px-4 py-3 text-xs whitespace-nowrap"
+                        style={{ color: "var(--color-text-list)" }}
+                      >
+                        {formatDateTime(p.updated_at)}
                       </td>
                     </tr>
                   ))}
@@ -241,29 +257,13 @@ export function ProjectsView({
             </div>
 
             {/* ページネーション */}
-            <div
-              className="flex items-center justify-between px-4 py-3"
-              style={{ borderTop: "1px solid var(--color-border-default)" }}
-            >
-              <button
-                disabled={page <= 1}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                className="text-sm font-medium disabled:opacity-40"
-                style={{ color: "var(--color-terra)" }}
-              >
-                前へ
-              </button>
-              <span className="text-xs" style={{ color: "var(--color-sumi600)" }}>
-                {page} / {totalPages} ページ
-              </span>
-              <button
-                disabled={page >= totalPages}
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                className="text-sm font-medium disabled:opacity-40"
-                style={{ color: "var(--color-terra)" }}
-              >
-                次へ
-              </button>
+            <div style={{ padding: "0.75rem 1rem", borderTop: "1px solid var(--color-border-default)" }}>
+              <Pagination
+                page={page}
+                totalCount={total}
+                pageSize={PER_PAGE}
+                onPageChange={handlePageChange}
+              />
             </div>
           </>
         )}

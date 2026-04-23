@@ -1,7 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LogOut, User } from "lucide-react";
+import { BookOpen, LogOut, User } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 const pathLabels: Record<string, string> = {
@@ -94,7 +95,27 @@ export function Header({ userName }: { userName?: string }) {
       </nav>
 
       {/* User menu */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4 flex-shrink-0">
+        <Link
+          href="/manual"
+          title="マニュアル"
+          aria-label="マニュアル"
+          className="flex items-center justify-center flex-shrink-0 transition-colors"
+          style={{
+            width: "2rem",
+            height: "2rem",
+            color: "var(--color-sumi600)",
+            borderRadius: "var(--radius-button)",
+          }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLAnchorElement).style.backgroundColor = "var(--color-bg-hover)";
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLAnchorElement).style.backgroundColor = "transparent";
+          }}
+        >
+          <BookOpen size={18} />
+        </Link>
         <div className="flex items-center gap-2">
           <User size={18} style={{ color: "var(--color-sumi500)" }} />
           <span

@@ -27,8 +27,15 @@ async function getAuthenticatedUser() {
 // 一覧取得
 // ---------------------------------------------------------------------------
 export async function getAccounts(
-  params?: { search?: string; page?: number; perPage?: number }
-): Promise<ActionResult<{ rows: unknown[]; count: number }>> {
+  params?: {
+    search?: string;
+    page?: number;
+    perPage?: number;
+    statusId?: string;
+    accountTypeId?: string;
+    ownerUserId?: string;
+  }
+): Promise<ActionResult<{ rows: unknown[]; total: number }>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
@@ -52,10 +59,19 @@ export async function getAccounts(
       `name.ilike.%${params.search}%,account_code.ilike.%${params.search}%`
     );
   }
+  if (params?.statusId) {
+    query = query.eq("account_status_id", params.statusId);
+  }
+  if (params?.accountTypeId) {
+    query = query.eq("account_type_id", params.accountTypeId);
+  }
+  if (params?.ownerUserId) {
+    query = query.eq("owner_user_id", params.ownerUserId);
+  }
 
   const { data, error, count } = await query;
   if (error) return { data: null, error: error.message };
-  return { data: { rows: data ?? [], count: count ?? 0 }, error: null };
+  return { data: { rows: data ?? [], total: count ?? 0 }, error: null };
 }
 
 // ---------------------------------------------------------------------------
@@ -68,7 +84,7 @@ export async function getAccount(id: string): Promise<ActionResult<unknown>> {
   const { data, error } = await supabase
     .from("accounts")
     .select(
-      `*, company:companies(id, name), account_type:account_types(id, name), account_status:account_statuses(id, name), owner:crm_users!accounts_owner_user_id_fkey(id, full_name), contacts:account_contacts(id, role, contact:contacts(id, contact_code, last_name, first_name, department, job_title, deleted_at)), deals(id, deal_code, name, amount, deal_stage:deal_stages(name), deal_status:deal_statuses(name))`
+      `*, company:companies(id, name), account_type:account_types(id, name), account_status:account_statuses(id, name), owner:crm_users!accounts_owner_user_id_fkey(id, full_name), contacts:account_contacts(id, role, contact:contacts(id, contact_code, last_name, first_name, department, job_title, deleted_at, company:companies!contacts_company_id_fkey(id, name))), deals(id, deal_code, name, amount, deal_stage:deal_stages(name), deal_status:deal_statuses(name))`
     )
     .eq("id", id)
     .single();

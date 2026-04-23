@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Handshake, Plus, X, ArrowUpRight } from "lucide-react";
 import { getDeals } from "@/actions/deals";
 import { addDealProject, removeDealProject } from "@/actions/projects";
+import { PipelineBadge, StageBadge } from "@/components/ui/badges";
 
 type LinkedDeal = {
   id: string;
@@ -16,8 +17,8 @@ type LinkedDeal = {
     amount: number | null;
     account: { id: string; name: string; account_code: string | null } | null;
     pipeline_type: { id: string; name: string } | null;
-    deal_stage: { id: string; name: string } | null;
-    deal_status: { id: string; name: string } | null;
+    deal_stage: { id: string; name: string; sort_order?: number } | null;
+    deal_status: { id: string; name: string; sort_order?: number } | null;
   } | null;
 };
 
@@ -41,9 +42,9 @@ export function ProjectDealsSection({
   useEffect(() => {
     (async () => {
       const res = await getDeals({ perPage: 200 });
-      if (res.data?.items) {
+      if (res.data?.rows) {
         setAllDeals(
-          res.data.items.map((d: any) => ({
+          res.data.rows.map((d: any) => ({
             id: d.id,
             deal_code: d.deal_code,
             name: d.name,
@@ -270,7 +271,7 @@ export function ProjectDealsSection({
                       fontSize: "0.875rem",
                     }}
                   >
-                    {l.deal.pipeline_type?.name ?? "-"}
+                    <PipelineBadge name={l.deal.pipeline_type?.name} />
                   </td>
                   <td
                     style={{
@@ -279,7 +280,7 @@ export function ProjectDealsSection({
                       fontSize: "0.875rem",
                     }}
                   >
-                    {l.deal.deal_stage?.name ?? "-"}
+                    <StageBadge name={l.deal.deal_stage?.name} sortOrder={l.deal.deal_stage?.sort_order} />
                   </td>
                   <td
                     style={{

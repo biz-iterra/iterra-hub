@@ -5,20 +5,25 @@ import Link from "next/link";
 import {
   LayoutGrid,
   List,
-  Search,
   Plus,
   ChevronDown,
-  Pencil,
 } from "lucide-react";
 import { getDealsForKanban, getDeals } from "@/actions/deals";
+import { StageBadge, StatusBadge } from "@/components/ui/badges";
+import { FilterGroup, FilterClearButton } from "@/components/ui/FilterGroup";
+import { FilterSelect } from "@/components/ui/FilterSelect";
+import { SearchInput } from "@/components/ui/SearchInput";
+import { Pagination } from "@/components/ui/Pagination";
+import { DEFAULT_PAGE_SIZE } from "@/lib/constants/pagination";
 
 type Pipeline = { id: string; name: string };
 type Stage = { id: string; name: string; sort_order: number };
 type Status = { id: string; name: string; sort_order: number };
+type CrmUser = { id: string; full_name: string; role: string };
 type StageColumn = { stage: Stage; deals: any[] };
 type StatusColumn = { status: Status; deals: any[] };
 type KanbanData = { stages: StageColumn[]; statuses: StatusColumn[] } | null;
-type ListData = { items: any[]; count: number } | null;
+type ListData = { rows: any[]; total: number } | null;
 type GroupBy = "stage" | "status";
 
 const jpyCurrency = new Intl.NumberFormat("ja-JP", {
@@ -29,6 +34,17 @@ const jpyCurrency = new Intl.NumberFormat("ja-JP", {
 function formatAmount(amount: number | null | undefined) {
   if (amount == null) return "—";
   return jpyCurrency.format(amount);
+}
+
+function formatDateTime(value: string | null | undefined): string {
+  if (!value) return "—";
+  const d = new Date(value);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mi = String(d.getMinutes()).padStart(2, "0");
+  return `${yyyy}/${mm}/${dd} ${hh}:${mi}`;
 }
 
 // カラースケール（sort_order のインデックスで循環）
@@ -47,23 +63,22 @@ function getScaleColor(index: number) {
   return COLOR_SCALE[index % COLOR_SCALE.length];
 }
 
-function hashToIndex(id: string | null | undefined): number {
-  if (!id) return 0;
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0;
-  return Math.abs(h) % COLOR_SCALE.length;
-}
-
 export function DealsView({
   pipelines,
   defaultPipelineId,
   initialKanbanData,
   initialListData,
+  stages,
+  statuses,
+  users,
 }: {
   pipelines: Pipeline[];
   defaultPipelineId: string | null;
   initialKanbanData: KanbanData;
   initialListData: ListData;
+  stages: Stage[];
+  statuses: Status[];
+  users: CrmUser[];
 }) {
   const [view, setView] = useState<"kanban" | "table">("kanban");
   const [groupBy, setGroupBy] = useState<GroupBy>("stage");
@@ -74,7 +89,14 @@ export function DealsView({
   );
   const [kanbanData, setKanbanData] = useState<KanbanData>(initialKanbanData);
   const [listData, setListData] = useState<ListData>(initialListData);
+
+  // テーブルビュー用フィルタ state
+  const [tableStageFilter, setTableStageFilter] = useState("");
+  const [tableStatusFilter, setTableStatusFilter] = useState("");
+  const [tableOwnerFilter, setTableOwnerFilter] = useState("");
   const [search, setSearch] = useState("");
+  const [tablePage, setTablePage] = useState(1);
+
   const [isPending, startTransition] = useTransition();
   const [pipelineOpen, setPipelineOpen] = useState(false);
 
@@ -89,14 +111,62 @@ export function DealsView({
     });
   }
 
-  function handleSearch(value: string) {
-    setSearch(value);
+  function fetchTableData(params: {
+    search?: string;
+    stageId?: string;
+    statusId?: string;
+    ownerUserId?: string;
+    page?: number;
+  }) {
     startTransition(async () => {
       const { data } = await getDeals({
-        search: value || undefined,
-        perPage: 50,
+        search: params.search || undefined,
+        stageId: params.stageId || undefined,
+        statusId: params.statusId || undefined,
+        ownerUserId: params.ownerUserId || undefined,
+        perPage: DEFAULT_PAGE_SIZE,
+        page: params.page ?? 1,
       });
       setListData(data);
+    });
+  }
+
+  function handleTableFilter(
+    key: "search" | "stageId" | "statusId" | "ownerUserId",
+    value: string
+  ) {
+    const next = {
+      search,
+      stageId: tableStageFilter,
+      statusId: tableStatusFilter,
+      ownerUserId: tableOwnerFilter,
+      [key]: value,
+    };
+    if (key === "search") setSearch(value);
+    if (key === "stageId") setTableStageFilter(value);
+    if (key === "statusId") setTableStatusFilter(value);
+    if (key === "ownerUserId") setTableOwnerFilter(value);
+    setTablePage(1);
+    fetchTableData({ ...next, page: 1 });
+  }
+
+  function handleTableClear() {
+    setSearch("");
+    setTableStageFilter("");
+    setTableStatusFilter("");
+    setTableOwnerFilter("");
+    setTablePage(1);
+    fetchTableData({ page: 1 });
+  }
+
+  function handleTablePageChange(next: number) {
+    setTablePage(next);
+    fetchTableData({
+      search: search || undefined,
+      stageId: tableStageFilter || undefined,
+      statusId: tableStatusFilter || undefined,
+      ownerUserId: tableOwnerFilter || undefined,
+      page: next,
     });
   }
 
@@ -304,43 +374,17 @@ export function DealsView({
                 ))}
               </select>
             )}
+
+            {/* カンバン検索 */}
+            <SearchInput
+              value={search}
+              placeholder="ディール名で検索..."
+              onChange={(v) => {
+                setSearch(v);
+              }}
+            />
           </>
         )}
-
-        {/* 検索（両ビュー共通） */}
-        <div className="relative flex-1 max-w-sm">
-          <Search
-            size={16}
-            className="absolute left-3 top-1/2 -translate-y-1/2"
-            style={{ color: "var(--color-sumi400)" }}
-          />
-          <input
-            type="text"
-            placeholder={
-              view === "table"
-                ? "ディール名 / コードで検索..."
-                : "ディール名 / コード / アカウントで絞り込み..."
-            }
-            value={search}
-            onChange={(e) => handleSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 text-sm outline-none bg-transparent"
-            style={{
-              borderBottom: "1px solid var(--color-border-default)",
-              color: "var(--color-text-title)",
-            }}
-            onFocus={(e) => {
-              e.currentTarget.style.borderBottomColor =
-                "var(--color-border-focus)";
-              e.currentTarget.style.boxShadow =
-                "0 0 0 3px var(--color-focus-ring)";
-            }}
-            onBlur={(e) => {
-              e.currentTarget.style.borderBottomColor =
-                "var(--color-border-default)";
-              e.currentTarget.style.boxShadow = "none";
-            }}
-          />
-        </div>
 
         {isPending && (
           <span
@@ -352,6 +396,44 @@ export function DealsView({
         )}
       </div>
 
+      {/* テーブルビュー用フィルタ行 */}
+      {view === "table" && (
+        <FilterGroup className="mb-4">
+          <FilterSelect
+            label="ステージ"
+            value={tableStageFilter}
+            options={stages.map((s) => ({ value: s.id, label: s.name }))}
+            onChange={(v) => handleTableFilter("stageId", v)}
+          />
+          <FilterSelect
+            label="ステータス"
+            value={tableStatusFilter}
+            options={statuses.map((s) => ({ value: s.id, label: s.name }))}
+            onChange={(v) => handleTableFilter("statusId", v)}
+          />
+          <FilterSelect
+            label="担当者"
+            value={tableOwnerFilter}
+            options={users.map((u) => ({ value: u.id, label: u.full_name }))}
+            onChange={(v) => handleTableFilter("ownerUserId", v)}
+          />
+          <SearchInput
+            value={search}
+            placeholder="ディール名で検索..."
+            onChange={(v) => handleTableFilter("search", v)}
+          />
+          <FilterClearButton onClear={handleTableClear} />
+          {isPending && (
+            <span
+              className="text-xs"
+              style={{ color: "var(--color-sumi500)", alignSelf: "flex-end", paddingBottom: "0.45rem" }}
+            >
+              読み込み中...
+            </span>
+          )}
+        </FilterGroup>
+      )}
+
       {/* コンテンツ */}
       {view === "kanban" ? (
         <KanbanView
@@ -362,7 +444,15 @@ export function DealsView({
           searchQuery={search}
         />
       ) : (
-        <TableView data={listData} />
+        <>
+          <TableView data={listData} />
+          <Pagination
+            page={tablePage}
+            totalCount={listData?.total ?? 0}
+            pageSize={DEFAULT_PAGE_SIZE}
+            onPageChange={handleTablePageChange}
+          />
+        </>
       )}
     </div>
   );
@@ -421,16 +511,15 @@ function KanbanView({
       )
     : rawColumns;
 
-  // 検索クエリによるクライアントサイド絞り込み（ディール名 / コード / アカウント名 を大文字小文字区別なし部分一致）
+  // 検索クエリによるクライアントサイド絞り込み（ディール名 / アカウント名 を大文字小文字区別なし部分一致）
   const q = searchQuery.trim().toLowerCase();
   const columns = q
     ? filteredByColumn.map((c) => ({
         ...c,
         deals: c.deals.filter((d: any) => {
           const name = String(d.name ?? "").toLowerCase();
-          const code = String(d.deal_code ?? "").toLowerCase();
           const accountName = String(d.account?.name ?? "").toLowerCase();
-          return name.includes(q) || code.includes(q) || accountName.includes(q);
+          return name.includes(q) || accountName.includes(q);
         }),
       }))
     : filteredByColumn;
@@ -438,12 +527,6 @@ function KanbanView({
   // sort_order 順（rawColumns の index）で色を固定
   const colorByColumnId = new Map<string, ReturnType<typeof getScaleColor>>();
   rawColumns.forEach((c, i) => colorByColumnId.set(c.id, getScaleColor(i)));
-
-  // ステータス色（カードのバッジ用）— groupBy に関わらず status 側の index を使用
-  const statusColorById = new Map<string, ReturnType<typeof getScaleColor>>();
-  statusesList.forEach(({ status }, i) =>
-    statusColorById.set(status.id, getScaleColor(i))
-  );
 
   if (columns.length === 0) {
     return (
@@ -521,7 +604,7 @@ function KanbanView({
               <div
                 className="p-4 text-center text-xs rounded"
                 style={{
-                  color: "var(--color-sumi400)",
+                  color: "var(--color-text-list)",
                   border: "1px dashed var(--color-border-default)",
                 }}
               >
@@ -554,7 +637,7 @@ function KanbanView({
                     <p
                       className="line-clamp-2"
                       style={{
-                        color: "var(--color-text-title)",
+                        color: "var(--color-text-list)",
                         fontSize: "0.875rem",
                         fontWeight: 500,
                         lineHeight: 1.4,
@@ -564,29 +647,19 @@ function KanbanView({
                     >
                       {deal.name}
                     </p>
-                    {deal.deal_status?.name && (() => {
-                      const sc = statusColorById.get(deal.deal_status.id) ?? getScaleColor(0);
-                      return (
-                        <span
-                          style={{
-                            backgroundColor: sc.bg,
-                            color: sc.text,
-                            borderRadius: "var(--radius-badge)",
-                            padding: "0.125rem 0.5rem",
-                            fontSize: "0.75rem",
-                            fontWeight: 500,
-                            whiteSpace: "nowrap",
-                            flexShrink: 0,
-                          }}
-                        >
-                          {deal.deal_status.name}
-                        </span>
-                      );
-                    })()}
+                    {deal.deal_status?.name && (
+                      <span style={{ flexShrink: 0 }}>
+                        <StatusBadge
+                          name={deal.deal_status.name}
+                          sortOrder={deal.deal_status.sort_order}
+                          total={statusesList.length}
+                        />
+                      </span>
+                    )}
                   </div>
                   <p
                     style={{
-                      color: "var(--color-text-title)",
+                      color: "var(--color-text-list)",
                       fontSize: "1rem",
                       fontWeight: 600,
                       margin: 0,
@@ -605,7 +678,7 @@ function KanbanView({
                     <span
                       className="truncate"
                       style={{
-                        color: "var(--color-sumi600)",
+                        color: "var(--color-text-list)",
                         fontSize: "0.75rem",
                         fontWeight: 400,
                         maxWidth: 140,
@@ -615,7 +688,7 @@ function KanbanView({
                     </span>
                     <span
                       style={{
-                        color: "var(--color-sumi600)",
+                        color: "var(--color-text-list)",
                         fontSize: "0.75rem",
                         fontWeight: 400,
                       }}
@@ -636,7 +709,7 @@ function KanbanView({
 
 // ---------- テーブルビュー ----------
 function TableView({ data }: { data: ListData }) {
-  if (!data || data.items.length === 0) {
+  if (!data || data.rows.length === 0) {
     return (
       <div
         className="p-8 text-center text-sm"
@@ -654,7 +727,7 @@ function TableView({ data }: { data: ListData }) {
 
   return (
     <div
-      className="overflow-x-auto"
+      className="overflow-x-auto no-scrollbar"
       style={{
         backgroundColor: "#fff",
         borderRadius: "var(--radius-card)",
@@ -663,48 +736,39 @@ function TableView({ data }: { data: ListData }) {
     >
       <table className="w-full text-sm" style={{ tableLayout: "auto" }}>
         <colgroup>
-          <col style={{ width: "110px" }} />
-          <col style={{ minWidth: "220px" }} />
+          <col style={{ minWidth: "200px" }} />
+          <col style={{ width: "130px" }} />
+          <col style={{ width: "130px" }} />
           <col style={{ width: "120px" }} />
+          <col style={{ minWidth: "180px" }} />
           <col style={{ width: "120px" }} />
-          <col style={{ width: "110px" }} />
-          <col style={{ minWidth: "220px" }} />
-          <col style={{ width: "140px" }} />
-          <col style={{ width: "110px" }} />
-          <col style={{ width: "88px" }} />
+          <col style={{ width: "150px" }} />
         </colgroup>
         <thead>
           <tr style={{ backgroundColor: "var(--color-sumi50)" }}>
             {[
-              "ディールコード",
               "取引名",
               "ステージ",
               "ステータス",
               "金額",
               "アカウント",
               "担当者",
-              "作成日",
+              "最終更新日",
             ].map((label, i) => (
               <th
                 key={label}
                 className={`px-4 py-3 font-semibold text-xs whitespace-nowrap ${
-                  i === 4 ? "text-right" : "text-left"
+                  i === 3 ? "text-right" : "text-left"
                 }`}
                 style={{ color: "var(--color-sumi600)" }}
               >
                 {label}
               </th>
             ))}
-            <th
-              className="px-4 py-3 font-semibold text-xs text-right whitespace-nowrap"
-              style={{ color: "var(--color-sumi600)" }}
-            >
-              操作
-            </th>
           </tr>
         </thead>
         <tbody>
-          {data.items.map((deal: any) => (
+          {data.rows.map((deal: any) => (
             <tr
               key={deal.id}
               className="transition-colors cursor-pointer"
@@ -712,124 +776,59 @@ function TableView({ data }: { data: ListData }) {
                 borderBottom: "1px solid var(--color-border-default)",
               }}
               onMouseEnter={(e) =>
-                (e.currentTarget.style.backgroundColor = "var(--color-sumi50)")
+                (e.currentTarget.style.backgroundColor = "var(--color-bg-hover)")
               }
               onMouseLeave={(e) =>
                 (e.currentTarget.style.backgroundColor = "transparent")
               }
+              onClick={() => { window.location.href = `/deals/${deal.id}`; }}
             >
               <td className="px-4 py-3">
                 <Link
                   href={`/deals/${deal.id}`}
-                  className="font-mono text-xs"
-                  style={{ color: "var(--color-terra)" }}
-                >
-                  {deal.deal_code}
-                </Link>
-              </td>
-              <td className="px-4 py-3">
-                <Link
-                  href={`/deals/${deal.id}`}
                   className="font-medium"
-                  style={{ color: "var(--color-text-title)" }}
+                  style={{ color: "var(--color-text-list)" }}
+                  onClick={(e) => e.stopPropagation()}
                 >
                   {deal.name}
                 </Link>
               </td>
               <td className="px-4 py-3 whitespace-nowrap">
-                {deal.deal_stage?.name ? (() => {
-                  const c = getScaleColor(hashToIndex(deal.deal_stage.id));
-                  return (
-                    <span
-                      style={{
-                        display: "inline-block",
-                        backgroundColor: c.bg,
-                        color: c.text,
-                        borderRadius: "var(--radius-badge)",
-                        padding: "0.125rem 0.5rem",
-                        fontSize: "0.75rem",
-                        fontWeight: 500,
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {deal.deal_stage.name}
-                    </span>
-                  );
-                })() : (
-                  <span style={{ color: "var(--color-sumi500)" }}>—</span>
-                )}
+                <StageBadge
+                  name={deal.deal_stage?.name}
+                  sortOrder={deal.deal_stage?.sort_order}
+                />
               </td>
               <td className="px-4 py-3 whitespace-nowrap">
-                {deal.deal_status?.name ? (() => {
-                  const c = getScaleColor(hashToIndex(deal.deal_status.id));
-                  return (
-                    <span
-                      style={{
-                        display: "inline-block",
-                        backgroundColor: c.bg,
-                        color: c.text,
-                        borderRadius: "var(--radius-badge)",
-                        padding: "0.125rem 0.5rem",
-                        fontSize: "0.75rem",
-                        fontWeight: 500,
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {deal.deal_status.name}
-                    </span>
-                  );
-                })() : (
-                  <span style={{ color: "var(--color-sumi500)" }}>—</span>
-                )}
+                <StatusBadge
+                  name={deal.deal_status?.name}
+                  sortOrder={deal.deal_status?.sort_order}
+                />
               </td>
               <td
                 className="px-4 py-3 text-right font-mono whitespace-nowrap"
-                style={{ color: "var(--color-text-title)" }}
+                style={{ color: "var(--color-text-list)" }}
               >
                 {formatAmount(deal.amount)}
               </td>
               <td
                 className="px-4 py-3 truncate"
-                style={{ color: "var(--color-sumi600)", maxWidth: "260px" }}
+                style={{ color: "var(--color-text-list)", maxWidth: "220px" }}
                 title={deal.account?.name ?? ""}
               >
                 {deal.account?.name ?? "—"}
               </td>
               <td
                 className="px-4 py-3 whitespace-nowrap"
-                style={{ color: "var(--color-sumi600)" }}
+                style={{ color: "var(--color-text-list)" }}
               >
                 {deal.owner?.full_name ?? "—"}
               </td>
               <td
                 className="px-4 py-3 text-xs whitespace-nowrap"
-                style={{ color: "var(--color-sumi500)" }}
+                style={{ color: "var(--color-text-list)" }}
               >
-                {deal.created_at
-                  ? new Date(deal.created_at).toLocaleDateString("ja-JP")
-                  : "—"}
-              </td>
-              <td className="px-4 py-3 text-right">
-                <Link
-                  href={`/deals/${deal.id}/edit`}
-                  className="hover:bg-[var(--color-bg-hover)]"
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "0.25rem",
-                    color: "var(--color-terra)",
-                    textDecoration: "none",
-                    padding: "0.25rem 0.5rem",
-                    borderRadius: "var(--radius-sm)",
-                    fontSize: "0.75rem",
-                    fontWeight: 500,
-                    border: "1px solid var(--color-border-default)",
-                    transition: "background-color 0.15s",
-                  }}
-                >
-                  <Pencil size={12} />
-                  編集
-                </Link>
+                {formatDateTime(deal.updated_at)}
               </td>
             </tr>
           ))}

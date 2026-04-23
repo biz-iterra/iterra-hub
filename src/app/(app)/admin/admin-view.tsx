@@ -22,7 +22,6 @@ import {
   getLeadStages, createLeadStage, updateLeadStage, deleteLeadStage,
   getLeadStatuses, createLeadStatus, updateLeadStatus, deleteLeadStatus,
   getLeadTemperatures, createLeadTemperature, updateLeadTemperature, deleteLeadTemperature,
-  getLeadCallers, createLeadCaller, updateLeadCaller, deleteLeadCaller,
   getLeadCallStatuses, createLeadCallStatus, updateLeadCallStatus, deleteLeadCallStatus,
   getLeadLargeSegments, createLeadLargeSegment, updateLeadLargeSegment, deleteLeadLargeSegment,
   getLeadSmallSegments, createLeadSmallSegment, updateLeadSmallSegment, deleteLeadSmallSegment,
@@ -64,7 +63,7 @@ const TAB_KEYS = [
   "contact_statuses",
   // リード・MA（lead_statuses は lead_stages タブ内で管理、lead_small_segments は lead_large_segments タブ内で管理）
   "lead_sources", "lead_categories", "lead_stages",
-  "lead_temperatures", "lead_callers", "lead_call_statuses",
+  "lead_temperatures", "lead_call_statuses",
   "lead_large_segments", "lead_activity_types",
   // スコアリング（Phase 7）
   "lead_company_sizes", "lead_customer_activity_types", "lead_score_rules", "lead_score_thresholds",
@@ -88,7 +87,6 @@ const TAB_LABELS: Record<TabKey, string> = {
   lead_categories: "リードカテゴリ",
   lead_stages: "ステージ・ステータス",
   lead_temperatures: "温度感",
-  lead_callers: "担当者",
   lead_call_statuses: "コールステータス",
   lead_large_segments: "セグメント",
   lead_activity_types: "対応種別",
@@ -129,7 +127,7 @@ const GROUPS: { key: GroupKey; label: string; tabs: TabKey[] }[] = [
     tabs: [
       "lead_sources", "lead_categories",
       "lead_stages",        // ステージ + ステータスを 1 画面で管理
-      "lead_temperatures", "lead_callers", "lead_call_statuses",
+      "lead_temperatures", "lead_call_statuses",
       "lead_large_segments", // 大セグメント + 小セグメントを 1 画面で管理
       "lead_activity_types",
       // スコアリング（Phase 7）
@@ -1581,7 +1579,6 @@ export function AdminView() {
   const [leadCategories, setLeadCategories] = useState<MasterItem[]>([]);
   const [leadActivityTypes, setLeadActivityTypes] = useState<MasterItem[]>([]);
   const [leadTemperatures, setLeadTemperatures] = useState<MasterItem[]>([]);
-  const [leadCallers, setLeadCallers] = useState<MasterItem[]>([]);
   const [leadCallStatuses, setLeadCallStatuses] = useState<MasterItem[]>([]);
   const [accountTypes, setAccountTypes] = useState<MasterItem[]>([]);
   const [accountStatuses, setAccountStatuses] = useState<MasterItem[]>([]);
@@ -1605,7 +1602,7 @@ export function AdminView() {
    */
   const loadAllSimpleMasters = useCallback(async () => {
     setLoadingData(true);
-    const [ct, corp, svc, ls, lc, lat, ltemp, lcall, lcs, at, as_, cs, cps, ps, lcsizes, lcatypes, lsthresh] = await Promise.all([
+    const [ct, corp, svc, ls, lc, lat, ltemp, lcs, at, as_, cs, cps, ps, lcsizes, lcatypes, lsthresh] = await Promise.all([
       getContractTypes(),
       getCorporateTypes(),
       getServices(),
@@ -1613,7 +1610,6 @@ export function AdminView() {
       getLeadCategories(),
       getLeadActivityTypes(),
       getLeadTemperatures(),
-      getLeadCallers(),
       getLeadCallStatuses(),
       getAccountTypes(),
       getAccountStatuses(),
@@ -1631,7 +1627,6 @@ export function AdminView() {
     setLeadCategories((lc.data as MasterItem[]) ?? []);
     setLeadActivityTypes((lat.data as MasterItem[]) ?? []);
     setLeadTemperatures((ltemp.data as MasterItem[]) ?? []);
-    setLeadCallers((lcall.data as MasterItem[]) ?? []);
     setLeadCallStatuses((lcs.data as MasterItem[]) ?? []);
     setAccountTypes((at.data as MasterItem[]) ?? []);
     setAccountStatuses((as_.data as MasterItem[]) ?? []);
@@ -1693,10 +1688,6 @@ export function AdminView() {
   const refreshLeadTemperatures = async () => {
     const r = await getLeadTemperatures();
     setLeadTemperatures((r.data as MasterItem[]) ?? []);
-  };
-  const refreshLeadCallers = async () => {
-    const r = await getLeadCallers();
-    setLeadCallers((r.data as MasterItem[]) ?? []);
   };
   const refreshLeadCallStatuses = async () => {
     const r = await getLeadCallStatuses();
@@ -1866,21 +1857,6 @@ export function AdminView() {
               { key: "name", label: "名前", type: "text" },
               { key: "definition", label: "定義", type: "textarea" },
               { key: "sort_order", label: "表示順", type: "number", min: 0 },
-            ]}
-          />
-        );
-      case "lead_callers":
-        return (
-          <SimpleMasterTab
-            title="担当者"
-            items={leadCallers}
-            onCreate={createLeadCaller}
-            onUpdate={updateLeadCaller}
-            onDelete={deleteLeadCaller}
-            onRefresh={refreshLeadCallers}
-            fields={[
-              { key: "name", label: "名前", type: "text" },
-              { key: "definition", label: "定義", type: "textarea" },
             ]}
           />
         );

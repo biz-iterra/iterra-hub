@@ -35,7 +35,7 @@ ITERRAの営業・取引管理CRMシステムを新規構築する。現在ス�
 | M14 | リード 大セグメント | `lead_large_segments` | リード 大セグメント（旧: inside_sales_large_segments） | リード共通マスタ |
 | M15 | リード 小セグメント | `lead_small_segments` | リード 小セグメント（M14従属）（旧: inside_sales_small_segments） | リード共通マスタ |
 | M16 | リード 架電ステータス | `lead_call_statuses` | 架電結果の分類（旧: inside_sales_call_statuses） | リード共通マスタ |
-| M17 | リード 架電担当者 | `lead_callers` | 架電担当者（社内/社外BPO対応）（旧: inside_sales_callers） | リード共通マスタ |
+| M17 | ~~リード 架電担当者~~ | ~~`lead_callers`~~ | **Phase 10b-3 で廃止。crm_users に役割統合済み。** | ~~リード共通マスタ~~ |
 | M18 | リードステージ | `lead_stages` | リード進捗ステージ（7段階）。`slug`/`is_terminal`/`auto_promote_to_deal` を持つ | リード共通マスタ |
 | M19 | リードステータス | `lead_statuses` | ステージ内の状態（stage_id FK、UNIQUE(stage_id, code)） | リード共通マスタ |
 | M20 | リード温度感 | `lead_temperatures` | 温度感マスタ（hot/warm/cold） | リード共通マスタ |
@@ -77,6 +77,7 @@ ITERRAの営業・取引管理CRMシステムを新規構築する。現在ス�
 | T07 | タレント | `talents` | コンタクトに紐づく人材特性情報 |
 | T08 | プロジェクト | `projects` | 複数ディールをグルーピングする業務イニシアチブ |
 | T09 | リード | `leads` | 見込み客（Lead）エンティティ。stage/status/temperature/score/segment/category を管理 |
+| T10 | リード副担当 | `lead_owners` | リード副担当中間テーブル。主担当は leads.owner_user_id で保持、副担当のみ管理（Phase 10b-1） |
 
 ### 2.5 従属エンティティ（親に依存）
 親エンティティのライフサイクルに従う。親削除時にCASCADE。
@@ -112,6 +113,7 @@ ITERRAの営業・取引管理CRMシステムを新規構築する。現在ス�
 | J02 | アカウント×コンタクト | `account_contacts` | Account N : M Contact |
 | J03 | ディール×プロジェクト | `deal_projects` | Deal N : M Project |
 | J04 | リード×キャンペーン | `lead_campaigns` | Lead N : M Campaign |
+| J05 | リード×副担当 | `lead_owners` | Lead N : M CrmUser（副担当専用） |
 
 ### 2.7 アクティビティ / ログ
 
@@ -1700,6 +1702,10 @@ Next.js 15プロジェクト初期化、Supabase設定、共通ライブラリ
 54. `20260422000007_setup_lead_score_weekly_cron.sql` — 週次スコア再計算 cron 設定（Phase E）
 55. `20260422000008_alter_leads_add_contact_company_info.sql` — T09 leads に phone→company_phone リネーム + 担当者情報9列・企業情報3列追加 + CHECK 制約（Phase 9b）
 56. `20260422000009_alter_contacts_add_website_url.sql` — T04 contacts に website_url 追加（Lead 個人昇格転記先、Phase 9b）
+57. `20260422000010_create_lead_owners.sql` — T10/J05 lead_owners（副担当中間テーブル）+ `is_lead_accessible` 関数更新（Phase 10b-1）
+58. `20260422000011_migrate_lead_activities_caller.sql` — D08 lead_activities.caller_id を caller_user_id（FK→crm_users）に移行（Phase 10b-2）
+59. `20260422000012_drop_lead_primary_caller.sql` — T09 leads.primary_caller_id カラム DROP（Phase 10b-3）
+60. `20260422000013_drop_lead_callers.sql` — M17 lead_callers テーブル DROP・RLSポリシー削除（Phase 10b-3）
 
 ### Phase 3: 型定義・Zodバリデーション
 - `src/types/index.ts`
@@ -1849,7 +1855,6 @@ Lead は Deal より上流の「見込み客」を管理するエンティティ
   │ N──0..1 [lead_company_sizes] (company_size_id。M24。DBトリガ自動設定)
   │ N──1 [lead_large_segments]
   │ N──1 [lead_small_segments]
-  │ N──1 [lead_callers] (primary_caller)
   │ N──1 [lead_sources] (M05)
   │ N──1 [account_types] (M06 流用。slug: corporate/sole_proprietor/government)
   │ 0..1──1 [companies] (company_id: リード収集時の任意参照。UI からは設定不可)
@@ -2220,3 +2225,159 @@ Phase D で実施する移行の参考として、既存 deal_stages/deal_status
 | 商談化 | `sales` | 引継済 | `handed_over` |
 | クローズ（成約） | `customer` | 成約 | `closed_won` |
 | クローズ（失注） | `dead` | 失注 | `lost` |
+
+---
+
+## 13. リード複数担当者（Phase 10b-1）
+
+### 13.1 背景
+
+主担当（`leads.owner_user_id`）に加え、副担当を複数設定可能にする。  
+主担当カラムは残置し、副担当のみ中間テーブルで管理する設計とした（tech-pm Phase 10a レビュー確定）。
+
+### 13.2 lead_owners 中間テーブル（T10 / J05）
+
+| カラム | 型 | 制約 | 説明 |
+|---|---|---|---|
+| `lead_id` | UUID | NOT NULL, FK → leads(id) ON DELETE CASCADE | 対象リード |
+| `user_id` | UUID | NOT NULL, FK → crm_users(id) ON DELETE RESTRICT | 副担当CRMユーザー |
+| `assigned_at` | TIMESTAMPTZ | NOT NULL DEFAULT NOW() | 割り当て日時 |
+
+- PRIMARY KEY: `(lead_id, user_id)`
+- インデックス: `idx_lead_owners_user` on `user_id`
+- `is_primary` カラムなし（主担当は `leads.owner_user_id` で一元管理）
+- 部分 UNIQUE 不要（PK で一意性を保証）
+- `owner_user_id` との重複は DB では許容。UI でガード推奨
+
+### 13.3 RLS 更新
+
+| 操作 | 許可条件 |
+|---|---|
+| leads SELECT | `is_manager_or_above()` OR `owner_user_id = auth.uid()` OR `lead_owners` に所属 |
+| leads UPDATE | `is_manager_or_above()` OR `owner_user_id = auth.uid()` OR `lead_owners` に所属 |
+| leads DELETE | `is_manager_or_above()` OR `owner_user_id = auth.uid()` のみ（副担当は削除不可） |
+| lead_owners SELECT/INSERT/DELETE | `is_lead_accessible(lead_id)` で委譲 |
+
+- `is_lead_accessible(UUID)` ヘルパー関数も `lead_owners` チェックを含む定義に更新済み
+- この変更により `lead_campaigns` / `lead_activities` / `lead_customer_activities` / `lead_score_breakdowns` の RLS も副担当アクセスを自動的に反映（`is_lead_accessible` 経由）
+
+## § 14. lead_activities.caller_id → caller_user_id 移行（Phase 10b-2: 2026-04-22）
+
+### 14.1 目的
+
+Phase 10b-3 で `lead_callers` マスタを DROP するための事前準備。`lead_activities.caller_id`（FK→lead_callers）を `caller_user_id`（FK→crm_users）に移行する。
+
+### 14.2 D08 lead_activities カラム変更
+
+| 変更前 | 変更後 | 型 | 制約 | 説明 |
+|--------|--------|---|------|------|
+| `caller_id` | `caller_user_id` | UUID | NOT NULL, FK→crm_users(id) | 対応者。旧 lead_callers FK から crm_users FK へ移行 |
+
+- インデックス: `idx_lead_activities_caller`（旧）→ `idx_lead_activities_caller_user`（新）
+
+### 14.3 マイグレーション戦略
+
+1. `caller_user_id`（NULL 許容）を追加
+2. `lead_callers.linked_user_id` 経由でバックフィル（開発環境 seed では全3件が解決済み）
+3. `caller_id` を DROP
+4. `caller_user_id` を NOT NULL に変更
+
+### 14.4 影響ファイル
+
+| ファイル | 変更内容 |
+|---|---|
+| `supabase/migrations/20260422000011_migrate_lead_activities_caller.sql` | マイグレーション本体 |
+| `src/lib/validators/lead-activities.ts` | `caller_id` → `caller_user_id` |
+| `src/actions/lead-activities.ts` | JOIN を `crm_users!lead_activities_caller_user_id_fkey` に変更 |
+| `src/types/database.ts` | `LeadActivity.caller_id` → `caller_user_id`、`caller` JOIN 型更新 |
+| `src/app/(app)/leads/[id]/lead-detail-client.tsx` | フォームフィールド・表示を更新 |
+| `supabase/seed-leads-generated.sql` | `caller_id` → `caller_user_id`、値を `crm_users.id` に変換 |
+| `scripts/generate-leads-seed.mjs` | 生成ロジックを `caller_user_id` ベースに更新 |
+
+### 14.5 注意事項（Phase 10b-2 時点）
+
+- `leads.primary_caller_id`（FK→lead_callers）は Phase 10b-3 で廃止済み
+- `lead_callers` マスタは Phase 10b-3 で DROP 済み
+- UI の「対応者」Select は `masters.callers`（lead_callers）から `masters.owners`（crm_users）に変更済み
+
+---
+
+## 15. Phase 10b-3: lead_callers マスタ廃止
+
+### 15.1 背景・目的
+
+Phase 10b-1 で `lead_owners` を導入し、Phase 10b-2 で `lead_activities.caller_id`（FK→lead_callers）を `caller_user_id`（FK→crm_users）に移行した。
+これにより `lead_callers` への外部 FK 参照が全て解消されたため、`leads.primary_caller_id` カラムと `lead_callers` テーブルを廃止する。
+
+### 15.2 変更内容
+
+| ファイル | 変更 |
+|---|---|
+| `supabase/migrations/20260422000012_drop_lead_primary_caller.sql` | `leads.primary_caller_id` カラム DROP |
+| `supabase/migrations/20260422000013_drop_lead_callers.sql` | RLS ポリシー削除 → `lead_callers` テーブル DROP |
+| `src/lib/validators/leads.ts` | `primary_caller_id` フィールド削除 |
+| `src/lib/validators/masters.ts` | `leadCallerCreateSchema`, `leadCallerUpdateSchema` 削除 |
+| `src/actions/masters.ts` | `getLeadCallers`, `createLeadCaller`, `updateLeadCaller`, `deleteLeadCaller` 削除 |
+| `src/actions/leads.ts` | LEAD_SELECT / getLeads の `primary_caller:lead_callers(...)` JOIN 削除 |
+| `src/types/database.ts` | `LeadCaller` 型削除、`Lead.primary_caller_id` 削除 |
+| `src/app/(app)/leads/[id]/page.tsx` | `getLeadCallers()` 呼び出し・`masters.callers` 削除 |
+| `src/app/(app)/leads/[id]/edit/page.tsx` | 同上 |
+| `src/app/(app)/leads/new/page.tsx` | 同上 |
+| `src/app/(app)/leads/[id]/lead-detail-client.tsx` | `Masters.callers` 型フィールド削除 |
+| `src/app/(app)/leads/[id]/edit/lead-edit-client.tsx` | `Masters.callers` 削除、初期値・submit・UI の `primary_caller_id` 削除 |
+| `src/app/(app)/leads/new/lead-new-form.tsx` | `Masters.callers` 削除、初期値・submit・UI の `primary_caller_id` 削除 |
+| `src/app/(app)/admin/admin-view.tsx` | `lead_callers` タブ・state・Promise.all エントリ・refresh 関数削除 |
+| `src/app/(app)/manual/page.tsx` | `lead_callers` 行削除 |
+| `supabase/seed.sql` | `INSERT INTO lead_callers` 削除、leads INSERT から `primary_caller_id` 列・値削除 |
+| `supabase/seed-leads-generated.sql` | leads INSERT から `primary_caller_id` 列・値削除 |
+| `scripts/generate-leads-seed.mjs` | `callerId` フィールド削除、INSERT から `primary_caller_id` 削除 |
+
+---
+
+## § 16. Phase 10c: Server Action 戻り値統一 + Lead 複数担当者対応（2026-04-22）
+
+### 16.1 Server Action 戻り値統一
+
+全 getXxx 系 Server Action の戻り値を `{ rows: T[]; total: number }` に統一した。
+
+| Action | 変更前 | 変更後 |
+|---|---|---|
+| `getLeads` | `{ items, count }` | `{ rows, total }` |
+| `getContacts` | `{ rows, count }` | `{ rows, total }` |
+| `getCompanies` | `{ items, total }` | `{ rows, total }` |
+| `getAccounts` | `{ rows, count }` | `{ rows, total }` |
+| `getContracts` | `{ items, count }` | `{ rows, total }` |
+| `getDeals` | `{ items, count }` | `{ rows, total }` |
+| `getProjects` | `{ items, total }` | `{ rows, total }` |
+| `getCampaigns` | `{ items, count }` | `{ rows, total }` |
+| `getTalents` | `{ items, count }` | `{ rows, total }` |
+
+呼び出し元の view コンポーネント・page.tsx・detail コンポーネントも同様に更新済み。
+
+### 16.2 Lead 複数担当者 Server Action 仕様
+
+#### `createLead`（`sub_owner_user_ids` 対応）
+
+- `leadCreateSchema` に `sub_owner_user_ids?: string[]`（default `[]`）を追加
+- lead 作成後、`sub_owner_user_ids` から `owner_user_id` と重複するものを除外し `lead_owners` に bulk insert
+- bulk insert 失敗は best-effort（警告ログのみ、lead 作成は成功扱い）
+
+#### `updateLead`（`sub_owner_user_ids` + 副担当編集権限）
+
+- `leadUpdateSchema` に `sub_owner_user_ids?: string[]` を追加（optional、省略時は lead_owners を変更しない）
+- member ロールのアクセス制御: `owner_user_id = user.id` OR `lead_owners` に `user_id = user.id` が存在する場合のみ編集可
+- `sub_owner_user_ids` が渡された場合: 既存 `lead_owners` を全件削除 → 新しい配列で bulk insert（`owner_user_id` との重複除外）
+
+#### `deleteLead`（副担当は削除不可）
+
+- member ロール: `owner_user_id = user.id` のみ許可（副担当ユーザーは削除不可）
+- manager/admin: 全件削除可
+
+#### `LEAD_SELECT` 更新
+
+`sub_owners:lead_owners(user_id, user:crm_users!lead_owners_user_id_fkey(id, full_name))` を追加。
+詳細取得・作成・更新の全 SELECT で副担当一覧を返す。
+
+### 16.3 型定義更新
+
+`src/types/database.ts` の `Lead` 型に `sub_owners?: LeadOwner[]` を追加。

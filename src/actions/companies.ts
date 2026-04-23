@@ -18,7 +18,10 @@ export async function getCompanies(params?: {
   search?: string;
   page?: number;
   perPage?: number;
-}): Promise<ActionResult<{ items: any[]; total: number }>> {
+  statusId?: string;
+  corporateTypeId?: string;
+  ownerUserId?: string;
+}): Promise<ActionResult<{ rows: any[]; total: number }>> {
   const { supabase, user, role } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
@@ -29,7 +32,7 @@ export async function getCompanies(params?: {
 
   let query = supabase
     .from("companies")
-    .select("*, corporate_types(name), lead_sources(name), company_status:company_statuses(id, name), crm_users!companies_owner_user_id_fkey(full_name)", { count: "exact" })
+    .select("*, corporate_types(id, name), lead_sources(name), company_status:company_statuses(id, name), crm_users!companies_owner_user_id_fkey(id, full_name)", { count: "exact" })
     .is("deleted_at", null)
     .order("created_at", { ascending: false })
     .range(from, to);
@@ -37,10 +40,19 @@ export async function getCompanies(params?: {
   if (params?.search) {
     query = query.or(`name.ilike.%${params.search}%,name_kana.ilike.%${params.search}%,company_code.ilike.%${params.search}%`);
   }
+  if (params?.statusId) {
+    query = query.eq("company_status_id", params.statusId);
+  }
+  if (params?.corporateTypeId) {
+    query = query.eq("corporate_type_id", params.corporateTypeId);
+  }
+  if (params?.ownerUserId) {
+    query = query.eq("owner_user_id", params.ownerUserId);
+  }
 
   const { data, error, count } = await query;
   if (error) return { data: null, error: error.message };
-  return { data: { items: data ?? [], total: count ?? 0 }, error: null };
+  return { data: { rows: data ?? [], total: count ?? 0 }, error: null };
 }
 
 // 詳細取得

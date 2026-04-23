@@ -24,7 +24,7 @@ export const leadActivityCreateSchema = z.object({
     .optional(),
 
   call_status_id: uuidString("[call_status_id] 架電ステータスは必須です"),
-  caller_id: uuidString("[caller_id] 架電者は必須です"),
+  caller_user_id: uuidString("[caller_user_id] 架電者は必須です"),
 
   // activity_type_id: 任意（lead_activity_types マスタ参照）
   activity_type_id: uuidString("[activity_type_id] 対応種別IDが不正です")
@@ -62,7 +62,7 @@ export const leadActivityUpdateSchema = z.object({
     .optional(),
 
   call_status_id: uuidString("[call_status_id] 架電ステータスを指定してください").optional(),
-  caller_id: uuidString("[caller_id] 架電者を指定してください").optional(),
+  caller_user_id: uuidString("[caller_user_id] 架電者を指定してください").optional(),
 
   // activity_type_id: 任意（lead_activity_types マスタ参照）
   activity_type_id: uuidString("[activity_type_id] 対応種別IDが不正です")

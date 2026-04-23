@@ -58,7 +58,6 @@ export const leadCreateSchema = z.object({
 
   large_segment_id: optionalUuidSchema,
   small_segment_id: optionalUuidSchema,
-  primary_caller_id: optionalUuidSchema,
 
   // 担当者情報（Phase 9b 追加カラム）
   contact_last_name: z.string().max(50, "[contact_last_name] 担当者姓は50文字以内で入力してください").nullable().optional(),
@@ -78,6 +77,8 @@ export const leadCreateSchema = z.object({
   corporate_number: corporateNumberSchema,
 
   owner_user_id: uuidString("[owner_user_id] 担当者は必須です"),
+  // 副担当ユーザーID 配列（lead_owners 中間テーブルに格納）。主担当との重複は Server Action 側で除外。
+  sub_owner_user_ids: z.array(z.string().uuid()).optional().default([]),
   // promoted_deal_id は Server Action 内部で設定するため受け取らない
   // company_size_id は DB トリガ（resolve_lead_company_size）で自動設定するため受け取らない
 });
@@ -140,7 +141,6 @@ export const leadUpdateSchema = z.object({
 
   large_segment_id: optionalUuidSchema,
   small_segment_id: optionalUuidSchema,
-  primary_caller_id: optionalUuidSchema,
 
   // 担当者情報（Phase 9b 追加カラム）
   contact_last_name: z.string().max(50, "[contact_last_name] 担当者姓は50文字以内で入力してください").nullable().optional(),
@@ -160,6 +160,8 @@ export const leadUpdateSchema = z.object({
   corporate_number: corporateNumberSchema,
 
   owner_user_id: uuidString("[owner_user_id] 担当者を指定してください").optional(),
+  // 副担当ユーザーID 配列（lead_owners 中間テーブルに格納）。主担当との重複は Server Action 側で除外。
+  sub_owner_user_ids: z.array(z.string().uuid()).optional(),
 
   deletion_reason: z.string().max(500).nullable().optional(),
   // company_size_id は DB トリガ（resolve_lead_company_size）で自動設定するため受け取らない

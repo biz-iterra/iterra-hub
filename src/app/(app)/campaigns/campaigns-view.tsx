@@ -2,54 +2,45 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { Search, Plus, ArrowUpRight } from "lucide-react";
+import { Plus } from "lucide-react";
 import { getCampaigns } from "@/actions/campaigns";
+import { CampaignTypeBadge, CampaignStatusBadge } from "@/components/ui/badges";
+import { FilterGroup, FilterClearButton } from "@/components/ui/FilterGroup";
+import { FilterSelect } from "@/components/ui/FilterSelect";
+import { SearchInput } from "@/components/ui/SearchInput";
+import { Pagination } from "@/components/ui/Pagination";
+import { DEFAULT_PAGE_SIZE } from "@/lib/constants/pagination";
 
-const CAMPAIGN_TYPE_LABELS: Record<string, string> = {
-  generation: "獲得",
-  nurturing: "育成",
-  qualification: "選定",
-};
-
-const CAMPAIGN_TYPE_STYLES: Record<string, React.CSSProperties> = {
-  generation: { backgroundColor: "rgba(215, 119, 93, 0.15)", color: "#A34E35" },
-  nurturing: { backgroundColor: "rgba(122, 165, 146, 0.15)", color: "#4D7A65" },
-  qualification: { backgroundColor: "rgba(229, 196, 127, 0.25)", color: "#8A6D1E" },
-};
-
-const CAMPAIGN_STATUS_LABELS: Record<string, string> = {
-  draft: "下書き",
-  active: "実施中",
-  paused: "一時停止",
-  completed: "完了",
-  cancelled: "中止",
-};
-
-const CAMPAIGN_STATUS_STYLES: Record<string, React.CSSProperties> = {
-  draft: { backgroundColor: "var(--color-sumi100)", color: "var(--color-sumi600)" },
-  active: { backgroundColor: "rgba(16, 185, 129, 0.12)", color: "#047857" },
-  paused: { backgroundColor: "rgba(245, 158, 11, 0.14)", color: "#B45309" },
-  completed: { backgroundColor: "rgba(59, 130, 246, 0.12)", color: "#1E40AF" },
-  cancelled: { backgroundColor: "rgba(239, 68, 68, 0.12)", color: "#B91C1C" },
-};
+function formatDateTime(value: string | null | undefined): string {
+  if (!value) return "—";
+  const d = new Date(value);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mi = String(d.getMinutes()).padStart(2, "0");
+  return `${yyyy}/${mm}/${dd} ${hh}:${mi}`;
+}
 
 export function CampaignsView({
   initialData,
   currentUserRole,
 }: {
-  initialData: { items: any[]; count: number } | null;
+  initialData: { rows: any[]; total: number } | null;
   currentUserRole: string;
 }) {
   const [data, setData] = useState(initialData);
   const [typeFilter, setTypeFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [keyword, setKeyword] = useState("");
+  const [page, setPage] = useState(1);
   const [isPending, startTransition] = useTransition();
 
   const isManagerOrAbove =
     currentUserRole === "manager" || currentUserRole === "admin";
 
   function handleFilter(overrides: Record<string, string | undefined>) {
+    setPage(1);
     startTransition(async () => {
       const resolvedType = overrides.type !== undefined ? overrides.type : typeFilter;
       const resolvedStatus = overrides.status !== undefined ? overrides.status : statusFilter;
@@ -58,7 +49,7 @@ export function CampaignsView({
         type: (resolvedType || undefined) as "generation" | "nurturing" | "qualification" | undefined,
         status: (resolvedStatus || undefined) as "draft" | "active" | "paused" | "completed" | "cancelled" | undefined,
         keyword: resolvedKeyword || undefined,
-        perPage: 50,
+        perPage: DEFAULT_PAGE_SIZE,
         page: 1,
       };
       const { data: result } = await getCampaigns(params);
@@ -66,17 +57,33 @@ export function CampaignsView({
     });
   }
 
-  const items = data?.items ?? [];
-  const selectStyle: React.CSSProperties = {
-    border: "1px solid var(--color-border-default)",
-    borderRadius: "var(--radius-button)",
-    backgroundColor: "#fff",
-    color: "var(--color-text-title)",
-    fontSize: "0.8125rem",
-    padding: "0.4rem 0.75rem",
-    outline: "none",
-    cursor: "pointer",
-  };
+  function handleClear() {
+    setTypeFilter("");
+    setStatusFilter("");
+    setKeyword("");
+    setPage(1);
+    startTransition(async () => {
+      const { data: result } = await getCampaigns({ perPage: DEFAULT_PAGE_SIZE, page: 1 });
+      setData(result);
+    });
+  }
+
+  function handlePageChange(next: number) {
+    setPage(next);
+    startTransition(async () => {
+      const params = {
+        type: (typeFilter || undefined) as "generation" | "nurturing" | "qualification" | undefined,
+        status: (statusFilter || undefined) as "draft" | "active" | "paused" | "completed" | "cancelled" | undefined,
+        keyword: keyword || undefined,
+        perPage: DEFAULT_PAGE_SIZE,
+        page: next,
+      };
+      const { data: result } = await getCampaigns(params);
+      setData(result);
+    });
+  }
+
+  const items = data?.rows ?? [];
 
   return (
     <div>
@@ -108,62 +115,53 @@ export function CampaignsView({
       </div>
 
       {/* フィルター */}
-      <div className="flex flex-wrap items-center gap-2 mb-4">
-        <select
-          style={selectStyle}
+      <FilterGroup className="mb-4">
+        <FilterSelect
+          label="種別"
           value={typeFilter}
-          onChange={(e) => {
-            setTypeFilter(e.target.value);
-            handleFilter({ type: e.target.value || undefined });
+          options={[
+            { value: "generation", label: "獲得" },
+            { value: "nurturing", label: "育成" },
+            { value: "qualification", label: "選定" },
+          ]}
+          onChange={(v) => {
+            setTypeFilter(v);
+            handleFilter({ type: v });
           }}
-        >
-          <option value="">全種別</option>
-          <option value="generation">獲得</option>
-          <option value="nurturing">育成</option>
-          <option value="qualification">選定</option>
-        </select>
-
-        <select
-          style={selectStyle}
+        />
+        <FilterSelect
+          label="ステータス"
           value={statusFilter}
-          onChange={(e) => {
-            setStatusFilter(e.target.value);
-            handleFilter({ status: e.target.value || undefined });
+          options={[
+            { value: "draft", label: "下書き" },
+            { value: "active", label: "実施中" },
+            { value: "paused", label: "一時停止" },
+            { value: "completed", label: "完了" },
+            { value: "cancelled", label: "中止" },
+          ]}
+          onChange={(v) => {
+            setStatusFilter(v);
+            handleFilter({ status: v });
           }}
-        >
-          <option value="">全ステータス</option>
-          <option value="draft">下書き</option>
-          <option value="active">実施中</option>
-          <option value="paused">一時停止</option>
-          <option value="completed">完了</option>
-          <option value="cancelled">中止</option>
-        </select>
-
-        <div className="relative flex-1 min-w-48">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--color-sumi400)" }} />
-          <input
-            type="text"
-            placeholder="キャンペーン名で検索..."
-            value={keyword}
-            onChange={(e) => {
-              setKeyword(e.target.value);
-              handleFilter({ keyword: e.target.value || undefined });
-            }}
-            className="w-full pl-9 pr-3 py-[0.4rem] text-sm outline-none bg-white"
-            style={{
-              border: "1px solid var(--color-border-default)",
-              borderRadius: "var(--radius-button)",
-              color: "var(--color-text-title)",
-              fontSize: "0.8125rem",
-            }}
-          />
-        </div>
+        />
+        <SearchInput
+          value={keyword}
+          placeholder="キャンペーン名で検索..."
+          onChange={(v) => {
+            setKeyword(v);
+            handleFilter({ keyword: v });
+          }}
+        />
+        <FilterClearButton onClear={handleClear} />
         {isPending && (
-          <span className="text-xs" style={{ color: "var(--color-sumi500)" }}>
+          <span
+            className="text-xs"
+            style={{ color: "var(--color-sumi500)", alignSelf: "flex-end", paddingBottom: "0.45rem" }}
+          >
             読み込み中...
           </span>
         )}
-      </div>
+      </FilterGroup>
 
       {/* テーブル */}
       {items.length === 0 ? (
@@ -190,7 +188,7 @@ export function CampaignsView({
           <table className="w-full text-sm" style={{ tableLayout: "auto" }}>
             <thead>
               <tr style={{ backgroundColor: "var(--color-sumi50)" }}>
-                {["キャンペーン名", "種別", "期間", "ステータス", "作成日"].map((label) => (
+                {["キャンペーン名", "ステータス", "種別", "期間", "最終更新日"].map((label) => (
                   <th
                     key={label}
                     className="px-4 py-3 text-left font-semibold text-xs whitespace-nowrap"
@@ -215,30 +213,26 @@ export function CampaignsView({
                   }
                   onClick={() => (window.location.href = `/campaigns/${campaign.id}`)}
                 >
+                  {/* キャンペーン名 */}
                   <td className="px-4 py-3">
                     <Link
                       href={`/campaigns/${campaign.id}`}
-                      style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem", color: "var(--color-text-title)", fontWeight: 500, textDecoration: "none" }}
+                      style={{ color: "var(--color-text-list)", fontWeight: 500, textDecoration: "none" }}
                       onClick={(e) => e.stopPropagation()}
                     >
                       {campaign.name}
-                      <ArrowUpRight size={13} style={{ color: "var(--color-sumi400)" }} />
                     </Link>
                   </td>
+                  {/* ステータス */}
                   <td className="px-4 py-3 whitespace-nowrap">
-                    <span
-                      style={{
-                        ...(CAMPAIGN_TYPE_STYLES[campaign.type] ?? {}),
-                        borderRadius: "var(--radius-badge)",
-                        padding: "0.125rem 0.5rem",
-                        fontSize: "0.75rem",
-                        fontWeight: 500,
-                      }}
-                    >
-                      {CAMPAIGN_TYPE_LABELS[campaign.type] ?? campaign.type}
-                    </span>
+                    <CampaignStatusBadge status={campaign.status} />
                   </td>
-                  <td className="px-4 py-3 text-xs whitespace-nowrap" style={{ color: "var(--color-sumi600)" }}>
+                  {/* 種別 */}
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <CampaignTypeBadge type={campaign.type} />
+                  </td>
+                  {/* 期間 */}
+                  <td className="px-4 py-3 text-xs whitespace-nowrap" style={{ color: "var(--color-text-list)" }}>
                     {campaign.start_date
                       ? new Date(campaign.start_date).toLocaleDateString("ja-JP")
                       : "—"}
@@ -247,23 +241,9 @@ export function CampaignsView({
                       ? new Date(campaign.end_date).toLocaleDateString("ja-JP")
                       : "—"}
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <span
-                      style={{
-                        ...(CAMPAIGN_STATUS_STYLES[campaign.status] ?? {}),
-                        borderRadius: "var(--radius-badge)",
-                        padding: "0.125rem 0.5rem",
-                        fontSize: "0.75rem",
-                        fontWeight: 500,
-                      }}
-                    >
-                      {CAMPAIGN_STATUS_LABELS[campaign.status] ?? campaign.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-xs whitespace-nowrap" style={{ color: "var(--color-sumi500)" }}>
-                    {campaign.created_at
-                      ? new Date(campaign.created_at).toLocaleDateString("ja-JP")
-                      : "—"}
+                  {/* 最終更新日 */}
+                  <td className="px-4 py-3 text-xs whitespace-nowrap" style={{ color: "var(--color-text-list)" }}>
+                    {formatDateTime(campaign.updated_at)}
                   </td>
                 </tr>
               ))}
@@ -271,11 +251,13 @@ export function CampaignsView({
           </table>
         </div>
       )}
-      {data && (
-        <p className="mt-3 text-xs" style={{ color: "var(--color-sumi500)" }}>
-          {data.count} 件中 {items.length} 件を表示
-        </p>
-      )}
+      {/* ページネーション */}
+      <Pagination
+        page={page}
+        totalCount={data?.total ?? 0}
+        pageSize={DEFAULT_PAGE_SIZE}
+        onPageChange={handlePageChange}
+      />
     </div>
   );
 }

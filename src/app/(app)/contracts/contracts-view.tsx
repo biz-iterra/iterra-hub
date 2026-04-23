@@ -1,100 +1,146 @@
 "use client";
 
 import { getContracts } from "@/actions/contracts";
-import { FileText, Search, Plus, Pencil } from "lucide-react";
+import { FileText, Plus } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState, useEffect, useCallback, useTransition } from "react";
+import { ContractMethodBadge } from "@/components/ui/badges";
+import { FilterGroup, FilterClearButton } from "@/components/ui/FilterGroup";
+import { FilterSelect } from "@/components/ui/FilterSelect";
+import { SearchInput } from "@/components/ui/SearchInput";
+import { Pagination } from "@/components/ui/Pagination";
+import { DEFAULT_PAGE_SIZE } from "@/lib/constants/pagination";
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 interface ContractRow {
   id: string;
-  contract_code: string;
   contract_name: string;
   contract_method: string | null;
   start_date: string | null;
   end_date: string | null;
-  deal: { id: string; deal_code: string; name: string } | null;
+  updated_at: string | null;
+  deal: { id: string; name: string } | null;
   contract_type: { id: string; name: string } | null;
   registered_user: { id: string; full_name: string } | null;
 }
 
+interface ContractType {
+  id: string;
+  name: string;
+}
+
 interface Props {
-  initialData: { items: ContractRow[]; count: number } | null;
+  initialData: { rows: ContractRow[]; total: number } | null;
   isManagerOrAbove: boolean;
+  contractTypes: ContractType[];
 }
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-const CONTRACT_METHOD_LABELS: Record<string, string> = {
-  paper: "紙面",
-  electronic: "電子",
-  verbal: "口頭",
-};
-
-function contractMethodBadgeStyle(method: string): React.CSSProperties {
-  switch (method) {
-    case "electronic":
-      return { backgroundColor: "var(--color-sage)", color: "#fff" };
-    case "verbal":
-      return { backgroundColor: "var(--color-amber)", color: "var(--color-text-title)" };
-    default:
-      return { backgroundColor: "var(--color-sumi100)", color: "var(--color-sumi700)" };
-  }
-}
-
 function formatDate(date: string | null | undefined): string {
-  if (!date) return "\u2014";
-  return new Date(date).toLocaleDateString("ja-JP");
+  if (!date) return "—";
+  const d = new Date(date);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}/${mm}/${dd}`;
 }
 
-const PER_PAGE = 20;
+function formatDateTime(value: string | null | undefined): string {
+  if (!value) return "—";
+  const d = new Date(value);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mi = String(d.getMinutes()).padStart(2, "0");
+  return `${yyyy}/${mm}/${dd} ${hh}:${mi}`;
+}
+
+const PER_PAGE = DEFAULT_PAGE_SIZE;
+
+const CONTRACT_METHOD_OPTIONS = [
+  { value: "paper", label: "紙面" },
+  { value: "electronic", label: "電子" },
+  { value: "verbal", label: "口頭" },
+];
 
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
-export function ContractsView({ initialData, isManagerOrAbove }: Props) {
-  const router = useRouter();
+export function ContractsView({ initialData, isManagerOrAbove, contractTypes }: Props) {
   const [isPending, startTransition] = useTransition();
 
-  const [rows, setRows] = useState<ContractRow[]>(initialData?.items ?? []);
-  const [totalCount, setTotalCount] = useState(initialData?.count ?? 0);
+  const [rows, setRows] = useState<ContractRow[]>(initialData?.rows ?? []);
+  const [totalCount, setTotalCount] = useState(initialData?.total ?? 0);
   const [search, setSearch] = useState("");
+  const [contractTypeFilter, setContractTypeFilter] = useState("");
+  const [contractMethodFilter, setContractMethodFilter] = useState("");
   const [page, setPage] = useState(1);
 
-  const totalPages = Math.max(1, Math.ceil(totalCount / PER_PAGE));
-
-  const fetchData = useCallback((s: string, p: number) => {
-    startTransition(async () => {
-      const { data } = await getContracts({
-        search: s || undefined,
-        page: p,
-        perPage: PER_PAGE,
+  const fetchData = useCallback(
+    (params: {
+      search: string;
+      contractTypeId: string;
+      contractMethod: string;
+      page: number;
+    }) => {
+      startTransition(async () => {
+        const { data } = await getContracts({
+          search: params.search || undefined,
+          contractTypeId: params.contractTypeId || undefined,
+          contractMethod: params.contractMethod || undefined,
+          page: params.page,
+          perPage: PER_PAGE,
+        });
+        if (data) {
+          setRows(data.rows as ContractRow[]);
+          setTotalCount(data.total);
+        }
       });
-      if (data) {
-        setRows(data.items as ContractRow[]);
-        setTotalCount(data.count);
-      }
-    });
-  }, []);
+    },
+    []
+  );
 
   // debounce search
   useEffect(() => {
     const timer = setTimeout(() => {
       setPage(1);
-      fetchData(search, 1);
+      fetchData({ search, contractTypeId: contractTypeFilter, contractMethod: contractMethodFilter, page: 1 });
     }, 300);
     return () => clearTimeout(timer);
-  }, [search, fetchData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search]);
 
   // page change
   useEffect(() => {
-    if (page > 1) fetchData(search, page);
+    if (page > 1) fetchData({ search, contractTypeId: contractTypeFilter, contractMethod: contractMethodFilter, page });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page]);
+
+  function handleFilter(key: "contractTypeId" | "contractMethod", value: string) {
+    const next = {
+      search,
+      contractTypeId: contractTypeFilter,
+      contractMethod: contractMethodFilter,
+      [key]: value,
+    };
+    if (key === "contractTypeId") setContractTypeFilter(value);
+    if (key === "contractMethod") setContractMethodFilter(value);
+    setPage(1);
+    fetchData({ ...next, page: 1 });
+  }
+
+  function handleClear() {
+    setSearch("");
+    setContractTypeFilter("");
+    setContractMethodFilter("");
+    setPage(1);
+    fetchData({ search: "", contractTypeId: "", contractMethod: "", page: 1 });
+  }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
@@ -175,6 +221,36 @@ export function ContractsView({ initialData, isManagerOrAbove }: Props) {
         )}
       </div>
 
+      {/* フィルタ行 */}
+      <FilterGroup>
+        <FilterSelect
+          label="契約種別"
+          value={contractTypeFilter}
+          options={contractTypes.map((t) => ({ value: t.id, label: t.name }))}
+          onChange={(v) => handleFilter("contractTypeId", v)}
+        />
+        <FilterSelect
+          label="契約方法"
+          value={contractMethodFilter}
+          options={CONTRACT_METHOD_OPTIONS}
+          onChange={(v) => handleFilter("contractMethod", v)}
+        />
+        <SearchInput
+          value={search}
+          placeholder="契約書名で検索..."
+          onChange={(v) => setSearch(v)}
+        />
+        <FilterClearButton onClear={handleClear} />
+        {isPending && (
+          <span
+            className="text-xs"
+            style={{ color: "var(--color-sumi500)", alignSelf: "flex-end", paddingBottom: "0.45rem" }}
+          >
+            読み込み中...
+          </span>
+        )}
+      </FilterGroup>
+
       {/* Card */}
       <div
         style={{
@@ -184,37 +260,6 @@ export function ContractsView({ initialData, isManagerOrAbove }: Props) {
           overflow: "hidden",
         }}
       >
-        {/* Search */}
-        <div style={{ padding: "1rem 1.5rem", borderBottom: "1px solid var(--color-border-default)" }}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "0.5rem",
-              backgroundColor: "var(--color-sumi50)",
-              borderRadius: "var(--radius-button)",
-              padding: "0.5rem 0.75rem",
-              maxWidth: "24rem",
-            }}
-          >
-            <Search size={16} style={{ color: "var(--color-sumi600)", flexShrink: 0 }} />
-            <input
-              type="text"
-              placeholder="契約コード・契約書名で検索..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              style={{
-                border: "none",
-                outline: "none",
-                backgroundColor: "transparent",
-                fontSize: "0.875rem",
-                width: "100%",
-                color: "var(--color-text-title)",
-              }}
-            />
-          </div>
-        </div>
-
         {/* Table */}
         {rows.length === 0 ? (
           <div
@@ -240,8 +285,18 @@ export function ContractsView({ initialData, isManagerOrAbove }: Props) {
           </div>
         ) : (
           <>
-            <div style={{ overflowX: "auto" }}>
+            <div className="overflow-x-auto no-scrollbar">
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <colgroup>
+                  <col style={{ minWidth: "200px" }} />
+                  <col style={{ width: "90px" }} />
+                  <col style={{ width: "130px" }} />
+                  <col style={{ minWidth: "160px" }} />
+                  <col style={{ width: "110px" }} />
+                  <col style={{ width: "110px" }} />
+                  <col style={{ width: "120px" }} />
+                  <col style={{ width: "150px" }} />
+                </colgroup>
                 <thead>
                   <tr
                     style={{
@@ -252,29 +307,23 @@ export function ContractsView({ initialData, isManagerOrAbove }: Props) {
                       textAlign: "left",
                     }}
                   >
-                    <th style={{ padding: "0.75rem 1rem" }}>契約コード</th>
                     <th style={{ padding: "0.75rem 1rem" }}>契約書名</th>
-                    <th style={{ padding: "0.75rem 1rem" }}>ディール</th>
-                    <th style={{ padding: "0.75rem 1rem" }}>契約種別</th>
                     <th style={{ padding: "0.75rem 1rem" }}>契約方法</th>
+                    <th style={{ padding: "0.75rem 1rem" }}>契約種別</th>
+                    <th style={{ padding: "0.75rem 1rem" }}>ディール</th>
                     <th style={{ padding: "0.75rem 1rem" }}>契約開始日</th>
                     <th style={{ padding: "0.75rem 1rem" }}>契約終了日</th>
                     <th style={{ padding: "0.75rem 1rem" }}>登録者</th>
-                    {isManagerOrAbove && (
-                      <th style={{ padding: "0.75rem 1rem", textAlign: "right" }}>
-                        操作
-                      </th>
-                    )}
+                    <th style={{ padding: "0.75rem 1rem" }}>最終更新日</th>
                   </tr>
                 </thead>
                 <tbody>
                   {rows.map((row) => (
                     <tr
                       key={row.id}
-                      onClick={() => router.push(`/contracts/${row.id}`)}
+                      className="transition-colors cursor-pointer"
                       style={{
                         borderBottom: "1px solid var(--color-border-default)",
-                        cursor: "pointer",
                         fontSize: "0.875rem",
                       }}
                       onMouseEnter={(e) =>
@@ -283,140 +332,100 @@ export function ContractsView({ initialData, isManagerOrAbove }: Props) {
                       onMouseLeave={(e) =>
                         (e.currentTarget.style.backgroundColor = "transparent")
                       }
+                      onClick={() => { window.location.href = `/contracts/${row.id}`; }}
                     >
+                      {/* 契約書名 */}
+                      <td style={{ padding: "0.75rem 1rem" }}>
+                        <Link
+                          href={`/contracts/${row.id}`}
+                          style={{
+                            fontWeight: 600,
+                            color: "var(--color-text-list)",
+                            textDecoration: "none",
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {row.contract_name}
+                        </Link>
+                      </td>
+                      {/* 契約方法 */}
+                      <td style={{ padding: "0.75rem 1rem", whiteSpace: "nowrap" }}>
+                        <ContractMethodBadge method={row.contract_method} />
+                      </td>
+                      {/* 契約種別 */}
                       <td
                         style={{
                           padding: "0.75rem 1rem",
-                          fontFamily: "monospace",
-                          fontSize: "0.75rem",
-                          color: "var(--color-sumi600)",
+                          color: "var(--color-text-list)",
                           whiteSpace: "nowrap",
                         }}
                       >
-                        {row.contract_code}
+                        {row.contract_type?.name ?? "—"}
                       </td>
+                      {/* ディール */}
                       <td
                         style={{
                           padding: "0.75rem 1rem",
-                          fontWeight: 600,
-                          color: "var(--color-text-title)",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {row.contract_name}
-                      </td>
-                      <td
-                        style={{
-                          padding: "0.75rem 1rem",
-                          color: "var(--color-sumi600)",
+                          color: "var(--color-text-list)",
                           whiteSpace: "nowrap",
                         }}
                       >
                         {row.deal ? (
-                          <span>
-                            <span
-                              style={{
-                                fontFamily: "monospace",
-                                fontSize: "0.75rem",
-                                marginRight: "0.375rem",
-                              }}
-                            >
-                              {row.deal.deal_code}
-                            </span>
-                            {row.deal.name}
-                          </span>
-                        ) : (
-                          "\u2014"
-                        )}
-                      </td>
-                      <td
-                        style={{
-                          padding: "0.75rem 1rem",
-                          color: "var(--color-sumi600)",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {row.contract_type?.name ?? "\u2014"}
-                      </td>
-                      <td style={{ padding: "0.75rem 1rem" }}>
-                        {row.contract_method ? (
-                          <span
-                            style={{
-                              display: "inline-block",
-                              borderRadius: "var(--radius-badge)",
-                              padding: "0.125rem 0.5rem",
-                              fontSize: "0.75rem",
-                              fontWeight: 600,
-                              ...contractMethodBadgeStyle(row.contract_method),
-                            }}
+                          <Link
+                            href={`/deals/${row.deal.id}`}
+                            style={{ color: "var(--color-text-list)", textDecoration: "none" }}
+                            onClick={(e) => e.stopPropagation()}
                           >
-                            {CONTRACT_METHOD_LABELS[row.contract_method] ?? row.contract_method}
-                          </span>
+                            {row.deal.name}
+                          </Link>
                         ) : (
-                          <span style={{ color: "var(--color-sumi400)" }}>{"\u2014"}</span>
+                          "—"
                         )}
                       </td>
+                      {/* 契約開始日 */}
                       <td
                         style={{
                           padding: "0.75rem 1rem",
                           fontSize: "0.8125rem",
-                          color: "var(--color-sumi600)",
+                          color: "var(--color-text-list)",
                           whiteSpace: "nowrap",
                         }}
                       >
                         {formatDate(row.start_date)}
                       </td>
+                      {/* 契約終了日 */}
                       <td
                         style={{
                           padding: "0.75rem 1rem",
                           fontSize: "0.8125rem",
-                          color: "var(--color-sumi600)",
+                          color: "var(--color-text-list)",
                           whiteSpace: "nowrap",
                         }}
                       >
                         {formatDate(row.end_date)}
                       </td>
+                      {/* 登録者 */}
                       <td
                         style={{
                           padding: "0.75rem 1rem",
-                          color: "var(--color-sumi600)",
+                          color: "var(--color-text-list)",
                           whiteSpace: "nowrap",
                           fontSize: "0.8125rem",
                         }}
                       >
-                        {row.registered_user?.full_name ?? "\u2014"}
+                        {row.registered_user?.full_name ?? "—"}
                       </td>
-                      {isManagerOrAbove && (
-                        <td
-                          style={{
-                            padding: "0.75rem 1rem",
-                            textAlign: "right",
-                            whiteSpace: "nowrap",
-                          }}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <Link
-                            href={`/contracts/${row.id}/edit`}
-                            className="hover:bg-[var(--color-bg-hover)]"
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: "0.25rem",
-                              color: "var(--color-terra)",
-                              textDecoration: "none",
-                              padding: "0.25rem 0.5rem",
-                              borderRadius: "var(--radius-sm)",
-                              fontSize: "0.75rem",
-                              fontWeight: 500,
-                              border: "1px solid var(--color-border-default)",
-                              transition: "background-color 0.15s",
-                            }}
-                          >
-                            <Pencil size={12} />
-                            編集
-                          </Link>
-                        </td>
-                      )}
+                      {/* 最終更新日 */}
+                      <td
+                        style={{
+                          padding: "0.75rem 1rem",
+                          fontSize: "0.8125rem",
+                          color: "var(--color-text-list)",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {formatDateTime(row.updated_at)}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -424,57 +433,14 @@ export function ContractsView({ initialData, isManagerOrAbove }: Props) {
             </div>
 
             {/* Pagination */}
-            {totalPages > 1 && (
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  padding: "0.75rem 1.5rem",
-                  borderTop: "1px solid var(--color-border-default)",
-                  fontSize: "0.8125rem",
-                  color: "var(--color-sumi600)",
-                }}
-              >
-                <span>
-                  {(page - 1) * PER_PAGE + 1}
-                  {"\u2013"}
-                  {Math.min(page * PER_PAGE, totalCount)} / {totalCount} 件
-                </span>
-                <div style={{ display: "flex", gap: "0.5rem" }}>
-                  <button
-                    disabled={page <= 1 || isPending}
-                    onClick={() => setPage((p) => p - 1)}
-                    style={{
-                      padding: "0.375rem 0.75rem",
-                      borderRadius: "var(--radius-button)",
-                      border: "1px solid var(--color-border-default)",
-                      backgroundColor: "#fff",
-                      cursor: page <= 1 ? "not-allowed" : "pointer",
-                      opacity: page <= 1 ? 0.5 : 1,
-                      fontSize: "0.8125rem",
-                    }}
-                  >
-                    前へ
-                  </button>
-                  <button
-                    disabled={page >= totalPages || isPending}
-                    onClick={() => setPage((p) => p + 1)}
-                    style={{
-                      padding: "0.375rem 0.75rem",
-                      borderRadius: "var(--radius-button)",
-                      border: "1px solid var(--color-border-default)",
-                      backgroundColor: "#fff",
-                      cursor: page >= totalPages ? "not-allowed" : "pointer",
-                      opacity: page >= totalPages ? 0.5 : 1,
-                      fontSize: "0.8125rem",
-                    }}
-                  >
-                    次へ
-                  </button>
-                </div>
-              </div>
-            )}
+            <div style={{ padding: "0.75rem 1.5rem", borderTop: "1px solid var(--color-border-default)" }}>
+              <Pagination
+                page={page}
+                totalCount={totalCount}
+                pageSize={PER_PAGE}
+                onPageChange={(p) => setPage(p)}
+              />
+            </div>
           </>
         )}
       </div>

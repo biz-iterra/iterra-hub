@@ -21,7 +21,6 @@ import {
   leadStageCreateSchema, leadStageUpdateSchema,
   leadStatusCreateSchema, leadStatusUpdateSchema,
   leadTemperatureCreateSchema, leadTemperatureUpdateSchema,
-  leadCallerCreateSchema, leadCallerUpdateSchema,
   leadCallStatusCreateSchema, leadCallStatusUpdateSchema,
   leadLargeSegmentCreateSchema, leadLargeSegmentUpdateSchema,
   leadSmallSegmentCreateSchema, leadSmallSegmentUpdateSchema,
@@ -391,9 +390,6 @@ export async function getLeadStatuses(stageId?: string) {
 // Lead Temperatures
 export async function getLeadTemperatures() { return getMasterList("lead_temperatures", { useSortOrder: true }); }
 
-// Lead Callers
-export async function getLeadCallers() { return getMasterList("lead_callers"); }
-
 // Lead Call Statuses
 export async function getLeadCallStatuses() { return getMasterList("lead_call_statuses", { useSortOrder: true }); }
 
@@ -479,15 +475,6 @@ export async function updateLeadTemperature(id: string, input: Record<string, un
   return updateMasterRecord("lead_temperatures", id, input, leadTemperatureUpdateSchema);
 }
 export async function deleteLeadTemperature(id: string) { return deleteMasterRecord("lead_temperatures", id); }
-
-// Lead Callers CRUD
-export async function createLeadCaller(input: Record<string, unknown>) {
-  return createMasterRecord("lead_callers", input, leadCallerCreateSchema);
-}
-export async function updateLeadCaller(id: string, input: Record<string, unknown>) {
-  return updateMasterRecord("lead_callers", id, input, leadCallerUpdateSchema);
-}
-export async function deleteLeadCaller(id: string) { return deleteMasterRecord("lead_callers", id); }
 
 // Lead Call Statuses CRUD
 export async function createLeadCallStatus(input: Record<string, unknown>) {

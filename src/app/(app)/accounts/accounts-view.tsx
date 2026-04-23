@@ -1,44 +1,107 @@
 "use client";
 
-import { getAccounts } from "@/actions/accounts";
-import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
 import Link from "next/link";
-import { Briefcase, Search, Plus, Pencil } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { Plus, Briefcase } from "lucide-react";
+import { getAccounts } from "@/actions/accounts";
+import { StatusBadge } from "@/components/ui/badges";
+import { SearchInput } from "@/components/ui/SearchInput";
+import { FilterSelect } from "@/components/ui/FilterSelect";
+import { FilterGroup, FilterClearButton } from "@/components/ui/FilterGroup";
+import { Pagination } from "@/components/ui/Pagination";
+import { DEFAULT_PAGE_SIZE } from "@/lib/constants/pagination";
 
-const PER_PAGE = 20;
+function formatDateTime(value: string | null | undefined): string {
+  if (!value) return "—";
+  const d = new Date(value);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mi = String(d.getMinutes()).padStart(2, "0");
+  return `${yyyy}/${mm}/${dd} ${hh}:${mi}`;
+}
 
-type AccountsData = { rows: unknown[]; count: number } | null;
+type AccountStatus = { id: string; name: string };
+type AccountType = { id: string; name: string };
+type CrmUser = { id: string; full_name: string; role: string };
+type AccountsData = { rows: unknown[]; total: number } | null;
 
-export function AccountsView({ initialData }: { initialData: AccountsData }) {
-  const router = useRouter();
-  const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
+interface AccountsViewProps {
+  initialData: AccountsData;
+  statuses: AccountStatus[];
+  accountTypes: AccountType[];
+  users: CrmUser[];
+}
+
+export function AccountsView({
+  initialData,
+  statuses,
+  accountTypes,
+  users,
+}: AccountsViewProps) {
   const [data, setData] = useState<AccountsData>(initialData);
-  const [loading, setLoading] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [statusFilter, setStatusFilter] = useState("");
+  const [accountTypeFilter, setAccountTypeFilter] = useState("");
+  const [ownerFilter, setOwnerFilter] = useState("");
+  const [keyword, setKeyword] = useState("");
+  const [page, setPage] = useState(1);
+  const [isPending, startTransition] = useTransition();
 
-  useEffect(() => {
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(async () => {
-      setLoading(true);
-      const result = await getAccounts({ search, page, perPage: PER_PAGE });
-      setData(result.data);
-      setLoading(false);
-    }, 300);
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
-  }, [search, page]);
+  function handleFilter(
+    key: string,
+    value: string,
+    setter: (v: string) => void
+  ) {
+    setter(value);
+    setPage(1);
+    startTransition(async () => {
+      const { data: result } = await getAccounts({
+        statusId: key === "statusId" ? value || undefined : statusFilter || undefined,
+        accountTypeId: key === "accountTypeId" ? value || undefined : accountTypeFilter || undefined,
+        ownerUserId: key === "ownerUserId" ? value || undefined : ownerFilter || undefined,
+        search: key === "search" ? value || undefined : keyword || undefined,
+        perPage: DEFAULT_PAGE_SIZE,
+        page: 1,
+      });
+      setData(result);
+    });
+  }
+
+  function handleClear() {
+    setStatusFilter("");
+    setAccountTypeFilter("");
+    setOwnerFilter("");
+    setKeyword("");
+    setPage(1);
+    startTransition(async () => {
+      const { data: result } = await getAccounts({ perPage: DEFAULT_PAGE_SIZE, page: 1 });
+      setData(result);
+    });
+  }
+
+  function handlePageChange(next: number) {
+    setPage(next);
+    startTransition(async () => {
+      const { data: result } = await getAccounts({
+        statusId: statusFilter || undefined,
+        accountTypeId: accountTypeFilter || undefined,
+        ownerUserId: ownerFilter || undefined,
+        search: keyword || undefined,
+        perPage: DEFAULT_PAGE_SIZE,
+        page: next,
+      });
+      setData(result);
+    });
+  }
 
   const rows = (data?.rows ?? []) as any[];
-  const total = data?.count ?? 0;
-  const totalPages = Math.max(1, Math.ceil(total / PER_PAGE));
+  const total = data?.total ?? 0;
 
   return (
-    <div className="space-y-6">
-      {/* ヘッダー行 */}
-      <div className="flex items-center justify-between">
+    <div>
+      {/* ヘッダー */}
+      <div className="flex items-center justify-between mb-6">
         <h1
           className="text-2xl font-bold"
           style={{ color: "var(--color-text-title)" }}
@@ -47,228 +110,174 @@ export function AccountsView({ initialData }: { initialData: AccountsData }) {
         </h1>
         <Link
           href="/accounts/new"
-          className="inline-flex items-center gap-2 text-sm font-medium"
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white transition-colors"
           style={{
             backgroundColor: "var(--color-terra)",
-            color: "#fff",
             borderRadius: "var(--radius-button)",
-            padding: "0.5rem 1.25rem",
             textDecoration: "none",
           }}
+          onMouseEnter={(e) =>
+            (e.currentTarget.style.backgroundColor = "var(--color-terra-dark)")
+          }
+          onMouseLeave={(e) =>
+            (e.currentTarget.style.backgroundColor = "var(--color-terra)")
+          }
         >
           <Plus size={16} />
           新規作成
         </Link>
       </div>
 
-      {/* 検索バー */}
-      <div
-        style={{
-          backgroundColor: "#fff",
-          borderRadius: "var(--radius-card)",
-          boxShadow: "var(--elevation-low)",
-        }}
-      >
-        <div className="relative">
-          <Search
-            size={16}
-            className="absolute left-4 top-1/2 -translate-y-1/2"
-            style={{ color: "var(--color-sumi600)" }}
-          />
-          <input
-            type="text"
-            placeholder="アカウント名・コードで検索..."
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-            className="w-full px-4 py-2 pl-10 text-sm outline-none"
-            style={{
-              borderBottom: "1px solid var(--color-border-default)",
-              borderRadius: "var(--radius-input)",
-            }}
-          />
-        </div>
-      </div>
-
-      {/* テーブル */}
-      <div
-        style={{
-          backgroundColor: "#fff",
-          borderRadius: "var(--radius-card)",
-          boxShadow: "var(--elevation-low)",
-        }}
-      >
-        {loading ? (
-          <div
-            className="flex items-center justify-center py-16 text-sm"
-            style={{ color: "var(--color-sumi600)" }}
+      {/* フィルター行 */}
+      <FilterGroup className="mb-4">
+        <FilterSelect
+          label="ステータス"
+          value={statusFilter}
+          options={statuses.map((s) => ({ value: s.id, label: s.name }))}
+          onChange={(v) => handleFilter("statusId", v, setStatusFilter)}
+        />
+        <FilterSelect
+          label="種別"
+          value={accountTypeFilter}
+          options={accountTypes.map((t) => ({ value: t.id, label: t.name }))}
+          onChange={(v) => handleFilter("accountTypeId", v, setAccountTypeFilter)}
+        />
+        <FilterSelect
+          label="担当者"
+          value={ownerFilter}
+          options={users.map((u) => ({ value: u.id, label: u.full_name }))}
+          onChange={(v) => handleFilter("ownerUserId", v, setOwnerFilter)}
+        />
+        <SearchInput
+          value={keyword}
+          placeholder="アカウント名で検索..."
+          onChange={(v) => handleFilter("search", v, setKeyword)}
+        />
+        <FilterClearButton onClear={handleClear} />
+        {isPending && (
+          <span
+            className="text-xs"
+            style={{ color: "var(--color-sumi500)", alignSelf: "flex-end", paddingBottom: "0.45rem" }}
           >
             読み込み中...
-          </div>
-        ) : rows.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-3 py-16">
-            <Briefcase
-              size={40}
-              style={{ color: "var(--color-sumi600)" }}
-            />
-            <p
-              className="text-sm"
-              style={{ color: "var(--color-sumi600)" }}
-            >
-              アカウントがまだありません
-            </p>
-          </div>
-        ) : (
-          <>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr
-                    style={{
-                      backgroundColor: "var(--color-sumi50)",
-                      fontSize: "0.75rem",
-                      fontWeight: 600,
-                      color: "var(--color-sumi700)",
-                    }}
-                  >
-                    <th className="px-4 py-3 text-left">アカウントコード</th>
-                    <th className="px-4 py-3 text-left">アカウント名</th>
-                    <th className="px-4 py-3 text-left">カンパニー名</th>
-                    <th className="px-4 py-3 text-left">種別</th>
-                    <th className="px-4 py-3 text-left">ステータス</th>
-                    <th className="px-4 py-3 text-left">担当者</th>
-                    <th className="px-4 py-3 text-left">作成日</th>
-                    <th className="px-4 py-3 text-right">操作</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((account: any) => (
-                    <tr
-                      key={account.id}
-                      onClick={() => router.push(`/accounts/${account.id}`)}
-                      className="cursor-pointer transition-colors"
-                      style={{
-                        borderBottom:
-                          "1px solid var(--color-border-default)",
-                      }}
-                      onMouseEnter={(e) =>
-                        (e.currentTarget.style.backgroundColor =
-                          "var(--color-bg-hover)")
-                      }
-                      onMouseLeave={(e) =>
-                        (e.currentTarget.style.backgroundColor = "")
-                      }
-                    >
-                      <td
-                        className="px-4 py-3 font-mono text-xs"
-                        style={{ color: "var(--color-sumi600)" }}
-                      >
-                        {account.account_code}
-                      </td>
-                      <td className="px-4 py-3 font-medium">
-                        {account.name}
-                      </td>
-                      <td className="px-4 py-3">
-                        {account.company?.name ?? "-"}
-                      </td>
-                      <td className="px-4 py-3">
-                        {account.account_type?.name ?? "-"}
-                      </td>
-                      <td className="px-4 py-3">
-                        {account.account_status ? (
-                          <span
-                            style={{
-                              backgroundColor: "var(--color-sumi100)",
-                              borderRadius: "var(--radius-badge)",
-                              padding: "0.125rem 0.5rem",
-                              fontSize: "0.75rem",
-                            }}
-                          >
-                            {account.account_status.name}
-                          </span>
-                        ) : (
-                          "-"
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        {account.owner?.full_name ?? "-"}
-                      </td>
-                      <td
-                        className="px-4 py-3 text-xs"
-                        style={{ color: "var(--color-sumi600)" }}
-                      >
-                        {account.created_at
-                          ? new Date(account.created_at).toLocaleDateString(
-                              "ja-JP"
-                            )
-                          : "-"}
-                      </td>
-                      <td
-                        className="px-4 py-3 text-right"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <Link
-                          href={`/accounts/${account.id}/edit`}
-                          className="hover:bg-[var(--color-bg-hover)]"
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: "0.25rem",
-                            color: "var(--color-terra)",
-                            textDecoration: "none",
-                            padding: "0.25rem 0.5rem",
-                            borderRadius: "var(--radius-sm)",
-                            fontSize: "0.75rem",
-                            fontWeight: 500,
-                            border: "1px solid var(--color-border-default)",
-                            transition: "background-color 0.15s",
-                          }}
-                        >
-                          <Pencil size={12} />
-                          編集
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* ページネーション */}
-            <div
-              className="flex items-center justify-between px-4 py-3"
-              style={{
-                borderTop: "1px solid var(--color-border-default)",
-              }}
-            >
-              <button
-                disabled={page <= 1}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                className="text-sm font-medium disabled:opacity-40"
-                style={{ color: "var(--color-terra)" }}
-              >
-                前へ
-              </button>
-              <span
-                className="text-xs"
-                style={{ color: "var(--color-sumi600)" }}
-              >
-                {page} / {totalPages} ページ
-              </span>
-              <button
-                disabled={page >= totalPages}
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                className="text-sm font-medium disabled:opacity-40"
-                style={{ color: "var(--color-terra)" }}
-              >
-                次へ
-              </button>
-            </div>
-          </>
+          </span>
         )}
-      </div>
+      </FilterGroup>
+
+      {/* テーブル */}
+      {rows.length === 0 ? (
+        <div
+          className="flex flex-col items-center justify-center gap-3 py-16"
+          style={{
+            backgroundColor: "#fff",
+            borderRadius: "var(--radius-card)",
+            boxShadow: "var(--elevation-low)",
+          }}
+        >
+          <Briefcase size={40} style={{ color: "var(--color-sumi600)" }} />
+          <p className="text-sm" style={{ color: "var(--color-sumi600)" }}>
+            アカウントが見つかりません
+          </p>
+        </div>
+      ) : (
+        <div
+          className="overflow-x-auto no-scrollbar"
+          style={{
+            backgroundColor: "#fff",
+            borderRadius: "var(--radius-card)",
+            boxShadow: "var(--elevation-low)",
+          }}
+        >
+          <table className="w-full text-sm" style={{ tableLayout: "auto" }}>
+            <thead>
+              <tr style={{ backgroundColor: "var(--color-sumi50)" }}>
+                {["アカウント名", "ステータス", "種別", "カンパニー名", "担当者", "最終更新日"].map(
+                  (label) => (
+                    <th
+                      key={label}
+                      className="px-4 py-3 text-left font-semibold text-xs whitespace-nowrap"
+                      style={{ color: "var(--color-sumi600)" }}
+                    >
+                      {label}
+                    </th>
+                  )
+                )}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((account: any) => (
+                <tr
+                  key={account.id}
+                  className="transition-colors cursor-pointer"
+                  style={{ borderBottom: "1px solid var(--color-border-default)" }}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.backgroundColor = "var(--color-bg-hover)")
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.backgroundColor = "transparent")
+                  }
+                  onClick={() => (window.location.href = `/accounts/${account.id}`)}
+                >
+                  {/* アカウント名 */}
+                  <td className="px-4 py-3">
+                    <Link
+                      href={`/accounts/${account.id}`}
+                      className="font-medium"
+                      style={{ color: "var(--color-text-list)" }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {account.name}
+                    </Link>
+                  </td>
+                  {/* ステータス */}
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <StatusBadge
+                      name={account.account_status?.name}
+                      seed={account.account_status?.id}
+                    />
+                  </td>
+                  {/* 種別 */}
+                  <td
+                    className="px-4 py-3 whitespace-nowrap"
+                    style={{ color: "var(--color-text-list)" }}
+                  >
+                    {account.account_type?.name ?? "—"}
+                  </td>
+                  {/* カンパニー名 */}
+                  <td
+                    className="px-4 py-3"
+                    style={{ color: "var(--color-text-list)" }}
+                  >
+                    {account.company?.name ?? "—"}
+                  </td>
+                  {/* 担当者 */}
+                  <td
+                    className="px-4 py-3 whitespace-nowrap"
+                    style={{ color: "var(--color-text-list)" }}
+                  >
+                    {account.owner?.full_name ?? "—"}
+                  </td>
+                  {/* 最終更新日 */}
+                  <td
+                    className="px-4 py-3 text-xs whitespace-nowrap"
+                    style={{ color: "var(--color-text-list)" }}
+                  >
+                    {formatDateTime(account.updated_at)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* ページネーション */}
+      <Pagination
+        page={page}
+        totalCount={total}
+        pageSize={DEFAULT_PAGE_SIZE}
+        onPageChange={handlePageChange}
+      />
     </div>
   );
 }

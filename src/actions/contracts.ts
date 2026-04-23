@@ -36,9 +36,11 @@ const CONTRACT_LIST_SELECT = `
 export async function getContracts(params?: {
   search?: string;
   dealId?: string;
+  contractTypeId?: string;
+  contractMethod?: string;
   page?: number;
   perPage?: number;
-}): Promise<ActionResult<{ items: any[]; count: number }>> {
+}): Promise<ActionResult<{ rows: any[]; total: number }>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
@@ -62,10 +64,16 @@ export async function getContracts(params?: {
   if (params?.dealId) {
     query = query.eq("deal_id", params.dealId);
   }
+  if (params?.contractTypeId) {
+    query = query.eq("contract_type_id", params.contractTypeId);
+  }
+  if (params?.contractMethod) {
+    query = query.eq("contract_method", params.contractMethod);
+  }
 
   const { data, error, count } = await query;
   if (error) return { data: null, error: error.message };
-  return { data: { items: data ?? [], count: count ?? 0 }, error: null };
+  return { data: { rows: data ?? [], total: count ?? 0 }, error: null };
 }
 
 // ---------- 詳細取得 ----------

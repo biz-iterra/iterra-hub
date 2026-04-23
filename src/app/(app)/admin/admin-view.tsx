@@ -26,11 +26,28 @@ import {
   getLeadCallStatuses, createLeadCallStatus, updateLeadCallStatus, deleteLeadCallStatus,
   getLeadLargeSegments, createLeadLargeSegment, updateLeadLargeSegment, deleteLeadLargeSegment,
   getLeadSmallSegments, createLeadSmallSegment, updateLeadSmallSegment, deleteLeadSmallSegment,
+  getLeadCompanySizes, createLeadCompanySize, updateLeadCompanySize, deleteLeadCompanySize,
+  getLeadCustomerActivityTypes, createLeadCustomerActivityType, updateLeadCustomerActivityType, deleteLeadCustomerActivityType,
+  getLeadScoreRulesWithBrokenRefs, createLeadScoreRule, updateLeadScoreRule, deleteLeadScoreRule,
+  getLeadScoreThresholds,
 } from "@/actions/masters";
 
 // ===== Types =====
 
-type FieldDef = { key: string; label: string; type?: "text" | "textarea" | "number" | "select"; options?: { value: string; label: string }[]; colorSwatch?: boolean; min?: number };
+type FieldDef = { key: string; label: string; type?: "text" | "textarea" | "number" | "select"; options?: { value: string; label: string }[]; colorSwatch?: boolean; min?: number; width?: string };
+
+// 一覧テーブルのカラム幅をフィールド内容に応じて算出
+function resolveFieldWidth(f: FieldDef): string {
+  if (f.width) return f.width;
+  if (f.colorSwatch) return "140px";
+  if (f.type === "number") return "90px";
+  if (f.type === "textarea") return "auto"; // 定義等の長文は残り幅を吸収
+  if (f.type === "select") return "200px";
+  // text 系: slug / code は短め、name はやや広め、それ以外は既定値
+  if (/(^|_)(slug|code)$/.test(f.key)) return "140px";
+  if (f.key === "name") return "220px";
+  return "180px";
+}
 
 type MasterItem = Record<string, unknown> & { id: string; name: string };
 
@@ -49,6 +66,8 @@ const TAB_KEYS = [
   "lead_sources", "lead_categories", "lead_stages",
   "lead_temperatures", "lead_callers", "lead_call_statuses",
   "lead_large_segments", "lead_activity_types",
+  // スコアリング（Phase 7）
+  "lead_company_sizes", "lead_customer_activity_types", "lead_score_rules", "lead_score_thresholds",
   // プロジェクト
   "project_statuses",
   // タレント
@@ -73,6 +92,10 @@ const TAB_LABELS: Record<TabKey, string> = {
   lead_call_statuses: "コールステータス",
   lead_large_segments: "セグメント",
   lead_activity_types: "対応種別",
+  lead_company_sizes: "企業規模",
+  lead_customer_activity_types: "顧客行動タイプ",
+  lead_score_rules: "スコアリングルール",
+  lead_score_thresholds: "スコア→温度感 変換ルール",
   project_statuses: "プロジェクトステータス",
   skills: "スキル",
 };
@@ -109,6 +132,8 @@ const GROUPS: { key: GroupKey; label: string; tabs: TabKey[] }[] = [
       "lead_temperatures", "lead_callers", "lead_call_statuses",
       "lead_large_segments", // 大セグメント + 小セグメントを 1 画面で管理
       "lead_activity_types",
+      // スコアリング（Phase 7）
+      "lead_company_sizes", "lead_customer_activity_types", "lead_score_rules", "lead_score_thresholds",
     ],
   },
   {
@@ -453,7 +478,13 @@ function SimpleMasterTab({
 
       {/* Table */}
       <div style={{ overflowX: "auto" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
+          <colgroup>
+            {fields.map((f) => (
+              <col key={f.key} style={{ width: resolveFieldWidth(f) }} />
+            ))}
+            <col style={{ width: "140px" }} />
+          </colgroup>
           <thead>
             <tr>
               {fields.map((f) => (
@@ -461,7 +492,7 @@ function SimpleMasterTab({
                   {f.label}
                 </th>
               ))}
-              <th style={{ ...styles.tableHeader, textAlign: "right", padding: "0.75rem", width: 140 }}>
+              <th style={{ ...styles.tableHeader, textAlign: "right", padding: "0.75rem" }}>
                 操作
               </th>
             </tr>
@@ -509,7 +540,18 @@ function SimpleMasterTab({
                       display = String(raw);
                     }
                     return (
-                      <td key={f.key} style={{ padding: "0.75rem", fontSize: "0.875rem" }}>
+                      <td
+                        key={f.key}
+                        style={{
+                          padding: "0.75rem",
+                          fontSize: "0.875rem",
+                          wordBreak: "break-word",
+                          whiteSpace: f.type === "textarea" ? "normal" : "nowrap",
+                          overflow: f.type === "textarea" ? undefined : "hidden",
+                          textOverflow: f.type === "textarea" ? undefined : "ellipsis",
+                        }}
+                        title={f.type !== "textarea" && display !== "-" ? display : undefined}
+                      >
                         {display}
                       </td>
                     );
@@ -636,12 +678,13 @@ function PipelineTab() {
 
   const pipelineFields: FieldDef[] = [
     { key: "name", label: "名前", type: "text" },
-    { key: "description", label: "説明", type: "textarea" },
+    { key: "definition", label: "定義", type: "textarea" },
     { key: "sort_order", label: "表示順", type: "number" },
   ];
 
   const stageFields: FieldDef[] = [
     { key: "name", label: "名前", type: "text" },
+    { key: "definition", label: "定義", type: "textarea" },
     { key: "current_situation", label: "現在の状況", type: "textarea" },
     { key: "sort_order", label: "表示順", type: "number" },
   ];
@@ -649,6 +692,7 @@ function PipelineTab() {
   const stageOptions = stages.map((s) => ({ value: s.id, label: s.name }));
   const statusFields: FieldDef[] = [
     { key: "name", label: "名前", type: "text" },
+    { key: "definition", label: "定義", type: "textarea" },
     { key: "deal_stage_id", label: "ディールステージ", type: "select", options: stageOptions },
     { key: "sort_order", label: "表示順", type: "number" },
   ];
@@ -754,11 +798,13 @@ function SkillsTab() {
 
   const categoryFields: FieldDef[] = [
     { key: "name", label: "名前", type: "text" },
+    { key: "definition", label: "定義", type: "textarea" },
     { key: "sort_order", label: "表示順", type: "number" },
   ];
 
   const skillFields: FieldDef[] = [
     { key: "name", label: "名前", type: "text" },
+    { key: "definition", label: "定義", type: "textarea" },
     { key: "sort_order", label: "表示順", type: "number" },
   ];
 
@@ -843,6 +889,7 @@ function LeadStagesTab() {
 
   const stageFields: FieldDef[] = [
     { key: "name", label: "名前", type: "text" },
+    { key: "definition", label: "定義", type: "textarea" },
     { key: "sort_order", label: "表示順", type: "number" },
   ];
 
@@ -852,6 +899,7 @@ function LeadStagesTab() {
   ];
   const statusFields: FieldDef[] = [
     { key: "name", label: "名前", type: "text" },
+    { key: "definition", label: "定義", type: "textarea" },
     { key: "stage_id", label: "リードステージ", type: "select", options: stageOptions },
     { key: "sort_order", label: "表示順", type: "number" },
   ];
@@ -933,6 +981,7 @@ function LeadSegmentsTab() {
 
   const largeFields: FieldDef[] = [
     { key: "name", label: "名前", type: "text" },
+    { key: "definition", label: "定義", type: "textarea" },
   ];
 
   const largeOptions = [
@@ -941,6 +990,7 @@ function LeadSegmentsTab() {
   ];
   const smallFields: FieldDef[] = [
     { key: "name", label: "名前", type: "text" },
+    { key: "definition", label: "定義", type: "textarea" },
     { key: "large_segment_id", label: "大セグメント", type: "select", options: largeOptions },
   ];
 
@@ -988,6 +1038,456 @@ function LeadSegmentsTab() {
         />
       </div>
     </div>
+  );
+}
+
+// ===== Lead Score Rules Tab（参照切れハイライト付き）=====
+
+type ScoreRuleMasters = {
+  companySizes: MasterItem[];
+  leadSources: MasterItem[];
+  leadStages: MasterItem[];
+  leadStatuses: MasterItem[];
+  leadCallStatuses: MasterItem[];
+  leadActivityTypes: MasterItem[];
+  leadCustomerActivityTypes: MasterItem[];
+  leadLargeSegments: MasterItem[];
+  leadSmallSegments: MasterItem[];
+};
+
+function LeadScoreRulesTab({ scoreMasters }: { scoreMasters?: ScoreRuleMasters }) {
+  const [rulesData, setRulesData] = useState<{ rules: any[]; brokenCount: number } | null>(null);
+  const [loadingData, setLoadingData] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  const [editItem, setEditItem] = useState<any | null>(null);
+  const [deleteItem, setDeleteItem] = useState<any | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const CATEGORY_OPTIONS = [
+    { value: "attribute", label: "属性" },
+    { value: "interest", label: "興味" },
+    { value: "stage", label: "ステージ" },
+    { value: "status", label: "ステータス" },
+    { value: "activity", label: "対応" },
+  ];
+  const CONDITION_TYPE_OPTIONS = [
+    { value: "company_size", label: "企業規模" },
+    { value: "large_segment", label: "大セグメント" },
+    { value: "small_segment", label: "小セグメント" },
+    { value: "lead_source", label: "リードソース" },
+    { value: "stage", label: "ステージ" },
+    { value: "status", label: "ステータス" },
+    { value: "call_status", label: "コールステータス" },
+    { value: "activity_type", label: "対応種別" },
+    { value: "customer_activity_type", label: "顧客行動タイプ" },
+  ];
+
+  const loadRules = useCallback(async () => {
+    setLoadingData(true);
+    const result = await getLeadScoreRulesWithBrokenRefs();
+    setRulesData(result.data);
+    setLoadingData(false);
+  }, []);
+
+  useEffect(() => { loadRules(); }, [loadRules]);
+
+  const formFields: FieldDef[] = [
+    { key: "category", label: "カテゴリ", type: "select", options: CATEGORY_OPTIONS },
+    { key: "condition_type", label: "条件タイプ", type: "select", options: CONDITION_TYPE_OPTIONS },
+    { key: "condition_value_id", label: "条件値ID（UUID）", type: "text" },
+    { key: "score_delta", label: "加点値（0-100）", type: "number", min: 0 },
+    { key: "description", label: "説明", type: "textarea" },
+    { key: "sort_order", label: "表示順", type: "number", min: 0 },
+  ];
+
+  const handleCreate = async (values: Record<string, unknown>) => {
+    setLoading(true); setError(null);
+    const result = await createLeadScoreRule(values);
+    setLoading(false);
+    if (result.error) { setError(result.error); return; }
+    setShowCreate(false); loadRules();
+  };
+  const handleUpdate = async (values: Record<string, unknown>) => {
+    if (!editItem) return;
+    setLoading(true); setError(null);
+    const result = await updateLeadScoreRule(editItem.id, values);
+    setLoading(false);
+    if (result.error) { setError(result.error); return; }
+    setEditItem(null); loadRules();
+  };
+  const handleDelete = async () => {
+    if (!deleteItem) return;
+    setLoading(true); setError(null);
+    const result = await deleteLeadScoreRule(deleteItem.id);
+    setLoading(false);
+    if (result.error) { setError(result.error); return; }
+    setDeleteItem(null); loadRules();
+  };
+
+  if (loadingData) return <p style={styles.sub}>読み込み中...</p>;
+
+  const rules = rulesData?.rules ?? [];
+  const brokenCount = rulesData?.brokenCount ?? 0;
+
+  const defaultValues: Record<string, unknown> = { category: "", condition_type: "", condition_value_id: "", score_delta: 0, description: "", sort_order: 0 };
+
+  const catLabel = (v: string) => CATEGORY_OPTIONS.find((o) => o.value === v)?.label ?? v;
+  const ctLabel = (v: string) => CONDITION_TYPE_OPTIONS.find((o) => o.value === v)?.label ?? v;
+
+  /** condition_type + condition_value_id から名前を解決 */
+  const resolveConditionValueName = (conditionType: string, valueId: string | null): string | null => {
+    if (!valueId || !scoreMasters) return null;
+    const listMap: Record<string, MasterItem[]> = {
+      company_size: scoreMasters.companySizes,
+      lead_source: scoreMasters.leadSources,
+      stage: scoreMasters.leadStages,
+      status: scoreMasters.leadStatuses,
+      call_status: scoreMasters.leadCallStatuses,
+      activity_type: scoreMasters.leadActivityTypes,
+      customer_activity_type: scoreMasters.leadCustomerActivityTypes,
+      large_segment: scoreMasters.leadLargeSegments,
+      small_segment: scoreMasters.leadSmallSegments,
+    };
+    const list = listMap[conditionType];
+    if (!list) return null;
+    return list.find((item) => item.id === valueId)?.name ?? null;
+  };
+
+  return (
+    <div>
+      {/* 参照切れバナー */}
+      {brokenCount > 0 && (
+        <div style={{
+          backgroundColor: "rgba(239,68,68,0.06)",
+          border: "1px solid rgba(239,68,68,0.3)",
+          borderLeft: "4px solid var(--color-error)",
+          borderRadius: "var(--radius-card)",
+          padding: "0.75rem 1rem",
+          marginBottom: "1rem",
+          color: "var(--color-error)",
+          fontSize: "0.875rem",
+          display: "flex",
+          alignItems: "center",
+          gap: "0.5rem",
+        }}>
+          <span style={{ fontSize: "1rem", flexShrink: 0 }}>⚠</span>
+          <span>
+            <span style={{ fontWeight: 600 }}>参照切れルールが {brokenCount} 件あります。</span>
+            {" "}条件値として設定されたマスタが削除されています。該当ルールを編集・削除して修正してください。
+          </span>
+        </div>
+      )}
+
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+        <h2 style={{ ...styles.title, fontSize: "1rem", fontWeight: 600 }}>スコアリングルール</h2>
+        <button style={styles.btnPrimary} onClick={() => { setError(null); setShowCreate(true); }}>
+          追加
+        </button>
+      </div>
+
+      <div style={{ overflowX: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead>
+            <tr>
+              <th style={{ ...styles.tableHeader, textAlign: "left", padding: "0.75rem", width: "100px" }}>カテゴリ</th>
+              <th style={{ ...styles.tableHeader, textAlign: "left", padding: "0.75rem", width: "140px" }}>条件タイプ</th>
+              <th style={{ ...styles.tableHeader, textAlign: "left", padding: "0.75rem" }}>条件値</th>
+              <th style={{ ...styles.tableHeader, textAlign: "left", padding: "0.75rem", width: "80px" }}>加点</th>
+              <th style={{ ...styles.tableHeader, textAlign: "left", padding: "0.75rem" }}>説明</th>
+              <th style={{ ...styles.tableHeader, textAlign: "right", padding: "0.75rem", width: "120px" }}>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rules.length === 0 ? (
+              <tr>
+                <td colSpan={6} style={{ padding: "2rem", textAlign: "center", ...styles.sub }}>データがありません</td>
+              </tr>
+            ) : rules.map((rule) => (
+              <ScoreRuleTableRow
+                key={rule.id}
+                rule={rule}
+                catLabel={catLabel}
+                ctLabel={ctLabel}
+                conditionValueName={resolveConditionValueName(rule.condition_type, rule.condition_value_id)}
+                onEdit={() => { setError(null); setEditItem(rule); }}
+                onDelete={() => { setError(null); setDeleteItem(rule); }}
+              />
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {error && <p style={{ ...styles.error, marginTop: "0.75rem" }}>{error}</p>}
+
+      {showCreate && (
+        <FormModal
+          title="スコアリングルールを追加"
+          fields={formFields}
+          initialValues={defaultValues}
+          loading={loading}
+          error={error}
+          onSubmit={handleCreate}
+          onCancel={() => setShowCreate(false)}
+        />
+      )}
+      {editItem && (
+        <FormModal
+          title="スコアリングルールを編集"
+          fields={formFields}
+          initialValues={Object.fromEntries(formFields.map((f) => [f.key, editItem[f.key]]))}
+          loading={loading}
+          error={error}
+          onSubmit={handleUpdate}
+          onCancel={() => setEditItem(null)}
+        />
+      )}
+      {deleteItem && (
+        <DeleteConfirmModal
+          itemName={deleteItem.description ?? deleteItem.condition_type}
+          loading={loading}
+          onConfirm={handleDelete}
+          onCancel={() => setDeleteItem(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function ScoreRuleTableRow({
+  rule,
+  catLabel,
+  ctLabel,
+  conditionValueName,
+  onEdit,
+  onDelete,
+}: {
+  rule: any;
+  catLabel: (v: string) => string;
+  ctLabel: (v: string) => string;
+  conditionValueName: string | null;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const [hovered, setHovered] = useState(false);
+  const isBroken = rule._refBroken === true;
+  return (
+    <tr
+      style={{
+        ...styles.tableRow,
+        backgroundColor: isBroken
+          ? "rgba(239,68,68,0.06)"
+          : hovered ? "var(--color-bg-hover)" : "transparent",
+        borderLeft: isBroken ? "3px solid var(--color-error)" : "3px solid transparent",
+      }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <td style={{ padding: "0.75rem", fontSize: "0.875rem" }}>{catLabel(rule.category)}</td>
+      <td style={{ padding: "0.75rem", fontSize: "0.875rem" }}>{ctLabel(rule.condition_type)}</td>
+      <td style={{ padding: "0.75rem", fontSize: "0.875rem" }}>
+        {isBroken ? (
+          <span style={{ color: "var(--color-error)", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "0.25rem" }}>
+            <span>⚠</span>
+            参照先が削除済み
+          </span>
+        ) : conditionValueName ? (
+          <span style={{ color: "var(--color-text-body)", fontWeight: 500 }}>
+            {conditionValueName}
+          </span>
+        ) : (
+          <span style={{ fontFamily: "monospace", fontSize: "0.75rem", color: "var(--color-sumi500)" }}>
+            {rule.condition_value_id ?? "-"}
+          </span>
+        )}
+      </td>
+      <td style={{ padding: "0.75rem", fontSize: "0.875rem" }}>+{rule.score_delta}</td>
+      <td style={{ padding: "0.75rem", fontSize: "0.875rem", maxWidth: 240, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+          title={rule.description ?? undefined}>
+        {rule.description ?? "-"}
+      </td>
+      <td style={{ padding: "0.75rem", textAlign: "right" }}>
+        <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
+          <button style={{ ...styles.btnOutline, ...styles.btnSmall }} onClick={onEdit}>編集</button>
+          <button style={{ ...styles.btnDanger, ...styles.btnSmall }} onClick={onDelete}>削除</button>
+        </div>
+      </td>
+    </tr>
+  );
+}
+
+// ===== LeadScoreThresholdsTab =====
+
+/**
+ * スコア→温度感 変換ルール タブ
+ * temperature_id を UUID 生文字で表示せず、leadTemperatures から名前を解決して表示する。
+ * 追加・編集モーダルでも temperature_id は select 選択方式を採用。
+ */
+function LeadScoreThresholdsTab({ leadTemperatures }: { leadTemperatures: MasterItem[] }) {
+  const [thresholds, setThresholds] = useState<any[]>([]);
+  const [loadingData, setLoadingData] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  const [editItem, setEditItem] = useState<any | null>(null);
+  const [deleteItem, setDeleteItem] = useState<any | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadThresholds = useCallback(async () => {
+    setLoadingData(true);
+    const result = await getLeadScoreThresholds();
+    setThresholds(result.data ?? []);
+    setLoadingData(false);
+  }, []);
+
+  useEffect(() => { loadThresholds(); }, [loadThresholds]);
+
+  const temperatureOptions = leadTemperatures.map((t) => ({ value: t.id, label: t.name }));
+
+  const formFields: FieldDef[] = [
+    { key: "min_score", label: "最小スコア", type: "number", min: 0 },
+    { key: "max_score", label: "最大スコア（空白=上限なし）", type: "number", min: 0 },
+    { key: "temperature_id", label: "温度感", type: "select", options: temperatureOptions },
+  ];
+
+  const handleCreate = async (values: Record<string, unknown>) => {
+    setLoading(true); setError(null);
+    const result = await Promise.resolve({ data: null, error: "この画面からは作成できません。DBマイグレーションで管理してください。" });
+    setLoading(false);
+    if (result.error) { setError(result.error); return; }
+  };
+  const handleUpdate = async (values: Record<string, unknown>) => {
+    setLoading(true); setError(null);
+    const result = await Promise.resolve({ data: null, error: "この画面からは更新できません。DBマイグレーションで管理してください。" });
+    setLoading(false);
+    if (result.error) { setError(result.error); return; }
+  };
+  const handleDelete = async () => {
+    setLoading(true); setError(null);
+    const result = await Promise.resolve({ data: null, error: "この画面からは削除できません。DBマイグレーションで管理してください。" });
+    setLoading(false);
+    if (result.error) { setError(result.error); return; }
+    setDeleteItem(null);
+  };
+
+  const resolveTemperatureName = (temperatureId: string | null): string => {
+    if (!temperatureId) return "-";
+    return leadTemperatures.find((t) => t.id === temperatureId)?.name ?? temperatureId;
+  };
+
+  if (loadingData) return <p style={styles.sub}>読み込み中...</p>;
+
+  const defaultValues: Record<string, unknown> = { min_score: 0, max_score: "", temperature_id: "" };
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+        <h2 style={{ ...styles.title, fontSize: "1rem", fontWeight: 600 }}>スコア→温度感 変換ルール</h2>
+        <button style={styles.btnPrimary} onClick={() => { setError(null); setShowCreate(true); }}>
+          追加
+        </button>
+      </div>
+
+      <p style={{ ...styles.sub, marginBottom: "1rem" }}>
+        スコア帯と温度感マスタを紐付けるルールです。変更はDBマイグレーションで管理してください。
+      </p>
+
+      <div style={{ overflowX: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead>
+            <tr>
+              <th style={{ ...styles.tableHeader, textAlign: "left", padding: "0.75rem", width: "110px" }}>最小スコア</th>
+              <th style={{ ...styles.tableHeader, textAlign: "left", padding: "0.75rem", width: "140px" }}>最大スコア</th>
+              <th style={{ ...styles.tableHeader, textAlign: "left", padding: "0.75rem" }}>温度感</th>
+              <th style={{ ...styles.tableHeader, textAlign: "right", padding: "0.75rem", width: "120px" }}>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            {thresholds.length === 0 ? (
+              <tr>
+                <td colSpan={4} style={{ padding: "2rem", textAlign: "center", ...styles.sub }}>データがありません</td>
+              </tr>
+            ) : thresholds.map((t) => (
+              <ThresholdTableRow
+                key={t.id}
+                item={t}
+                temperatureName={resolveTemperatureName(t.temperature_id)}
+                onEdit={() => { setError(null); setEditItem(t); }}
+                onDelete={() => { setError(null); setDeleteItem(t); }}
+              />
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {error && <p style={{ ...styles.error, marginTop: "0.75rem" }}>{error}</p>}
+
+      {showCreate && (
+        <FormModal
+          title="変換ルールを追加"
+          fields={formFields}
+          initialValues={defaultValues}
+          loading={loading}
+          error={error}
+          onSubmit={handleCreate}
+          onCancel={() => setShowCreate(false)}
+        />
+      )}
+      {editItem && (
+        <FormModal
+          title="変換ルールを編集"
+          fields={formFields}
+          initialValues={{ min_score: editItem.min_score, max_score: editItem.max_score ?? "", temperature_id: editItem.temperature_id ?? "" }}
+          loading={loading}
+          error={error}
+          onSubmit={handleUpdate}
+          onCancel={() => setEditItem(null)}
+        />
+      )}
+      {deleteItem && (
+        <DeleteConfirmModal
+          itemName={resolveTemperatureName(deleteItem.temperature_id)}
+          loading={loading}
+          onConfirm={handleDelete}
+          onCancel={() => setDeleteItem(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function ThresholdTableRow({
+  item,
+  temperatureName,
+  onEdit,
+  onDelete,
+}: {
+  item: any;
+  temperatureName: string;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <tr
+      style={{
+        ...styles.tableRow,
+        backgroundColor: hovered ? "var(--color-bg-hover)" : "transparent",
+      }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <td style={{ padding: "0.75rem", fontSize: "0.875rem" }}>{item.min_score}</td>
+      <td style={{ padding: "0.75rem", fontSize: "0.875rem" }}>
+        {item.max_score != null ? item.max_score : <span style={{ color: "var(--color-sumi400)" }}>上限なし</span>}
+      </td>
+      <td style={{ padding: "0.75rem", fontSize: "0.875rem", fontWeight: 500 }}>{temperatureName}</td>
+      <td style={{ padding: "0.75rem", textAlign: "right" }}>
+        <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
+          <button style={{ ...styles.btnOutline, ...styles.btnSmall }} onClick={onEdit}>編集</button>
+          <button style={{ ...styles.btnDanger, ...styles.btnSmall }} onClick={onDelete}>削除</button>
+        </div>
+      </td>
+    </tr>
   );
 }
 
@@ -1088,11 +1588,24 @@ export function AdminView() {
   const [contactStatuses, setContactStatuses] = useState<MasterItem[]>([]);
   const [companyStatuses, setCompanyStatuses] = useState<MasterItem[]>([]);
   const [projectStatuses, setProjectStatuses] = useState<MasterItem[]>([]);
+  const [leadCompanySizes, setLeadCompanySizes] = useState<MasterItem[]>([]);
+  const [leadCustomerActivityTypes, setLeadCustomerActivityTypes] = useState<MasterItem[]>([]);
+  const [leadScoreThresholds, setLeadScoreThresholds] = useState<MasterItem[]>([]);
+  const [allLeadLargeSegments, setAllLeadLargeSegments] = useState<MasterItem[]>([]);
+  const [allLeadSmallSegments, setAllLeadSmallSegments] = useState<MasterItem[]>([]);
+  const [allLeadStages, setAllLeadStages] = useState<MasterItem[]>([]);
+  const [allLeadStatuses, setAllLeadStatuses] = useState<MasterItem[]>([]);
   const [loadingData, setLoadingData] = useState(true);
 
+  /**
+   * TODO(future): 現在 17 マスタを一括 Promise.all でロードしている。
+   * グループ切替時にそのグループに必要なマスタのみをレイジーロードする方式に
+   * 変更することで初期ロードのウォーターフォールを削減できる。
+   * 優先度: 低（マスタ件数が少ない間は実質問題なし）
+   */
   const loadAllSimpleMasters = useCallback(async () => {
     setLoadingData(true);
-    const [ct, corp, svc, ls, lc, lat, ltemp, lcall, lcs, at, as_, cs, cps, ps] = await Promise.all([
+    const [ct, corp, svc, ls, lc, lat, ltemp, lcall, lcs, at, as_, cs, cps, ps, lcsizes, lcatypes, lsthresh] = await Promise.all([
       getContractTypes(),
       getCorporateTypes(),
       getServices(),
@@ -1107,6 +1620,9 @@ export function AdminView() {
       getContactStatuses(),
       getCompanyStatuses(),
       getProjectStatusesMasters(),
+      getLeadCompanySizes(),
+      getLeadCustomerActivityTypes(),
+      getLeadScoreThresholds(),
     ]);
     setContractTypes((ct.data as MasterItem[]) ?? []);
     setCorporateTypes((corp.data as MasterItem[]) ?? []);
@@ -1122,6 +1638,20 @@ export function AdminView() {
     setContactStatuses((cs.data as MasterItem[]) ?? []);
     setCompanyStatuses((cps.data as MasterItem[]) ?? []);
     setProjectStatuses((ps.data as MasterItem[]) ?? []);
+    setLeadCompanySizes((lcsizes.data as MasterItem[]) ?? []);
+    setLeadCustomerActivityTypes((lcatypes.data as MasterItem[]) ?? []);
+    setLeadScoreThresholds((lsthresh.data as MasterItem[]) ?? []);
+    // スコアルール名前解決用に大・小セグメント・ステージ・ステータスも並行ロード
+    const [llargeSegs, lsmallSegs, lstages, lstatuses] = await Promise.all([
+      getLeadLargeSegments(),
+      getLeadSmallSegments(undefined),
+      getLeadStages(),
+      getLeadStatuses(undefined),
+    ]);
+    setAllLeadLargeSegments((llargeSegs.data as MasterItem[]) ?? []);
+    setAllLeadSmallSegments((lsmallSegs.data as MasterItem[]) ?? []);
+    setAllLeadStages((lstages.data as MasterItem[]) ?? []);
+    setAllLeadStatuses((lstatuses.data as MasterItem[]) ?? []);
     setLoadingData(false);
   }, []);
 
@@ -1192,6 +1722,18 @@ export function AdminView() {
     const r = await getProjectStatusesMasters();
     setProjectStatuses((r.data as MasterItem[]) ?? []);
   };
+  const refreshLeadCompanySizes = async () => {
+    const r = await getLeadCompanySizes();
+    setLeadCompanySizes((r.data as MasterItem[]) ?? []);
+  };
+  const refreshLeadCustomerActivityTypes = async () => {
+    const r = await getLeadCustomerActivityTypes();
+    setLeadCustomerActivityTypes((r.data as MasterItem[]) ?? []);
+  };
+  const refreshLeadScoreThresholds = async () => {
+    const r = await getLeadScoreThresholds();
+    setLeadScoreThresholds((r.data as MasterItem[]) ?? []);
+  };
 
   const renderTab = () => {
     // Special compound tabs
@@ -1199,6 +1741,21 @@ export function AdminView() {
     if (activeTab === "skills") return <SkillsTab />;
     if (activeTab === "lead_stages") return <LeadStagesTab />;
     if (activeTab === "lead_large_segments") return <LeadSegmentsTab />;
+    if (activeTab === "lead_score_rules") return (
+      <LeadScoreRulesTab
+        scoreMasters={{
+          companySizes: leadCompanySizes,
+          leadSources,
+          leadStages: allLeadStages,
+          leadStatuses: allLeadStatuses,
+          leadCallStatuses,
+          leadActivityTypes,
+          leadCustomerActivityTypes,
+          leadLargeSegments: allLeadLargeSegments,
+          leadSmallSegments: allLeadSmallSegments,
+        }}
+      />
+    );
 
     if (loadingData) return <p style={styles.sub}>読み込み中...</p>;
 
@@ -1212,7 +1769,10 @@ export function AdminView() {
             onUpdate={updateContractType}
             onDelete={deleteContractType}
             onRefresh={refreshContractTypes}
-            fields={[{ key: "name", label: "名前", type: "text" }]}
+            fields={[
+              { key: "name", label: "名前", type: "text" },
+              { key: "definition", label: "定義", type: "textarea" },
+            ]}
           />
         );
       case "corporate_types":
@@ -1224,7 +1784,10 @@ export function AdminView() {
             onUpdate={updateCorporateType}
             onDelete={deleteCorporateType}
             onRefresh={refreshCorporateTypes}
-            fields={[{ key: "name", label: "名前", type: "text" }]}
+            fields={[
+              { key: "name", label: "名前", type: "text" },
+              { key: "definition", label: "定義", type: "textarea" },
+            ]}
           />
         );
       case "company_statuses":
@@ -1236,7 +1799,10 @@ export function AdminView() {
             onUpdate={updateCompanyStatus}
             onDelete={deleteCompanyStatus}
             onRefresh={refreshCompanyStatuses}
-            fields={[{ key: "name", label: "名前", type: "text" }]}
+            fields={[
+              { key: "name", label: "名前", type: "text" },
+              { key: "definition", label: "定義", type: "textarea" },
+            ]}
           />
         );
       case "services":
@@ -1250,7 +1816,7 @@ export function AdminView() {
             onRefresh={refreshServices}
             fields={[
               { key: "name", label: "名前", type: "text" },
-              { key: "description", label: "説明", type: "textarea" },
+              { key: "definition", label: "定義", type: "textarea" },
             ]}
           />
         );
@@ -1265,7 +1831,7 @@ export function AdminView() {
             onRefresh={refreshLeadSources}
             fields={[
               { key: "name", label: "名前", type: "text" },
-              { key: "description", label: "説明", type: "textarea" },
+              { key: "definition", label: "定義", type: "textarea" },
             ]}
           />
         );
@@ -1281,6 +1847,7 @@ export function AdminView() {
             fields={[
               { key: "code", label: "コード (例: inquiry)", type: "text" },
               { key: "name", label: "名前", type: "text" },
+              { key: "definition", label: "定義", type: "textarea" },
               { key: "color", label: "カラー (#RRGGBB)", type: "text", colorSwatch: true },
               { key: "sort_order", label: "表示順", type: "number", min: 0 },
             ]}
@@ -1297,6 +1864,7 @@ export function AdminView() {
             onRefresh={refreshLeadTemperatures}
             fields={[
               { key: "name", label: "名前", type: "text" },
+              { key: "definition", label: "定義", type: "textarea" },
               { key: "sort_order", label: "表示順", type: "number", min: 0 },
             ]}
           />
@@ -1310,7 +1878,10 @@ export function AdminView() {
             onUpdate={updateLeadCaller}
             onDelete={deleteLeadCaller}
             onRefresh={refreshLeadCallers}
-            fields={[{ key: "name", label: "名前", type: "text" }]}
+            fields={[
+              { key: "name", label: "名前", type: "text" },
+              { key: "definition", label: "定義", type: "textarea" },
+            ]}
           />
         );
       case "lead_call_statuses":
@@ -1324,6 +1895,7 @@ export function AdminView() {
             onRefresh={refreshLeadCallStatuses}
             fields={[
               { key: "name", label: "名前", type: "text" },
+              { key: "definition", label: "定義", type: "textarea" },
               { key: "sort_order", label: "表示順", type: "number", min: 0 },
             ]}
           />
@@ -1340,6 +1912,7 @@ export function AdminView() {
             fields={[
               { key: "code", label: "コード (例: call)", type: "text" },
               { key: "name", label: "名前", type: "text" },
+              { key: "definition", label: "定義", type: "textarea" },
               { key: "color", label: "カラー (#RRGGBB)", type: "text", colorSwatch: true },
               { key: "sort_order", label: "表示順", type: "number", min: 0 },
             ]}
@@ -1354,7 +1927,10 @@ export function AdminView() {
             onUpdate={updateAccountType}
             onDelete={deleteAccountType}
             onRefresh={refreshAccountTypes}
-            fields={[{ key: "name", label: "名前", type: "text" }]}
+            fields={[
+              { key: "name", label: "名前", type: "text" },
+              { key: "definition", label: "定義", type: "textarea" },
+            ]}
           />
         );
       case "account_statuses":
@@ -1366,7 +1942,10 @@ export function AdminView() {
             onUpdate={updateAccountStatus}
             onDelete={deleteAccountStatus}
             onRefresh={refreshAccountStatuses}
-            fields={[{ key: "name", label: "名前", type: "text" }]}
+            fields={[
+              { key: "name", label: "名前", type: "text" },
+              { key: "definition", label: "定義", type: "textarea" },
+            ]}
           />
         );
       case "contact_statuses":
@@ -1378,9 +1957,51 @@ export function AdminView() {
             onUpdate={updateContactStatus}
             onDelete={deleteContactStatus}
             onRefresh={refreshContactStatuses}
-            fields={[{ key: "name", label: "名前", type: "text" }]}
+            fields={[
+              { key: "name", label: "名前", type: "text" },
+              { key: "definition", label: "定義", type: "textarea" },
+            ]}
           />
         );
+      case "lead_company_sizes":
+        return (
+          <SimpleMasterTab
+            title="企業規模"
+            items={leadCompanySizes}
+            onCreate={createLeadCompanySize}
+            onUpdate={updateLeadCompanySize}
+            onDelete={deleteLeadCompanySize}
+            onRefresh={refreshLeadCompanySizes}
+            fields={[
+              { key: "code", label: "コード", type: "text" },
+              { key: "name", label: "名前", type: "text" },
+              { key: "min_employees", label: "従業員数（下限）", type: "number", min: 0 },
+              { key: "max_employees", label: "従業員数（上限）", type: "number", min: 0 },
+              { key: "min_capital", label: "資本金（下限・円）", type: "number", min: 0 },
+              { key: "max_capital", label: "資本金（上限・円）", type: "number", min: 0 },
+              { key: "sort_order", label: "表示順", type: "number", min: 0 },
+            ]}
+          />
+        );
+      case "lead_customer_activity_types":
+        return (
+          <SimpleMasterTab
+            title="顧客行動タイプ"
+            items={leadCustomerActivityTypes}
+            onCreate={createLeadCustomerActivityType}
+            onUpdate={updateLeadCustomerActivityType}
+            onDelete={deleteLeadCustomerActivityType}
+            onRefresh={refreshLeadCustomerActivityTypes}
+            fields={[
+              { key: "code", label: "コード", type: "text" },
+              { key: "name", label: "名前", type: "text" },
+              { key: "description", label: "説明", type: "textarea" },
+              { key: "sort_order", label: "表示順", type: "number", min: 0 },
+            ]}
+          />
+        );
+      case "lead_score_thresholds":
+        return <LeadScoreThresholdsTab leadTemperatures={leadTemperatures} />;
       case "project_statuses":
         return (
           <SimpleMasterTab
@@ -1392,6 +2013,7 @@ export function AdminView() {
             onRefresh={refreshProjectStatuses}
             fields={[
               { key: "name", label: "名前", type: "text" },
+              { key: "definition", label: "定義", type: "textarea" },
               { key: "sort_order", label: "表示順", type: "number" },
             ]}
           />

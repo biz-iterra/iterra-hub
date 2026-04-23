@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { uuidString, optionalUuidSchema } from "./common";
+import { uuidString, optionalUuidSchema, emailSchema, phoneSchema, corporateNumberSchema } from "./common";
 
 // ---------- leadCreateSchema ----------
 export const leadCreateSchema = z.object({
@@ -25,14 +25,9 @@ export const leadCreateSchema = z.object({
 
   category_id: optionalUuidSchema,
 
-  temperature_id: optionalUuidSchema,
-  score: z
-    .number()
-    .int("[score] スコアは整数で入力してください")
-    .min(0, "[score] スコアは0以上で入力してください")
-    .max(100, "[score] スコアは100以下で入力してください")
-    .nullable()
-    .optional(),
+  // temperature_id はフォームからの手動入力を受け付けない。score も同様。
+  // score / temperature_id は DB 関数 recalculate_lead_score で算出されるため手動設定不可。
+  // Zod スキーマから削除することで UI から渡されても型エラーになる（Server Action 側でも除外）。
 
   url: z
     .string()
@@ -41,9 +36,23 @@ export const leadCreateSchema = z.object({
     .optional()
     .or(z.literal("").transform(() => null)),
 
-  phone: z
+  company_phone: z
     .string()
-    .max(20, "[phone] 電話番号は20文字以内で入力してください")
+    .max(20, "[company_phone] 代表電話は20文字以内で入力してください")
+    .nullable()
+    .optional(),
+
+  // 企業属性（スコアリング Phase 3）
+  // company_size_id は DB トリガで自動判定するため入力不可
+  employee_count: z
+    .number()
+    .int("[employee_count] 従業員数は整数で入力してください")
+    .nonnegative("[employee_count] 従業員数は0以上で入力してください")
+    .nullable()
+    .optional(),
+  capital: z
+    .number()
+    .nonnegative("[capital] 資本金は0以上で入力してください")
     .nullable()
     .optional(),
 
@@ -51,8 +60,26 @@ export const leadCreateSchema = z.object({
   small_segment_id: optionalUuidSchema,
   primary_caller_id: optionalUuidSchema,
 
+  // 担当者情報（Phase 9b 追加カラム）
+  contact_last_name: z.string().max(50, "[contact_last_name] 担当者姓は50文字以内で入力してください").nullable().optional(),
+  contact_middle_name: z.string().max(50, "[contact_middle_name] 担当者ミドルネームは50文字以内で入力してください").nullable().optional(),
+  contact_first_name: z.string().max(50, "[contact_first_name] 担当者名は50文字以内で入力してください").nullable().optional(),
+  contact_last_name_kana: z.string().max(50, "[contact_last_name_kana] 担当者姓カナは50文字以内で入力してください").nullable().optional(),
+  contact_middle_name_kana: z.string().max(50, "[contact_middle_name_kana] 担当者ミドルネームカナは50文字以内で入力してください").nullable().optional(),
+  contact_first_name_kana: z.string().max(50, "[contact_first_name_kana] 担当者名カナは50文字以内で入力してください").nullable().optional(),
+  contact_department: z.string().max(100, "[contact_department] 担当者部署は100文字以内で入力してください").nullable().optional(),
+  contact_job_title: z.string().max(100, "[contact_job_title] 担当者役職は100文字以内で入力してください").nullable().optional(),
+  contact_email: emailSchema,
+  contact_phone: phoneSchema,
+
+  // 企業情報（Phase 9b 追加カラム）
+  company_name_kana: z.string().max(200, "[company_name_kana] 企業名カナは200文字以内で入力してください").nullable().optional(),
+  representative_name: z.string().max(100, "[representative_name] 代表者名は100文字以内で入力してください").nullable().optional(),
+  corporate_number: corporateNumberSchema,
+
   owner_user_id: uuidString("[owner_user_id] 担当者は必須です"),
   // promoted_deal_id は Server Action 内部で設定するため受け取らない
+  // company_size_id は DB トリガ（resolve_lead_company_size）で自動設定するため受け取らない
 });
 
 // ---------- leadUpdateSchema ----------
@@ -81,14 +108,8 @@ export const leadUpdateSchema = z.object({
 
   category_id: optionalUuidSchema,
 
-  temperature_id: optionalUuidSchema,
-  score: z
-    .number()
-    .int("[score] スコアは整数で入力してください")
-    .min(0, "[score] スコアは0以上で入力してください")
-    .max(100, "[score] スコアは100以下で入力してください")
-    .nullable()
-    .optional(),
+  // score / temperature_id は DB 関数 recalculate_lead_score で算出されるため手動設定不可。
+  // Zod スキーマから削除することで UI から渡されても型エラーになる（Server Action 側でも除外）。
 
   url: z
     .string()
@@ -97,9 +118,23 @@ export const leadUpdateSchema = z.object({
     .optional()
     .or(z.literal("").transform(() => null)),
 
-  phone: z
+  company_phone: z
     .string()
-    .max(20, "[phone] 電話番号は20文字以内で入力してください")
+    .max(20, "[company_phone] 代表電話は20文字以内で入力してください")
+    .nullable()
+    .optional(),
+
+  // 企業属性（スコアリング Phase 3）
+  // company_size_id は DB トリガで自動判定するため入力不可
+  employee_count: z
+    .number()
+    .int("[employee_count] 従業員数は整数で入力してください")
+    .nonnegative("[employee_count] 従業員数は0以上で入力してください")
+    .nullable()
+    .optional(),
+  capital: z
+    .number()
+    .nonnegative("[capital] 資本金は0以上で入力してください")
     .nullable()
     .optional(),
 
@@ -107,10 +142,55 @@ export const leadUpdateSchema = z.object({
   small_segment_id: optionalUuidSchema,
   primary_caller_id: optionalUuidSchema,
 
+  // 担当者情報（Phase 9b 追加カラム）
+  contact_last_name: z.string().max(50, "[contact_last_name] 担当者姓は50文字以内で入力してください").nullable().optional(),
+  contact_middle_name: z.string().max(50, "[contact_middle_name] 担当者ミドルネームは50文字以内で入力してください").nullable().optional(),
+  contact_first_name: z.string().max(50, "[contact_first_name] 担当者名は50文字以内で入力してください").nullable().optional(),
+  contact_last_name_kana: z.string().max(50, "[contact_last_name_kana] 担当者姓カナは50文字以内で入力してください").nullable().optional(),
+  contact_middle_name_kana: z.string().max(50, "[contact_middle_name_kana] 担当者ミドルネームカナは50文字以内で入力してください").nullable().optional(),
+  contact_first_name_kana: z.string().max(50, "[contact_first_name_kana] 担当者名カナは50文字以内で入力してください").nullable().optional(),
+  contact_department: z.string().max(100, "[contact_department] 担当者部署は100文字以内で入力してください").nullable().optional(),
+  contact_job_title: z.string().max(100, "[contact_job_title] 担当者役職は100文字以内で入力してください").nullable().optional(),
+  contact_email: emailSchema,
+  contact_phone: phoneSchema,
+
+  // 企業情報（Phase 9b 追加カラム）
+  company_name_kana: z.string().max(200, "[company_name_kana] 企業名カナは200文字以内で入力してください").nullable().optional(),
+  representative_name: z.string().max(100, "[representative_name] 代表者名は100文字以内で入力してください").nullable().optional(),
+  corporate_number: corporateNumberSchema,
+
   owner_user_id: uuidString("[owner_user_id] 担当者を指定してください").optional(),
 
   deletion_reason: z.string().max(500).nullable().optional(),
+  // company_size_id は DB トリガ（resolve_lead_company_size）で自動設定するため受け取らない
 });
+
+// ---------- leadCustomerActivityCreateSchema ----------
+export const leadCustomerActivityCreateSchema = z.object({
+  lead_id: uuidString("[lead_id] リードIDは必須です"),
+  activity_type_id: uuidString("[activity_type_id] 行動タイプは必須です"),
+  occurred_at: z
+    .string()
+    .datetime({ message: "[occurred_at] 日時形式で入力してください" })
+    .optional(),
+  detail: z
+    .string()
+    .max(2000, "[detail] 詳細は2000文字以内で入力してください")
+    .nullable()
+    .optional(),
+  source: z
+    .string()
+    .max(200, "[source] ソースは200文字以内で入力してください")
+    .nullable()
+    .optional(),
+});
+
+// ---------- leadCustomerActivityUpdateSchema ----------
+export const leadCustomerActivityUpdateSchema = leadCustomerActivityCreateSchema
+  .partial()
+  .extend({
+    id: uuidString("[id] 行動ログIDは必須です"),
+  });
 
 // ---------- leadFiltersSchema ----------
 export const leadFiltersSchema = z.object({

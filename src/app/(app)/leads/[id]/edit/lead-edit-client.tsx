@@ -7,7 +7,6 @@ import {
   ArrowLeft,
   Save,
   Trash2,
-  Thermometer,
   ArrowUpRight,
   Loader2,
 } from "lucide-react";
@@ -97,8 +96,8 @@ const styles = {
     alignItems: "center",
     gap: "0.375rem",
     backgroundColor: "transparent",
-    color: "#DC2626",
-    border: "1px solid #DC2626",
+    color: "var(--color-error)",
+    border: "1px solid var(--color-error)",
     borderRadius: "var(--radius-button)",
     padding: "0.5rem 1rem",
     cursor: "pointer",
@@ -158,26 +157,46 @@ export function LeadEditClient({
 
   const [values, setValues] = useState({
     lead_name: lead.lead_name ?? "",
-    account_type_id: getInitialAccountTypeId(),
-    company_name: lead.company_name ?? "",
+    // 進捗セクション
     stage_id: lead.stage_id ?? "",
     status_id: lead.status_id ?? "",
     category_id: lead.category_id ?? "",
-    temperature_id: lead.temperature_id ?? "",
-    score: lead.score != null ? String(lead.score) : "",
+    // 企業情報セクション
+    company_name: lead.company_name ?? "",
+    company_name_kana: lead.company_name_kana ?? "",
+    representative_name: lead.representative_name ?? "",
+    corporate_number: lead.corporate_number ?? "",
+    company_phone: lead.company_phone ?? "",
     url: lead.url ?? "",
-    phone: lead.phone ?? "",
-    lead_source_id: lead.lead_source_id ?? "",
+    employee_count: lead.employee_count != null ? String(lead.employee_count) : "",
+    capital: lead.capital != null ? String(lead.capital) : "",
+    // 担当者情報セクション
+    contact_last_name: lead.contact_last_name ?? "",
+    contact_middle_name: lead.contact_middle_name ?? "",
+    contact_first_name: lead.contact_first_name ?? "",
+    contact_last_name_kana: lead.contact_last_name_kana ?? "",
+    contact_middle_name_kana: lead.contact_middle_name_kana ?? "",
+    contact_first_name_kana: lead.contact_first_name_kana ?? "",
+    contact_department: lead.contact_department ?? "",
+    contact_job_title: lead.contact_job_title ?? "",
+    contact_email: lead.contact_email ?? "",
+    contact_phone: lead.contact_phone ?? "",
+    // リード属性セクション
     large_segment_id: lead.large_segment_id ?? "",
     small_segment_id: lead.small_segment_id ?? "",
+    lead_source_id: lead.lead_source_id ?? "",
+    account_type_id: getInitialAccountTypeId(),
     primary_caller_id: lead.primary_caller_id ?? "",
     owner_user_id: lead.owner_user_id ?? currentUser.id,
   });
 
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveWarning, setSaveWarning] = useState<string | null>(null);
+  const [saveWarningDismissed, setSaveWarningDismissed] = useState(false);
   const [promoteMessage, setPromoteMessage] = useState<string | null>(null);
   const [promoteWarning, setPromoteWarning] = useState<string | null>(null);
+  const [promoteWarningDismissed, setPromoteWarningDismissed] = useState(false);
   const [promotedDealId, setPromotedDealId] = useState<string | null>(
     lead.promoted_deal_id ?? null
   );
@@ -262,23 +281,29 @@ export function LeadEditClient({
   const isSaveDisabled =
     saving || (!isOpportunityStage && !!values.stage_id && !values.status_id);
 
+  // company_size_id は表示のみ（read-only）
+  const companySizeName = lead.company_size?.name ?? null;
+
   // 保存処理の本体（昇格確認後または昇格不要時に呼ばれる）
-  // 戻り値: { redirectTo: string | null; error: string | null }
   const executeSave = async (): Promise<{ redirectTo: string | null; error: string | null; promoteError?: string }> => {
     setSaving(true);
     setSaveError(null);
+    setSaveWarning(null);
     setPromoteMessage(null);
     setPromoteWarning(null);
 
-    const scoreNum =
-      values.score.trim() === "" ? null : parseInt(values.score, 10);
-    if (
-      scoreNum !== null &&
-      (Number.isNaN(scoreNum) || scoreNum < 0 || scoreNum > 100)
-    ) {
+    const employeeCountNum = values.employee_count.trim() === "" ? null : parseInt(values.employee_count, 10);
+    if (employeeCountNum !== null && (Number.isNaN(employeeCountNum) || employeeCountNum < 0)) {
       setSaving(false);
-      setSaveError("スコアは 0〜100 の整数を入力してください");
-      return { redirectTo: null, error: "スコアは 0〜100 の整数を入力してください" };
+      setSaveError("従業員数は0以上の整数を入力してください");
+      return { redirectTo: null, error: "従業員数は0以上の整数を入力してください" };
+    }
+
+    const capitalNum = values.capital.trim() === "" ? null : parseFloat(values.capital);
+    if (capitalNum !== null && (Number.isNaN(capitalNum) || capitalNum < 0)) {
+      setSaving(false);
+      setSaveError("資本金は0以上の数値を入力してください");
+      return { redirectTo: null, error: "資本金は0以上の数値を入力してください" };
     }
 
     const payload = {
@@ -286,41 +311,70 @@ export function LeadEditClient({
       lead_name: values.lead_name,
       account_type_id: values.account_type_id || undefined,
       company_name: values.company_name || null,
+      company_name_kana: values.company_name_kana || null,
+      representative_name: values.representative_name || null,
+      corporate_number: values.corporate_number || null,
       stage_id: values.stage_id || undefined,
       status_id: values.status_id || null,
       category_id: values.category_id || null,
-      temperature_id: values.temperature_id || null,
-      score: scoreNum,
       url: values.url || null,
-      phone: values.phone || null,
+      company_phone: values.company_phone || null,
       lead_source_id: values.lead_source_id || null,
+      employee_count: employeeCountNum,
+      capital: capitalNum,
       large_segment_id: values.large_segment_id || null,
       small_segment_id: values.small_segment_id || null,
       primary_caller_id: values.primary_caller_id || null,
       owner_user_id: values.owner_user_id || undefined,
+      contact_last_name: values.contact_last_name || null,
+      contact_middle_name: values.contact_middle_name || null,
+      contact_first_name: values.contact_first_name || null,
+      contact_last_name_kana: values.contact_last_name_kana || null,
+      contact_middle_name_kana: values.contact_middle_name_kana || null,
+      contact_first_name_kana: values.contact_first_name_kana || null,
+      contact_department: values.contact_department || null,
+      contact_job_title: values.contact_job_title || null,
+      contact_email: values.contact_email || null,
+      contact_phone: values.contact_phone || null,
     };
 
     const result = await updateLead(payload);
     setSaving(false);
 
-    if (result.error) {
-      if (result.error.includes("Deal昇格に失敗")) {
-        // リード本体の更新は成功しているが昇格に失敗 → 警告を表示しつつ詳細へ遷移
-        setPromoteWarning(result.error);
-        return { redirectTo: `/leads/${lead.id}`, error: null, promoteError: result.error };
+    if (!result.ok) {
+      const firstError = Object.values(result.errors).flat()[0] ?? "保存に失敗しました";
+      // corporate_number 重複エラー（昇格ブロック）
+      if ("corporate_number" in result.errors) {
+        setPromoteWarning(result.errors.corporate_number[0]);
+        setPromoteWarningDismissed(false);
+        return { redirectTo: null, error: null, promoteError: result.errors.corporate_number[0] };
+      } else if (firstError.includes("Deal昇格に失敗")) {
+        setPromoteWarning(firstError);
+        return { redirectTo: `/leads/${lead.id}`, error: null, promoteError: firstError };
       } else {
-        setSaveError(result.error);
-        return { redirectTo: null, error: result.error };
+        setSaveError(firstError);
+        return { redirectTo: null, error: firstError };
       }
     }
 
-    const updatedLead = result.data as any;
+    // warnings（法人番号重複など）を表示
+    if (result.warnings && result.warnings.length > 0) {
+      setSaveWarning(result.warnings[0]);
+      setSaveWarningDismissed(false);
+    }
+
+    const updatedLead = result.lead as any;
     if (
       updatedLead?.promoted_deal_id &&
       updatedLead.promoted_deal_id !== promotedDealId
     ) {
       setPromotedDealId(updatedLead.promoted_deal_id);
       setPromoteMessage("Deal に昇格しました！");
+    }
+
+    // warnings がある場合はページ遷移しない（ユーザーに認識させる）
+    if (result.warnings && result.warnings.length > 0) {
+      return { redirectTo: null, error: null };
     }
 
     // 保存成功 → 詳細ページへ戻る
@@ -339,18 +393,14 @@ export function LeadEditClient({
     }
   };
 
-  // 昇格確認モーダルの onConfirm（ConfirmDialog 用に { error } を返す形式）
+  // 昇格確認モーダルの onConfirm
   const handlePromoteConfirm = async (): Promise<{ error: string | null }> => {
     const result = await executeSave();
     if (result.error) {
       return { error: result.error };
     }
-    // 成功（昇格エラーの有無に関わらずリダイレクト先が決まっている場合）
-    // モーダルを閉じた後に router.replace する
     if (result.redirectTo) {
-      // モーダルを先に閉じてからリダイレクト（state の競合を防ぐ）
       setPromoteConfirmOpen(false);
-      // 次の tick でリダイレクト
       setTimeout(() => {
         router.replace(result.redirectTo!);
       }, 0);
@@ -366,7 +416,6 @@ export function LeadEditClient({
           resolve({ error: result.error });
           return;
         }
-        // 削除成功: リダイレクトのみ（refresh は一覧ページで自動取得されるため不要）
         router.push("/leads");
         resolve({ error: null });
       });
@@ -480,7 +529,7 @@ export function LeadEditClient({
         <div
           style={{
             backgroundColor: "rgba(122,165,146,0.15)",
-            border: "1px solid #7AA592",
+            border: "1px solid var(--color-sage)",
             borderRadius: "var(--radius-card)",
             padding: "0.75rem 1rem",
             marginBottom: "1rem",
@@ -510,24 +559,85 @@ export function LeadEditClient({
           )}
         </div>
       )}
-      {promoteWarning && (
+      {/* 法人番号重複など warnings バナー */}
+      {saveWarning && !saveWarningDismissed && (
         <div
           style={{
             backgroundColor: "rgba(229,196,127,0.2)",
-            border: "1px solid #E5C47F",
+            border: "1px solid var(--color-amber)",
             borderRadius: "var(--radius-card)",
             padding: "0.75rem 1rem",
             marginBottom: "1rem",
             color: "#8A6D1E",
             fontSize: "0.875rem",
+            display: "flex",
+            alignItems: "flex-start",
+            gap: "0.5rem",
           }}
         >
-          <strong>Deal 昇格に問題が発生しました:</strong> {promoteWarning}
+          <span style={{ flex: 1 }}>
+            <strong>保存しましたが、確認が必要な項目があります:</strong>{" "}
+            {saveWarning}
+          </span>
+          <button
+            type="button"
+            onClick={() => setSaveWarningDismissed(true)}
+            style={{
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              color: "#8A6D1E",
+              fontSize: "1rem",
+              lineHeight: 1,
+              padding: "0.125rem",
+              flexShrink: 0,
+            }}
+            aria-label="閉じる"
+          >
+            ×
+          </button>
+        </div>
+      )}
+      {promoteWarning && !promoteWarningDismissed && (
+        <div
+          style={{
+            backgroundColor: "rgba(229,196,127,0.2)",
+            border: "1px solid var(--color-amber)",
+            borderRadius: "var(--radius-card)",
+            padding: "0.75rem 1rem",
+            marginBottom: "1rem",
+            color: "#8A6D1E",
+            fontSize: "0.875rem",
+            display: "flex",
+            alignItems: "flex-start",
+            gap: "0.5rem",
+          }}
+        >
+          <span style={{ flex: 1 }}>
+            <strong>Deal 昇格に問題が発生しました:</strong> {promoteWarning}
+          </span>
+          <button
+            type="button"
+            onClick={() => setPromoteWarningDismissed(true)}
+            style={{
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              color: "#8A6D1E",
+              fontSize: "1rem",
+              lineHeight: 1,
+              padding: "0.125rem",
+              flexShrink: 0,
+            }}
+            aria-label="閉じる"
+          >
+            ×
+          </button>
         </div>
       )}
       {saveError && <p style={styles.error}>{saveError}</p>}
 
-      {/* === 基本情報 === */}
+      {/* リード名（全セクション共通） */}
       <div style={styles.card}>
         <h2
           style={{
@@ -537,132 +647,22 @@ export function LeadEditClient({
             margin: "0 0 1rem 0",
           }}
         >
-          基本情報
+          リード名
         </h2>
-        <div style={{ ...styles.grid2, marginBottom: "1rem" }}>
-          <div style={{ gridColumn: "1 / -1" }}>
-            <label style={styles.label}>リード名 *</label>
-            <input
-              type="text"
-              style={styles.input}
-              value={values.lead_name}
-              onChange={(e) => set("lead_name", e.target.value)}
-              onFocus={onFocus}
-              onBlur={onBlur}
-            />
-          </div>
-          <div>
-            <label style={styles.label}>事業者種別</label>
-            <select
-              style={{
-                ...styles.input,
-                ...(isPromoted ? { backgroundColor: "var(--color-sumi50)", color: "var(--color-sumi500)", cursor: "not-allowed" } : {}),
-              }}
-              value={values.account_type_id}
-              onChange={(e) => set("account_type_id", e.target.value)}
-              disabled={isPromoted}
-              onFocus={isPromoted ? undefined : onFocus}
-              onBlur={isPromoted ? undefined : onBlur}
-            >
-              <option value="">-- 選択 --</option>
-              {masters.accountTypes.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-            {isPromoted && (
-              <p style={{ ...styles.helpText, color: "var(--color-sumi500)" }}>
-                昇格後はカンパニー/コンタクトに紐付けられているため、ここでは変更できません。カンパニー詳細から修正してください
-              </p>
-            )}
-          </div>
-          <div>
-            <label style={styles.label}>企業名（仮）</label>
-            <input
-              type="text"
-              style={{
-                ...styles.input,
-                ...(isPromoted ? { backgroundColor: "var(--color-sumi50)", color: "var(--color-sumi500)", cursor: "not-allowed" } : {}),
-              }}
-              value={values.company_name}
-              onChange={(e) => handleCompanyNameChange(e.target.value)}
-              placeholder="DB未登録企業の仮入力用"
-              disabled={isPromoted}
-              onFocus={isPromoted ? undefined : onFocus}
-              onBlur={isPromoted ? undefined : onBlur}
-            />
-            {isPromoted ? (
-              <p style={{ ...styles.helpText, color: "var(--color-sumi500)" }}>
-                昇格後はカンパニー/コンタクトに紐付けられているため、ここでは変更できません。カンパニー詳細から修正してください
-              </p>
-            ) : (
-              <p style={styles.helpText}>
-                Opportunity 昇格時に自動で Company が作成されます
-              </p>
-            )}
-          </div>
-          <div>
-            <label style={styles.label}>電話番号</label>
-            <input
-              type="tel"
-              style={styles.input}
-              value={values.phone}
-              onChange={(e) => set("phone", e.target.value)}
-              onFocus={onFocus}
-              onBlur={onBlur}
-            />
-          </div>
-          <div>
-            <label style={styles.label}>URL</label>
-            <input
-              type="url"
-              style={styles.input}
-              value={values.url}
-              onChange={(e) => set("url", e.target.value)}
-              placeholder="https://"
-              onFocus={onFocus}
-              onBlur={onBlur}
-            />
-          </div>
-          <div>
-            <label style={styles.label}>流入元</label>
-            <select
-              style={styles.input}
-              value={values.lead_source_id}
-              onChange={(e) => set("lead_source_id", e.target.value)}
-              onFocus={onFocus}
-              onBlur={onBlur}
-            >
-              <option value="">-- 未選択 --</option>
-              {masters.sources.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label style={styles.label}>担当者</label>
-            <select
-              style={styles.input}
-              value={values.owner_user_id}
-              onChange={(e) => set("owner_user_id", e.target.value)}
-              disabled={!isManagerOrAbove}
-              onFocus={onFocus}
-              onBlur={onBlur}
-            >
-              {masters.owners.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </div>
+        <div>
+          <label style={styles.label}>リード名 *</label>
+          <input
+            type="text"
+            style={styles.input}
+            value={values.lead_name}
+            onChange={(e) => set("lead_name", e.target.value)}
+            onFocus={onFocus}
+            onBlur={onBlur}
+          />
         </div>
       </div>
 
-      {/* ステージ・ステータス（Cascading） */}
+      {/* ① 進捗セクション（ステージ / ステータス / カテゴリ / 温度感） */}
       <div style={styles.card}>
         <h2
           style={{
@@ -672,9 +672,9 @@ export function LeadEditClient({
             margin: "0 0 1rem 0",
           }}
         >
-          ステージ・ステータス
+          進捗
         </h2>
-        <div style={styles.grid2}>
+        <div style={{ ...styles.grid2, marginBottom: "1rem" }}>
           <div>
             <label style={styles.label}>ステージ</label>
             <select
@@ -739,20 +739,6 @@ export function LeadEditClient({
             )}
           </div>
         </div>
-      </div>
-
-      {/* カテゴリ */}
-      <div style={styles.card}>
-        <h2
-          style={{
-            color: "var(--color-text-title)",
-            fontSize: "1rem",
-            fontWeight: 600,
-            margin: "0 0 1rem 0",
-          }}
-        >
-          カテゴリ
-        </h2>
         <div style={{ maxWidth: 320 }}>
           <label style={styles.label}>カテゴリ</label>
           <select
@@ -772,7 +758,7 @@ export function LeadEditClient({
         </div>
       </div>
 
-      {/* スコア・温度感 */}
+      {/* ② 企業情報セクション */}
       <div style={styles.card}>
         <h2
           style={{
@@ -782,54 +768,150 @@ export function LeadEditClient({
             margin: "0 0 1rem 0",
           }}
         >
-          スコア・温度感
+          企業情報
         </h2>
-        <div style={styles.grid2}>
+        <div style={{ ...styles.grid2, marginBottom: "1rem" }}>
           <div>
-            <label style={styles.label}>スコア（0-100）</label>
+            <label style={styles.label}>会社名</label>
             <input
-              type="number"
-              min={0}
-              max={100}
+              type="text"
+              style={{
+                ...styles.input,
+                ...(isPromoted ? { backgroundColor: "var(--color-sumi50)", color: "var(--color-sumi500)", cursor: "not-allowed" } : {}),
+              }}
+              value={values.company_name}
+              onChange={(e) => handleCompanyNameChange(e.target.value)}
+              placeholder="DB未登録企業の仮入力用"
+              disabled={isPromoted}
+              onFocus={isPromoted ? undefined : onFocus}
+              onBlur={isPromoted ? undefined : onBlur}
+            />
+            {isPromoted ? (
+              <p style={{ ...styles.helpText, color: "var(--color-sumi500)" }}>
+                昇格後はカンパニーに紐付けられているため変更できません
+              </p>
+            ) : (
+              <p style={styles.helpText}>
+                Opportunity 昇格時に自動で Company が作成されます
+              </p>
+            )}
+          </div>
+          <div>
+            <label style={styles.label}>フリガナ</label>
+            <input
+              type="text"
               style={styles.input}
-              value={values.score}
-              onChange={(e) => set("score", e.target.value)}
+              value={values.company_name_kana}
+              onChange={(e) => set("company_name_kana", e.target.value)}
+              placeholder="カブシキガイシャ〇〇"
               onFocus={onFocus}
               onBlur={onBlur}
             />
-            <p
-              style={{
-                ...styles.helpText,
-                display: "flex",
-                alignItems: "center",
-                gap: "0.25rem",
-              }}
-            >
-              <Thermometer size={12} />
-              入力すると温度感を自動判定します
-            </p>
           </div>
           <div>
-            <label style={styles.label}>温度感</label>
-            <select
+            <label style={styles.label}>代表者名</label>
+            <input
+              type="text"
               style={styles.input}
-              value={values.temperature_id}
-              onChange={(e) => set("temperature_id", e.target.value)}
+              value={values.representative_name}
+              onChange={(e) => set("representative_name", e.target.value)}
+              placeholder="山田 太郎"
               onFocus={onFocus}
               onBlur={onBlur}
+            />
+          </div>
+          <div>
+            <label style={styles.label}>法人番号</label>
+            <input
+              type="text"
+              style={styles.input}
+              value={values.corporate_number}
+              onChange={(e) => set("corporate_number", e.target.value)}
+              placeholder="1234567890123"
+              maxLength={13}
+              onFocus={onFocus}
+              onBlur={onBlur}
+            />
+            <p style={styles.helpText}>13桁の数字で入力してください</p>
+          </div>
+          <div>
+            <label style={styles.label}>代表電話</label>
+            <input
+              type="tel"
+              style={styles.input}
+              value={values.company_phone}
+              onChange={(e) => set("company_phone", e.target.value)}
+              placeholder="03-0000-0000"
+              onFocus={onFocus}
+              onBlur={onBlur}
+            />
+          </div>
+          <div>
+            <label style={styles.label}>企業URL</label>
+            <input
+              type="url"
+              style={styles.input}
+              value={values.url}
+              onChange={(e) => set("url", e.target.value)}
+              placeholder="https://"
+              onFocus={onFocus}
+              onBlur={onBlur}
+            />
+          </div>
+        </div>
+        <p style={{ ...styles.helpText, marginBottom: "1rem" }}>
+          企業規模は資本金と従業員数から自動判定されます。スコアは保存後に自動再計算されます。
+        </p>
+        <div style={styles.grid3}>
+          <div>
+            <label style={styles.label}>従業員数</label>
+            <input
+              type="number"
+              min={0}
+              style={styles.input}
+              value={values.employee_count}
+              onChange={(e) => set("employee_count", e.target.value)}
+              placeholder="例: 50"
+              onFocus={onFocus}
+              onBlur={onBlur}
+            />
+          </div>
+          <div>
+            <label style={styles.label}>資本金（円）</label>
+            <input
+              type="number"
+              min={0}
+              style={styles.input}
+              value={values.capital}
+              onChange={(e) => set("capital", e.target.value)}
+              placeholder="例: 5000000"
+              onFocus={onFocus}
+              onBlur={onBlur}
+            />
+          </div>
+          <div>
+            <label style={styles.label}>企業規模（自動判定）</label>
+            <div
+              style={{
+                border: "1px solid var(--color-border-default)",
+                borderRadius: "var(--radius-input)",
+                padding: "0.5rem 0.75rem",
+                backgroundColor: "var(--color-sumi50)",
+                fontSize: "0.875rem",
+                color: companySizeName ? "var(--color-text-body)" : "var(--color-sumi400)",
+                minHeight: "2.375rem",
+                display: "flex",
+                alignItems: "center",
+              }}
             >
-              <option value="">-- スコアから自動判定 --</option>
-              {masters.temperatures.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
+              {companySizeName ?? "保存後に自動設定"}
+            </div>
+            <p style={styles.helpText}>保存後に従業員数・資本金から自動更新されます</p>
           </div>
         </div>
       </div>
 
-      {/* 主担・セグメント */}
+      {/* ③ 担当者情報セクション */}
       <div style={styles.card}>
         <h2
           style={{
@@ -839,26 +921,151 @@ export function LeadEditClient({
             margin: "0 0 1rem 0",
           }}
         >
-          主担・セグメント
+          担当者情報
         </h2>
-        <div style={styles.grid3}>
+        <div style={{ ...styles.grid3, marginBottom: "1rem" }}>
           <div>
-            <label style={styles.label}>主担当</label>
-            <select
+            <label style={styles.label}>姓</label>
+            <input
+              type="text"
               style={styles.input}
-              value={values.primary_caller_id}
-              onChange={(e) => set("primary_caller_id", e.target.value)}
+              value={values.contact_last_name}
+              onChange={(e) => set("contact_last_name", e.target.value)}
+              placeholder="山田"
               onFocus={onFocus}
               onBlur={onBlur}
-            >
-              <option value="">-- 未選択 --</option>
-              {masters.callers.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
+            />
           </div>
+          <div>
+            <label style={styles.label}>ミドルネーム</label>
+            <input
+              type="text"
+              style={styles.input}
+              value={values.contact_middle_name}
+              onChange={(e) => set("contact_middle_name", e.target.value)}
+              placeholder="例: Smith"
+              onFocus={onFocus}
+              onBlur={onBlur}
+            />
+          </div>
+          <div>
+            <label style={styles.label}>名</label>
+            <input
+              type="text"
+              style={styles.input}
+              value={values.contact_first_name}
+              onChange={(e) => set("contact_first_name", e.target.value)}
+              placeholder="太郎"
+              onFocus={onFocus}
+              onBlur={onBlur}
+            />
+          </div>
+        </div>
+        <div style={{ ...styles.grid3, marginBottom: "1rem" }}>
+          <div>
+            <label style={styles.label}>姓（カナ）</label>
+            <input
+              type="text"
+              style={styles.input}
+              value={values.contact_last_name_kana}
+              onChange={(e) => set("contact_last_name_kana", e.target.value)}
+              placeholder="ヤマダ"
+              onFocus={onFocus}
+              onBlur={onBlur}
+            />
+          </div>
+          <div>
+            <label style={styles.label}>ミドル（カナ）</label>
+            <input
+              type="text"
+              style={styles.input}
+              value={values.contact_middle_name_kana}
+              onChange={(e) => set("contact_middle_name_kana", e.target.value)}
+              placeholder="スミス"
+              onFocus={onFocus}
+              onBlur={onBlur}
+            />
+          </div>
+          <div>
+            <label style={styles.label}>名（カナ）</label>
+            <input
+              type="text"
+              style={styles.input}
+              value={values.contact_first_name_kana}
+              onChange={(e) => set("contact_first_name_kana", e.target.value)}
+              placeholder="タロウ"
+              onFocus={onFocus}
+              onBlur={onBlur}
+            />
+          </div>
+        </div>
+        <div style={{ ...styles.grid2, marginBottom: "1rem" }}>
+          <div>
+            <label style={styles.label}>部署</label>
+            <input
+              type="text"
+              style={styles.input}
+              value={values.contact_department}
+              onChange={(e) => set("contact_department", e.target.value)}
+              placeholder="営業部"
+              onFocus={onFocus}
+              onBlur={onBlur}
+            />
+          </div>
+          <div>
+            <label style={styles.label}>役職</label>
+            <input
+              type="text"
+              style={styles.input}
+              value={values.contact_job_title}
+              onChange={(e) => set("contact_job_title", e.target.value)}
+              placeholder="部長"
+              onFocus={onFocus}
+              onBlur={onBlur}
+            />
+          </div>
+        </div>
+        <div style={styles.grid2}>
+          <div>
+            <label style={styles.label}>メール</label>
+            <input
+              type="email"
+              style={styles.input}
+              value={values.contact_email}
+              onChange={(e) => set("contact_email", e.target.value)}
+              placeholder="example@company.com"
+              onFocus={onFocus}
+              onBlur={onBlur}
+            />
+          </div>
+          <div>
+            <label style={styles.label}>担当者電話</label>
+            <input
+              type="tel"
+              style={styles.input}
+              value={values.contact_phone}
+              onChange={(e) => set("contact_phone", e.target.value)}
+              placeholder="090-0000-0000"
+              onFocus={onFocus}
+              onBlur={onBlur}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* ④ リード属性セクション */}
+      <div style={styles.card}>
+        <h2
+          style={{
+            color: "var(--color-text-title)",
+            fontSize: "1rem",
+            fontWeight: 600,
+            margin: "0 0 1rem 0",
+          }}
+        >
+          リード属性
+        </h2>
+        <div style={{ ...styles.grid3, marginBottom: "1rem" }}>
           <div>
             <label style={styles.label}>大分類セグメント</label>
             <select
@@ -891,6 +1098,85 @@ export function LeadEditClient({
             >
               <option value="">-- 未選択 --</option>
               {filteredSmallSegments.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label style={styles.label}>リードソース</label>
+            <select
+              style={styles.input}
+              value={values.lead_source_id}
+              onChange={(e) => set("lead_source_id", e.target.value)}
+              onFocus={onFocus}
+              onBlur={onBlur}
+            >
+              <option value="">-- 未選択 --</option>
+              {masters.sources.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <div style={{ ...styles.grid3, marginBottom: "1rem" }}>
+          <div>
+            <label style={styles.label}>事業者種別</label>
+            <select
+              style={{
+                ...styles.input,
+                ...(isPromoted ? { backgroundColor: "var(--color-sumi50)", color: "var(--color-sumi500)", cursor: "not-allowed" } : {}),
+              }}
+              value={values.account_type_id}
+              onChange={(e) => set("account_type_id", e.target.value)}
+              disabled={isPromoted}
+              onFocus={isPromoted ? undefined : onFocus}
+              onBlur={isPromoted ? undefined : onBlur}
+            >
+              <option value="">-- 選択 --</option>
+              {masters.accountTypes.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+            {isPromoted && (
+              <p style={{ ...styles.helpText, color: "var(--color-sumi500)" }}>
+                昇格後はカンパニー/コンタクトに紐付けられているため変更できません
+              </p>
+            )}
+          </div>
+          <div>
+            <label style={styles.label}>主担当</label>
+            <select
+              style={styles.input}
+              value={values.primary_caller_id}
+              onChange={(e) => set("primary_caller_id", e.target.value)}
+              onFocus={onFocus}
+              onBlur={onBlur}
+            >
+              <option value="">-- 未選択 --</option>
+              {masters.callers.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label style={styles.label}>社内担当者</label>
+            <select
+              style={styles.input}
+              value={values.owner_user_id}
+              onChange={(e) => set("owner_user_id", e.target.value)}
+              disabled={!isManagerOrAbove}
+              onFocus={onFocus}
+              onBlur={onBlur}
+            >
+              {masters.owners.map((o) => (
                 <option key={o.value} value={o.value}>
                   {o.label}
                 </option>
@@ -952,7 +1238,6 @@ function PromoteConfirmDialog({
       setError(result.error);
       return;
     }
-    // 成功時は onConfirm 側（handlePromoteConfirm）でモーダルクローズ + リダイレクトを制御済みなのでここでは onClose を呼ばない
   };
 
   const overlayStyle: CSSProperties = {

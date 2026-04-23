@@ -1,6 +1,6 @@
 /**
  * score → temperature_id 判定ヘルパー
- * lead_scoring_rules を参照して、与えられたスコアに対応する temperature_id を返す。
+ * lead_score_thresholds を参照して、与えられたスコアに対応する temperature_id を返す。
  * score が null の場合は null を返す（手動設定を尊重するため呼び出し側で制御）。
  */
 
@@ -17,7 +17,7 @@ export async function resolveTemperatureByScore(
   score: number
 ): Promise<string | null> {
   const { data: rules, error } = await supabase
-    .from("lead_scoring_rules")
+    .from("lead_score_thresholds")
     .select("id, temperature_id, min_score, max_score")
     .is("deleted_at", null)
     .order("sort_order", { ascending: true });

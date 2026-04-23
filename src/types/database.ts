@@ -205,6 +205,7 @@ export type Contact = {
   constellation_id: string | null;
   lead_source_id: string | null;
   line_user_id: string | null;
+  website_url: string | null;
   internal_memo: string | null;
   owner_user_id: string | null;
   status_updated_at: string | null;
@@ -429,7 +430,7 @@ export type LeadTemperature = {
 } & SoftDeletable &
   Timestamps;
 
-export type LeadScoringRule = {
+export type LeadScoreThreshold = {
   id: string;
   temperature_id: string;
   min_score: number;
@@ -437,6 +438,57 @@ export type LeadScoringRule = {
   sort_order: number;
 } & SoftDeletable &
   Timestamps;
+
+// M24
+export type LeadCompanySize = {
+  id: string;
+  code: string;
+  name: string;
+  min_employees: number | null;
+  max_employees: number | null;
+  min_capital: number | null;
+  max_capital: number | null;
+  sort_order: number;
+  deleted_at: string | null;
+  deleted_by: string | null;
+} & Timestamps;
+
+// M25
+export type LeadCustomerActivityType = {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  sort_order: number;
+  deleted_at: string | null;
+  deleted_by: string | null;
+} & Timestamps;
+
+// M26
+export type LeadScoreRuleCategory = "attribute" | "interest" | "stage" | "status" | "activity";
+export type LeadScoreRuleConditionType =
+  | "company_size"
+  | "large_segment"
+  | "small_segment"
+  | "lead_source"
+  | "stage"
+  | "status"
+  | "call_status"
+  | "activity_type"
+  | "customer_activity_type";
+
+export type LeadScoreRule = {
+  id: string;
+  category: LeadScoreRuleCategory;
+  condition_type: LeadScoreRuleConditionType;
+  condition_value_id: string | null;
+  condition_value_text: string | null;
+  score_delta: number;
+  description: string | null;
+  sort_order: number;
+  deleted_at: string | null;
+  deleted_by: string | null;
+} & Timestamps;
 
 export type Campaign = {
   id: string;
@@ -464,11 +516,30 @@ export type Lead = {
   temperature_id: string | null;
   score: number | null;
   url: string | null;
-  phone: string | null;
+  company_phone: string | null;
+  contact_phone: string | null;
+  contact_last_name: string | null;
+  contact_middle_name: string | null;
+  contact_first_name: string | null;
+  contact_last_name_kana: string | null;
+  contact_middle_name_kana: string | null;
+  contact_first_name_kana: string | null;
+  contact_department: string | null;
+  contact_job_title: string | null;
+  contact_email: string | null;
+  company_name_kana: string | null;
+  representative_name: string | null;
+  corporate_number: string | null;
   large_segment_id: string | null;
   small_segment_id: string | null;
   primary_caller_id: string | null;
   category_id: string | null;
+  /** 従業員数（判定用。スコア算出では company_size_id 経由で参照） */
+  employee_count: number | null;
+  /** 資本金（円、判定用） */
+  capital: number | null;
+  /** 企業規模（lead_company_sizes FK）。DBトリガで自動判定。手動設定不可 */
+  company_size_id: string | null;
   owner_user_id: string;
   promoted_deal_id: string | null;
   promoted_company_id: string | null;
@@ -498,6 +569,31 @@ export type LeadActivity = {
   note: string | null;
   activity_type_id: string | null;
   created_at: string;
+};
+
+// D09
+export type LeadCustomerActivity = {
+  id: string;
+  lead_id: string;
+  activity_type_id: string;
+  occurred_at: string;
+  detail: string | null;
+  source: string | null;
+  created_by: string | null;
+  last_updated_by: string | null;
+  /** JOIN: lead_customer_activity_types */
+  activity_type?: LeadCustomerActivityType;
+} & Timestamps;
+
+// D10
+export type LeadScoreBreakdown = {
+  id: string;
+  lead_id: string;
+  rule_id: string;
+  score_delta: number;
+  applied_at: string;
+  /** JOIN: lead_score_rules */
+  rule?: LeadScoreRule;
 };
 
 // === ビュー型 ===

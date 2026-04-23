@@ -1,11 +1,31 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { leadCreateSchema, leadUpdateSchema, leadFiltersSchema } from "@/lib/validators/leads";
-import { resolveTemperatureByScore } from "@/lib/leads/score-temperature";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { revalidatePath } from "next/cache";
+import {
+  leadCreateSchema,
+  leadUpdateSchema,
+  leadFiltersSchema,
+  leadCustomerActivityCreateSchema,
+  leadCustomerActivityUpdateSchema,
+} from "@/lib/validators/leads";
+// score / temperature_id の算出は DB 関数 recalculate_lead_score に統合（Phase 5）
+import { recalculateLeadScore } from "@/lib/leads/recalculate-score";
+import {
+  buildCompanyPayloadFromLead,
+  buildContactPayloadFromLead,
+  ACCOUNT_STATUS_PROSPECT,
+  type LeadRow,
+} from "@/lib/leads/promote-helpers";
 import type { z } from "zod";
 
 type ActionResult<T> = { data: T | null; error: string | null };
+
+// Lead 作成/更新の戻り値型（warnings 付き）
+type LeadMutationResult =
+  | { ok: true; lead: any; warnings?: string[] }
+  | { ok: false; errors: Record<string, string[]> };
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -35,6 +55,9 @@ const LEAD_SELECT = `
   small_segment:lead_small_segments(id, code, name),
   primary_caller:lead_callers(id, code, name, caller_type),
   owner:crm_users!leads_owner_user_id_fkey(id, full_name),
+  company_size:lead_company_sizes(id, code, name),
+  score_breakdowns:lead_score_breakdowns(id, score_delta, applied_at, rule:lead_score_rules(id, category, condition_type, description)),
+  customer_activities:lead_customer_activities(id, occurred_at, detail, source, created_at, activity_type:lead_customer_activity_types(id, code, name)),
   lead_campaigns(campaign_id)
 ` as const;
 
@@ -82,13 +105,33 @@ export async function getLeads(
   if (owner_user_id) query = query.eq("owner_user_id", owner_user_id);
   if (keyword) {
     query = query.or(
-      `lead_name.ilike.%${keyword}%,company_name.ilike.%${keyword}%,phone.ilike.%${keyword}%`
+      `lead_name.ilike.%${keyword}%,company_name.ilike.%${keyword}%,company_phone.ilike.%${keyword}%,contact_phone.ilike.%${keyword}%,contact_email.ilike.%${keyword}%`
     );
   }
 
   const { data, error, count } = await query;
   if (error) return { data: null, error: error.message };
-  return { data: { items: data ?? [], count: count ?? 0 }, error: null };
+
+  // 最終アクティビティ日（called_on）を lead_id 単位で集約して付与
+  const items = (data ?? []) as any[];
+  if (items.length > 0) {
+    const ids = items.map((l) => l.id);
+    const { data: acts } = await supabase
+      .from("lead_activities")
+      .select("lead_id, called_on")
+      .in("lead_id", ids);
+    const latest = new Map<string, string>();
+    for (const a of acts ?? []) {
+      if (!a.called_on) continue;
+      const prev = latest.get(a.lead_id);
+      if (!prev || a.called_on > prev) latest.set(a.lead_id, a.called_on);
+    }
+    for (const lead of items) {
+      lead.last_activity_at = latest.get(lead.id) ?? null;
+    }
+  }
+
+  return { data: { items, count: count ?? 0 }, error: null };
 }
 
 // ---------- 詳細取得 ----------
@@ -118,23 +161,51 @@ export async function getLeadById(id: string): Promise<ActionResult<any>> {
   return { data: { ...rest, campaign_ids }, error: null };
 }
 
+// ---------- corporate_number 重複チェックヘルパー ----------
+async function checkCorporateNumberDuplicate(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  corporateNumber: string | null | undefined
+): Promise<string | null> {
+  if (!corporateNumber) return null;
+  const { data: existingCompany } = await supabase
+    .from("companies")
+    .select("id, name")
+    .eq("corporate_number", corporateNumber)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (existingCompany) {
+    return `この法人番号 (${corporateNumber}) の企業は既に登録されています (${existingCompany.name})。昇格時は既存企業との重複エラーになります。`;
+  }
+  return null;
+}
+
 // ---------- 作成 ----------
 export async function createLead(
   input: z.infer<typeof leadCreateSchema>
-): Promise<ActionResult<any>> {
+): Promise<LeadMutationResult> {
   const { supabase, user, role } = await getAuthenticatedUser();
-  if (!supabase || !user) return { data: null, error: "認証が必要です" };
+  if (!supabase || !user) return { ok: false, errors: { _: ["認証が必要です"] } };
 
   const parsed = leadCreateSchema.safeParse(input);
-  if (!parsed.success) return { data: null, error: parsed.error.issues[0].message };
+  if (!parsed.success) {
+    const errors: Record<string, string[]> = {};
+    for (const issue of parsed.error.issues) {
+      const key = issue.path.join(".") || "_";
+      errors[key] = [...(errors[key] ?? []), issue.message];
+    }
+    return { ok: false, errors };
+  }
 
   const d = parsed.data;
 
   // オーナーチェック: member は自分自身のみ担当可能。manager+ は任意指定可
   if (role === "member" && d.owner_user_id !== user.id) {
     return {
-      data: null,
-      error: `[owner_user_id] member は自分以外を担当者に設定できません。受信値: ${d.owner_user_id}`,
+      ok: false,
+      errors: {
+        owner_user_id: [`[owner_user_id] member は自分以外を担当者に設定できません。受信値: ${d.owner_user_id}`],
+      },
     };
   }
 
@@ -150,7 +221,7 @@ export async function createLead(
   if (!isPromoteStage) {
     // 通常ステージ: status_id 必須かつ stage 所属チェック
     if (!d.status_id) {
-      return { data: null, error: `[status_id] ステータスは必須です。受信値: ${d.status_id ?? null}` };
+      return { ok: false, errors: { status_id: [`[status_id] ステータスは必須です。受信値: ${d.status_id ?? null}`] } };
     }
     const { data: statusRow, error: statusErr } = await supabase
       .from("lead_statuses")
@@ -158,51 +229,64 @@ export async function createLead(
       .eq("id", d.status_id)
       .single();
     if (statusErr || !statusRow) {
-      return { data: null, error: `[status_id] ステータスが見つかりません。受信値: ${d.status_id}` };
+      return { ok: false, errors: { status_id: [`[status_id] ステータスが見つかりません。受信値: ${d.status_id}`] } };
     }
     if (statusRow.stage_id !== d.stage_id) {
       return {
-        data: null,
-        error: `[status_id] 指定したステータスは選択されたステージに属しません。受信値: stage_id=${d.stage_id}, status_id=${d.status_id}`,
+        ok: false,
+        errors: {
+          status_id: [`[status_id] 指定したステータスは選択されたステージに属しません。受信値: stage_id=${d.stage_id}, status_id=${d.status_id}`],
+        },
       };
     }
   }
   // Opportunity ステージ: status_id を null に強制
   const resolvedStatusId = isPromoteStage ? null : (d.status_id ?? null);
 
-  // score → temperature_id 自動判定
-  let temperature_id = d.temperature_id ?? null;
-  if (d.score !== null && d.score !== undefined) {
-    const resolved = await resolveTemperatureByScore(supabase, d.score);
-    if (resolved) temperature_id = resolved;
-  }
+  // corporate_number 重複チェック（警告のみ。保存はブロックしない）
+  const warnings: string[] = [];
+  const corpWarn = await checkCorporateNumberDuplicate(supabase, d.corporate_number);
+  if (corpWarn) warnings.push(corpWarn);
+
+  // score / temperature_id は recalculate_lead_score で算出されるため手動設定不可。
+  // Zod スキーマから削除済みのため d にはこれらのフィールドは存在しない。
 
   const { data: lead, error } = await supabase
     .from("leads")
     .insert({
       ...d,
       status_id: resolvedStatusId,
-      temperature_id,
       created_by: user.id,
       last_updated_by: user.id,
     })
     .select(LEAD_SELECT)
     .single();
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { ok: false, errors: { _: [error.message] } };
 
-  return { data: lead, error: null };
+  // score / temperature_id / breakdowns を DB 関数で算出（失敗はログのみ。Lead 登録自体は成功扱い）
+  const adminClient = createAdminClient();
+  await recalculateLeadScore(adminClient, lead.id);
+
+  return { ok: true, lead, ...(warnings.length > 0 ? { warnings } : {}) };
 }
 
 // ---------- 更新 ----------
 export async function updateLead(
   input: z.infer<typeof leadUpdateSchema>
-): Promise<ActionResult<any>> {
+): Promise<LeadMutationResult> {
   const { supabase, user, role } = await getAuthenticatedUser();
-  if (!supabase || !user) return { data: null, error: "認証が必要です" };
+  if (!supabase || !user) return { ok: false, errors: { _: ["認証が必要です"] } };
 
   const parsed = leadUpdateSchema.safeParse(input);
-  if (!parsed.success) return { data: null, error: parsed.error.issues[0].message };
+  if (!parsed.success) {
+    const errors: Record<string, string[]> = {};
+    for (const issue of parsed.error.issues) {
+      const key = issue.path.join(".") || "_";
+      errors[key] = [...(errors[key] ?? []), issue.message];
+    }
+    return { ok: false, errors };
+  }
 
   const { id, ...updates } = parsed.data;
 
@@ -214,12 +298,12 @@ export async function updateLead(
     .is("deleted_at", null)
     .single();
   if (fetchErr || !existing) {
-    return { data: null, error: "リードが見つかりません" };
+    return { ok: false, errors: { _: ["リードが見つかりません"] } };
   }
 
   // オーナーチェック（member のみ自分担当のみ。manager/admin はスキップ）
   if (role === "member" && existing.owner_user_id !== user.id) {
-    return { data: null, error: "このリードを編集する権限がありません" };
+    return { ok: false, errors: { _: ["このリードを編集する権限がありません"] } };
   }
 
   // stage_id ↔ status_id 親子整合性チェック（両方指定された場合、またはどちらかが変わる場合）
@@ -246,8 +330,8 @@ export async function updateLead(
         : (updates.status_id !== undefined ? updates.status_id : existing.status_id);
     if (!checkStatusId) {
       return {
-        data: null,
-        error: `[status_id] ステータスは必須です。受信値: ${checkStatusId ?? null}`,
+        ok: false,
+        errors: { status_id: [`[status_id] ステータスは必須です。受信値: ${checkStatusId ?? null}`] },
       };
     }
     const { data: statusRow, error: statusErr } = await supabase
@@ -257,30 +341,33 @@ export async function updateLead(
       .single();
     if (statusErr || !statusRow) {
       return {
-        data: null,
-        error: `[status_id] ステータスが見つかりません。受信値: ${checkStatusId}`,
+        ok: false,
+        errors: { status_id: [`[status_id] ステータスが見つかりません。受信値: ${checkStatusId}`] },
       };
     }
     if (statusRow.stage_id !== newStageId) {
       return {
-        data: null,
-        error: `[status_id] 指定したステータスは選択されたステージに属しません。受信値: stage_id=${newStageId}, status_id=${checkStatusId}`,
+        ok: false,
+        errors: {
+          status_id: [`[status_id] 指定したステータスは選択されたステージに属しません。受信値: stage_id=${newStageId}, status_id=${checkStatusId}`],
+        },
       };
     }
   }
 
-  // score が変わったら temperature_id を再判定
-  let temperature_id = updates.temperature_id !== undefined
-    ? updates.temperature_id
-    : existing.temperature_id;
-  if (updates.score !== undefined && updates.score !== null) {
-    const resolved = await resolveTemperatureByScore(supabase, updates.score);
-    if (resolved) temperature_id = resolved;
+  // score / temperature_id は recalculate_lead_score で算出されるため手動設定不可。
+  // Zod スキーマから削除済みのため updates にはこれらのフィールドは存在しない。
+  const safeUpdates = updates;
+
+  // corporate_number 重複チェック（警告のみ。保存はブロックしない）
+  const warnings: string[] = [];
+  if (safeUpdates.corporate_number !== undefined) {
+    const corpWarn = await checkCorporateNumberDuplicate(supabase, safeUpdates.corporate_number);
+    if (corpWarn) warnings.push(corpWarn);
   }
 
   const updatePayload = {
-    ...updates,
-    temperature_id,
+    ...safeUpdates,
     last_updated_by: user.id,
   };
 
@@ -291,15 +378,19 @@ export async function updateLead(
     .select(LEAD_SELECT)
     .single();
 
-  if (updateErr) return { data: null, error: updateErr.message };
+  if (updateErr) return { ok: false, errors: { _: [updateErr.message] } };
+
+  // score / temperature_id / breakdowns を DB 関数で算出（失敗はログのみ。Lead 更新自体は成功扱い）
+  const adminClient = createAdminClient();
+  await recalculateLeadScore(adminClient, id);
 
   // stage が opportunity に遷移したら promoteLeadToDeal を呼び出す
   // 既に promoted_deal_id がある場合は再昇格しない（二重生成防止）
-  if (updates.stage_id && updates.stage_id !== existing.stage_id) {
+  if (safeUpdates.stage_id && safeUpdates.stage_id !== existing.stage_id) {
     const { data: newStage } = await supabase
       .from("lead_stages")
       .select("auto_promote_to_deal")
-      .eq("id", updates.stage_id)
+      .eq("id", safeUpdates.stage_id)
       .single();
 
     if (newStage?.auto_promote_to_deal) {
@@ -315,10 +406,17 @@ export async function updateLead(
         const promoteResult = await promoteLeadToDeal(id);
         if (promoteResult.error) {
           console.error("[updateLead] promoteLeadToDeal failed:", promoteResult.error);
-          // Deal 昇格失敗はエラーとして返す（ユーザーに確実に通知）
+          // corporate_number 重複エラーは専用キーで返す（UI 側で該当フィールドに表示可能にする）
+          if (promoteResult.error.includes("[corporate_number]")) {
+            return {
+              ok: false,
+              errors: { corporate_number: [promoteResult.error] },
+            };
+          }
+          // その他の昇格失敗はエラーとして返す（ユーザーに確実に通知）
           return {
-            data: updated,
-            error: `Deal昇格に失敗しました: ${promoteResult.error}`,
+            ok: false,
+            errors: { _: [`Deal昇格に失敗しました: ${promoteResult.error}`] },
           };
         }
         console.log("[updateLead] promoteLeadToDeal succeeded");
@@ -326,7 +424,7 @@ export async function updateLead(
     }
   }
 
-  return { data: updated, error: null };
+  return { ok: true, lead: updated, ...(warnings.length > 0 ? { warnings } : {}) };
 }
 
 // ---------- 論理削除（admin or owner）----------
@@ -394,8 +492,14 @@ export async function restoreLead(id: string): Promise<ActionResult<null>> {
 }
 
 // ---------- Deal 昇格（Opportunity ステージ遷移時に自動呼び出し）----------
-// 法人（slug: corporate / government）: Company + Contact(corporate_rep) + Account + account_contacts + Deal
-// 個人（slug: sole_proprietor）: Contact(individual) + Account + account_contacts + Deal
+// 法人（slug: corporate / government）:
+//   corporate_number 重複チェック（ブロック）→ Company + Contact(corporate_rep) + Account + account_contacts + Deal
+//   website_url は companies に転記
+// 個人（slug: sole_proprietor 等）:
+//   Contact(individual) + Account + account_contacts + Deal
+//   website_url は contacts に転記
+// 担当者情報（contact_last_name 等）→ contacts へ転記（未入力時は lead_name からフォールバック）
+// 企業情報（company_name_kana / representative_name / corporate_number 等）→ companies へ転記
 // 二重発火防止: promoted_deal_id が既存の場合はスキップ
 export async function promoteLeadToDeal(leadId: string): Promise<ActionResult<any>> {
   if (!UUID_REGEX.test(leadId)) {
@@ -405,12 +509,17 @@ export async function promoteLeadToDeal(leadId: string): Promise<ActionResult<an
   const { supabase, user, role } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
-  // --- Lead 取得（account_type の slug も含む）---
+  // --- Lead 取得（担当者情報・企業情報カラムも含む）---
   const { data: lead, error: leadErr } = await supabase
     .from("leads")
     .select(`
-      id, lead_name, owner_user_id, stage_id, account_type_id, company_name,
-      lead_source_id, promoted_deal_id, phone, url,
+      id, lead_name, owner_user_id, stage_id, account_type_id,
+      company_name, company_name_kana, representative_name, corporate_number,
+      company_phone, url,
+      contact_last_name, contact_middle_name, contact_first_name,
+      contact_last_name_kana, contact_middle_name_kana, contact_first_name_kana,
+      contact_department, contact_job_title, contact_email, contact_phone,
+      lead_source_id, promoted_deal_id,
       stage:lead_stages(id, auto_promote_to_deal),
       account_type:account_types(id, name, slug)
     `)
@@ -435,12 +544,7 @@ export async function promoteLeadToDeal(leadId: string): Promise<ActionResult<an
   }
 
   // 二重発火防止: already promoted
-  const { data: alreadyPromoted } = await supabase
-    .from("leads")
-    .select("promoted_deal_id")
-    .eq("id", leadId)
-    .single();
-  if (alreadyPromoted?.promoted_deal_id) {
+  if ((lead as any).promoted_deal_id) {
     return { data: null, error: "このリードはすでに Deal に昇格済みです" };
   }
 
@@ -460,19 +564,22 @@ export async function promoteLeadToDeal(leadId: string): Promise<ActionResult<an
   const isCorporate = accountTypeSlug === "corporate" || accountTypeSlug === "government"
     || (!accountTypeSlug && !!lead.company_name);
 
-  // --- マスタ ID の解決（固定 UUID を使用）---
-  // company_statuses: アクティブ = c1000000-0000-0000-0000-000000000001
-  // contact_statuses: アクティブ = d0000000-0000-0000-0000-000000000001
-  // account_statuses: 見込み    = c0000000-0000-0000-0000-000000000004
-  const COMPANY_STATUS_ACTIVE = "c1000000-0000-0000-0000-000000000001";
-  const CONTACT_STATUS_ACTIVE = "d0000000-0000-0000-0000-000000000001";
-  const ACCOUNT_STATUS_PROSPECT = "c0000000-0000-0000-0000-000000000004";
+  // ---------- corporate_number 重複チェック（法人のみ・ブロック）----------
+  if (isCorporate && lead.corporate_number) {
+    const { data: existingCompany } = await supabase
+      .from("companies")
+      .select("id, name")
+      .eq("corporate_number", lead.corporate_number)
+      .is("deleted_at", null)
+      .maybeSingle();
 
-  // lead_name を姓/名に分割（スペース区切り。単語が1つの場合は firstName を空文字にする）
-  // NOTE: contacts.first_name は NOT NULL → 1単語の場合は "" をセット（null は不可）
-  const nameParts = lead.lead_name.trim().split(/\s+/);
-  const lastName = nameParts[0] ?? lead.lead_name;
-  const firstName = nameParts.length > 1 ? nameParts.slice(1).join(" ") : "";
+    if (existingCompany) {
+      return {
+        data: null,
+        error: `[corporate_number] 法人番号 ${lead.corporate_number} の企業「${existingCompany.name}」が既に登録されています。別企業なら法人番号を修正してください。同一企業への昇格はできません。受信値: ${lead.corporate_number}`,
+      };
+    }
+  }
 
   // --- pipeline_type の解決（slug: sales）---
   const { data: pipeline, error: pipelineErr } = await supabase
@@ -530,20 +637,17 @@ export async function promoteLeadToDeal(leadId: string): Promise<ActionResult<an
     if (newCompanyId) await supabase.from("companies").delete().eq("id", newCompanyId);
   };
 
+  // ヘルパーに渡すために LeadRow 型にキャスト
+  const leadRow = lead as unknown as LeadRow;
+
   // 1. Company 作成（法人のみ）
   if (isCorporate) {
-    const companyName = lead.company_name ?? lead.lead_name;
-    console.log("[promoteLeadToDeal] step1: creating Company", companyName);
+    const companyPayload = buildCompanyPayloadFromLead(leadRow, user.id);
+    console.log("[promoteLeadToDeal] step1: creating Company", companyPayload.name);
+
     const { data: newCompany, error: companyErr } = await supabase
       .from("companies")
-      .insert({
-        name: companyName,
-        company_status_id: COMPANY_STATUS_ACTIVE,
-        lead_source_id: lead.lead_source_id ?? null,
-        owner_user_id: lead.owner_user_id,
-        created_by: user.id,
-        last_updated_by: user.id,
-      })
+      .insert(companyPayload)
       .select("id")
       .single();
 
@@ -558,37 +662,25 @@ export async function promoteLeadToDeal(leadId: string): Promise<ActionResult<an
     console.log("[promoteLeadToDeal] step1 OK: company_id=", newCompanyId);
   }
 
-  // 2. Contact 作成
+  // 2. Contact 作成（担当者情報転記・フォールバック含む）
   {
-    const contactType = isCorporate ? "corporate_rep" : "individual";
-    console.log("[promoteLeadToDeal:individual] step:2 creating Contact", lastName, firstName, contactType);
+    const contactType = isCorporate ? "corporate_rep" as const : "individual" as const;
+    const contactPayload = buildContactPayloadFromLead(
+      leadRow,
+      { contactType, companyId: newCompanyId },
+      user.id
+    );
+
+    console.log("[promoteLeadToDeal] step2: creating Contact", contactPayload.last_name, contactPayload.first_name, contactType);
+
     const { data: newContact, error: contactErr } = await supabase
       .from("contacts")
-      .insert({
-        last_name: lastName,
-        first_name: firstName,
-        contact_type: contactType,
-        contact_status_id: CONTACT_STATUS_ACTIVE,
-        // 個人（sole_proprietor）の場合は company_id を必ず null にする（バグ #4 対応）
-        company_id: isCorporate ? newCompanyId : null,
-        lead_source_id: lead.lead_source_id ?? null,
-        owner_user_id: lead.owner_user_id,
-        created_by: user.id,
-        last_updated_by: user.id,
-      })
+      .insert(contactPayload)
       .select("id")
       .single();
 
-    console.log("[promoteLeadToDeal:individual] step:2 contact payload logged:", {
-      last_name: lastName,
-      first_name: firstName,
-      contact_type: contactType,
-      company_id: isCorporate ? newCompanyId : null,
-      lead_source_id: lead.lead_source_id ?? null,
-    });
-
     if (contactErr || !newContact) {
-      console.error("[promoteLeadToDeal:individual] step:2 FAILED:", contactErr?.message, contactErr?.code, contactErr?.details);
+      console.error("[promoteLeadToDeal] step2 FAILED:", contactErr?.message, contactErr?.code, contactErr?.details);
       await rollback();
       return {
         data: null,
@@ -596,7 +688,7 @@ export async function promoteLeadToDeal(leadId: string): Promise<ActionResult<an
       };
     }
     newContactId = newContact.id;
-    console.log("[promoteLeadToDeal:individual] step:2 OK: contact_id=", newContactId);
+    console.log("[promoteLeadToDeal] step2 OK: contact_id=", newContactId);
 
     // 法人かつ Contact 作成成功 → Company の primary_contact_id を更新
     if (isCorporate && newCompanyId) {
@@ -606,24 +698,62 @@ export async function promoteLeadToDeal(leadId: string): Promise<ActionResult<an
         .eq("id", newCompanyId);
     }
 
-    // phone がある場合は contact_phones に追加（バグ #3: phone 引き継ぎ）
-    if (lead.phone && newContactId) {
-      console.log("[promoteLeadToDeal:individual] step:2b inserting contact_phones phone=", lead.phone);
-      const { error: phoneErr } = await supabase
-        .from("contact_phones")
+    // contact_email がある場合は contact_emails に追加
+    if (lead.contact_email && newContactId) {
+      console.log("[promoteLeadToDeal] step2a: inserting contact_emails email=", lead.contact_email);
+      const { error: emailErr } = await supabase
+        .from("contact_emails")
         .insert({
           contact_id: newContactId,
-          phone: lead.phone,
+          email: lead.contact_email,
           label: "work",
           is_primary: true,
           created_by: user.id,
           last_updated_by: user.id,
         });
-      if (phoneErr) {
-        // phone 挿入失敗はロールバック不要（致命的ではない）だが警告ログを残す
-        console.warn("[promoteLeadToDeal:individual] step:2b phone insert WARN:", phoneErr.message);
+      if (emailErr) {
+        console.warn("[promoteLeadToDeal] step2a email insert WARN:", emailErr.message);
       } else {
-        console.log("[promoteLeadToDeal:individual] step:2b phone inserted OK");
+        console.log("[promoteLeadToDeal] step2a email inserted OK");
+      }
+    }
+
+    // contact_phone がある場合は contact_phones に追加（担当者電話）
+    if (lead.contact_phone && newContactId) {
+      console.log("[promoteLeadToDeal] step2b: inserting contact_phones (contact_phone) phone=", lead.contact_phone);
+      const { error: cPhoneErr } = await supabase
+        .from("contact_phones")
+        .insert({
+          contact_id: newContactId,
+          phone: lead.contact_phone,
+          label: "work",
+          is_primary: true,
+          created_by: user.id,
+          last_updated_by: user.id,
+        });
+      if (cPhoneErr) {
+        console.warn("[promoteLeadToDeal] step2b contact_phone insert WARN:", cPhoneErr.message);
+      } else {
+        console.log("[promoteLeadToDeal] step2b contact_phone inserted OK");
+      }
+    } else if (!lead.contact_phone && lead.company_phone && newContactId) {
+      // contact_phone が未入力かつ company_phone がある場合: company_phone を代表電話として登録
+      // （個人昇格の場合のみ; 法人は company_phone が companies.phone に転記済み）
+      if (!isCorporate) {
+        console.log("[promoteLeadToDeal] step2b: inserting contact_phones (company_phone fallback for individual) phone=", lead.company_phone);
+        const { error: cPhoneFallbackErr } = await supabase
+          .from("contact_phones")
+          .insert({
+            contact_id: newContactId,
+            phone: lead.company_phone,
+            label: "work",
+            is_primary: true,
+            created_by: user.id,
+            last_updated_by: user.id,
+          });
+        if (cPhoneFallbackErr) {
+          console.warn("[promoteLeadToDeal] step2b company_phone fallback insert WARN:", cPhoneFallbackErr.message);
+        }
       }
     }
   }
@@ -759,4 +889,148 @@ export async function promoteLeadToDeal(leadId: string): Promise<ActionResult<an
     },
     error: null,
   };
+}
+
+// ============================================================
+// lead_customer_activities CRUD
+// ============================================================
+
+// ---------- 作成 ----------
+export async function createLeadCustomerActivity(
+  input: unknown
+): Promise<ActionResult<any>> {
+  const { supabase, user, role: _role } = await getAuthenticatedUser();
+  if (!supabase || !user) return { data: null, error: "認証が必要です" };
+
+  const parsed = leadCustomerActivityCreateSchema.safeParse(input);
+  if (!parsed.success) return { data: null, error: parsed.error.issues[0].message };
+
+  const d = parsed.data;
+
+  // is_lead_accessible 相当の確認（RLS で担保されるが Server Action 側でも実施）
+  if (!UUID_REGEX.test(d.lead_id)) {
+    return { data: null, error: `[lead_id] 不正なパラメータです。受信値: ${d.lead_id}` };
+  }
+  const { data: leadRow, error: leadErr } = await supabase
+    .from("leads")
+    .select("id")
+    .eq("id", d.lead_id)
+    .is("deleted_at", null)
+    .single();
+  if (leadErr || !leadRow) {
+    return { data: null, error: `[lead_id] リードが見つかりません。受信値: ${d.lead_id}` };
+  }
+
+  const { data, error } = await supabase
+    .from("lead_customer_activities")
+    .insert({
+      ...d,
+      created_by: user.id,
+      last_updated_by: user.id,
+    })
+    .select("*, activity_type:lead_customer_activity_types(id, code, name)")
+    .single();
+
+  if (error) return { data: null, error: error.message };
+
+  revalidatePath("/leads");
+  revalidatePath(`/leads/${d.lead_id}`);
+
+  // score / temperature_id / breakdowns を DB 関数で算出（失敗はログのみ）
+  const adminClient = createAdminClient();
+  await recalculateLeadScore(adminClient, d.lead_id);
+
+  return { data, error: null };
+}
+
+// ---------- 更新 ----------
+export async function updateLeadCustomerActivity(
+  id: string,
+  input: unknown
+): Promise<ActionResult<any>> {
+  if (!UUID_REGEX.test(id)) {
+    return { data: null, error: "不正なパラメータです。受信値: " + id };
+  }
+
+  const { supabase, user } = await getAuthenticatedUser();
+  if (!supabase || !user) return { data: null, error: "認証が必要です" };
+
+  const parsed = leadCustomerActivityUpdateSchema.safeParse({ ...( input as object ), id });
+  if (!parsed.success) return { data: null, error: parsed.error.issues[0].message };
+
+  const { id: _id, ...updates } = parsed.data;
+
+  // 既存レコード取得（lead_id を revalidate に使用）
+  const { data: existing, error: fetchErr } = await supabase
+    .from("lead_customer_activities")
+    .select("id, lead_id")
+    .eq("id", id)
+    .single();
+  if (fetchErr || !existing) {
+    return { data: null, error: "顧客行動ログが見つかりません" };
+  }
+
+  const { data, error } = await supabase
+    .from("lead_customer_activities")
+    .update({
+      ...updates,
+      last_updated_by: user.id,
+    })
+    .eq("id", id)
+    .select("*, activity_type:lead_customer_activity_types(id, code, name)")
+    .single();
+
+  if (error) return { data: null, error: error.message };
+
+  revalidatePath("/leads");
+  revalidatePath(`/leads/${existing.lead_id}`);
+
+  // score / temperature_id / breakdowns を DB 関数で算出（失敗はログのみ）
+  const adminClientU = createAdminClient();
+  await recalculateLeadScore(adminClientU, existing.lead_id);
+
+  return { data, error: null };
+}
+
+// ---------- 物理削除（admin のみ）----------
+export async function deleteLeadCustomerActivity(
+  id: string
+): Promise<ActionResult<null>> {
+  if (!UUID_REGEX.test(id)) {
+    return { data: null, error: "不正なパラメータです。受信値: " + id };
+  }
+
+  const { supabase, user, role } = await getAuthenticatedUser();
+  if (!supabase || !user) return { data: null, error: "認証が必要です" };
+
+  // admin のみ許可（RLS と二重チェック）
+  if (role !== "admin") {
+    return { data: null, error: "管理者権限が必要です" };
+  }
+
+  // lead_id を revalidate に使用するため先に取得
+  const { data: existing, error: fetchErr } = await supabase
+    .from("lead_customer_activities")
+    .select("id, lead_id")
+    .eq("id", id)
+    .single();
+  if (fetchErr || !existing) {
+    return { data: null, error: "顧客行動ログが見つかりません" };
+  }
+
+  const { error } = await supabase
+    .from("lead_customer_activities")
+    .delete()
+    .eq("id", id);
+
+  if (error) return { data: null, error: error.message };
+
+  revalidatePath("/leads");
+  revalidatePath(`/leads/${existing.lead_id}`);
+
+  // score / temperature_id / breakdowns を DB 関数で算出（失敗はログのみ）
+  const adminClientD = createAdminClient();
+  await recalculateLeadScore(adminClientD, existing.lead_id);
+
+  return { data: null, error: null };
 }

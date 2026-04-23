@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { uuidString } from "./common";
+import { uuidString, urlSchema } from "./common";
 
 const contactBaseSchema = z.object({
   last_name: z.string().min(1, "姓は必須です").max(50),
@@ -28,6 +28,7 @@ const contactBaseSchema = z.object({
   line_user_id: z.string().nullable().optional(),
   internal_memo: z.string().max(2000).nullable().optional(),
   owner_user_id: uuidString().nullable().optional(),
+  website_url: urlSchema,
 });
 
 export const createContactSchema = contactBaseSchema.refine(

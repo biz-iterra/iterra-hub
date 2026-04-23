@@ -350,8 +350,8 @@ export async function getCampaignLeads(
       assigned_at,
       lead:leads(
         id, lead_name, company_name, stage_id, status_id, score, temperature_id, owner_user_id,
-        stage:lead_stages(id, slug, name),
-        status:lead_statuses(id, code, name),
+        stage:lead_stages(id, slug, name, sort_order),
+        status:lead_statuses(id, code, name, sort_order),
         temperature:lead_temperatures(id, code, name, color),
         owner:crm_users!leads_owner_user_id_fkey(id, full_name)
       )

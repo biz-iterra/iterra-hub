@@ -25,6 +25,9 @@ import {
   leadCallStatusCreateSchema, leadCallStatusUpdateSchema,
   leadLargeSegmentCreateSchema, leadLargeSegmentUpdateSchema,
   leadSmallSegmentCreateSchema, leadSmallSegmentUpdateSchema,
+  leadCompanySizeSchema, leadCompanySizeUpdateSchema,
+  leadCustomerActivityTypeSchema, leadCustomerActivityTypeUpdateSchema,
+  leadScoreRuleSchema, leadScoreRuleUpdateSchema,
 } from "@/lib/validators";
 import type { z } from "zod";
 
@@ -315,7 +318,7 @@ export async function deleteSkillCategory(id: string) { return deleteMasterRecor
 export async function getSkills(categoryId?: string) {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
-  let query = supabase.from("skills").select("*, skill_categories(name)").is("deleted_at", null).order("sort_order");
+  let query = supabase.from("skills").select("id, skill_code, skill_category_id, axis, name, system_tags, note, sort_order, is_active, skill_categories(name)").is("deleted_at", null).order("sort_order");
   if (categoryId) query = query.eq("skill_category_id", categoryId);
   const { data, error } = await query;
   if (error) return { data: null, error: error.message };
@@ -512,3 +515,212 @@ export async function updateLeadSmallSegment(id: string, input: Record<string, u
   return updateMasterRecord("lead_small_segments", id, input, leadSmallSegmentUpdateSchema);
 }
 export async function deleteLeadSmallSegment(id: string) { return deleteMasterRecord("lead_small_segments", id); }
+
+// ============================================================
+// Phase 7: 新マスタ CRUD（lead_company_sizes / lead_customer_activity_types / lead_score_rules）
+// ============================================================
+
+// Lead Company Sizes（M24）
+export async function getLeadCompanySizes(): Promise<ActionResult<any[]>> {
+  const { supabase, user } = await getAuthenticatedUser();
+  if (!supabase || !user) return { data: null, error: "認証が必要です" };
+  const { data, error } = await supabase
+    .from("lead_company_sizes")
+    .select("*")
+    .is("deleted_at", null)
+    .order("sort_order", { ascending: true });
+  if (error) return { data: null, error: error.message };
+  return { data, error: null };
+}
+export async function createLeadCompanySize(input: Record<string, unknown>): Promise<ActionResult<any>> {
+  const { supabase, user } = await getAuthenticatedUser();
+  if (!supabase || !user) return { data: null, error: "認証が必要です" };
+  const adminError = await requireAdmin(supabase, user.id);
+  if (adminError) return { data: null, error: adminError };
+  const parsed = leadCompanySizeSchema.safeParse(input);
+  if (!parsed.success) return { data: null, error: parsed.error.issues[0].message };
+  const { data, error } = await supabase.from("lead_company_sizes").insert(parsed.data as Record<string, unknown>).select().single();
+  if (error) return { data: null, error: error.message };
+  return { data, error: null };
+}
+export async function updateLeadCompanySize(id: string, input: Record<string, unknown>): Promise<ActionResult<any>> {
+  const { supabase, user } = await getAuthenticatedUser();
+  if (!supabase || !user) return { data: null, error: "認証が必要です" };
+  const adminError = await requireAdmin(supabase, user.id);
+  if (adminError) return { data: null, error: adminError };
+  const parsed = leadCompanySizeUpdateSchema.safeParse(input);
+  if (!parsed.success) return { data: null, error: parsed.error.issues[0].message };
+  const { data, error } = await supabase.from("lead_company_sizes").update(parsed.data as Record<string, unknown>).eq("id", id).select().single();
+  if (error) return { data: null, error: error.message };
+  return { data, error: null };
+}
+export async function deleteLeadCompanySize(id: string): Promise<ActionResult<null>> {
+  const { supabase, user } = await getAuthenticatedUser();
+  if (!supabase || !user) return { data: null, error: "認証が必要です" };
+  const adminError = await requireAdmin(supabase, user.id);
+  if (adminError) return { data: null, error: adminError };
+  const { error } = await supabase.from("lead_company_sizes").update({
+    deleted_at: new Date().toISOString(),
+    deleted_by: user.id,
+  }).eq("id", id);
+  if (error) return { data: null, error: error.message };
+  return { data: null, error: null };
+}
+
+// Lead Customer Activity Types（M25）
+export async function getLeadCustomerActivityTypes(): Promise<ActionResult<any[]>> {
+  const { supabase, user } = await getAuthenticatedUser();
+  if (!supabase || !user) return { data: null, error: "認証が必要です" };
+  const { data, error } = await supabase
+    .from("lead_customer_activity_types")
+    .select("*")
+    .is("deleted_at", null)
+    .order("sort_order", { ascending: true });
+  if (error) return { data: null, error: error.message };
+  return { data, error: null };
+}
+export async function createLeadCustomerActivityType(input: Record<string, unknown>): Promise<ActionResult<any>> {
+  const { supabase, user } = await getAuthenticatedUser();
+  if (!supabase || !user) return { data: null, error: "認証が必要です" };
+  const adminError = await requireAdmin(supabase, user.id);
+  if (adminError) return { data: null, error: adminError };
+  const parsed = leadCustomerActivityTypeSchema.safeParse(input);
+  if (!parsed.success) return { data: null, error: parsed.error.issues[0].message };
+  const { data, error } = await supabase.from("lead_customer_activity_types").insert(parsed.data as Record<string, unknown>).select().single();
+  if (error) return { data: null, error: error.message };
+  return { data, error: null };
+}
+export async function updateLeadCustomerActivityType(id: string, input: Record<string, unknown>): Promise<ActionResult<any>> {
+  const { supabase, user } = await getAuthenticatedUser();
+  if (!supabase || !user) return { data: null, error: "認証が必要です" };
+  const adminError = await requireAdmin(supabase, user.id);
+  if (adminError) return { data: null, error: adminError };
+  const parsed = leadCustomerActivityTypeUpdateSchema.safeParse(input);
+  if (!parsed.success) return { data: null, error: parsed.error.issues[0].message };
+  const { data, error } = await supabase.from("lead_customer_activity_types").update(parsed.data as Record<string, unknown>).eq("id", id).select().single();
+  if (error) return { data: null, error: error.message };
+  return { data, error: null };
+}
+export async function deleteLeadCustomerActivityType(id: string): Promise<ActionResult<null>> {
+  const { supabase, user } = await getAuthenticatedUser();
+  if (!supabase || !user) return { data: null, error: "認証が必要です" };
+  const adminError = await requireAdmin(supabase, user.id);
+  if (adminError) return { data: null, error: adminError };
+  const { error } = await supabase.from("lead_customer_activity_types").update({
+    deleted_at: new Date().toISOString(),
+    deleted_by: user.id,
+  }).eq("id", id);
+  if (error) return { data: null, error: error.message };
+  return { data: null, error: null };
+}
+
+// Lead Score Rules（M26）
+export async function getLeadScoreRules(): Promise<ActionResult<any[]>> {
+  const { supabase, user } = await getAuthenticatedUser();
+  if (!supabase || !user) return { data: null, error: "認証が必要です" };
+  const { data, error } = await supabase
+    .from("lead_score_rules")
+    .select("*")
+    .is("deleted_at", null)
+    .order("sort_order", { ascending: true });
+  if (error) return { data: null, error: error.message };
+  return { data, error: null };
+}
+export async function createLeadScoreRule(input: Record<string, unknown>): Promise<ActionResult<any>> {
+  const { supabase, user } = await getAuthenticatedUser();
+  if (!supabase || !user) return { data: null, error: "認証が必要です" };
+  const adminError = await requireAdmin(supabase, user.id);
+  if (adminError) return { data: null, error: adminError };
+  const parsed = leadScoreRuleSchema.safeParse(input);
+  if (!parsed.success) return { data: null, error: parsed.error.issues[0].message };
+  const { data, error } = await supabase.from("lead_score_rules").insert(parsed.data as Record<string, unknown>).select().single();
+  if (error) return { data: null, error: error.message };
+  return { data, error: null };
+}
+export async function updateLeadScoreRule(id: string, input: Record<string, unknown>): Promise<ActionResult<any>> {
+  const { supabase, user } = await getAuthenticatedUser();
+  if (!supabase || !user) return { data: null, error: "認証が必要です" };
+  const adminError = await requireAdmin(supabase, user.id);
+  if (adminError) return { data: null, error: adminError };
+  const parsed = leadScoreRuleUpdateSchema.safeParse(input);
+  if (!parsed.success) return { data: null, error: parsed.error.issues[0].message };
+  const { data, error } = await supabase.from("lead_score_rules").update(parsed.data as Record<string, unknown>).eq("id", id).select().single();
+  if (error) return { data: null, error: error.message };
+  return { data, error: null };
+}
+export async function deleteLeadScoreRule(id: string): Promise<ActionResult<null>> {
+  const { supabase, user } = await getAuthenticatedUser();
+  if (!supabase || !user) return { data: null, error: "認証が必要です" };
+  const adminError = await requireAdmin(supabase, user.id);
+  if (adminError) return { data: null, error: adminError };
+  const { error } = await supabase.from("lead_score_rules").update({
+    deleted_at: new Date().toISOString(),
+    deleted_by: user.id,
+  }).eq("id", id);
+  if (error) return { data: null, error: error.message };
+  return { data: null, error: null };
+}
+
+// Lead Score Thresholds（旧 lead_scoring_rules）取得 + CRUD
+export async function getLeadScoreThresholds(): Promise<ActionResult<any[]>> {
+  const { supabase, user } = await getAuthenticatedUser();
+  if (!supabase || !user) return { data: null, error: "認証が必要です" };
+  const { data, error } = await supabase
+    .from("lead_score_thresholds")
+    .select("*")
+    .is("deleted_at", null)
+    .order("min_score", { ascending: true });
+  if (error) return { data: null, error: error.message };
+  return { data, error: null };
+}
+
+// 参照切れルール確認（admin 向け）
+// lead_score_rules.condition_value_id の参照先マスタ行が存在するかチェック
+export async function getLeadScoreRulesWithBrokenRefs(): Promise<ActionResult<{
+  rules: any[];
+  brokenCount: number;
+}>> {
+  const { supabase, user } = await getAuthenticatedUser();
+  if (!supabase || !user) return { data: null, error: "認証が必要です" };
+
+  // ルール一覧取得
+  const { data: rules, error } = await supabase
+    .from("lead_score_rules")
+    .select("*")
+    .is("deleted_at", null)
+    .order("sort_order", { ascending: true });
+  if (error) return { data: null, error: error.message };
+  if (!rules || rules.length === 0) return { data: { rules: [], brokenCount: 0 }, error: null };
+
+  // condition_value_id を持つルールについて参照先を検証
+  // condition_type ごとにテーブルを解決
+  const TABLE_MAP: Record<string, string> = {
+    company_size: "lead_company_sizes",
+    large_segment: "lead_large_segments",
+    small_segment: "lead_small_segments",
+    lead_source: "lead_sources",
+    stage: "lead_stages",
+    status: "lead_statuses",
+    call_status: "lead_call_statuses",
+    activity_type: "lead_activity_types",
+    customer_activity_type: "lead_customer_activity_types",
+  };
+
+  const rulesWithRef = await Promise.all(
+    rules.map(async (rule) => {
+      if (!rule.condition_value_id) return { ...rule, _refBroken: false };
+      const tableName = TABLE_MAP[rule.condition_type];
+      if (!tableName) return { ...rule, _refBroken: false };
+      const { data: refRow } = await supabase
+        .from(tableName)
+        .select("id, deleted_at")
+        .eq("id", rule.condition_value_id)
+        .maybeSingle();
+      const broken = !refRow || refRow.deleted_at != null;
+      return { ...rule, _refBroken: broken };
+    })
+  );
+
+  const brokenCount = rulesWithRef.filter((r) => r._refBroken).length;
+  return { data: { rules: rulesWithRef, brokenCount }, error: null };
+}

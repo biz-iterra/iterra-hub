@@ -39,9 +39,12 @@ ITERRAの営業・取引管理CRMシステムを新規構築する。現在ス�
 | M18 | リードステージ | `lead_stages` | リード進捗ステージ（7段階）。`slug`/`is_terminal`/`auto_promote_to_deal` を持つ | リード共通マスタ |
 | M19 | リードステータス | `lead_statuses` | ステージ内の状態（stage_id FK、UNIQUE(stage_id, code)） | リード共通マスタ |
 | M20 | リード温度感 | `lead_temperatures` | 温度感マスタ（hot/warm/cold） | リード共通マスタ |
-| M21 | リードスコアリングルール | `lead_scoring_rules` | score範囲→temperature_id マッピングルール | リード共通マスタ |
+| M21 | リードスコアリングルール | `lead_score_thresholds` | スコア→温度感 変換ルール（旧: lead_scoring_rules） | リード共通マスタ |
 | M22 | リードカテゴリ | `lead_categories` | リードカテゴリマスタ（Inquiry/MQL/TQL/SQL）。Lead.category_id で参照。ステージとは独立した分類軸 | リード共通マスタ |
 | M23 | キャンペーン | `campaigns` | マーケティングキャンペーン（generation/nurturing/qualification） | リード共通マスタ |
+| M24 | リード 企業規模 | `lead_company_sizes` | 従業員数/資本金レンジによる企業規模 | リード共通マスタ |
+| M25 | リード 顧客行動タイプ | `lead_customer_activity_types` | イベント参加/資料DL等 | リード共通マスタ |
+| M26 | リード スコアルール | `lead_score_rules` | 属性/行動/ステージ/ステータス/活動から score_delta を導出 | リード共通マスタ |
 
 ### 2.2 構造化マスタ（階層・依存関係あり）
 他マスタとの依存関係を持つ。参照整合性が重要。
@@ -88,6 +91,8 @@ ITERRAの営業・取引管理CRMシステムを新規構築する。現在ス�
 | D06 | タレント経歴 | `talent_careers` | T07 talents | Talent 1 : N Career |
 | D07 | プロジェクトメンバー | `project_members` | T08 projects | Project 1 : N Member（crm_users参照） |
 | D08 | リード架電記録 | `lead_activities` | T09 leads | Lead 1 : N 架電記録（call_number UNIQUE） |
+| D09 | リード顧客行動ログ | `lead_customer_activities` | T09 leads | 顧客側の行動履歴（手動入力） |
+| D10 | リードスコア内訳 | `lead_score_breakdowns` | T09 leads | recalculate_lead_score の算出内訳 |
 
 ### 2.5b パイプライン拡張（Deal 1:1 / 1:N）
 パイプラインごとに固有カラムを保持する拡張テーブル。共通規約については §9 参照。
@@ -731,6 +736,7 @@ ITERRAの営業・取引管理CRMシステムを新規構築する。現在ス�
 | 22 | 星座ID | `constellation_id` | UUID | | FK→R01.id | | | | | birth_date から自動算出（§10）。ユーザーが明示指定した場合はそれを優先 |
 | 23 | リードソースID | `lead_source_id` | UUID | | FK→M05.id | | | | | |
 | 24 | LINEユーザーID | `line_user_id` | TEXT | | | UK(NULLable) | | | | |
+| 24a | 個人サイトURL | `website_url` | TEXT | | | | | | | max 500文字。Lead 個人昇格時に leads.url から転記 |
 | 25 | 社内メモ | `internal_memo` | TEXT | | | | | | | max 2000文字 |
 | 26 | 担当者ID | `owner_user_id` | UUID | | FK→T01.id | | | | | |
 | 27 | 有効フラグ | `is_active` | BOOLEAN | | | | NN | TRUE | | |
@@ -1679,6 +1685,21 @@ Next.js 15プロジェクト初期化、Supabase設定、共通ライブラリ
 39. `20260419000014_create_lead_categories.sql` — M22 lead_categories マスタ作成（RLS 標準マスタパターン）
 40. `20260419000015_alter_leads_add_category_id.sql` — T09 leads に category_id（M22 FK、NULL 許容）追加 + idx_leads_category
 41. `20260419000016_recreate_v_leads_with_category.sql` — v_leads_with_category を再定義（CASE 式廃止 → lead_categories LEFT JOIN）
+42. `20260420000001_alter_leads_add_promoted_refs.sql` — leads に promoted_company_id / promoted_contact_id / promoted_account_id 追加
+43. `20260420000002_alter_contacts_first_name_nullable.sql` — contacts.first_name を NULL 許容に変更（昇格時 1 単語名対応）
+44. `20260420000003_create_lead_activity_types.sql` — M20相当 lead_activity_types マスタ作成
+45. `20260420000004_alter_lead_activities_add_type.sql` — lead_activities に activity_type_id 追加
+46. `20260421000001_add_definition_to_masters.sql` — 各マスタに definition 列追加
+47. `20260421000002_talent_classification_masters.sql` — タレント分類マスタ作成
+48. `20260422000001_rename_lead_scoring_rules.sql` — lead_scoring_rules → lead_score_thresholds リネーム（Phase 1）
+49. `20260422000002_create_lead_score_masters.sql` — M24 lead_company_sizes / M25 lead_customer_activity_types / M26 lead_score_rules 作成（Phase 2）
+50. `20260422000003_alter_leads_add_company_size.sql` — T09 leads に employee_count / capital / company_size_id 追加 + score CHECK 強化 + 企業規模自動判定トリガ（Phase 3）
+51. `20260422000004_create_lead_customer_activities.sql` — D09 lead_customer_activities + RLS（Phase E）
+52. `20260422000005_create_lead_score_breakdowns.sql` — D10 lead_score_breakdowns + RLS（Phase E）
+53. `20260422000006_create_recalculate_lead_score.sql` — recalculate_lead_score 関数（Phase E）
+54. `20260422000007_setup_lead_score_weekly_cron.sql` — 週次スコア再計算 cron 設定（Phase E）
+55. `20260422000008_alter_leads_add_contact_company_info.sql` — T09 leads に phone→company_phone リネーム + 担当者情報9列・企業情報3列追加 + CHECK 制約（Phase 9b）
+56. `20260422000009_alter_contacts_add_website_url.sql` — T04 contacts に website_url 追加（Lead 個人昇格転記先、Phase 9b）
 
 ### Phase 3: 型定義・Zodバリデーション
 - `src/types/index.ts`
@@ -1825,6 +1846,7 @@ Lead は Deal より上流の「見込み客」を管理するエンティティ
 [leads] ─────────────────┘ (stage_id 必須。status_id は通常ステージでは必須、Opportunity 等 auto_promote_to_deal=true のステージでは NULL 許容)
   │ N──1 [lead_temperatures]
   │ N──0..1 [lead_categories] (category_id。M22。ステージとは独立)
+  │ N──0..1 [lead_company_sizes] (company_size_id。M24。DBトリガ自動設定)
   │ N──1 [lead_large_segments]
   │ N──1 [lead_small_segments]
   │ N──1 [lead_callers] (primary_caller)
@@ -1926,7 +1948,7 @@ Lead は Deal より上流の「見込み客」を管理するエンティティ
 | `warm` | ウォーム | 50〜79 |
 | `cold` | コールド | 0〜49 |
 
-**実装方針:** `temperature_id` は Server Action 側で `lead_scoring_rules` を参照して設定する。DB トリガーによる自動更新は行わない（Phase B で Server Action 実装時に対応）。
+**実装方針:** `temperature_id` は Server Action 側で `lead_score_thresholds` を参照して設定する。DB トリガーによる自動更新は行わない（Phase B で Server Action 実装時に対応）。
 
 ### 11.6 Lead→Opportunity 昇格フロー（20260420000001 で拡張）
 
@@ -1939,20 +1961,25 @@ Opportunity ステージへの遷移時に初めて Company/Contact/Account/Deal
 3. `lead_name` と `account_type_id` が必須（欠落時は `[ステージ遷移] Opportunity 昇格には lead_name と account_type_id が必要です` を返す）
 
 #### 法人昇格（account_types.slug = `corporate` または `government`）
-1. `companies` に新規挿入（`company_name` 優先、なければ `lead_name`）
-2. `contacts` に `contact_type=corporate_rep` で挿入（`lead_name` をスペース分割して姓/名）
+0. **corporate_number 重複チェック（ブロック）:** `leads.corporate_number` が `companies.corporate_number` に既存かつ `deleted_at IS NULL` の場合、エラー返却・昇格中止
+1. `companies` に新規挿入（`buildCompanyPayloadFromLead`）: `company_name` / `company_name_kana` / `representative_name` / `corporate_number` / `company_phone`→`phone` / `url`→`website_url` 転記
+2. `contacts` に `contact_type=corporate_rep` で挿入（`buildContactPayloadFromLead`）: 担当者情報9カラム転記 / `contact_last_name` 未入力時は `lead_name` フォールバック / `website_url=null`（法人は companies 側に転記）
 3. `companies.primary_contact_id` を新 Contact で更新
-4. `accounts` に新規挿入（`company_id` を設定）
-5. `account_contacts` で Account と Contact を紐付け（`role=primary`）
-6. `deals` に新規挿入（`name = lead_name + " 案件"`、pipeline_type=standard の先頭ステージ）
-7. `leads` の `promoted_deal_id / promoted_company_id / promoted_contact_id / promoted_account_id` を一括更新
+4. `contact_email` がある場合 → `contact_emails`（label=work, is_primary=true）に追加
+5. `contact_phone` がある場合 → `contact_phones`（label=work, is_primary=true）に追加
+6. `accounts` に新規挿入（`company_id` を設定）
+7. `account_contacts` で Account と Contact を紐付け（`role=primary`）
+8. `deals` に新規挿入（`name = lead_name + " 案件"`、pipeline_type=sales の先頭ステージ）
+9. `leads` の `promoted_deal_id / promoted_company_id / promoted_contact_id / promoted_account_id` を一括更新
 
-#### 個人昇格（account_types.slug = `sole_proprietor`、またはスラッグ未設定かつ company_name が空の場合）
-1. `contacts` に `contact_type=individual` で挿入
-2. `accounts` に新規挿入（`company_id=null`）
-3. `account_contacts` で Account と Contact を紐付け
-4. `deals` に新規挿入
-5. `leads` の `promoted_*` を更新
+#### 個人昇格（account_types.slug = `sole_proprietor` 等、またはスラッグ未設定かつ company_name が空の場合）
+1. `contacts` に `contact_type=individual` で挿入（`buildContactPayloadFromLead`）: 担当者情報9カラム転記 / `url`→`website_url`（個人は contacts 側に転記）
+2. `contact_email` がある場合 → `contact_emails` に追加
+3. `contact_phone` がある場合 → `contact_phones` に追加（未入力時は `company_phone` でフォールバック）
+4. `accounts` に新規挿入（`company_id=null`）
+5. `account_contacts` で Account と Contact を紐付け
+6. `deals` に新規挿入
+7. `leads` の `promoted_*` を更新
 
 #### エラー時ロールバック
 各エンティティ作成で失敗した場合、作成済みのエンティティを逆順に物理削除する（手動補償トランザクション）。
@@ -1967,6 +1994,35 @@ Lead 更新は成功済みのため、`error` 文字列を警告として返し 
 | `promoted_account_id` | UUID FK → accounts(id) ON DELETE SET NULL  | 昇格時に作成した Account |
 
 昇格後に再度 Opportunity 以外のステージに戻した場合も、作成済みの Company/Contact/Account/Deal は削除しない（業務的に不自然）。
+
+#### Lead→昇格先 転記マッピング（Phase 9b 追加: 20260422000008/09 で列追加）
+
+| Lead カラム | 転記先 | 条件 |
+|---|---|---|
+| `leads.url` | `companies.website_url` | 法人昇格 |
+| `leads.url` | `contacts.website_url` | 個人昇格 |
+| `leads.company_phone` | `companies.phone` | 法人昇格 |
+| `leads.contact_phone` | `contact_phones.phone`（label=work, is_primary=true） | 法人・個人両方 |
+| `leads.contact_last_name` | `contacts.last_name` | 法人・個人両方 |
+| `leads.contact_middle_name` | `contacts.middle_name` | 法人・個人両方 |
+| `leads.contact_first_name` | `contacts.first_name` | 法人・個人両方 |
+| `leads.contact_last_name_kana` | `contacts.last_name_kana` | 法人・個人両方 |
+| `leads.contact_middle_name_kana` | `contacts.middle_name_kana` | 法人・個人両方 |
+| `leads.contact_first_name_kana` | `contacts.first_name_kana` | 法人・個人両方 |
+| `leads.contact_department` | `contacts.department` | 法人・個人両方 |
+| `leads.contact_job_title` | `contacts.job_title` | 法人・個人両方 |
+| `leads.contact_email` | `contact_emails.email`（label=work, is_primary=true） | 法人・個人両方 |
+| `leads.company_name_kana` | `companies.name_kana` | 法人昇格 |
+| `leads.representative_name` | `companies.representative_name` | 法人昇格 |
+| `leads.corporate_number` | `companies.corporate_number` | 法人昇格（重複時はブロック：9c で対応）|
+
+> **実装済み（Phase 9e）:** 上記転記ロジックは `src/actions/leads.ts`（`promoteLeadToDeal`）および `src/lib/leads/promote-helpers.ts` に実装済み。
+>
+> - 法人昇格時: `buildCompanyPayloadFromLead` で Company payload 生成 → `corporate_number` 重複は昇格をブロック（エラー返却）
+> - 個人昇格時: `buildContactPayloadFromLead` で Contact payload 生成 → `website_url` を `contacts.website_url` に転記
+> - 担当者情報未入力時: `lead_name` からのフォールバック分割を維持
+> - `contact_email` → `contact_emails`（label=work, is_primary=true）追加
+> - `contact_phone` → `contact_phones`（label=work, is_primary=true）追加（個人かつ contact_phone 未入力時は company_phone でフォールバック）
 
 **注意:** `leads.promoted_deal_id` は `ON DELETE SET NULL` なので Deal 物理削除時も無効化される。テスト段階での Deal 物理削除は Phase D で許容するが、運用後は禁止（§11.8 参照）。
 
@@ -2028,6 +2084,127 @@ Lead 登録・更新時に `lead_source_id` が設定されている場合、紐
 
 **理由:** テレアポ→架電リード登録時に contact の `lead_source_id='teleappointment'` を自動セットするなど、
 初回流入チャネルをトラッキングしやすくするため。ただし手動で設定した値は尊重する。
+
+### 11.12 Lead スコアリング機構（Phase E: 2026-04-22 刷新中）
+
+本章は Phase 2-7 完了後に最終更新予定。現時点ではマスタ定義のみ記載。
+
+#### 11.12.1 マスタ構成
+- M21 lead_score_thresholds: score → temperature_id 変換
+- M24 lead_company_sizes: 資本金/従業員数レンジ
+- M25 lead_customer_activity_types: 顧客行動タイプ
+- M26 lead_score_rules: 加点ルール
+
+#### 11.12.2 leads テーブルへの追加列（20260422000003 で追加）
+
+| カラム | 型 | NULL | 説明 |
+|--------|---|------|------|
+| `employee_count` | INT | 許容 | 従業員数（判定用。スコア算出では company_size_id 経由で参照）。CHECK: >= 0 |
+| `capital` | NUMERIC | 許容 | 資本金（円、判定用）。CHECK: >= 0 |
+| `company_size_id` | UUID FK → lead_company_sizes(id) | 許容 | 企業規模。DBトリガ（trg_leads_company_size_before_*）で自動設定。アプリからの設定不可 |
+
+**score CHECK 強化:** `score IS NULL OR (score >= 0 AND score <= 100)`（旧: `score >= 0` のみ）
+
+#### 11.12.x leads テーブルへの追加列（20260422000008 で追加 — Phase 9b）
+
+##### phone リネーム
+
+| 旧カラム | 新カラム | 型 | 説明 |
+|---------|---------|---|------|
+| `phone` | `company_phone` | VARCHAR(20) | 代表電話（旧 phone をリネーム）|
+
+##### 担当者情報（contact_* 9列）
+
+| カラム | 型 | NULL | 説明 |
+|--------|---|------|------|
+| `contact_phone` | VARCHAR(20) | 許容 | 担当者電話。昇格時 contact_phones へ転記 |
+| `contact_last_name` | TEXT | 許容 | 担当者姓（max 50文字）|
+| `contact_middle_name` | TEXT | 許容 | 担当者ミドルネーム |
+| `contact_first_name` | TEXT | 許容 | 担当者名（max 50文字）|
+| `contact_last_name_kana` | TEXT | 許容 | 担当者姓カナ |
+| `contact_middle_name_kana` | TEXT | 許容 | 担当者ミドルネームカナ |
+| `contact_first_name_kana` | TEXT | 許容 | 担当者名カナ |
+| `contact_department` | TEXT | 許容 | 担当者部署（max 100文字）|
+| `contact_job_title` | TEXT | 許容 | 担当者役職（max 100文字）|
+| `contact_email` | TEXT | 許容 | 担当者メール（max 255文字）|
+
+##### 企業情報（3列）
+
+| カラム | 型 | NULL | 説明 |
+|--------|---|------|------|
+| `company_name_kana` | TEXT | 許容 | 企業名カナ（max 200文字）|
+| `representative_name` | TEXT | 許容 | 代表者名（max 100文字）|
+| `corporate_number` | VARCHAR(13) | 許容 | 法人番号13桁。CHECK: `^[0-9]{13}$`。昇格時 companies.corporate_number へ転記（重複時ブロック）|
+
+#### 11.12.3 企業規模の自動判定
+
+- 資本金優先: `capital` が NOT NULL の場合、`lead_company_sizes.min_capital / max_capital` レンジで判定
+- 資本金 NULL または該当レンジなし → 従業員数でフォールバック（`min_employees / max_employees`）
+- BEFORE INSERT/UPDATE トリガ（`trg_leads_company_size_before_insert` / `trg_leads_company_size_before_update`）で自動設定
+- アプリから `company_size_id` を指定しても無視（トリガ関数内で上書き）
+
+#### 11.12.4 顧客行動ログ（D09 lead_customer_activities）
+
+- 顧客側の行動（イベント参加・資料DL等）を手動入力で記録
+- `lead_activities`（社内架電対応）とは別テーブル
+- RLS: `is_lead_accessible` 委譲、DELETE のみ admin
+- `source` 列は将来の外部連携（Peatix / HubSpot 等）を見越した文字列フィールド
+
+#### 11.12.5 スコア内訳（D10 lead_score_breakdowns）
+
+- `recalculate_lead_score` 実行時に全置換（DELETE → INSERT）
+- `UNIQUE(lead_id, rule_id)` で 1 ルール = 1 行
+- SELECT は `is_lead_accessible` 委譲、書き込みは service_role のみ（authenticated ポリシー未定義 = 拒否）
+- 企業規模判定関数: `resolve_lead_company_size(p_capital NUMERIC, p_employee_count INT) RETURNS UUID`
+
+#### 11.12.6 スコア算出ロジック（recalculate_lead_score）
+
+- 単一 Lead のスコアを算出する DB 関数
+- 入力: `p_lead_id UUID`
+- 出力: 算出後の score（INT, 0-100）
+- 処理:
+  1. `lead_score_rules` を全件取得（`deleted_at IS NULL` / `sort_order ASC`）
+  2. 各ルールを `category × condition_type` に応じて評価（下表）
+  3. 一致したルールの `score_delta` を合算、`LEAST(合計, 100)` でクリップ
+  4. `lead_score_thresholds` から `temperature_id` を解決（`min_score <= score AND (max_score IS NULL OR score <= max_score)`）
+  5. `leads.score / temperature_id` を UPDATE
+  6. `lead_score_breakdowns` を DELETE → INSERT で全置換（一致ルールのみ）
+- 時間窓: 全期間（マイナス点なし）
+
+| condition_type | 判定方法 |
+|---|---|
+| `company_size` | `lead.company_size_id = rule.condition_value_id` |
+| `large_segment` | `lead.large_segment_id = rule.condition_value_id` |
+| `small_segment` | `lead.small_segment_id = rule.condition_value_id` |
+| `lead_source` | `lead.lead_source_id = rule.condition_value_id` |
+| `stage` | `lead.stage_id = rule.condition_value_id` |
+| `status` | `lead.status_id = rule.condition_value_id` |
+| `call_status` | `lead_activities` の最新1件の `call_status_id` |
+| `activity_type` | `lead_activities` に該当 `activity_type_id` が1件以上 |
+| `customer_activity_type` | `lead_customer_activities` に該当 `activity_type_id` が1件以上 |
+
+- 参照切れ: `condition_value_id` の参照先マスタが未存在 or 論理削除済みの場合、`RAISE WARNING` で記録し該当ルールはスキップ
+- 呼び出し元: `createLead` / `updateLead` / `lead_customer_activities` CRUD / Phase 6 pg_cron
+- 手動スコア入力不可: `leadCreateSchema` / `leadUpdateSchema` から `score` / `temperature_id` を削除。`createAdminClient()` 経由で RPC 呼び出し
+
+#### 11.12.7 週次バッチ（recalculate_all_lead_scores）
+
+- **マイグレーション:** `20260422000007_setup_lead_score_weekly_cron.sql`
+- **pg_cron スケジュール:** JST 日曜 03:00（= UTC 土曜 18:00）
+- **cron 書式:** `0 18 * * 6`（分 時 日 月 曜日。曜日 6 = 土曜 UTC = 日曜 JST）
+- **処理フロー:**
+  1. `leads` テーブルから `deleted_at IS NULL` の全件をループ
+  2. 各 Lead について `resolve_lead_company_size(capital, employee_count)` で企業規模を再判定
+  3. 判定結果が現行の `company_size_id` と異なる場合のみ `UPDATE leads SET company_size_id = ...`（マスタ変更反映）
+  4. `recalculate_lead_score(id)` を実行（スコア・温度感・breakdowns を更新）
+- **statement_timeout 対策:** `SET LOCAL statement_timeout = 0` で pg_cron 実行中はタイムアウト無効化
+- **冪等性:** DO ブロックで既存 job を `cron.unschedule` してから再登録。マイグレーション 2 回適用でもエラーにならない
+- **マスタ変更の反映タイミング:** `lead_score_rules` / `lead_company_sizes` / `lead_score_thresholds` の変更は翌週日曜 03:00 に自動反映。即時反映が必要な場合は管理者が手動実行（下記）
+- **手動実行:** `SELECT recalculate_all_lead_scores();`（admin のみ）
+- **戻り値:** 処理した Lead 件数（INT）
+- **ログ:** `RAISE NOTICE '[recalculate_all_lead_scores] N リードの再計算を完了'`
+
+---
 
 ### 11.11 移行マッピング表（旧 IS → Lead）（参考）
 

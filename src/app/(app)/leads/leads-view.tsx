@@ -2,11 +2,37 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { Plus, ArrowUpDown, ArrowUpRight } from "lucide-react";
+import { Plus, ArrowUpDown } from "lucide-react";
 import { getLeads } from "@/actions/leads";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { FilterSelect } from "@/components/ui/FilterSelect";
 import { FilterGroup, FilterClearButton } from "@/components/ui/FilterGroup";
+import {
+  TemperatureBadge,
+  StageBadge,
+  StatusBadge,
+  CategoryBadge,
+} from "@/components/ui/badges";
+
+function formatDateTime(value: string | null | undefined): string {
+  if (!value) return "—";
+  const d = new Date(value);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mi = String(d.getMinutes()).padStart(2, "0");
+  return `${yyyy}/${mm}/${dd} ${hh}:${mi}`;
+}
+
+function formatDate(value: string | null | undefined): string {
+  if (!value) return "—";
+  const d = new Date(value);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}/${mm}/${dd}`;
+}
 
 type LeadStage = { id: string; name: string; sort_order: number };
 type LeadStatus = { id: string; name: string; sort_order: number; stage_id: string };
@@ -22,30 +48,6 @@ interface LeadsViewProps {
   categories: LeadCategory[];
   users: CrmUser[];
   currentUserRole: string;
-}
-
-// 温度感バッジ
-function TemperatureBadge({ code, name }: { code: string; name: string }) {
-  const styles: Record<string, React.CSSProperties> = {
-    hot: { backgroundColor: "rgba(215, 119, 93, 0.15)", color: "#A34E35" },
-    warm: { backgroundColor: "rgba(229, 196, 127, 0.25)", color: "#8A6D1E" },
-    cold: { backgroundColor: "rgba(59, 130, 246, 0.12)", color: "#1E40AF" },
-  };
-  const s = styles[code] ?? { backgroundColor: "var(--color-sumi100)", color: "var(--color-sumi700)" };
-  return (
-    <span
-      style={{
-        ...s,
-        borderRadius: "var(--radius-badge)",
-        padding: "0.125rem 0.5rem",
-        fontSize: "0.75rem",
-        fontWeight: 500,
-        whiteSpace: "nowrap",
-      }}
-    >
-      {name}
-    </span>
-  );
 }
 
 export function LeadsView({
@@ -239,17 +241,15 @@ export function LeadsView({
             <thead>
               <tr style={{ backgroundColor: "var(--color-sumi50)" }}>
                 {[
-                  "事業者種別",
-                  "企業名",
                   "リード名",
-                  "カテゴリ",
                   "ステージ",
                   "ステータス",
-                  "スコア",
                   "温度感",
-                  "対応履歴",
+                  "カテゴリ",
+                  "企業名",
+                  "最終アクティビティ",
                   "担当者",
-                  "更新日",
+                  "最終更新日",
                 ].map((label) => (
                   <th
                     key={label}
@@ -268,7 +268,6 @@ export function LeadsView({
                   code: string;
                   name: string;
                 } | null;
-                const actCount = lead.lead_activities_count ?? lead.activity_count ?? null;
                 return (
                   <tr
                     key={lead.id}
@@ -287,158 +286,75 @@ export function LeadsView({
                       (window.location.href = `/leads/${lead.id}`)
                     }
                   >
-                    {/* 事業者種別 */}
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      {lead.account_type?.name ? (
-                        <span
-                          style={{
-                            backgroundColor: "var(--color-sumi100)",
-                            borderRadius: "var(--radius-badge)",
-                            padding: "0.125rem 0.5rem",
-                            fontSize: "0.75rem",
-                            color: "var(--color-text-body)",
-                          }}
-                        >
-                          {lead.account_type.name}
-                        </span>
-                      ) : (
-                        <span style={{ color: "var(--color-sumi400)" }}>—</span>
-                      )}
-                    </td>
-                    {/* 企業名 */}
-                    <td
-                      className="px-4 py-3 max-w-[140px] truncate"
-                      style={{ color: "var(--color-sumi600)" }}
-                      title={lead.company_name ?? lead.company?.name ?? ""}
-                    >
-                      {lead.company_name || lead.company?.name || (
-                        <span style={{ color: "var(--color-sumi400)" }}>—</span>
-                      )}
-                    </td>
                     {/* リード名 */}
                     <td className="px-4 py-3">
                       <Link
                         href={`/leads/${lead.id}`}
                         className="font-medium"
-                        style={{ color: "var(--color-text-title)", display: "inline-flex", alignItems: "center", gap: "0.25rem" }}
+                        style={{ color: "var(--color-text-list)" }}
                         onClick={(e) => e.stopPropagation()}
                       >
                         {lead.lead_name}
-                        <ArrowUpRight size={13} style={{ color: "var(--color-sumi400)" }} />
                       </Link>
-                    </td>
-                    {/* カテゴリ */}
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      {category?.name ? (
-                        <span
-                          style={{
-                            backgroundColor: category.color
-                              ? `${category.color}26`
-                              : "var(--color-sumi100)",
-                            color: category.color ?? "var(--color-sumi700)",
-                            borderRadius: "var(--radius-badge)",
-                            padding: "0.125rem 0.5rem",
-                            fontSize: "0.75rem",
-                            fontWeight: 500,
-                          }}
-                        >
-                          {category.name}
-                        </span>
-                      ) : (
-                        <span style={{ color: "var(--color-sumi400)" }}>—</span>
-                      )}
                     </td>
                     {/* ステージ */}
                     <td className="px-4 py-3 whitespace-nowrap">
-                      {lead.stage?.name ? (
-                        <span
-                          style={{
-                            backgroundColor: "rgba(122, 165, 146, 0.12)",
-                            color: "#4D7A65",
-                            borderRadius: "var(--radius-badge)",
-                            padding: "0.125rem 0.5rem",
-                            fontSize: "0.75rem",
-                            fontWeight: 500,
-                          }}
-                        >
-                          {lead.stage.name}
-                        </span>
-                      ) : (
-                        <span style={{ color: "var(--color-sumi400)" }}>—</span>
-                      )}
+                      <StageBadge
+                        name={lead.stage?.name}
+                        sortOrder={lead.stage?.sort_order}
+                        total={stages.length}
+                      />
                     </td>
                     {/* ステータス */}
                     <td className="px-4 py-3 whitespace-nowrap">
-                      {lead.status?.name ? (
-                        <span
-                          style={{
-                            backgroundColor: "var(--color-sumi100)",
-                            color: "var(--color-text-body)",
-                            borderRadius: "var(--radius-badge)",
-                            padding: "0.125rem 0.5rem",
-                            fontSize: "0.75rem",
-                            fontWeight: 500,
-                          }}
-                        >
-                          {lead.status.name}
-                        </span>
-                      ) : (
-                        <span style={{ color: "var(--color-sumi400)" }}>—</span>
-                      )}
-                    </td>
-                    {/* スコア */}
-                    <td
-                      className="px-4 py-3 text-center font-mono whitespace-nowrap"
-                      style={{ color: "var(--color-text-title)", minWidth: 60 }}
-                    >
-                      {lead.score != null ? (
-                        <span
-                          style={{
-                            fontWeight: 600,
-                            color:
-                              lead.score >= 70
-                                ? "#A34E35"
-                                : lead.score >= 40
-                                ? "#8A6D1E"
-                                : "var(--color-sumi600)",
-                          }}
-                        >
-                          {lead.score}
-                        </span>
-                      ) : (
-                        <span style={{ color: "var(--color-sumi400)" }}>—</span>
-                      )}
+                      <StatusBadge
+                        name={lead.status?.name}
+                        sortOrder={lead.status?.sort_order}
+                        total={statuses.length}
+                      />
                     </td>
                     {/* 温度感 */}
                     <td className="px-4 py-3 whitespace-nowrap">
                       {temp ? (
                         <TemperatureBadge code={temp.code} name={temp.name} />
                       ) : (
-                        <span style={{ color: "var(--color-sumi400)" }}>—</span>
+                        <span style={{ color: "var(--color-text-list)" }}>—</span>
                       )}
                     </td>
-                    {/* 対応履歴件数 */}
+                    {/* カテゴリ */}
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <CategoryBadge name={category?.name} color={category?.color} />
+                    </td>
+                    {/* 企業名 */}
                     <td
-                      className="px-4 py-3 text-center"
-                      style={{ color: "var(--color-sumi600)" }}
+                      className="px-4 py-3 max-w-[140px] truncate"
+                      style={{ color: "var(--color-text-list)" }}
+                      title={lead.company_name ?? lead.company?.name ?? ""}
                     >
-                      {actCount != null ? actCount : "—"}
+                      {lead.company_name || lead.company?.name || (
+                        <span style={{ color: "var(--color-text-list)" }}>—</span>
+                      )}
+                    </td>
+                    {/* 最終アクティビティ */}
+                    <td
+                      className="px-4 py-3 text-xs whitespace-nowrap"
+                      style={{ color: "var(--color-text-list)" }}
+                    >
+                      {formatDate(lead.last_activity_at)}
                     </td>
                     {/* 担当者 */}
                     <td
                       className="px-4 py-3 whitespace-nowrap"
-                      style={{ color: "var(--color-sumi600)" }}
+                      style={{ color: "var(--color-text-list)" }}
                     >
                       {lead.owner?.full_name ?? "—"}
                     </td>
-                    {/* 更新日 */}
+                    {/* 最終更新日 */}
                     <td
                       className="px-4 py-3 text-xs whitespace-nowrap"
-                      style={{ color: "var(--color-sumi500)" }}
+                      style={{ color: "var(--color-text-list)" }}
                     >
-                      {lead.updated_at
-                        ? new Date(lead.updated_at).toLocaleDateString("ja-JP")
-                        : "—"}
+                      {formatDateTime(lead.updated_at)}
                     </td>
                   </tr>
                 );

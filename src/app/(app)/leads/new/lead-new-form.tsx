@@ -3,7 +3,7 @@
 import { useMemo, useState, type CSSProperties, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Save, Thermometer } from "lucide-react";
+import { ArrowLeft, Save } from "lucide-react";
 import { createLead } from "@/actions/leads";
 
 type SelectOption = { value: string; label: string };
@@ -112,23 +112,41 @@ export function LeadNewForm({
 
   const [values, setValues] = useState({
     lead_name: "",
-    account_type_id: "",
-    company_name: "",
+    // 進捗セクション
     stage_id: "",
     status_id: "",
     category_id: "",
-    temperature_id: "",
-    score: "",
+    // 企業情報セクション
+    company_name: "",
+    company_name_kana: "",
+    representative_name: "",
+    corporate_number: "",
+    company_phone: "",
     url: "",
-    phone: "",
-    lead_source_id: "",
+    employee_count: "",
+    capital: "",
+    // 担当者情報セクション
+    contact_last_name: "",
+    contact_middle_name: "",
+    contact_first_name: "",
+    contact_last_name_kana: "",
+    contact_middle_name_kana: "",
+    contact_first_name_kana: "",
+    contact_department: "",
+    contact_job_title: "",
+    contact_email: "",
+    contact_phone: "",
+    // リード属性セクション
     large_segment_id: "",
     small_segment_id: "",
+    lead_source_id: "",
+    account_type_id: "",
     primary_caller_id: "",
     owner_user_id: currentUser.id,
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [warning, setWarning] = useState<string | null>(null);
 
   const set = <K extends keyof typeof values>(key: K, value: (typeof values)[K]) => {
     setValues((v) => ({ ...v, [key]: value }));
@@ -141,6 +159,17 @@ export function LeadNewForm({
         ? masters.statuses.filter((s) => s.stage_id === values.stage_id)
         : masters.statuses,
     [masters.statuses, values.stage_id]
+  );
+
+  // Opportunity ステージ判定
+  const isOpportunityStage = useMemo(
+    () =>
+      values.stage_id
+        ? (masters.stages as Array<SelectOption & { slug?: string }>).some(
+            (s) => s.value === values.stage_id && s.slug === "opportunity"
+          )
+        : false,
+    [masters.stages, values.stage_id]
   );
 
   // large_segment_id に応じて small_segment を絞り込み
@@ -176,12 +205,18 @@ export function LeadNewForm({
     e.preventDefault();
     setSaving(true);
     setError(null);
+    setWarning(null);
 
-    const scoreNum =
-      values.score.trim() === "" ? null : parseInt(values.score, 10);
-    if (scoreNum !== null && (Number.isNaN(scoreNum) || scoreNum < 0 || scoreNum > 100)) {
+    const employeeCountNum = values.employee_count.trim() === "" ? null : parseInt(values.employee_count, 10);
+    if (employeeCountNum !== null && (Number.isNaN(employeeCountNum) || employeeCountNum < 0)) {
       setSaving(false);
-      setError("スコアは 0〜100 の整数を入力してください");
+      setError("従業員数は0以上の整数を入力してください");
+      return;
+    }
+    const capitalNum = values.capital.trim() === "" ? null : parseFloat(values.capital);
+    if (capitalNum !== null && (Number.isNaN(capitalNum) || capitalNum < 0)) {
+      setSaving(false);
+      setError("資本金は0以上の数値を入力してください");
       return;
     }
 
@@ -189,27 +224,48 @@ export function LeadNewForm({
       lead_name: values.lead_name,
       account_type_id: values.account_type_id,
       company_name: values.company_name || null,
+      company_name_kana: values.company_name_kana || null,
+      representative_name: values.representative_name || null,
+      corporate_number: values.corporate_number || null,
       stage_id: values.stage_id,
       status_id: values.status_id || null,
       category_id: values.category_id || null,
-      temperature_id: values.temperature_id || null,
-      score: scoreNum,
       url: values.url || null,
-      phone: values.phone || null,
+      company_phone: values.company_phone || null,
       lead_source_id: values.lead_source_id || null,
+      employee_count: employeeCountNum,
+      capital: capitalNum,
       large_segment_id: values.large_segment_id || null,
       small_segment_id: values.small_segment_id || null,
       primary_caller_id: values.primary_caller_id || null,
       owner_user_id: values.owner_user_id,
+      contact_last_name: values.contact_last_name || null,
+      contact_middle_name: values.contact_middle_name || null,
+      contact_first_name: values.contact_first_name || null,
+      contact_last_name_kana: values.contact_last_name_kana || null,
+      contact_middle_name_kana: values.contact_middle_name_kana || null,
+      contact_first_name_kana: values.contact_first_name_kana || null,
+      contact_department: values.contact_department || null,
+      contact_job_title: values.contact_job_title || null,
+      contact_email: values.contact_email || null,
+      contact_phone: values.contact_phone || null,
     };
 
     const result = await createLead(payload);
     setSaving(false);
-    if (result.error) {
-      setError(result.error);
+    if (!result.ok) {
+      const firstError = Object.values(result.errors).flat()[0] ?? "保存に失敗しました";
+      setError(firstError);
       return;
     }
-    const newId = (result.data as { id?: string } | null)?.id;
+
+    // warnings がある場合は表示した上でリダイレクト
+    if (result.warnings && result.warnings.length > 0) {
+      setWarning(result.warnings[0]);
+      // warnings がある場合もリダイレクトは行う（作成自体は成功）
+    }
+
+    const newId = (result.lead as { id?: string } | null)?.id;
     if (newId) {
       router.push(`/leads/${newId}`);
     } else {
@@ -238,121 +294,44 @@ export function LeadNewForm({
         <h1 style={styles.title}>リードを新規作成</h1>
       </div>
 
+      {warning && (
+        <div
+          style={{
+            backgroundColor: "rgba(229,196,127,0.2)",
+            border: "1px solid var(--color-amber)",
+            borderRadius: "var(--radius-card)",
+            padding: "0.75rem 1rem",
+            marginBottom: "1rem",
+            color: "#8A6D1E",
+            fontSize: "0.875rem",
+          }}
+        >
+          <strong>確認が必要な項目があります:</strong> {warning}
+        </div>
+      )}
+
       <form onSubmit={handleSubmit}>
-        {/* 基本情報 */}
+        {/* リード名 */}
         <div style={styles.card}>
-          <h2 style={styles.sectionTitle}>基本情報</h2>
-          <div style={{ ...styles.grid2, marginBottom: "1rem" }}>
-            <div style={{ gridColumn: "1 / -1" }}>
-              <label style={styles.label}>リード名 *</label>
-              <input
-                type="text"
-                style={styles.input}
-                value={values.lead_name}
-                onChange={(e) => set("lead_name", e.target.value)}
-                required
-                onFocus={onFocus}
-                onBlur={onBlur}
-              />
-            </div>
-            <div>
-              <label style={styles.label}>事業者種別 *</label>
-              <select
-                style={styles.input}
-                value={values.account_type_id}
-                onChange={(e) => set("account_type_id", e.target.value)}
-                required
-                onFocus={onFocus}
-                onBlur={onBlur}
-              >
-                <option value="">-- 選択 --</option>
-                {masters.accountTypes.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label style={styles.label}>企業名（仮）</label>
-              <input
-                type="text"
-                style={styles.input}
-                value={values.company_name}
-                onChange={(e) => handleCompanyNameChange(e.target.value)}
-                placeholder="フリーテキスト（DB未登録企業の仮入力用）"
-                onFocus={onFocus}
-                onBlur={onBlur}
-              />
-              <p style={styles.helpText}>Opportunity 昇格時に自動で Company が作成されます</p>
-            </div>
-            <div>
-              <label style={styles.label}>電話番号</label>
-              <input
-                type="tel"
-                style={styles.input}
-                value={values.phone}
-                onChange={(e) => set("phone", e.target.value)}
-                onFocus={onFocus}
-                onBlur={onBlur}
-              />
-            </div>
-            <div>
-              <label style={styles.label}>URL</label>
-              <input
-                type="url"
-                style={styles.input}
-                value={values.url}
-                onChange={(e) => set("url", e.target.value)}
-                placeholder="https://"
-                onFocus={onFocus}
-                onBlur={onBlur}
-              />
-            </div>
-            <div>
-              <label style={styles.label}>流入元</label>
-              <select
-                style={styles.input}
-                value={values.lead_source_id}
-                onChange={(e) => set("lead_source_id", e.target.value)}
-                onFocus={onFocus}
-                onBlur={onBlur}
-              >
-                <option value="">-- 未選択 --</option>
-                {masters.sources.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label style={styles.label}>担当者 *</label>
-              <select
-                style={styles.input}
-                value={values.owner_user_id}
-                onChange={(e) => set("owner_user_id", e.target.value)}
-                disabled={!isManagerOrAbove}
-                onFocus={onFocus}
-                onBlur={onBlur}
-              >
-                {masters.owners.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-              {!isManagerOrAbove && (
-                <p style={styles.helpText}>member は自分のみ担当者に設定できます</p>
-              )}
-            </div>
+          <h2 style={styles.sectionTitle}>リード名</h2>
+          <div>
+            <label style={styles.label}>リード名 *</label>
+            <input
+              type="text"
+              style={styles.input}
+              value={values.lead_name}
+              onChange={(e) => set("lead_name", e.target.value)}
+              required
+              onFocus={onFocus}
+              onBlur={onBlur}
+            />
           </div>
         </div>
 
-        {/* ステージ・ステータス（Cascading）*/}
+        {/* ① 進捗セクション */}
         <div style={styles.card}>
-          <h2 style={styles.sectionTitle}>ステージ・ステータス</h2>
-          <div style={styles.grid2}>
+          <h2 style={styles.sectionTitle}>進捗</h2>
+          <div style={{ ...styles.grid2, marginBottom: "1rem" }}>
             <div>
               <label style={styles.label}>ステージ *</label>
               <select
@@ -373,32 +352,47 @@ export function LeadNewForm({
             </div>
             <div>
               <label style={styles.label}>ステータス *</label>
-              <select
-                style={styles.input}
-                value={values.status_id}
-                onChange={(e) => set("status_id", e.target.value)}
-                required
-                disabled={!values.stage_id}
-                onFocus={onFocus}
-                onBlur={onBlur}
-              >
-                <option value="">-- 選択 --</option>
-                {filteredStatuses.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
+              {isOpportunityStage ? (
+                <div
+                  style={{
+                    border: "1px solid var(--color-border-default)",
+                    borderRadius: "var(--radius-input)",
+                    padding: "0.5rem 0.75rem",
+                    backgroundColor: "var(--color-sumi50)",
+                    color: "var(--color-sumi500)",
+                    fontSize: "0.875rem",
+                  }}
+                >
+                  —
+                </div>
+              ) : (
+                <select
+                  style={styles.input}
+                  value={values.status_id}
+                  onChange={(e) => set("status_id", e.target.value)}
+                  required={!isOpportunityStage}
+                  disabled={!values.stage_id}
+                  onFocus={onFocus}
+                  onBlur={onBlur}
+                >
+                  <option value="">-- 選択 --</option>
+                  {filteredStatuses.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              )}
               {!values.stage_id && (
                 <p style={styles.helpText}>ステージを先に選択してください</p>
               )}
+              {isOpportunityStage && (
+                <p style={{ ...styles.helpText, color: "var(--color-terra)" }}>
+                  このステージでは Deal が自動生成されます
+                </p>
+              )}
             </div>
           </div>
-        </div>
-
-        {/* カテゴリ */}
-        <div style={styles.card}>
-          <h2 style={styles.sectionTitle}>カテゴリ</h2>
           <div style={{ maxWidth: 320 }}>
             <label style={styles.label}>カテゴリ</label>
             <select
@@ -418,69 +412,275 @@ export function LeadNewForm({
           </div>
         </div>
 
-        {/* スコア・温度感 */}
+        {/* ② 企業情報セクション */}
         <div style={styles.card}>
-          <h2 style={styles.sectionTitle}>スコア・温度感</h2>
-          <div style={styles.grid2}>
+          <h2 style={styles.sectionTitle}>企業情報</h2>
+          <div style={{ ...styles.grid2, marginBottom: "1rem" }}>
             <div>
-              <label style={styles.label}>スコア（0-100）</label>
+              <label style={styles.label}>会社名</label>
               <input
-                type="number"
-                min={0}
-                max={100}
+                type="text"
                 style={styles.input}
-                value={values.score}
-                onChange={(e) => set("score", e.target.value)}
+                value={values.company_name}
+                onChange={(e) => handleCompanyNameChange(e.target.value)}
+                placeholder="フリーテキスト（DB未登録企業の仮入力用）"
                 onFocus={onFocus}
                 onBlur={onBlur}
               />
-              <p style={{ ...styles.helpText, display: "flex", alignItems: "center", gap: "0.25rem" }}>
-                <Thermometer size={12} />
-                入力すると温度感を自動判定します
-              </p>
+              <p style={styles.helpText}>Opportunity 昇格時に自動で Company が作成されます</p>
             </div>
             <div>
-              <label style={styles.label}>温度感</label>
-              <select
+              <label style={styles.label}>フリガナ</label>
+              <input
+                type="text"
                 style={styles.input}
-                value={values.temperature_id}
-                onChange={(e) => set("temperature_id", e.target.value)}
+                value={values.company_name_kana}
+                onChange={(e) => set("company_name_kana", e.target.value)}
+                placeholder="カブシキガイシャ〇〇"
                 onFocus={onFocus}
                 onBlur={onBlur}
+              />
+            </div>
+            <div>
+              <label style={styles.label}>代表者名</label>
+              <input
+                type="text"
+                style={styles.input}
+                value={values.representative_name}
+                onChange={(e) => set("representative_name", e.target.value)}
+                placeholder="山田 太郎"
+                onFocus={onFocus}
+                onBlur={onBlur}
+              />
+            </div>
+            <div>
+              <label style={styles.label}>法人番号</label>
+              <input
+                type="text"
+                style={styles.input}
+                value={values.corporate_number}
+                onChange={(e) => set("corporate_number", e.target.value)}
+                placeholder="1234567890123"
+                maxLength={13}
+                onFocus={onFocus}
+                onBlur={onBlur}
+              />
+              <p style={styles.helpText}>13桁の数字で入力してください</p>
+            </div>
+            <div>
+              <label style={styles.label}>代表電話</label>
+              <input
+                type="tel"
+                style={styles.input}
+                value={values.company_phone}
+                onChange={(e) => set("company_phone", e.target.value)}
+                placeholder="03-0000-0000"
+                onFocus={onFocus}
+                onBlur={onBlur}
+              />
+            </div>
+            <div>
+              <label style={styles.label}>企業URL</label>
+              <input
+                type="url"
+                style={styles.input}
+                value={values.url}
+                onChange={(e) => set("url", e.target.value)}
+                placeholder="https://"
+                onFocus={onFocus}
+                onBlur={onBlur}
+              />
+            </div>
+          </div>
+          <p style={{ ...styles.helpText, marginBottom: "1rem" }}>
+            企業規模は資本金と従業員数から自動判定されます。スコアは保存後に自動計算されます。
+          </p>
+          <div style={styles.grid3}>
+            <div>
+              <label style={styles.label}>従業員数</label>
+              <input
+                type="number"
+                min={0}
+                style={styles.input}
+                value={values.employee_count}
+                onChange={(e) => set("employee_count", e.target.value)}
+                placeholder="例: 50"
+                onFocus={onFocus}
+                onBlur={onBlur}
+              />
+            </div>
+            <div>
+              <label style={styles.label}>資本金（円）</label>
+              <input
+                type="number"
+                min={0}
+                style={styles.input}
+                value={values.capital}
+                onChange={(e) => set("capital", e.target.value)}
+                placeholder="例: 5000000"
+                onFocus={onFocus}
+                onBlur={onBlur}
+              />
+            </div>
+            <div>
+              <label style={styles.label}>企業規模（自動判定）</label>
+              <div
+                style={{
+                  border: "1px solid var(--color-border-default)",
+                  borderRadius: "var(--radius-input)",
+                  padding: "0.5rem 0.75rem",
+                  backgroundColor: "var(--color-sumi50)",
+                  fontSize: "0.875rem",
+                  color: "var(--color-sumi400)",
+                  minHeight: "2.375rem",
+                  display: "flex",
+                  alignItems: "center",
+                }}
               >
-                <option value="">-- 未選択（スコアから自動判定）--</option>
-                {masters.temperatures.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-              <p style={styles.helpText}>スコア入力時は自動上書きされます</p>
+                保存後に自動設定
+              </div>
+              <p style={styles.helpText}>保存後に従業員数・資本金から自動更新されます</p>
             </div>
           </div>
         </div>
 
-        {/* 主担・セグメント */}
+        {/* ③ 担当者情報セクション */}
         <div style={styles.card}>
-          <h2 style={styles.sectionTitle}>主担・セグメント</h2>
-          <div style={styles.grid3}>
+          <h2 style={styles.sectionTitle}>担当者情報</h2>
+          <div style={{ ...styles.grid3, marginBottom: "1rem" }}>
             <div>
-              <label style={styles.label}>主担当</label>
-              <select
+              <label style={styles.label}>姓</label>
+              <input
+                type="text"
                 style={styles.input}
-                value={values.primary_caller_id}
-                onChange={(e) => set("primary_caller_id", e.target.value)}
+                value={values.contact_last_name}
+                onChange={(e) => set("contact_last_name", e.target.value)}
+                placeholder="山田"
                 onFocus={onFocus}
                 onBlur={onBlur}
-              >
-                <option value="">-- 未選択 --</option>
-                {masters.callers.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
+              />
             </div>
+            <div>
+              <label style={styles.label}>ミドルネーム</label>
+              <input
+                type="text"
+                style={styles.input}
+                value={values.contact_middle_name}
+                onChange={(e) => set("contact_middle_name", e.target.value)}
+                placeholder="例: Smith"
+                onFocus={onFocus}
+                onBlur={onBlur}
+              />
+            </div>
+            <div>
+              <label style={styles.label}>名</label>
+              <input
+                type="text"
+                style={styles.input}
+                value={values.contact_first_name}
+                onChange={(e) => set("contact_first_name", e.target.value)}
+                placeholder="太郎"
+                onFocus={onFocus}
+                onBlur={onBlur}
+              />
+            </div>
+          </div>
+          <div style={{ ...styles.grid3, marginBottom: "1rem" }}>
+            <div>
+              <label style={styles.label}>姓（カナ）</label>
+              <input
+                type="text"
+                style={styles.input}
+                value={values.contact_last_name_kana}
+                onChange={(e) => set("contact_last_name_kana", e.target.value)}
+                placeholder="ヤマダ"
+                onFocus={onFocus}
+                onBlur={onBlur}
+              />
+            </div>
+            <div>
+              <label style={styles.label}>ミドル（カナ）</label>
+              <input
+                type="text"
+                style={styles.input}
+                value={values.contact_middle_name_kana}
+                onChange={(e) => set("contact_middle_name_kana", e.target.value)}
+                placeholder="スミス"
+                onFocus={onFocus}
+                onBlur={onBlur}
+              />
+            </div>
+            <div>
+              <label style={styles.label}>名（カナ）</label>
+              <input
+                type="text"
+                style={styles.input}
+                value={values.contact_first_name_kana}
+                onChange={(e) => set("contact_first_name_kana", e.target.value)}
+                placeholder="タロウ"
+                onFocus={onFocus}
+                onBlur={onBlur}
+              />
+            </div>
+          </div>
+          <div style={{ ...styles.grid2, marginBottom: "1rem" }}>
+            <div>
+              <label style={styles.label}>部署</label>
+              <input
+                type="text"
+                style={styles.input}
+                value={values.contact_department}
+                onChange={(e) => set("contact_department", e.target.value)}
+                placeholder="営業部"
+                onFocus={onFocus}
+                onBlur={onBlur}
+              />
+            </div>
+            <div>
+              <label style={styles.label}>役職</label>
+              <input
+                type="text"
+                style={styles.input}
+                value={values.contact_job_title}
+                onChange={(e) => set("contact_job_title", e.target.value)}
+                placeholder="部長"
+                onFocus={onFocus}
+                onBlur={onBlur}
+              />
+            </div>
+          </div>
+          <div style={styles.grid2}>
+            <div>
+              <label style={styles.label}>メール</label>
+              <input
+                type="email"
+                style={styles.input}
+                value={values.contact_email}
+                onChange={(e) => set("contact_email", e.target.value)}
+                placeholder="example@company.com"
+                onFocus={onFocus}
+                onBlur={onBlur}
+              />
+            </div>
+            <div>
+              <label style={styles.label}>担当者電話</label>
+              <input
+                type="tel"
+                style={styles.input}
+                value={values.contact_phone}
+                onChange={(e) => set("contact_phone", e.target.value)}
+                placeholder="090-0000-0000"
+                onFocus={onFocus}
+                onBlur={onBlur}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* ④ リード属性セクション */}
+        <div style={styles.card}>
+          <h2 style={styles.sectionTitle}>リード属性</h2>
+          <div style={{ ...styles.grid3, marginBottom: "1rem" }}>
             <div>
               <label style={styles.label}>大分類セグメント</label>
               <select
@@ -518,6 +718,80 @@ export function LeadNewForm({
                   </option>
                 ))}
               </select>
+            </div>
+            <div>
+              <label style={styles.label}>リードソース</label>
+              <select
+                style={styles.input}
+                value={values.lead_source_id}
+                onChange={(e) => set("lead_source_id", e.target.value)}
+                onFocus={onFocus}
+                onBlur={onBlur}
+              >
+                <option value="">-- 未選択 --</option>
+                {masters.sources.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div style={styles.grid3}>
+            <div>
+              <label style={styles.label}>事業者種別 *</label>
+              <select
+                style={styles.input}
+                value={values.account_type_id}
+                onChange={(e) => set("account_type_id", e.target.value)}
+                required
+                onFocus={onFocus}
+                onBlur={onBlur}
+              >
+                <option value="">-- 選択 --</option>
+                {masters.accountTypes.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label style={styles.label}>主担当</label>
+              <select
+                style={styles.input}
+                value={values.primary_caller_id}
+                onChange={(e) => set("primary_caller_id", e.target.value)}
+                onFocus={onFocus}
+                onBlur={onBlur}
+              >
+                <option value="">-- 未選択 --</option>
+                {masters.callers.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label style={styles.label}>社内担当者 *</label>
+              <select
+                style={styles.input}
+                value={values.owner_user_id}
+                onChange={(e) => set("owner_user_id", e.target.value)}
+                disabled={!isManagerOrAbove}
+                onFocus={onFocus}
+                onBlur={onBlur}
+              >
+                {masters.owners.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+              {!isManagerOrAbove && (
+                <p style={styles.helpText}>member は自分のみ担当者に設定できます</p>
+              )}
             </div>
           </div>
         </div>

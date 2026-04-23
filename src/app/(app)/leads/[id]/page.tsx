@@ -12,6 +12,7 @@ import {
   getLeadSmallSegments,
   getLeadCategories,
   getLeadActivityTypes,
+  getLeadCustomerActivityTypes,
 } from "@/actions/masters";
 import { getCrmUsers, getCurrentUser } from "@/actions/users";
 import { getCampaigns } from "@/actions/campaigns";
@@ -122,6 +123,7 @@ export default async function LeadDetailPage({
     usersResult,
     currentUserResult,
     campaignsResult,
+    customerActivityTypesResult,
   ] = await Promise.all([
     getLeadActivities(id),
     getLeadStages(),
@@ -138,6 +140,7 @@ export default async function LeadDetailPage({
     getCrmUsers(),
     getCurrentUser(),
     getCampaigns({ perPage: 100, page: 1 }),
+    getLeadCustomerActivityTypes(),
   ]);
 
   const masters = {
@@ -193,6 +196,10 @@ export default async function LeadDetailPage({
       value: a.id,
       label: a.name,
       color: a.color as string | null,
+    })),
+    customerActivityTypes: (customerActivityTypesResult.data ?? []).map((a: any) => ({
+      value: a.id,
+      label: a.name,
     })),
   };
 

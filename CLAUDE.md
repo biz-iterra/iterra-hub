@@ -86,7 +86,7 @@ ITERRA CRM（顧客関係管理）システム。
 - **contracts:** manager/admin のみ全操作
 - **従属テーブル（contact_emails 等）:** 親テーブルの `owner_user_id` を参照して制限
 - **financial_info:** SELECT は manager/admin のみ、CUD は admin のみ
-- **履歴テーブル:** INSERT ONLY（UPDATE/DELETE 不可）
+- **履歴テーブル:** INSERT ONLY を原則とする（UPDATE/DELETE 不可）。ただし `lead_activities` は例外で、`caller_user_id` 本人と manager/admin による UPDATE を許可（`last_edited_at` / `last_edited_by_user_id` で監査証跡を保全。マイグレーション: 20260426000001）。admin のみ DELETE 可能（誤記録修正用）
 
 ## CRMデータモデル概要
 

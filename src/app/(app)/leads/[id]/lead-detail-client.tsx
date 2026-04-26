@@ -16,7 +16,7 @@ import {
   Activity,
   Plus,
 } from "lucide-react";
-import { createLeadActivity, deleteLeadActivity } from "@/actions/lead-activities";
+import { createLeadActivity, deleteLeadActivity, updateLeadActivity } from "@/actions/lead-activities";
 import {
   createLeadCustomerActivity,
   deleteLeadCustomerActivity,
@@ -165,13 +165,17 @@ function Field({
 function ActivityAccordionItem({
   act,
   isAdmin,
+  canEdit,
   deletingActId,
   onDelete,
+  onEdit,
 }: {
   act: any;
   isAdmin: boolean;
+  canEdit: boolean;
   deletingActId: string | null;
   onDelete: (id: string) => void;
+  onEdit: (act: any) => void;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -284,27 +288,59 @@ function ActivityAccordionItem({
             </p>
           )}
 
-          {isAdmin && (
-            <button
-              onClick={() => onDelete(act.id)}
-              disabled={deletingActId === act.id}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "0.25rem",
-                color: "var(--color-error)",
-                backgroundColor: "transparent",
-                border: "none",
-                cursor: "pointer",
-                fontSize: "0.75rem",
-                padding: "0.25rem 0.375rem",
-                borderRadius: "var(--radius-sm)",
-              }}
-            >
-              <Trash2 size={12} />
-              {deletingActId === act.id ? "削除中..." : "削除"}
-            </button>
-          )}
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
+            {canEdit && (
+              <button
+                data-testid="lead-activity-edit-button"
+                onClick={() => onEdit(act)}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "0.25rem",
+                  color: "var(--color-terra)",
+                  backgroundColor: "transparent",
+                  border: "1px solid var(--color-terra)",
+                  cursor: "pointer",
+                  fontSize: "0.75rem",
+                  padding: "0.25rem 0.5rem",
+                  borderRadius: "var(--radius-sm)",
+                  transition: "background-color 0.15s",
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.backgroundColor =
+                    "var(--color-bg-hover)";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.backgroundColor =
+                    "transparent";
+                }}
+              >
+                <Pencil size={12} />
+                編集
+              </button>
+            )}
+            {isAdmin && (
+              <button
+                onClick={() => onDelete(act.id)}
+                disabled={deletingActId === act.id}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "0.25rem",
+                  color: "var(--color-error)",
+                  backgroundColor: "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                  fontSize: "0.75rem",
+                  padding: "0.25rem 0.375rem",
+                  borderRadius: "var(--radius-sm)",
+                }}
+              >
+                <Trash2 size={12} />
+                {deletingActId === act.id ? "削除中..." : "削除"}
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -349,6 +385,208 @@ function breakdownCategoryStyle(cat: string): React.CSSProperties {
     },
   };
   return styleMap[cat] ?? { backgroundColor: "var(--color-sumi100)", color: "var(--color-sumi700)" };
+}
+
+/** 社内対応アクティビティ編集モーダル */
+function LeadActivityEditModal({
+  act,
+  masters,
+  onClose,
+  onSaved,
+}: {
+  act: any;
+  masters: Masters;
+  onClose: () => void;
+  onSaved: (updated: any) => void;
+}) {
+  const [form, setForm] = useState({
+    called_on: act.called_on ?? new Date().toISOString().slice(0, 10),
+    called_at_time: act.called_at_time ? act.called_at_time.slice(0, 5) : "",
+    call_status_id: act.call_status?.id ?? act.call_status_id ?? "",
+    caller_user_id: act.caller?.id ?? act.caller_user_id ?? "",
+    activity_type_id: act.activity_type?.id ?? act.activity_type_id ?? "",
+    note: act.note ?? "",
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const setF = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) =>
+    setForm((prev) => ({ ...prev, [k]: v }));
+
+  const handleSubmit = async () => {
+    if (!form.call_status_id || !form.caller_user_id) {
+      setError("対応ステータスと対応者は必須です");
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    const result = await updateLeadActivity({
+      id: act.id,
+      called_on: form.called_on,
+      called_at_time: form.called_at_time || null,
+      call_status_id: form.call_status_id,
+      caller_user_id: form.caller_user_id,
+      activity_type_id: form.activity_type_id || null,
+      note: form.note || null,
+    });
+    setSaving(false);
+    if (result.error) {
+      setError(result.error);
+      return;
+    }
+    onSaved(result.data);
+    onClose();
+  };
+
+  const overlayStyle: CSSProperties = {
+    position: "fixed",
+    inset: 0,
+    backgroundColor: "var(--color-overlay)",
+    zIndex: 50,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "1rem",
+  };
+  const modalStyle: CSSProperties = {
+    backgroundColor: "#fff",
+    borderRadius: "var(--radius-modal)",
+    boxShadow: "var(--elevation-overlay)",
+    maxWidth: 520,
+    width: "100%",
+    padding: "1.5rem",
+    maxHeight: "90vh",
+    overflowY: "auto",
+  };
+
+  return (
+    <div style={overlayStyle} onClick={saving ? undefined : onClose} data-testid="lead-activity-edit-modal">
+      <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
+        <h3 style={{ color: "var(--color-text-title)", fontSize: "1.125rem", fontWeight: 600, marginBottom: "1rem" }}>
+          社内対応を編集
+        </h3>
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.875rem" }}>
+          {/* 対応日 */}
+          <div>
+            <label style={styles.label} htmlFor="edit-act-called-on">対応日 *</label>
+            <input
+              id="edit-act-called-on"
+              data-testid="lead-activity-edit-called-on"
+              type="date"
+              style={styles.input}
+              value={form.called_on}
+              onChange={(e) => setF("called_on", e.target.value)}
+              onFocus={onFocus}
+              onBlur={onBlur}
+            />
+          </div>
+
+          {/* 対応時刻 */}
+          <div>
+            <label style={styles.label} htmlFor="edit-act-called-at-time">対応時刻</label>
+            <input
+              id="edit-act-called-at-time"
+              data-testid="lead-activity-edit-called-at-time"
+              type="time"
+              style={styles.input}
+              value={form.called_at_time}
+              onChange={(e) => setF("called_at_time", e.target.value)}
+              onFocus={onFocus}
+              onBlur={onBlur}
+            />
+          </div>
+
+          {/* 対応種別 */}
+          <div>
+            <label style={styles.label} htmlFor="edit-act-activity-type">対応種別</label>
+            <select
+              id="edit-act-activity-type"
+              data-testid="lead-activity-edit-activity-type"
+              style={styles.input}
+              value={form.activity_type_id}
+              onChange={(e) => setF("activity_type_id", e.target.value)}
+              onFocus={onFocus}
+              onBlur={onBlur}
+            >
+              <option value="">-- 未選択 --</option>
+              {masters.activityTypes.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* 対応ステータス */}
+          <div>
+            <label style={styles.label} htmlFor="edit-act-call-status">対応ステータス *</label>
+            <select
+              id="edit-act-call-status"
+              data-testid="lead-activity-edit-call-status"
+              style={styles.input}
+              value={form.call_status_id}
+              onChange={(e) => setF("call_status_id", e.target.value)}
+              onFocus={onFocus}
+              onBlur={onBlur}
+            >
+              <option value="">-- 選択 --</option>
+              {masters.callStatuses.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* 対応者 */}
+          <div>
+            <label style={styles.label} htmlFor="edit-act-caller">対応者 *</label>
+            <select
+              id="edit-act-caller"
+              data-testid="lead-activity-edit-caller"
+              style={styles.input}
+              value={form.caller_user_id}
+              onChange={(e) => setF("caller_user_id", e.target.value)}
+              onFocus={onFocus}
+              onBlur={onBlur}
+            >
+              <option value="">-- 選択 --</option>
+              {masters.owners.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* メモ */}
+          <div>
+            <label style={styles.label} htmlFor="edit-act-note">メモ</label>
+            <textarea
+              id="edit-act-note"
+              data-testid="lead-activity-edit-note"
+              rows={4}
+              style={{ ...styles.input, resize: "vertical" }}
+              value={form.note}
+              onChange={(e) => setF("note", e.target.value)}
+              onFocus={onFocus}
+              onBlur={onBlur}
+            />
+          </div>
+        </div>
+
+        {error && <p style={styles.error}>{error}</p>}
+
+        <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end", marginTop: "1.5rem" }}>
+          <button style={styles.btnOutline} onClick={onClose} disabled={saving}>
+            キャンセル
+          </button>
+          <button
+            data-testid="lead-activity-edit-save"
+            style={styles.btnPrimary}
+            onClick={handleSubmit}
+            disabled={saving}
+          >
+            {saving ? "保存中..." : "保存する"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 /** 顧客行動ログ追加モーダル */
@@ -504,6 +742,7 @@ export function LeadDetailClient({
   const [actError, setActError] = useState<string | null>(null);
   const [actSaving, setActSaving] = useState(false);
   const [deletingActId, setDeletingActId] = useState<string | null>(null);
+  const [editingAct, setEditingAct] = useState<any | null>(null);
 
   const setAct = <K extends keyof typeof actForm>(
     key: K,
@@ -554,6 +793,10 @@ export function LeadDetailClient({
       return;
     }
     setActivities((prev) => prev.filter((a) => a.id !== actId));
+  };
+
+  const handleEditActivitySaved = (updated: any) => {
+    setActivities((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
   };
 
   // ---- 顧客行動ログ ----
@@ -1378,8 +1621,14 @@ export function LeadDetailClient({
                     key={act.id}
                     act={act}
                     isAdmin={isAdmin}
+                    canEdit={
+                      act.caller?.id === currentUser.id ||
+                      act.caller_user_id === currentUser.id ||
+                      isManagerOrAbove
+                    }
                     deletingActId={deletingActId}
                     onDelete={handleDeleteActivity}
+                    onEdit={setEditingAct}
                   />
                 ))}
               </div>
@@ -1412,8 +1661,9 @@ export function LeadDetailClient({
               <div style={{ display: "flex", flexDirection: "column", gap: "0.875rem" }}>
                 {/* 対応日 */}
                 <div>
-                  <label style={styles.label}>対応日 *</label>
+                  <label style={styles.label} htmlFor="add-act-called-on">対応日 *</label>
                   <input
+                    id="add-act-called-on"
                     type="date"
                     style={styles.input}
                     value={actForm.called_on}
@@ -1425,8 +1675,9 @@ export function LeadDetailClient({
 
                 {/* 対応時刻 */}
                 <div>
-                  <label style={styles.label}>対応時刻</label>
+                  <label style={styles.label} htmlFor="add-act-called-at-time">対応時刻</label>
                   <input
+                    id="add-act-called-at-time"
                     type="time"
                     style={styles.input}
                     value={actForm.called_at_time}
@@ -1438,8 +1689,9 @@ export function LeadDetailClient({
 
                 {/* 対応種別 */}
                 <div>
-                  <label style={styles.label}>対応種別</label>
+                  <label style={styles.label} htmlFor="add-act-activity-type">対応種別</label>
                   <select
+                    id="add-act-activity-type"
                     style={styles.input}
                     value={actForm.activity_type_id}
                     onChange={(e) => setAct("activity_type_id", e.target.value)}
@@ -1457,8 +1709,9 @@ export function LeadDetailClient({
 
                 {/* 対応ステータス */}
                 <div>
-                  <label style={styles.label}>対応ステータス *</label>
+                  <label style={styles.label} htmlFor="add-act-call-status">対応ステータス *</label>
                   <select
+                    id="add-act-call-status"
                     style={styles.input}
                     value={actForm.call_status_id}
                     onChange={(e) => setAct("call_status_id", e.target.value)}
@@ -1476,8 +1729,9 @@ export function LeadDetailClient({
 
                 {/* 対応者 */}
                 <div>
-                  <label style={styles.label}>対応者 *</label>
+                  <label style={styles.label} htmlFor="add-act-caller">対応者 *</label>
                   <select
+                    id="add-act-caller"
                     style={styles.input}
                     value={actForm.caller_user_id}
                     onChange={(e) => setAct("caller_user_id", e.target.value)}
@@ -1495,8 +1749,9 @@ export function LeadDetailClient({
 
                 {/* メモ */}
                 <div>
-                  <label style={styles.label}>メモ</label>
+                  <label style={styles.label} htmlFor="add-act-note">メモ</label>
                   <textarea
+                    id="add-act-note"
                     rows={3}
                     style={{ ...styles.input, resize: "vertical" }}
                     value={actForm.note}
@@ -1520,6 +1775,19 @@ export function LeadDetailClient({
             </div>
           </div>
         </div>
+      )}
+
+      {/* 社内対応 編集モーダル（タブ外に配置してポータル相当の重ね合わせを確保） */}
+      {editingAct && (
+        <LeadActivityEditModal
+          act={editingAct}
+          masters={masters}
+          onClose={() => setEditingAct(null)}
+          onSaved={(updated) => {
+            handleEditActivitySaved(updated);
+            setEditingAct(null);
+          }}
+        />
       )}
 
       {/* === キャンペーンタブ（参照のみ）=== */}

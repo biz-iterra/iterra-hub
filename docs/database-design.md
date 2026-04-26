@@ -1706,6 +1706,7 @@ Next.js 15プロジェクト初期化、Supabase設定、共通ライブラリ
 58. `20260422000011_migrate_lead_activities_caller.sql` — D08 lead_activities.caller_id を caller_user_id（FK→crm_users）に移行（Phase 10b-2）
 59. `20260422000012_drop_lead_primary_caller.sql` — T09 leads.primary_caller_id カラム DROP（Phase 10b-3）
 60. `20260422000013_drop_lead_callers.sql` — M17 lead_callers テーブル DROP・RLSポリシー削除（Phase 10b-3）
+61. `20260426000001_lead_activities_allow_update.sql` — D08 lead_activities に `last_edited_at` / `last_edited_by_user_id` 追加・UPDATE ポリシー新設（Phase 11: caller_user_id 本人 + manager/admin に編集解禁）
 
 ### Phase 3: 型定義・Zodバリデーション
 - `src/types/index.ts`
@@ -2381,3 +2382,43 @@ Phase 10b-1 で `lead_owners` を導入し、Phase 10b-2 で `lead_activities.ca
 ### 16.3 型定義更新
 
 `src/types/database.ts` の `Lead` 型に `sub_owners?: LeadOwner[]` を追加。
+
+---
+
+## § 17. Phase 11: lead_activities 編集機能解禁（2026-04-26）
+
+### 17.1 背景・目的
+
+`lead_activities`（D08 社内対応履歴）は当初 INSERT ONLY 運用としていたが、誤記録のたびに admin が DELETE→再作成するのは運用負荷が高い。
+そのため `caller_user_id` 本人と manager/admin による UPDATE を解禁し、`last_edited_at` / `last_edited_by_user_id` で監査証跡を保全する方針へ変更する。
+
+### 17.2 D08 lead_activities カラム追加
+
+| カラム | 型 | 制約 | 説明 |
+|---|---|---|---|
+| `last_edited_at` | TIMESTAMPTZ | NULL 許容 | 最終編集日時。INSERT 時は NULL、編集時のみ `now()` をセット |
+| `last_edited_by_user_id` | UUID | NULL 許容、FK→crm_users(id) | 最終編集者。INSERT 時は NULL、編集時のみ操作ユーザー ID をセット |
+
+### 17.3 RLS ポリシー追加
+
+```sql
+CREATE POLICY lead_activities_update ON lead_activities
+  FOR UPDATE TO authenticated
+  USING  (caller_user_id = auth.uid() OR is_manager_or_above())
+  WITH CHECK (caller_user_id = auth.uid() OR is_manager_or_above());
+```
+
+- DELETE は従来通り admin のみ（`lead_activities_delete_admin`）
+- INSERT / SELECT は変更なし（`is_lead_accessible` 委譲）
+- Server Action 側でも明示的に権限チェックする（多層防御）
+
+### 17.4 影響範囲
+
+| ファイル | 変更 |
+|---|---|
+| `supabase/migrations/20260426000001_lead_activities_allow_update.sql` | カラム追加 + UPDATE ポリシー新設 |
+| `src/lib/validators/lead-activities.ts` | `leadActivityUpdateSchema` 追加（`id` 必須、`lead_id` / `call_number` は不変） |
+| `src/actions/lead-activities.ts` | `updateLeadActivity` 追加。冒頭コメント更新（INSERT ONLY → 編集可） |
+| `src/app/(app)/leads/[id]/lead-detail-client.tsx` | `LeadActivityEditModal` 追加、アコーディオンに編集ボタン追加（caller_user_id 本人 OR manager/admin で表示） |
+| `CLAUDE.md` | 「履歴テーブル: INSERT ONLY」記述に lead_activities 例外を明記 |
+

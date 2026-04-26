@@ -39,8 +39,10 @@ export const leadActivityCreateSchema = z.object({
 });
 
 // ---------- leadActivityUpdateSchema ----------
-// lead_activities は履歴テーブルにつき INSERT ONLY 運用（CLAUDE.md §アクセス制御ルール）。
-// このスキーマは定義だけ提供し、Server Action 側では update エンドポイントを公開しない。
+// Phase 11（2026-04-26）で INSERT ONLY 運用を変更。
+// caller_user_id 本人 または manager/admin による UPDATE を許可。
+// last_edited_at / last_edited_by_user_id で監査証跡を保全する。
+// 不変フィールド: lead_id / call_number（変更不可）
 export const leadActivityUpdateSchema = z.object({
   id: uuidString("[id] 架電記録IDは必須です"),
 

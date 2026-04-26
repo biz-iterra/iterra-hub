@@ -3,16 +3,21 @@
 /**
  * lead_activities Server Actions
  *
- * lead_activities は架電記録（履歴テーブル）のため INSERT ONLY 運用。
- * CLAUDE.md §アクセス制御ルール: 「履歴テーブル: INSERT ONLY（UPDATE/DELETE 不可）」
- * RLS でも UPDATE ポリシーは定義されておらず（20260419000007 参照）、
+ * Phase 11（2026-04-26）で INSERT ONLY 運用を変更。
+ * caller_user_id（登録した対応者本人）または manager/admin による UPDATE を許可。
+ * 編集時は last_edited_at = now() / last_edited_by_user_id = 編集者 を必ずセットして監査証跡を保全する。
+ * RLS: lead_activities_update ポリシー（20260426000001）で DB レベルでも制御。
+ * Server Action 側でも権限を明示チェックする（多層防御 CLAUDE.md §アクセス制御ルール）。
+ *
  * admin のみ DELETE が許可されている（誤記録修正対応）。
- * よって本 Server Action では createLeadActivity と getLeadActivities のみ公開する。
- * 誤記録の DELETE は admin 専用の deleteLeadActivity を提供するが、UI では非表示とする想定。
+ * 削除機能は admin 専用アコーディオン内に表示される。
  */
 
 import { createClient } from "@/lib/supabase/server";
-import { leadActivityCreateSchema } from "@/lib/validators/lead-activities";
+import {
+  leadActivityCreateSchema,
+  leadActivityUpdateSchema,
+} from "@/lib/validators/lead-activities";
 import type { z } from "zod";
 
 type ActionResult<T> = { data: T | null; error: string | null };
@@ -114,9 +119,61 @@ export async function createLeadActivity(
   return { data, error: null };
 }
 
+// ---------- 編集（caller_user_id 本人 または manager/admin）----------
+// RLS: lead_activities_update ポリシー（20260426000001）でDBレベル制御。
+// Server Action 側でも明示チェックする（多層防御）。
+// last_edited_at / last_edited_by_user_id を必ずセットして監査証跡を保全する。
+export async function updateLeadActivity(
+  input: z.infer<typeof leadActivityUpdateSchema>
+): Promise<ActionResult<any>> {
+  const { supabase, user, role } = await getAuthenticatedUser();
+  if (!supabase || !user) return { data: null, error: "認証が必要です" };
+
+  const parsed = leadActivityUpdateSchema.safeParse(input);
+  if (!parsed.success) return { data: null, error: parsed.error.issues[0].message };
+
+  const { id, ...fields } = parsed.data;
+
+  if (!UUID_REGEX.test(id)) {
+    return { data: null, error: `[id] 不正なパラメータです。受信値: ${id}` };
+  }
+
+  // 既存レコード取得（権限チェック用）
+  const { data: existing, error: fetchErr } = await supabase
+    .from("lead_activities")
+    .select("id, caller_user_id")
+    .eq("id", id)
+    .single();
+
+  if (fetchErr || !existing) {
+    return { data: null, error: `[id] 架電記録が見つかりません。受信値: ${id}` };
+  }
+
+  // 権限チェック: caller_user_id 本人 または manager/admin（多層防御）
+  const isCaller = existing.caller_user_id === user.id;
+  const isManagerOrAbove = role === "manager" || role === "admin";
+  if (!isCaller && !isManagerOrAbove) {
+    return { data: null, error: "このアクティビティを編集する権限がありません" };
+  }
+
+  const { data, error } = await supabase
+    .from("lead_activities")
+    .update({
+      ...fields,
+      last_edited_at: new Date().toISOString(),
+      last_edited_by_user_id: user.id,
+    })
+    .eq("id", id)
+    .select(ACTIVITY_SELECT)
+    .single();
+
+  if (error) return { data: null, error: error.message };
+  return { data, error: null };
+}
+
 // ---------- 削除（admin のみ。誤記録修正用）----------
-// lead_activities は INSERT ONLY 運用。UI では通常非表示とすること。
 // RLS: lead_activities_delete_admin ポリシーで admin のみ DELETE 可能。
+// admin 専用のアコーディオン内に表示される。
 export async function deleteLeadActivity(id: string): Promise<ActionResult<null>> {
   if (!UUID_REGEX.test(id)) {
     return { data: null, error: "不正なパラメータです。受信値: " + id };

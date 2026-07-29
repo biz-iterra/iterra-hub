@@ -6,6 +6,12 @@ import {
   createContractSchema,
   updateContractSchema,
 } from "@/lib/validators";
+import type {
+  ContractDetail,
+  ContractWithRelations,
+  Paged,
+  Row,
+} from "@/types/relations";
 import type { z } from "zod";
 
 type ActionResult<T> = { data: T | null; error: string | null };
@@ -41,7 +47,7 @@ export async function getContracts(params?: {
   contractMethod?: string;
   page?: number;
   perPage?: number;
-}): Promise<ActionResult<{ rows: any[]; total: number }>> {
+}): Promise<ActionResult<Paged<ContractWithRelations>>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
@@ -78,7 +84,7 @@ export async function getContracts(params?: {
 }
 
 // ---------- 詳細取得 ----------
-export async function getContract(id: string): Promise<ActionResult<any>> {
+export async function getContract(id: string): Promise<ActionResult<ContractDetail>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
@@ -100,7 +106,7 @@ export async function getContract(id: string): Promise<ActionResult<any>> {
 // ---------- 作成 ----------
 export async function createContract(
   input: z.infer<typeof createContractSchema>
-): Promise<ActionResult<any>> {
+): Promise<ActionResult<Row<"contracts">>> {
   const { supabase, user, role } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
   if (role !== "manager" && role !== "admin") {
@@ -130,7 +136,7 @@ export async function createContract(
 export async function updateContract(
   id: string,
   input: z.infer<typeof updateContractSchema>
-): Promise<ActionResult<any>> {
+): Promise<ActionResult<Row<"contracts">>> {
   const { supabase, user, role } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
   if (role !== "manager" && role !== "admin") {

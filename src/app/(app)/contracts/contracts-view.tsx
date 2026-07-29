@@ -10,21 +10,14 @@ import { FilterSelect } from "@/components/ui/FilterSelect";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { Pagination } from "@/components/ui/Pagination";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants/pagination";
+import type { ContractWithRelations } from "@/types/relations";
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
-interface ContractRow {
-  id: string;
-  contract_name: string;
-  contract_method: string | null;
-  start_date: string | null;
-  end_date: string | null;
-  updated_at: string | null;
-  deal: { id: string; name: string } | null;
-  contract_type: { id: string; name: string } | null;
-  registered_user: { id: string; full_name: string } | null;
-}
+// 画面で使う行型は Server Action の戻り値型をそのまま使う。
+// 手書きで狭い型を再定義すると SELECT の変更に追従できない。
+type ContractRow = ContractWithRelations;
 
 interface ContractType {
   id: string;
@@ -97,7 +90,7 @@ export function ContractsView({ initialData, isManagerOrAbove, contractTypes }: 
           perPage: PER_PAGE,
         });
         if (data) {
-          setRows(data.rows as ContractRow[]);
+          setRows(data.rows);
           setTotalCount(data.total);
         }
       });

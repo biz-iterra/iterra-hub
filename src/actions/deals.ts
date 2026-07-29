@@ -7,6 +7,13 @@ import {
   createDealServiceSchema,
 } from "@/lib/validators";
 import { conflictErrorMessage } from "@/lib/validators/common";
+import type {
+  DealDetail,
+  DealWithRelations,
+  Paged,
+  Row,
+  SortedRef,
+} from "@/types/relations";
 import type { z } from "zod";
 
 type ActionResult<T> = { data: T | null; error: string | null };
@@ -44,7 +51,7 @@ export async function getDeals(params?: {
   ownerUserId?: string;
   page?: number;
   perPage?: number;
-}): Promise<ActionResult<{ rows: any[]; total: number }>> {
+}): Promise<ActionResult<Paged<DealWithRelations>>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
@@ -85,12 +92,12 @@ export async function getDeals(params?: {
 
 // ---------- カンバン用取得 ----------
 type KanbanStageColumn = {
-  stage: { id: string; name: string; sort_order: number };
-  deals: any[];
+  stage: SortedRef;
+  deals: DealWithRelations[];
 };
 type KanbanStatusColumn = {
-  status: { id: string; name: string; sort_order: number };
-  deals: any[];
+  status: SortedRef;
+  deals: DealWithRelations[];
 };
 
 export async function getDealsForKanban(
@@ -133,9 +140,9 @@ export async function getDealsForKanban(
   const statuses = statusesResult.data ?? [];
   const deals = dealsResult.data ?? [];
 
-  const stageMap = new Map<string, any[]>();
+  const stageMap = new Map<string, DealWithRelations[]>();
   for (const s of stages) stageMap.set(s.id, []);
-  const statusMap = new Map<string, any[]>();
+  const statusMap = new Map<string, DealWithRelations[]>();
   for (const s of statuses) statusMap.set(s.id, []);
 
   for (const deal of deals) {
@@ -153,7 +160,7 @@ export async function getDealsForKanban(
 }
 
 // ---------- 詳細取得 ----------
-export async function getDeal(id: string): Promise<ActionResult<any>> {
+export async function getDeal(id: string): Promise<ActionResult<DealDetail>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
@@ -178,7 +185,7 @@ export async function getDeal(id: string): Promise<ActionResult<any>> {
 // ---------- 作成 ----------
 export async function createDeal(
   input: z.infer<typeof createDealSchema>
-): Promise<ActionResult<any>> {
+): Promise<ActionResult<Row<"deals">>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
@@ -225,7 +232,7 @@ export async function createDeal(
 export async function updateDeal(
   id: string,
   input: z.infer<typeof updateDealSchema>
-): Promise<ActionResult<any>> {
+): Promise<ActionResult<Row<"deals">>> {
   const { supabase, user, role } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
@@ -333,7 +340,7 @@ export async function deleteDeal(id: string): Promise<ActionResult<null>> {
 // ---------- ディールサービス追加 ----------
 export async function addDealService(
   input: z.infer<typeof createDealServiceSchema>
-): Promise<ActionResult<any>> {
+): Promise<ActionResult<Row<"deal_services">>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 

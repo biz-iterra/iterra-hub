@@ -8,6 +8,7 @@ import {
   attachLeadsToCampaignSchema,
 } from "@/lib/validators/campaigns";
 import type { z } from "zod";
+import type { Paged, Row } from "@/types/relations";
 
 type ActionResult<T> = { data: T | null; error: string | null };
 
@@ -33,7 +34,7 @@ const CAMPAIGN_SELECT = `*` as const;
 // ---------- 一覧取得 ----------
 export async function getCampaigns(
   params?: z.infer<typeof campaignFiltersSchema>
-): Promise<ActionResult<{ rows: any[]; total: number }>> {
+): Promise<ActionResult<Paged<Row<"campaigns">>>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
@@ -61,7 +62,7 @@ export async function getCampaigns(
 }
 
 // ---------- 詳細取得 ----------
-export async function getCampaignById(id: string): Promise<ActionResult<any>> {
+export async function getCampaignById(id: string): Promise<ActionResult<Row<"campaigns">>> {
   // UUID 形式検証
   if (!UUID_REGEX.test(id)) {
     return { data: null, error: "不正なパラメータです。受信値: " + id };
@@ -85,7 +86,7 @@ export async function getCampaignById(id: string): Promise<ActionResult<any>> {
 // ---------- 作成（manager 以上）----------
 export async function createCampaign(
   input: z.infer<typeof campaignCreateSchema>
-): Promise<ActionResult<any>> {
+): Promise<ActionResult<Row<"campaigns">>> {
   const { supabase, user, role } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
   if (role !== "manager" && role !== "admin") {
@@ -112,7 +113,7 @@ export async function createCampaign(
 // ---------- 更新（manager 以上）----------
 export async function updateCampaign(
   input: z.infer<typeof campaignUpdateSchema>
-): Promise<ActionResult<any>> {
+): Promise<ActionResult<Row<"campaigns">>> {
   const { supabase, user, role } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
   if (role !== "manager" && role !== "admin") {
@@ -194,7 +195,7 @@ export async function restoreCampaign(id: string): Promise<ActionResult<null>> {
 export async function attachLeadToCampaign(
   leadId: string,
   campaignId: string
-): Promise<ActionResult<any>> {
+): Promise<ActionResult<Row<"lead_campaigns">>> {
   if (!UUID_REGEX.test(leadId)) {
     return { data: null, error: "不正なパラメータです。受信値: leadId=" + leadId };
   }

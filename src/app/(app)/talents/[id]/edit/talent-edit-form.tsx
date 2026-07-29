@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Save, Trash2, Plus, Pencil, X, Check } from "lucide-react";
 import { updateTalent, deleteTalent, addTalentCareer, updateTalentCareer, removeTalentCareer } from "@/actions/talents";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import type { TalentCareerRow } from "@/types/relations";
 
 // ---------- 型 ----------
 
@@ -20,18 +21,8 @@ type TalentData = {
   overall_assessment: string | null;
 };
 
-type CareerRow = {
-  id: string;
-  talent_id: string;
-  career_type: "work" | "education" | "certification";
-  organization: string;
-  title: string | null;
-  description: string | null;
-  start_date: string | null;
-  end_date: string | null;
-  is_current: boolean;
-  sort_order: number;
-};
+// 経歴の行型は共通定義を使う（career_type の CHECK 制約もそこで表現している）
+type CareerRow = TalentCareerRow;
 
 type CareerFormValues = {
   career_type: "work" | "education" | "certification";

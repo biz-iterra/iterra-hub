@@ -19,6 +19,7 @@ import {
   leadActivityUpdateSchema,
 } from "@/lib/validators/lead-activities";
 import type { z } from "zod";
+import type { LeadActivityWithRelations, Row } from "@/types/relations";
 
 type ActionResult<T> = { data: T | null; error: string | null };
 
@@ -49,7 +50,7 @@ const ACTIVITY_SELECT = `
 // ---------- 一覧取得（called_on 降順 → created_at 降順）----------
 export async function getLeadActivities(
   leadId: string
-): Promise<ActionResult<any[]>> {
+): Promise<ActionResult<LeadActivityWithRelations[]>> {
   if (!UUID_REGEX.test(leadId)) {
     return { data: null, error: "不正なパラメータです。受信値: " + leadId };
   }
@@ -71,7 +72,7 @@ export async function getLeadActivities(
 // ---------- 作成（call_number は max+1 で自動採番）----------
 export async function createLeadActivity(
   input: z.infer<typeof leadActivityCreateSchema>
-): Promise<ActionResult<any>> {
+): Promise<ActionResult<Row<"lead_activities">>> {
   const { supabase, user, role } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
@@ -125,7 +126,7 @@ export async function createLeadActivity(
 // last_edited_at / last_edited_by_user_id を必ずセットして監査証跡を保全する。
 export async function updateLeadActivity(
   input: z.infer<typeof leadActivityUpdateSchema>
-): Promise<ActionResult<any>> {
+): Promise<ActionResult<Row<"lead_activities">>> {
   const { supabase, user, role } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 

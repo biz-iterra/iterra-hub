@@ -8,30 +8,17 @@ import { SearchInput } from "@/components/ui/SearchInput";
 import { FilterGroup, FilterClearButton } from "@/components/ui/FilterGroup";
 import { Pagination } from "@/components/ui/Pagination";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants/pagination";
+import type { TalentSkillWithSkill, TalentWithRelations } from "@/types/relations";
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
-interface Skill {
-  id: string;
-  proficiency_level: number;
-  skill: { id: string; name: string; skill_categories: { name: string } | null };
-}
+// スキル行も Action の戻り値型を使う
+type Skill = TalentSkillWithSkill;
 
-interface TalentRow {
-  id: string;
-  overall_assessment: string | null;
-  updated_at: string | null;
-  contact: {
-    id: string;
-    contact_code: string;
-    last_name: string;
-    first_name: string;
-    department: string | null;
-    job_title: string | null;
-  } | null;
-  talent_skills: Skill[];
-}
+// 画面で使う行型は Server Action の戻り値型をそのまま使う。
+// 手書きで狭い型を再定義すると SELECT の変更に追従できない。
+type TalentRow = TalentWithRelations;
 
 interface Props {
   initialData: { rows: TalentRow[]; total: number } | null;
@@ -268,7 +255,8 @@ export function TalentsView({ initialData }: Props) {
                                     }),
                               }}
                             >
-                              {s.skill.name} Lv.{s.proficiency_level}
+                              {s.skill?.name ?? "（不明なスキル）"} Lv.
+                              {s.proficiency_level}
                             </span>
                           ))
                         )}

@@ -10,6 +10,12 @@ import {
   createTalentCareerSchema,
   updateTalentCareerSchema,
 } from "@/lib/validators";
+import type {
+  Paged,
+  Row,
+  TalentDetail,
+  TalentWithRelations,
+} from "@/types/relations";
 import type { z } from "zod";
 
 type ActionResult<T> = { data: T | null; error: string | null };
@@ -81,7 +87,7 @@ export async function getTalents(params?: {
   search?: string;
   page?: number;
   perPage?: number;
-}): Promise<ActionResult<{ rows: any[]; total: number }>> {
+}): Promise<ActionResult<Paged<TalentWithRelations>>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
@@ -108,7 +114,7 @@ export async function getTalents(params?: {
 }
 
 // ---------- 詳細取得 ----------
-export async function getTalent(id: string): Promise<ActionResult<any>> {
+export async function getTalent(id: string): Promise<ActionResult<TalentDetail>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
@@ -131,13 +137,16 @@ export async function getTalent(id: string): Promise<ActionResult<any>> {
     .single();
 
   if (error) return { data: null, error: error.message };
-  return { data, error: null };
+  // talent_careers.career_type は DB の CHECK 制約で 3 値に限定されているが
+  // 生成型では TEXT のままなので、ここで一度だけ絞り込んだ型に寄せる。
+  // （詳細は @/types/relations の TalentCareerRow のコメント）
+  return { data: data as TalentDetail, error: null };
 }
 
 // ---------- 作成 ----------
 export async function createTalent(
   input: z.infer<typeof createTalentSchema>
-): Promise<ActionResult<any>> {
+): Promise<ActionResult<Row<"talents">>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
@@ -158,7 +167,7 @@ export async function createTalent(
 export async function updateTalent(
   id: string,
   input: z.infer<typeof updateTalentSchema>
-): Promise<ActionResult<any>> {
+): Promise<ActionResult<Row<"talents">>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
@@ -219,7 +228,7 @@ export async function deleteTalent(id: string): Promise<ActionResult<null>> {
 // ---------- スキル追加 ----------
 export async function addTalentSkill(
   input: z.infer<typeof createTalentSkillSchema>
-): Promise<ActionResult<any>> {
+): Promise<ActionResult<Row<"talent_skills">>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
@@ -240,7 +249,7 @@ export async function addTalentSkill(
 export async function updateTalentSkill(
   id: string,
   input: z.infer<typeof updateTalentSkillSchema>
-): Promise<ActionResult<any>> {
+): Promise<ActionResult<Row<"talent_skills">>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
@@ -275,7 +284,7 @@ export async function removeTalentSkill(id: string): Promise<ActionResult<null>>
 // ---------- キャリア追加 ----------
 export async function addTalentCareer(
   input: z.infer<typeof createTalentCareerSchema>
-): Promise<ActionResult<any>> {
+): Promise<ActionResult<Row<"talent_careers">>> {
   const { supabase, user, role } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
@@ -300,7 +309,7 @@ export async function addTalentCareer(
 export async function updateTalentCareer(
   id: string,
   input: z.infer<typeof updateTalentCareerSchema>
-): Promise<ActionResult<any>> {
+): Promise<ActionResult<Row<"talent_careers">>> {
   const { supabase, user, role } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 

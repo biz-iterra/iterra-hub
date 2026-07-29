@@ -8,6 +8,7 @@ import {
   createActivityLogSchema,
 } from "@/lib/validators";
 import type { z } from "zod";
+import type { DealActivityWithRelations, Row } from "@/types/relations";
 
 type ActionResult<T> = { data: T | null; error: string | null };
 
@@ -28,7 +29,7 @@ async function getAuthenticatedUser() {
 // ---------- ディール活動一覧 ----------
 export async function getDealActivities(
   dealId: string
-): Promise<ActionResult<any[]>> {
+): Promise<ActionResult<DealActivityWithRelations[]>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
@@ -52,7 +53,7 @@ export async function getDealActivities(
 // ---------- ディール活動作成 ----------
 export async function createDealActivity(
   input: z.infer<typeof createDealActivitySchema>
-): Promise<ActionResult<any>> {
+): Promise<ActionResult<Row<"deal_activities">>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
@@ -78,7 +79,7 @@ export async function createDealActivity(
 export async function updateDealActivity(
   id: string,
   input: z.infer<typeof updateDealActivitySchema>
-): Promise<ActionResult<any>> {
+): Promise<ActionResult<Row<"deal_activities">>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
@@ -116,7 +117,7 @@ export async function deleteDealActivity(id: string): Promise<ActionResult<null>
 // ---------- ディール活動メール作成 ----------
 export async function createDealActivityEmail(
   input: z.infer<typeof createDealActivityEmailSchema>
-): Promise<ActionResult<any>> {
+): Promise<ActionResult<Row<"deal_activity_emails">>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
@@ -136,7 +137,7 @@ export async function createDealActivityEmail(
 // ---------- 活動ログ作成 ----------
 export async function createActivityLog(
   input: z.infer<typeof createActivityLogSchema>
-): Promise<ActionResult<any>> {
+): Promise<ActionResult<Row<"activity_logs">>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 

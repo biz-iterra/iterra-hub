@@ -10,6 +10,13 @@ import {
   createDealProjectSchema,
 } from "@/lib/validators/projects";
 import { revalidatePath } from "next/cache";
+import type {
+  Paged,
+  ProjectDetail,
+  ProjectWithRelations,
+  Row,
+  SortedRef,
+} from "@/types/relations";
 
 type ActionResult<T> = { data: T | null; error: string | null };
 
@@ -30,7 +37,7 @@ export async function getProjects(params?: {
   ownerUserId?: string;
   page?: number;
   perPage?: number;
-}): Promise<ActionResult<{ rows: any[]; total: number }>> {
+}): Promise<ActionResult<Paged<ProjectWithRelations>>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
@@ -67,7 +74,7 @@ export async function getProjects(params?: {
 // ---------------------------------------------------------------------------
 // 詳細取得
 // ---------------------------------------------------------------------------
-export async function getProject(id: string): Promise<ActionResult<any>> {
+export async function getProject(id: string): Promise<ActionResult<ProjectDetail>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
@@ -104,7 +111,7 @@ export async function getProject(id: string): Promise<ActionResult<any>> {
 // ---------------------------------------------------------------------------
 export async function createProject(
   input: Record<string, unknown>
-): Promise<ActionResult<any>> {
+): Promise<ActionResult<Row<"projects">>> {
   const { supabase, user, role } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
   if (role !== "manager" && role !== "admin") {
@@ -149,7 +156,7 @@ export async function createProject(
 export async function updateProject(
   id: string,
   input: Record<string, unknown>
-): Promise<ActionResult<any>> {
+): Promise<ActionResult<Row<"projects">>> {
   const { supabase, user, role } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
   if (role !== "manager" && role !== "admin") {
@@ -237,7 +244,7 @@ export async function deleteProject(id: string): Promise<ActionResult<null>> {
 // ---------------------------------------------------------------------------
 export async function addProjectMember(
   input: Record<string, unknown>
-): Promise<ActionResult<any>> {
+): Promise<ActionResult<Row<"project_members">>> {
   const { supabase, user, role } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
   if (role !== "manager" && role !== "admin") {
@@ -338,7 +345,7 @@ export async function bulkAddMembersFromDeals(
 // ---------------------------------------------------------------------------
 export async function addDealProject(
   input: Record<string, unknown>
-): Promise<ActionResult<any>> {
+): Promise<ActionResult<Row<"deal_projects">>> {
   const { supabase, user, role } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
   if (role !== "manager" && role !== "admin") {
@@ -388,7 +395,7 @@ export async function removeDealProject(
 // ---------------------------------------------------------------------------
 // プロジェクトステータス マスタ取得（フォーム用）
 // ---------------------------------------------------------------------------
-export async function getProjectStatuses(): Promise<ActionResult<any[]>> {
+export async function getProjectStatuses(): Promise<ActionResult<SortedRef[]>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 

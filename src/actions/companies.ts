@@ -3,6 +3,12 @@
 import { createClient } from "@/lib/supabase/server";
 import { conflictErrorMessage } from "@/lib/validators/common";
 import { createCompanySchema, updateCompanySchema } from "@/lib/validators";
+import type {
+  CompanyDetail,
+  CompanyWithRelations,
+  Paged,
+  Row,
+} from "@/types/relations";
 
 type ActionResult<T> = { data: T | null; error: string | null };
 
@@ -22,7 +28,7 @@ export async function getCompanies(params?: {
   statusId?: string;
   corporateTypeId?: string;
   ownerUserId?: string;
-}): Promise<ActionResult<{ rows: any[]; total: number }>> {
+}): Promise<ActionResult<Paged<CompanyWithRelations>>> {
   // 参照範囲は RLS が制御するため、ここでロールは使わない
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
@@ -58,7 +64,7 @@ export async function getCompanies(params?: {
 }
 
 // 詳細取得
-export async function getCompany(id: string): Promise<ActionResult<any>> {
+export async function getCompany(id: string): Promise<ActionResult<CompanyDetail>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
@@ -83,7 +89,7 @@ export async function getCompany(id: string): Promise<ActionResult<any>> {
 }
 
 // 作成
-export async function createCompany(input: Record<string, unknown>): Promise<ActionResult<any>> {
+export async function createCompany(input: Record<string, unknown>): Promise<ActionResult<Row<"companies">>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
@@ -101,7 +107,7 @@ export async function createCompany(input: Record<string, unknown>): Promise<Act
 }
 
 // 更新
-export async function updateCompany(id: string, input: Record<string, unknown>): Promise<ActionResult<any>> {
+export async function updateCompany(id: string, input: Record<string, unknown>): Promise<ActionResult<Row<"companies">>> {
   const { supabase, user, role } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 

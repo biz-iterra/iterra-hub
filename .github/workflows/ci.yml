@@ -39,9 +39,8 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: https://dummy.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: dummy-anon-key
 
-      # 既存コードに lint 負債（no-explicit-any 等）が残っているため、
-      # 現時点では失敗させず結果の可視化に留める。
-      # 解消後に continue-on-error を外して必須化すること。
-      - name: Lint（参考実行）
-        run: npm run lint
-        continue-on-error: true
+      # error は 0 件を必須とする。
+      # no-explicit-any は既存 205 件を warning に降格し、上限で件数を固定している
+      # （ラチェット方式）。増やすと CI が落ちる。減らしたらこの数値も下げること。
+      - name: Lint
+        run: npm run lint -- --max-warnings 205

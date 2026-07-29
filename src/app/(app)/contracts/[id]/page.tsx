@@ -1,7 +1,7 @@
 import { getContract } from "@/actions/contracts";
 import { getCurrentUser } from "@/actions/users";
 import Link from "next/link";
-import { ArrowLeft, ArrowUpRight, FileText, Calendar, Building2, User, Pencil } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, FileText, Calendar, Building2, Pencil } from "lucide-react";
 import { ContractMethodBadge } from "@/components/ui/badges";
 
 function formatDate(value: string | null | undefined): string {

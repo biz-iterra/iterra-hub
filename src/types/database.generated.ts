@@ -277,7 +277,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          account_code: string
+          account_code?: string
           account_status_id: string
           account_type_id?: string | null
           company_id?: string | null
@@ -560,7 +560,7 @@ export type Database = {
           address_line1?: string | null
           address_line2?: string | null
           city?: string | null
-          company_code: string
+          company_code?: string
           company_status_id: string
           corporate_number?: string | null
           corporate_type_id?: string | null
@@ -1114,7 +1114,7 @@ export type Database = {
           city?: string | null
           company_id?: string | null
           constellation_id?: string | null
-          contact_code: string
+          contact_code?: string
           contact_status_id: string
           contact_type?: string | null
           created_at?: string
@@ -1345,7 +1345,7 @@ export type Database = {
         Insert: {
           auto_renewal?: boolean
           cancellation_date?: string | null
-          contract_code: string
+          contract_code?: string
           contract_content?: string | null
           contract_method?: string | null
           contract_name?: string | null
@@ -2137,7 +2137,7 @@ export type Database = {
           contract_name?: string | null
           created_at?: string
           created_by?: string
-          deal_code: string
+          deal_code?: string
           deal_stage_id: string
           deal_status_id: string
           deleted_at?: string | null
@@ -4189,7 +4189,7 @@ export type Database = {
           last_updated_by?: string | null
           name: string
           owner_user_id?: string | null
-          project_code: string
+          project_code?: string
           project_status_id: string
           start_date?: string | null
           status_updated_at?: string | null

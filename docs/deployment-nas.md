@@ -48,16 +48,6 @@ Vercel から自社 NAS 上の Docker へ移行するための構成と手順。
 | `cloudflared`: `Provided Tunnel token is not valid` | `.env` にプレースホルダの山括弧 `<>` が残っていた。`sed -i 's/[<>]//g' .env` で除去 |
 | `git checkout` で `Deletion of directory failed` | dev サーバー（Turbopack）がファイルをロック。停止してから実行する |
 
-### 実施済みの内容（記録）
-
-- 本番 Supabase: `aqkesxqxrsucgrnguhnb`（Tokyo）。マイグレーション 68 本適用済み
-- `admin@iterra.jp` は 35 カラムの `created_by` DEFAULT に使われるため削除せず封じ込め（§0.5）
-- 退職者 3 名（小川 / 田中 / 伏見）はメール送信なしで SQL 作成。UUID を開発環境と揃えたため
-  `04-leads.sql` は置換なしで投入できた
-- 実運用アカウント: `ishida@iterra.jp`（admin / `is_active = true`）
-- Access の認証はメール OTP（One-time PIN）。`@iterra.jp` のメールボックスが実在する
-  アドレスでないとコードが届かない（未登録アドレスでも「送信しました」と表示される仕様）
-
 ## 構成
 
 ```
@@ -310,30 +300,63 @@ node scripts/remap-lead-owners.mjs --out ./04-leads-prod.sql --map <旧UUID>=<�
 | 必要スコープ | `read:packages` のみ |
 | 使い方 | NAS 上で `docker login`（§5.2）。`.env` には書かない |
 
-### 1.4 Supabase の API キー移行について
-
-Supabase は API キーを新方式（`sb_publishable_...` / `sb_secret_...`）へ移行中で、
-**旧来の anon / service_role キーは 2026 年末に廃止予定**。
-
-アプリ側は環境変数に入る文字列が変わるだけで、コード変更は不要。
-今回 NAS 移行でシークレットを登録し直すため、**このタイミングで新キーに切り替えるのが効率的**。
-
-| 環境変数 | 旧 | 新 |
-|---|---|---|
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | anon public | Publishable key（`sb_publishable_...`） |
-| `SUPABASE_SERVICE_ROLE_KEY` | service_role | Secret key（`sb_secret_...`） |
-
-切り替える場合は、ローカルの `.env.local` も同時に更新して動作確認すること。
-
-### 1.2 イメージの配布
+### 1.4 イメージの配布
 
 `main` への push で `.github/workflows/docker-publish.yml` が動き、GHCR に push される。
 
 - `ghcr.io/biz-iterra/iterra-hub:latest` — 通常運用
 - `ghcr.io/biz-iterra/iterra-hub:sha-<コミットSHA>` — 切り戻し用
 
-リポジトリが private のためイメージも private。NAS 側で GHCR へのログインが必要（後述）。
+リポジトリが private のためイメージも private。NAS 側で GHCR へのログインが必要（§5.2）。
 
+### 1.5 Supabase の API キー方式
+
+Supabase は API キーを新方式（`sb_publishable_...` / `sb_secret_...`）へ移行中で、
+**旧来の anon / service_role キーは 2026 年末に廃止予定**。
+
+**アプリ側のコード変更は不要。** 環境変数名は変えず、値だけを差し替える。
+
+| 環境変数 | 旧（〜2026年末） | 新 | 取得元 |
+|---|---|---|---|
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | anon public（`eyJ...`） | Publishable key（`sb_publishable_...`） | Settings → API Keys |
+| `SUPABASE_SERVICE_ROLE_KEY` | service_role（`eyJ...`） | Secret key（`sb_secret_...`） | 同上 |
+
+#### 現在どちらを使っているかの判定
+
+値の先頭で判別できる。ローカルなら次のコマンドで確認できる（値は表示しない）。
+
+```bash
+awk -F'=' '/^(NEXT_PUBLIC_SUPABASE_ANON_KEY|SUPABASE_SERVICE_ROLE_KEY)=/{v=substr($0,index($0,"=")+1); print $1": "(substr(v,1,3)=="sb_" ? "新方式" : (substr(v,1,3)=="eyJ" ? "legacy（2026年末廃止）" : "未設定"))}' .env.local
+```
+
+| 先頭 | 方式 |
+|---|---|
+| `sb_publishable_` / `sb_secret_` | 新方式 |
+| `eyJ` | legacy。廃止前に差し替えが必要 |
+
+#### 差し替える場所
+
+| 場所 | 対象 |
+|---|---|
+| ローカル `.env.local` | 両方 |
+| GitHub Secrets | `NEXT_PUBLIC_SUPABASE_ANON_KEY`（**差し替え後はイメージの再ビルドが必要**） |
+| NAS の `.env` | `SUPABASE_SERVICE_ROLE_KEY` → `docker compose up -d --force-recreate` |
+
+`NEXT_PUBLIC_*` はビルド時にクライアントバンドルへ焼き込まれるため、
+Secrets を変えただけでは反映されない点に注意。
+
+#### ローカル開発環境について
+
+ローカル Supabase は CLI v2.90+ が新方式のキーを出力するため、既に `sb_*` 形式になっている
+（`npx supabase status` の Publishable / Secret）。
+
+**`SUPABASE_SERVICE_ROLE_KEY` の設定を忘れないこと。** 未設定でも画面表示は動くが、
+`createAdminClient()` を使う以下の処理が失敗する。
+
+- リードのバルク更新（`src/actions/leads.ts`）
+- スコア再計算（`src/lib/leads/recalculate-score.ts`）
+
+RLS をバイパスするクライアントのため、1000 件超の一括処理でのみ使用している。
 ## 2. Cloudflare Tunnel
 
 Zero Trust ダッシュボードの **Networks → Tunnels** で作成する。

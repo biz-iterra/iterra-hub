@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { conflictErrorMessage } from "@/lib/validators/common";
+import type { Database } from "@/types/database.generated";
 import {
   createContactSchema,
   updateContactSchema,
@@ -172,7 +173,7 @@ export async function createContact(
 
   const { data, error } = await supabase
     .from("contacts")
-    .insert(values)
+    .insert(values as Database["public"]["Tables"]["contacts"]["Insert"])
     .select()
     .single();
 

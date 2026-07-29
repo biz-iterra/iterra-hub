@@ -7,7 +7,6 @@
 // ============================================================
 
 import fs from "node:fs";
-import path from "node:path";
 import { parse } from "csv-parse/sync";
 
 const CSV_PATH = "ITERRA Academy　架電リスト - 架電リスト.csv";
@@ -135,11 +134,6 @@ const ACTIVITY_TYPE_CALL_ID = "b7000000-0000-0000-0000-000000000001";
 function esc(s) {
   if (s === null || s === undefined) return "NULL";
   return `'${String(s).replace(/'/g, "''")}'`;
-}
-
-function numOrNull(n) {
-  if (n === null || n === undefined) return "NULL";
-  return String(n);
 }
 
 function cleanPhone(raw) {

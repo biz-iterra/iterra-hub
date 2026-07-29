@@ -3,19 +3,9 @@ import type { Database } from "./database.generated";
 // NOTE: テーブル行型は supabase gen types の生成物から導出する（`npm run db:types` で更新）。
 // 手書きしないこと。スキーマとの乖離をビルドで検出するための措置。
 
-import type {
-  CrmUserRole,
-  ContactType,
-  ContractMethod,
-  CounterpartyType,
-  EmailLabel,
-  PhoneLabel,
-  BankAccountType,
-  CareerType,
-  AccountContactRole,
-  DealActivityType,
-  ActivityLogType,
-} from "./enums";
+// enums の多くはテーブル行型を生成型から導出したことで不要になった。
+// 生成型に含まれない箇所（deal_activities 等）で使う分だけを残す。
+import type { DealActivityType } from "./enums";
 
 // === 共通フィールド ===
 

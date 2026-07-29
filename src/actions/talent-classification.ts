@@ -332,8 +332,8 @@ export async function getTalentProfile(
   const masters: TalentClassificationMasters = {
     systemTags: (systemTagsRaw ?? []) as TalentClassificationMasters["systemTags"],
     grades: (gradesRaw ?? []) as TalentClassificationMasters["grades"],
-    requirements: (requirementsRaw ?? []) as TalentClassificationMasters["requirements"],
-    jobTypes: (jobTypesRaw ?? []) as TalentClassificationMasters["jobTypes"],
+    requirements: (requirementsRaw ?? []) as unknown as TalentClassificationMasters["requirements"],
+    jobTypes: (jobTypesRaw ?? []) as unknown as TalentClassificationMasters["jobTypes"],
   };
 
   const profile = calculateTalentProfile({

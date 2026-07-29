@@ -12,7 +12,38 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // supabase gen types の生成物。手で直さないため対象外にする
+    "src/types/database.generated.ts",
   ]),
+  {
+    rules: {
+      // `_` 始まりは「意図的に使わない」ことを示す慣例として扱う。
+      // 分割代入で不要なキーを除去する用途が多い（例: const { _sub, ...rest } = x）。
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+          destructuredArrayIgnorePattern: "^_",
+          ignoreRestSiblings: true,
+        },
+      ],
+      // 既存コードに 200 件超あり、解消には JOIN 込みの戻り値型を多数定義する必要がある。
+      // 一度に潰せないため警告に降格し、CI の --max-warnings で件数を固定して
+      // 「増やさない」ことを担保する（ラチェット方式）。新規コードでは使わないこと。
+      "@typescript-eslint/no-explicit-any": "warn",
+    },
+  },
+  {
+    // マスタ管理画面はクライアント側でマスタを取得・再取得する設計のため、
+    // useEffect からのデータ取得（内部で setState）が構造的に発生する。
+    // Server Component へ寄せる改修は影響範囲が大きいため別課題とする。
+    files: ["src/app/(app)/admin/admin-view.tsx"],
+    rules: {
+      "react-hooks/set-state-in-effect": "off",
+    },
+  },
 ]);
 
 export default eslintConfig;

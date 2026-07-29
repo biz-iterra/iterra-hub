@@ -59,7 +59,7 @@ export function LeadsView({
   temperatures,
   categories,
   users,
-  currentUserRole,
+  // currentUserRole は props 型に残しているが、現状 UI 分岐に使っていないため受け取らない
 }: LeadsViewProps) {
   const [data, setData] = useState(initialData);
   const [stageFilter, setStageFilter] = useState("");

@@ -6,7 +6,6 @@ import {
   FileText,
   Layers,
   Mail,
-  MapPin,
   Pencil,
   Sparkles,
   Star,

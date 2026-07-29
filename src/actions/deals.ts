@@ -209,8 +209,10 @@ export async function createDeal(
   });
 
   // deal_status_histories に初回エントリ
+  // stage_id は NOT NULL（どのステージ時点のステータスかを保持する）
   await supabase.from("deal_status_histories").insert({
     deal_id: deal.id,
+    stage_id: parsed.data.deal_stage_id,
     from_status_id: null,
     to_status_id: parsed.data.deal_status_id,
     changed_by: user.id,

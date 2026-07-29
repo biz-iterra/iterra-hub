@@ -732,8 +732,8 @@ export async function promoteLeadToDeal(leadId: string): Promise<ActionResult<an
       p_lead_id: leadId,
       p_company: companyPayload,
       p_contact: contactPayload,
-      p_contact_email: lead.contact_email ?? null,
-      p_contact_phone: contactPhone,
+      p_contact_email: lead.contact_email ?? "",
+      p_contact_phone: contactPhone ?? "",
       p_account: accountPayload,
       p_deal: dealPayload,
     }

@@ -29,8 +29,27 @@ import {
   leadScoreRuleSchema, leadScoreRuleUpdateSchema,
 } from "@/lib/validators";
 import type { z } from "zod";
+import type { Database } from "@/types/database.generated";
 
 type ActionResult<T> = { data: T | null; error: string | null };
+
+/** 生成型から導出したテーブル名。存在しないテーブル名の指定をビルド時に検出する */
+type MasterTableName = keyof Database["public"]["Tables"];
+
+/**
+ * 汎用マスタ CRUD 用に型を緩めたクライアント。
+ *
+ * 本ファイルの CRUD は実行時にテーブル名が決まる設計のため、Database 型のまま
+ * `from(tableName)` に渡すと 70 以上のテーブルの Insert/Update 型がユニオンとして
+ * 展開され、TS2589（Type instantiation is excessively deep）で型チェックが破綻する。
+ *
+ * テーブル名は `MasterTableName` で検証済みなので、クエリビルダに限り型を外す。
+ * 個別エンティティの Server Action（deals.ts 等）では型付きクライアントを使うこと。
+ */
+type LooseSupabase = Omit<Awaited<ReturnType<typeof createClient>>, "from"> & {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  from: (table: MasterTableName | string) => any;
+};
 
 /**
  * 監査カラム（created_by / last_updated_by / deleted_by）を持つテーブルのセット。
@@ -58,15 +77,16 @@ const TABLES_WITH_AUDIT_COLUMNS = new Set([
 ]);
 
 /** テーブルが監査カラムを持つか判定 */
-function hasAuditColumns(tableName: string): boolean {
+function hasAuditColumns(tableName: MasterTableName): boolean {
   return TABLES_WITH_AUDIT_COLUMNS.has(tableName);
 }
 
 async function getAuthenticatedUser() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const typed = await createClient();
+  const { data: { user } } = await typed.auth.getUser();
   if (!user) return { supabase: null, user: null };
-  return { supabase, user };
+  // 汎用 CRUD のため型を緩める（理由は LooseSupabase の説明を参照）
+  return { supabase: typed as unknown as LooseSupabase, user };
 }
 
 async function getUserRole(supabase: any, userId: string): Promise<string | null> {
@@ -84,7 +104,7 @@ async function requireAdmin(supabase: any, userId: string): Promise<string | nul
 // sort_order カラムを持つテーブル（pipeline_types / skill_categories / skills など）は
 // { useSortOrder: true } を指定する。未指定なら name と created_at で並べる。
 export async function getMasterList(
-  tableName: string,
+  tableName: MasterTableName,
   options?: { useSortOrder?: boolean },
 ): Promise<ActionResult<any[]>> {
   const { supabase, user } = await getAuthenticatedUser();
@@ -105,7 +125,7 @@ export async function getMasterList(
 
 // 汎用: マスタ作成（admin のみ）
 export async function createMasterRecord(
-  tableName: string,
+  tableName: MasterTableName,
   input: Record<string, unknown>,
   schema: z.ZodSchema
 ): Promise<ActionResult<any>> {
@@ -126,7 +146,7 @@ export async function createMasterRecord(
 
 // 汎用: マスタ更新（admin のみ）
 export async function updateMasterRecord(
-  tableName: string,
+  tableName: MasterTableName,
   id: string,
   input: Record<string, unknown>,
   schema: z.ZodSchema
@@ -147,7 +167,7 @@ export async function updateMasterRecord(
 }
 
 // 汎用: マスタ論理削除（admin のみ）
-export async function deleteMasterRecord(tableName: string, id: string): Promise<ActionResult<null>> {
+export async function deleteMasterRecord(tableName: MasterTableName, id: string): Promise<ActionResult<null>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
@@ -694,7 +714,7 @@ export async function getLeadScoreRulesWithBrokenRefs(): Promise<ActionResult<{
   };
 
   const rulesWithRef = await Promise.all(
-    rules.map(async (rule) => {
+    (rules as Database["public"]["Tables"]["lead_score_rules"]["Row"][]).map(async (rule) => {
       if (!rule.condition_value_id) return { ...rule, _refBroken: false };
       const tableName = TABLE_MAP[rule.condition_type];
       if (!tableName) return { ...rule, _refBroken: false };

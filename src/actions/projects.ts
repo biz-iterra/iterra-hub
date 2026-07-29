@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { conflictErrorMessage } from "@/lib/validators/common";
+import type { Database } from "@/types/database.generated";
 import {
   createProjectSchema,
   updateProjectSchema,
@@ -189,7 +190,10 @@ export async function updateProject(
   }
 
   // 楽観ロック: 編集開始時点から updated_at が変わっていれば 0 行更新になる
-  let updateQuery = supabase.from("projects").update(updates).eq("id", id);
+  let updateQuery = supabase
+    .from("projects")
+    .update(updates as Database["public"]["Tables"]["projects"]["Update"])
+    .eq("id", id);
   if (expected_updated_at) {
     updateQuery = updateQuery.eq("updated_at", expected_updated_at);
   }

@@ -5,8 +5,6 @@ import {
   Users,
   Contact,
   Building2,
-  BarChart3,
-  Clock,
   User,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";

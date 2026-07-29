@@ -52,6 +52,8 @@ type MasterItem = Record<string, unknown> & { id: string; name: string };
 
 // ===== Tab & Group definitions =====
 
+// TabKey の型導出にのみ使う（値として参照しないのは意図的）
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const TAB_KEYS = [
   // 共通・取引
   "pipeline", "contract_types", "services",
@@ -1347,13 +1349,13 @@ function LeadScoreThresholdsTab({ leadTemperatures }: { leadTemperatures: Master
     { key: "temperature_id", label: "温度感", type: "select", options: temperatureOptions },
   ];
 
-  const handleCreate = async (values: Record<string, unknown>) => {
+  const handleCreate = async (_values: Record<string, unknown>) => {
     setLoading(true); setError(null);
     const result = await Promise.resolve({ data: null, error: "この画面からは作成できません。DBマイグレーションで管理してください。" });
     setLoading(false);
     if (result.error) { setError(result.error); return; }
   };
-  const handleUpdate = async (values: Record<string, unknown>) => {
+  const handleUpdate = async (_values: Record<string, unknown>) => {
     setLoading(true); setError(null);
     const result = await Promise.resolve({ data: null, error: "この画面からは更新できません。DBマイグレーションで管理してください。" });
     setLoading(false);
@@ -1587,7 +1589,6 @@ export function AdminView() {
   const [projectStatuses, setProjectStatuses] = useState<MasterItem[]>([]);
   const [leadCompanySizes, setLeadCompanySizes] = useState<MasterItem[]>([]);
   const [leadCustomerActivityTypes, setLeadCustomerActivityTypes] = useState<MasterItem[]>([]);
-  const [leadScoreThresholds, setLeadScoreThresholds] = useState<MasterItem[]>([]);
   const [allLeadLargeSegments, setAllLeadLargeSegments] = useState<MasterItem[]>([]);
   const [allLeadSmallSegments, setAllLeadSmallSegments] = useState<MasterItem[]>([]);
   const [allLeadStages, setAllLeadStages] = useState<MasterItem[]>([]);
@@ -1602,7 +1603,7 @@ export function AdminView() {
    */
   const loadAllSimpleMasters = useCallback(async () => {
     setLoadingData(true);
-    const [ct, corp, svc, ls, lc, lat, ltemp, lcs, at, as_, cs, cps, ps, lcsizes, lcatypes, lsthresh] = await Promise.all([
+    const [ct, corp, svc, ls, lc, lat, ltemp, lcs, at, as_, cs, cps, ps, lcsizes, lcatypes] = await Promise.all([
       getContractTypes(),
       getCorporateTypes(),
       getServices(),
@@ -1618,7 +1619,6 @@ export function AdminView() {
       getProjectStatusesMasters(),
       getLeadCompanySizes(),
       getLeadCustomerActivityTypes(),
-      getLeadScoreThresholds(),
     ]);
     setContractTypes((ct.data as MasterItem[]) ?? []);
     setCorporateTypes((corp.data as MasterItem[]) ?? []);
@@ -1635,7 +1635,6 @@ export function AdminView() {
     setProjectStatuses((ps.data as MasterItem[]) ?? []);
     setLeadCompanySizes((lcsizes.data as MasterItem[]) ?? []);
     setLeadCustomerActivityTypes((lcatypes.data as MasterItem[]) ?? []);
-    setLeadScoreThresholds((lsthresh.data as MasterItem[]) ?? []);
     // スコアルール名前解決用に大・小セグメント・ステージ・ステータスも並行ロード
     const [llargeSegs, lsmallSegs, lstages, lstatuses] = await Promise.all([
       getLeadLargeSegments(),
@@ -1720,10 +1719,6 @@ export function AdminView() {
   const refreshLeadCustomerActivityTypes = async () => {
     const r = await getLeadCustomerActivityTypes();
     setLeadCustomerActivityTypes((r.data as MasterItem[]) ?? []);
-  };
-  const refreshLeadScoreThresholds = async () => {
-    const r = await getLeadScoreThresholds();
-    setLeadScoreThresholds((r.data as MasterItem[]) ?? []);
   };
 
   const renderTab = () => {

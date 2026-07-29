@@ -14,6 +14,13 @@ export default function RootLayout({
   return (
     <html lang="ja" className="h-full antialiased">
       <head>
+        {/*
+          App Router の layout は全ページに適用されるため、このルールの前提
+          （pages/_document.js を使わない場合は単一ページでしか読まれない）に当てはまらない。
+          next/font/google への移行は、日本語グリフをセルフホストするとイメージが数 MB 増えるため
+          現時点では採らない。
+        */}
+        {/* eslint-disable-next-line @next/next/no-page-custom-font */}
         <link
           href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap"
           rel="stylesheet"

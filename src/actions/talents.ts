@@ -165,10 +165,11 @@ export async function updateTalent(
   const parsed = updateTalentSchema.safeParse(input);
   if (!parsed.success) return { data: null, error: parsed.error.issues[0].message };
 
-  // 変更前データ取得
-  const { data: current, error: fetchError } = await supabase
+  // 存在確認のみ（変更履歴は entity_change_logs のトリガーが記録するため
+  // 変更前データをアプリ側で保持する必要はない）
+  const { error: fetchError } = await supabase
     .from("talents")
-    .select("*")
+    .select("id")
     .eq("id", id)
     .single();
 

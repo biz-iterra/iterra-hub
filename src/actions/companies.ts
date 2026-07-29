@@ -23,7 +23,8 @@ export async function getCompanies(params?: {
   corporateTypeId?: string;
   ownerUserId?: string;
 }): Promise<ActionResult<{ rows: any[]; total: number }>> {
-  const { supabase, user, role } = await getAuthenticatedUser();
+  // 参照範囲は RLS が制御するため、ここでロールは使わない
+  const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
   const page = params?.page ?? 1;

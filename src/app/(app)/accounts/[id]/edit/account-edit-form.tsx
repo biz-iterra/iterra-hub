@@ -10,6 +10,8 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 type SelectOption = { value: string; label: string };
 
 type AccountData = {
+  /** 楽観ロック用。編集開始時点の値をそのまま保存時に送り返す */
+  updated_at?: string | null;
   id: string;
   name: string;
   company_id: string | null;
@@ -193,6 +195,8 @@ export function AccountEditForm({
       lead_source_id: values.lead_source_id || null,
       owner_user_id: values.owner_user_id || null,
       description: values.description || null,
+      // 楽観ロック: 編集開始時点の updated_at を送り、他者更新があれば競合として弾く
+      expected_updated_at: account.updated_at ?? undefined,
     };
 
     const result = await updateAccount(account.id, payload);

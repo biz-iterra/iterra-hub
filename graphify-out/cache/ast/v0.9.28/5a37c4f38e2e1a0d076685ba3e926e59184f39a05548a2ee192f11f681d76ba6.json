@@ -1,0 +1,1 @@
+{"nodes": [{"id": "c_users_bizis_iterra_jp_iterra_hub_supabase_migrations_20260416040014_fix_dependent_table_rls_sql", "label": "20260416040014_fix_dependent_table_rls.sql", "file_type": "code", "source_file": "supabase/migrations/20260416040014_fix_dependent_table_rls.sql", "source_location": null}], "edges": []}

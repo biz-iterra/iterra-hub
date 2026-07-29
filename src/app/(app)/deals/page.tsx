@@ -1,5 +1,6 @@
 import { getDealsForKanban, getDeals } from "@/actions/deals";
-import { getPipelineTypes } from "@/actions/masters";
+import { getPipelineTypes, getDealStages, getDealStatuses } from "@/actions/masters";
+import { getCrmUsers } from "@/actions/users";
 import { DealsView } from "./deals-view";
 
 export default async function DealsPage() {
@@ -12,17 +13,22 @@ export default async function DealsPage() {
     statuses: { status: { id: string; name: string; sort_order: number }; deals: any[] }[];
   } | null;
 
-  let kanbanData: KanbanData = null;
+  const [
+    kanbanResult,
+    dealsResult,
+    stagesResult,
+    statusesResult,
+    usersResult,
+  ] = await Promise.all([
+    defaultPipelineId ? getDealsForKanban(defaultPipelineId) : Promise.resolve({ data: null }),
+    getDeals({ perPage: 50 }),
+    getDealStages(defaultPipelineId ?? undefined),
+    getDealStatuses(defaultPipelineId ?? undefined),
+    getCrmUsers(),
+  ]);
 
-  let listData: { items: any[]; count: number } | null = null;
-
-  if (defaultPipelineId) {
-    const { data } = await getDealsForKanban(defaultPipelineId);
-    kanbanData = data;
-  }
-
-  const { data: dealsResult } = await getDeals({ perPage: 50 });
-  listData = dealsResult;
+  const kanbanData: KanbanData = kanbanResult.data ?? null;
+  const listData = dealsResult.data;
 
   return (
     <DealsView
@@ -30,6 +36,9 @@ export default async function DealsPage() {
       defaultPipelineId={defaultPipelineId}
       initialKanbanData={kanbanData}
       initialListData={listData}
+      stages={stagesResult.data ?? []}
+      statuses={statusesResult.data ?? []}
+      users={usersResult.data ?? []}
     />
   );
 }

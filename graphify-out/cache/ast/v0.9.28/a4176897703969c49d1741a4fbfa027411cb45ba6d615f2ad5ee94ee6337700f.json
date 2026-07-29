@@ -1,0 +1,1 @@
+{"nodes": [{"id": "c_users_bizis_iterra_jp_iterra_hub_supabase_migrations_20260419000010_drop_inside_sales_legacy_sql", "label": "20260419000010_drop_inside_sales_legacy.sql", "file_type": "code", "source_file": "supabase/migrations/20260419000010_drop_inside_sales_legacy.sql", "source_location": null}], "edges": []}

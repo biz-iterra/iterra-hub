@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { uuidString } from "./common";
+import { expectedUpdatedAtSchema, uuidString } from "./common";
 
 const companyBaseSchema = z.object({
   name: z.string().min(1, "会社名は必須です").max(200),
@@ -31,4 +31,6 @@ export const createCompanySchema = companyBaseSchema.refine(
   { message: "インボイス登録ありの場合、登録番号は必須です", path: ["invoice_registration_number"] }
 );
 
-export const updateCompanySchema = companyBaseSchema.partial();
+export const updateCompanySchema = companyBaseSchema
+  .partial()
+  .extend({ expected_updated_at: expectedUpdatedAtSchema });

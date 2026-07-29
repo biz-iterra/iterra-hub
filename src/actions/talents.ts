@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { conflictErrorMessage } from "@/lib/validators/common";
 import {
   createTalentSchema,
   updateTalentSchema,
@@ -25,6 +26,48 @@ async function getAuthenticatedUser() {
     .eq("id", user.id)
     .single();
   return { supabase, user, role: crmUser?.role ?? null };
+}
+
+type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
+
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * 対象タレントを編集できるか判定する。
+ * talent_careers の RLS は全操作 USING(true) のため、Server Action 層が唯一の防御になる。
+ * 基準は contacts と揃え、manager 以上は全件、member は親コンタクトのオーナーのみ。
+ */
+async function canModifyTalent(
+  supabase: SupabaseServerClient,
+  userId: string,
+  role: string | null,
+  talentId: string
+): Promise<boolean> {
+  if (role === "manager" || role === "admin") return true;
+
+  const { data } = await supabase
+    .from("talents")
+    .select("contact:contacts(owner_user_id)")
+    .eq("id", talentId)
+    .single();
+
+  const contact = (data as { contact?: { owner_user_id?: string } | null } | null)
+    ?.contact;
+  return contact?.owner_user_id === userId;
+}
+
+/** talent_careers.id から親の talent_id を引く */
+async function getCareerTalentId(
+  supabase: SupabaseServerClient,
+  careerId: string
+): Promise<string | null> {
+  const { data } = await supabase
+    .from("talent_careers")
+    .select("talent_id")
+    .eq("id", careerId)
+    .single();
+  return (data as { talent_id?: string } | null)?.talent_id ?? null;
 }
 
 const TALENT_LIST_SELECT = `
@@ -131,32 +174,24 @@ export async function updateTalent(
 
   if (fetchError) return { data: null, error: fetchError.message };
 
-  const { data, error } = await supabase
+  // expected_updated_at は DB カラムではないため更新値から除外する
+  const { expected_updated_at, ...fields } = parsed.data;
+
+  // 楽観ロック: 編集開始時点から updated_at が変わっていれば 0 行更新になる
+  let updateQuery = supabase
     .from("talents")
-    .update({ ...parsed.data, last_updated_by: user.id })
-    .eq("id", id)
-    .select()
-    .single();
+    .update({ ...fields, last_updated_by: user.id })
+    .eq("id", id);
+  if (expected_updated_at) {
+    updateQuery = updateQuery.eq("updated_at", expected_updated_at);
+  }
+
+  const { data, error } = await updateQuery.select().maybeSingle();
 
   if (error) return { data: null, error: error.message };
+  if (!data) return { data: null, error: conflictErrorMessage("このタレント") };
 
-  // 変更履歴記録
-  const changes: Record<string, { from: any; to: any }> = {};
-  for (const key of Object.keys(parsed.data)) {
-    if (parsed.data[key as keyof typeof parsed.data] !== current[key]) {
-      changes[key] = {
-        from: current[key],
-        to: parsed.data[key as keyof typeof parsed.data],
-      };
-    }
-  }
-  if (Object.keys(changes).length > 0) {
-    await supabase.from("talent_change_histories").insert({
-      talent_id: id,
-      changes: JSON.stringify(changes),
-      changed_by: user.id,
-    });
-  }
+  // 変更履歴は entity_change_logs のトリガーが自動記録する（20260728000002）
 
   return { data, error: null };
 }
@@ -240,11 +275,15 @@ export async function removeTalentSkill(id: string): Promise<ActionResult<null>>
 export async function addTalentCareer(
   input: z.infer<typeof createTalentCareerSchema>
 ): Promise<ActionResult<any>> {
-  const { supabase, user } = await getAuthenticatedUser();
+  const { supabase, user, role } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
   const parsed = createTalentCareerSchema.safeParse(input);
   if (!parsed.success) return { data: null, error: parsed.error.issues[0].message };
+
+  if (!(await canModifyTalent(supabase, user.id, role, parsed.data.talent_id))) {
+    return { data: null, error: "このタレントを編集する権限がありません" };
+  }
 
   const { data, error } = await supabase
     .from("talent_careers")
@@ -261,11 +300,19 @@ export async function updateTalentCareer(
   id: string,
   input: z.infer<typeof updateTalentCareerSchema>
 ): Promise<ActionResult<any>> {
-  const { supabase, user } = await getAuthenticatedUser();
+  const { supabase, user, role } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
+
+  if (!UUID_REGEX.test(id)) return { data: null, error: "不正なパラメータです" };
 
   const parsed = updateTalentCareerSchema.safeParse(input);
   if (!parsed.success) return { data: null, error: parsed.error.issues[0].message };
+
+  const talentId = await getCareerTalentId(supabase, id);
+  if (!talentId) return { data: null, error: "経歴が見つかりません" };
+  if (!(await canModifyTalent(supabase, user.id, role, talentId))) {
+    return { data: null, error: "このタレントを編集する権限がありません" };
+  }
 
   const { data, error } = await supabase
     .from("talent_careers")
@@ -280,8 +327,16 @@ export async function updateTalentCareer(
 
 // ---------- キャリア削除 ----------
 export async function removeTalentCareer(id: string): Promise<ActionResult<null>> {
-  const { supabase, user } = await getAuthenticatedUser();
+  const { supabase, user, role } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
+
+  if (!UUID_REGEX.test(id)) return { data: null, error: "不正なパラメータです" };
+
+  const talentId = await getCareerTalentId(supabase, id);
+  if (!talentId) return { data: null, error: "経歴が見つかりません" };
+  if (!(await canModifyTalent(supabase, user.id, role, talentId))) {
+    return { data: null, error: "このタレントを編集する権限がありません" };
+  }
 
   const { error } = await supabase
     .from("talent_careers")

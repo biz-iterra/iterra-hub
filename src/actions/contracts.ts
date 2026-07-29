@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { conflictErrorMessage } from "@/lib/validators/common";
 import {
   createContractSchema,
   updateContractSchema,
@@ -139,14 +140,22 @@ export async function updateContract(
   const parsed = updateContractSchema.safeParse(input);
   if (!parsed.success) return { data: null, error: parsed.error.issues[0].message };
 
-  const { data, error } = await supabase
+  // expected_updated_at は DB カラムではないため更新値から除外する
+  const { expected_updated_at, ...fields } = parsed.data;
+
+  // 楽観ロック: 編集開始時点から updated_at が変わっていれば 0 行更新になる
+  let updateQuery = supabase
     .from("contracts")
-    .update({ ...parsed.data, last_updated_by: user.id })
-    .eq("id", id)
-    .select()
-    .single();
+    .update({ ...fields, last_updated_by: user.id })
+    .eq("id", id);
+  if (expected_updated_at) {
+    updateQuery = updateQuery.eq("updated_at", expected_updated_at);
+  }
+
+  const { data, error } = await updateQuery.select().maybeSingle();
 
   if (error) return { data: null, error: error.message };
+  if (!data) return { data: null, error: conflictErrorMessage("この契約") };
   return { data, error: null };
 }
 

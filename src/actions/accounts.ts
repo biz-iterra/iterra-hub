@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { conflictErrorMessage } from "@/lib/validators/common";
 import {
   createAccountSchema,
   updateAccountSchema,
@@ -153,39 +154,32 @@ export async function updateAccount(
     .single();
   if (fetchErr) return { data: null, error: fetchErr.message };
 
+  // expected_updated_at は DB カラムではないため更新値から除外する
+  const { expected_updated_at, ...fields } = parsed.data;
+
   // status_updated_at をステータス変更時に更新
-  const updates: Record<string, unknown> = { ...parsed.data };
+  const updates: Record<string, unknown> = { ...fields };
   if (
-    parsed.data.account_status_id &&
-    parsed.data.account_status_id !== before.account_status_id
+    fields.account_status_id &&
+    fields.account_status_id !== before.account_status_id
   ) {
     updates.status_updated_at = new Date().toISOString();
   }
 
-  const { data, error } = await supabase
+  // 楽観ロック: 編集開始時点から updated_at が変わっていれば 0 行更新になる
+  let updateQuery = supabase
     .from("accounts")
     .update({ ...updates, last_updated_by: user.id })
-    .eq("id", id)
-    .select()
-    .single();
-  if (error) return { data: null, error: error.message };
-
-  // 変更履歴記録
-  const changedFields = Object.keys(parsed.data) as (keyof typeof parsed.data)[];
-  const histories = changedFields
-    .filter((key) => parsed.data[key] !== before[key])
-    .map((field) => ({
-      account_id: id,
-      field_name: field as string,
-      old_value: before[field] != null ? String(before[field]) : null,
-      new_value:
-        parsed.data[field] != null ? String(parsed.data[field]) : null,
-      changed_by: user.id,
-    }));
-
-  if (histories.length > 0) {
-    await supabase.from("account_change_histories").insert(histories);
+    .eq("id", id);
+  if (expected_updated_at) {
+    updateQuery = updateQuery.eq("updated_at", expected_updated_at);
   }
+
+  const { data, error } = await updateQuery.select().maybeSingle();
+  if (error) return { data: null, error: error.message };
+  if (!data) return { data: null, error: conflictErrorMessage("このアカウント") };
+
+  // 変更履歴は entity_change_logs のトリガーが自動記録する（20260728000002）
 
   return { data, error: null };
 }

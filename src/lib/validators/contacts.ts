@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { uuidString, urlSchema } from "./common";
+import { expectedUpdatedAtSchema, uuidString, urlSchema } from "./common";
 
 const contactBaseSchema = z.object({
   last_name: z.string().min(1, "姓は必須です").max(50),
@@ -36,7 +36,9 @@ export const createContactSchema = contactBaseSchema.refine(
   { message: "インボイス登録ありの場合、登録番号は必須です", path: ["invoice_registration_number"] }
 );
 
-export const updateContactSchema = contactBaseSchema.partial();
+export const updateContactSchema = contactBaseSchema
+  .partial()
+  .extend({ expected_updated_at: expectedUpdatedAtSchema });
 
 // contact_emails
 export const createContactEmailSchema = z.object({

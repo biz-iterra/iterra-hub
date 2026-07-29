@@ -229,7 +229,7 @@ User → Agent Manager
 |---|---|
 | **新規マイグレーション作成** | 該当エンティティチームの Engineer が作成。ただし **Tech PM に事前方針相談必須**（RLS / バックフィル / 影響範囲） |
 | **既存マイグレーション修正** | **原則禁止**。新マイグレーションで対応。緊急例外時のみ tech-pm 承認 |
-| `supabase/seed.sql` | 各セクションを該当 Engineer が追記。**他チームのセクションは変更禁止** |
+| `supabase/seeds/*.sql` | 該当 Engineer が担当ファイルへ追記。**他チームのセクションは変更禁止**。<br>本番投入の可否でファイルが分かれているため、投入先を誤らないこと（`01-masters` と `04-leads` は本番投入対象） |
 | `supabase/config.toml` | platform-engineer（tech-pm 承認） |
 
 ### 6-5 ドキュメント

@@ -10,6 +10,8 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 type SelectOption = { value: string; label: string };
 
 type ContactData = {
+  /** 楽観ロック用。編集開始時点の値をそのまま保存時に送り返す */
+  updated_at?: string | null;
   id: string;
   last_name: string | null;
   middle_name: string | null;
@@ -274,6 +276,8 @@ export function ContactEditForm({
       line_user_id: values.line_user_id || null,
       owner_user_id: values.owner_user_id || null,
       internal_memo: values.internal_memo || null,
+      // 楽観ロック: 編集開始時点の updated_at を送り、他者更新があれば競合として弾く
+      expected_updated_at: contact.updated_at ?? undefined,
     };
 
     try {

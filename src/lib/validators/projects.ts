@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { uuidString } from "./common";
+import { expectedUpdatedAtSchema, uuidString } from "./common";
 
 const projectBaseSchema = z.object({
   name: z.string().min(1, "プロジェクト名は必須です").max(200),
@@ -23,6 +23,7 @@ export const createProjectSchema = projectBaseSchema.refine(projectDateRangeRefi
 
 export const updateProjectSchema = projectBaseSchema
   .partial()
+  .extend({ expected_updated_at: expectedUpdatedAtSchema })
   .refine(projectDateRangeRefinement, {
     message: "終了予定日は開始日以降にしてください",
     path: ["end_date"],
@@ -43,6 +44,7 @@ export const createDealProjectSchema = z.object({
 // プロジェクトステータス マスタ
 export const createProjectStatusSchema = z.object({
   name: z.string().min(1, "ステータス名は必須です").max(50),
+  definition: z.string().max(1000).nullable().optional(),
   sort_order: z.number().int().min(0).default(0),
 });
 

@@ -354,6 +354,8 @@ export function LeadEditClient({
       contact_job_title: values.contact_job_title || null,
       contact_email: values.contact_email || null,
       contact_phone: values.contact_phone || null,
+      // 楽観ロック: 編集開始時点の updated_at を送り、他者更新があれば競合として弾く
+      expected_updated_at: lead.updated_at ?? undefined,
     };
 
     const result = await updateLead(payload);

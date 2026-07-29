@@ -23,8 +23,11 @@ yarn-debug.log*
 yarn-error.log*
 
 # env files
+# .env.nas / .env.production など派生名も確実に除外し、テンプレートのみ追跡する
 .env
-.env*.local
+.env.*
+!.env.example
+!.env.local.example
 
 # vercel
 .vercel
@@ -40,3 +43,8 @@ supabase/.temp/
 .claude/
 screenshots/
 test_*.py
+scripts/test-*.py
+
+# 顧客データ（架電リスト等）— リポジトリに含めない
+*.csv
+!supabase/**/*.csv

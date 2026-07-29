@@ -4,12 +4,16 @@
 
 | 項目 | 値 |
 |---|---|
-| テスト日 | 2026-04-16 |
-| テストツール | Playwright (headless Chromium) |
+| 最終更新 | 2026-07-29 |
+| ユニットテスト | Vitest（`npm test`）— 判定ロジック 18 件 |
+| E2E / 画面確認 | Playwright (headless Chromium) |
 | 解像度 | 1440 x 900 |
 | ローカル Supabase | ポート 54331（iterra-hub 用） |
+| 開発サーバー | http://localhost:2000 |
 
-### テストユーザー
+### テストユーザー（開発環境のみ）
+
+`db reset` で自動作成される。**共通パスワードのため本番では使用しない。**
 
 | メールアドレス | パスワード | ロール |
 |---|---|---|
@@ -17,18 +21,32 @@
 | manager@iterra.jp | password123 | manager |
 | member@iterra.jp | password123 | member |
 
+このほかリード担当者として `ogawa@` / `tanaka@` / `fushimi@` が作成される（退職者。本番では
+`is_active = false` かつログイン禁止のため、担当者候補には表示されない）。
+
 ### 前提条件
 
 ```bash
 # 1. Supabase ローカル起動
-supabase start
+npx supabase start
 
-# 2. DB リセット（マイグレーション + シードデータ適用）
-supabase db reset
+# 2. DB リセット（マイグレーション + seed 5 ファイルを順に適用）
+npx supabase db reset
 
 # 3. 開発サーバー起動
 npm run dev
 ```
+
+### コミット前の必須チェック
+
+```bash
+npm run typecheck   # tsc --noEmit
+npm test            # Vitest
+npm run build       # プロダクションビルド
+```
+
+CI（`.github/workflows/ci.yml`）でも上記 3 つを実行する。`npm run lint` は既存負債が
+残っているため CI では失敗させていないが、新規コードで増やさないこと。
 
 ---
 
@@ -92,7 +110,11 @@ Applying migration 20260416040001_create_master_tables.sql...
 Applying migration 20260416040002_create_skill_masters.sql...
 ...（中略）...
 Applying migration 20260416040013_create_functions_triggers_rls.sql...
-Seeding data from supabase/seed.sql...
+Seeding data from supabase/seeds/01-masters.sql...
+Seeding data from supabase/seed-talent-classification.sql...
+Seeding data from supabase/seeds/02-dev-users.sql...
+Seeding data from supabase/seeds/03-dev-samples.sql...
+Seeding data from supabase/seeds/04-leads.sql...
 Finished supabase db reset on branch main.
 ```
 

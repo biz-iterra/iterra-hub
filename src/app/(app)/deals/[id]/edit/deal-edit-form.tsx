@@ -24,6 +24,8 @@ type DealData = {
   application_date: string | null;
   review_completed_date: string | null;
   closed_at: string | null;
+  /** 楽観ロック用。編集開始時点の値をそのまま保存時に送り返す */
+  updated_at?: string | null;
 };
 
 type Masters = {
@@ -262,6 +264,8 @@ export function DealEditForm({
       closed_at: values.closed_at
         ? new Date(values.closed_at).toISOString()
         : null,
+      // 楽観ロック: 編集開始時点の updated_at を送り、他者更新があれば競合として弾く
+      expected_updated_at: deal.updated_at ?? undefined,
     };
 
     const result = await updateDeal(deal.id, payload);

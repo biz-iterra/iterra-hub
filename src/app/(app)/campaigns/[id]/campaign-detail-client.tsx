@@ -5,28 +5,16 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Pencil, Users, FileText, X, Plus, ArrowUpRight, Search } from "lucide-react";
 import { attachLeadsToCampaign, detachLeadFromCampaign } from "@/actions/campaigns";
+import {
+  CampaignTypeBadge,
+  CampaignStatusBadge,
+  StageBadge,
+  StatusBadge,
+  TemperatureBadge,
+  CategoryBadge,
+} from "@/components/ui/badges";
 
 type Tab = "basic" | "leads";
-
-const CAMPAIGN_TYPE_LABELS: Record<string, string> = {
-  generation: "獲得",
-  nurturing: "育成",
-  qualification: "選定",
-};
-
-const CAMPAIGN_TYPE_STYLES: Record<string, CSSProperties> = {
-  generation: { backgroundColor: "rgba(215, 119, 93, 0.15)", color: "#A34E35" },
-  nurturing: { backgroundColor: "rgba(122, 165, 146, 0.15)", color: "#4D7A65" },
-  qualification: { backgroundColor: "rgba(229, 196, 127, 0.25)", color: "#8A6D1E" },
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  draft: "下書き",
-  active: "実施中",
-  paused: "一時停止",
-  completed: "完了",
-  cancelled: "中止",
-};
 
 const styles = {
   card: {
@@ -325,44 +313,10 @@ function AttachLeadsModal({
                       </span>
                       <span style={{ display: "flex", gap: "0.375rem", flexShrink: 0 }}>
                         {lead.category?.name && (
-                          <span
-                            style={{
-                              backgroundColor: lead.category.color
-                                ? `${lead.category.color}26`
-                                : "var(--color-sumi100)",
-                              color: lead.category.color ?? "var(--color-sumi700)",
-                              borderRadius: "var(--radius-badge)",
-                              padding: "0.125rem 0.5rem",
-                              fontSize: "0.75rem",
-                              fontWeight: 500,
-                            }}
-                          >
-                            {lead.category.name}
-                          </span>
+                          <CategoryBadge name={lead.category.name} color={lead.category.color} />
                         )}
-                        {lead.temperature?.name && (
-                          <span
-                            style={{
-                              backgroundColor:
-                                lead.temperature.code === "hot"
-                                  ? "rgba(215,119,93,0.15)"
-                                  : lead.temperature.code === "warm"
-                                  ? "rgba(229,196,127,0.25)"
-                                  : "rgba(59,130,246,0.12)",
-                              color:
-                                lead.temperature.code === "hot"
-                                  ? "#A34E35"
-                                  : lead.temperature.code === "warm"
-                                  ? "#8A6D1E"
-                                  : "#1E40AF",
-                              borderRadius: "var(--radius-badge)",
-                              padding: "0.125rem 0.5rem",
-                              fontSize: "0.75rem",
-                              fontWeight: 500,
-                            }}
-                          >
-                            {lead.temperature.name}
-                          </span>
+                        {lead.temperature && (
+                          <TemperatureBadge code={lead.temperature.code} name={lead.temperature.name} />
                         )}
                       </span>
                     </label>
@@ -515,36 +469,8 @@ export function CampaignDetailClient({
             {campaign.name}
           </h1>
           <div className="flex items-center gap-2 mt-1">
-            {campaign.type && (
-              <span
-                style={{
-                  ...(CAMPAIGN_TYPE_STYLES[campaign.type] ?? {
-                    backgroundColor: "var(--color-sumi100)",
-                    color: "var(--color-text-body)",
-                  }),
-                  borderRadius: "var(--radius-badge)",
-                  padding: "0.125rem 0.5rem",
-                  fontSize: "0.75rem",
-                  fontWeight: 500,
-                }}
-              >
-                {CAMPAIGN_TYPE_LABELS[campaign.type] ?? campaign.type}
-              </span>
-            )}
-            {campaign.status && (
-              <span
-                style={{
-                  backgroundColor: "var(--color-sumi100)",
-                  color: "var(--color-text-body)",
-                  borderRadius: "var(--radius-badge)",
-                  padding: "0.125rem 0.5rem",
-                  fontSize: "0.75rem",
-                  fontWeight: 500,
-                }}
-              >
-                {STATUS_LABELS[campaign.status] ?? campaign.status}
-              </span>
-            )}
+            <CampaignTypeBadge type={campaign.type} />
+            <CampaignStatusBadge status={campaign.status} />
           </div>
         </div>
         {/* 編集ボタン（manager 以上） */}
@@ -608,32 +534,15 @@ export function CampaignDetailClient({
               <div style={styles.grid2}>
                 <div>
                   <span style={styles.label}>種別</span>
-                  {campaign.type ? (
-                    <div style={{ marginTop: "0.125rem" }}>
-                      <span
-                        style={{
-                          ...(CAMPAIGN_TYPE_STYLES[campaign.type] ?? {
-                            backgroundColor: "var(--color-sumi100)",
-                            color: "var(--color-text-body)",
-                          }),
-                          borderRadius: "var(--radius-badge)",
-                          padding: "0.125rem 0.5rem",
-                          fontSize: "0.75rem",
-                          fontWeight: 500,
-                        }}
-                      >
-                        {CAMPAIGN_TYPE_LABELS[campaign.type] ?? campaign.type}
-                      </span>
-                    </div>
-                  ) : (
-                    <p style={styles.valueEmpty}>—</p>
-                  )}
+                  <div style={{ marginTop: "0.125rem" }}>
+                    <CampaignTypeBadge type={campaign.type} />
+                  </div>
                 </div>
                 <div>
                   <span style={styles.label}>ステータス</span>
-                  <p style={styles.value}>
-                    {STATUS_LABELS[campaign.status] ?? campaign.status ?? "—"}
-                  </p>
+                  <div style={{ marginTop: "0.125rem" }}>
+                    <CampaignStatusBadge status={campaign.status} />
+                  </div>
                 </div>
                 <Field
                   label="開始日"
@@ -730,25 +639,16 @@ export function CampaignDetailClient({
                             </Link>
                           </td>
                           <td className="px-4 py-2 whitespace-nowrap">
-                            {lead.stage?.name ? (
-                              <span
-                                style={{
-                                  backgroundColor: "rgba(122,165,146,0.12)",
-                                  color: "#4D7A65",
-                                  borderRadius: "var(--radius-badge)",
-                                  padding: "0.125rem 0.5rem",
-                                  fontSize: "0.75rem",
-                                }}
-                              >
-                                {lead.stage.name}
-                              </span>
-                            ) : "—"}
+                            <StageBadge name={lead.stage?.name} sortOrder={lead.stage?.sort_order} />
                           </td>
-                          <td className="px-4 py-2 whitespace-nowrap" style={{ color: "var(--color-sumi600)" }}>
-                            {lead.status?.name ?? "—"}
+                          <td className="px-4 py-2 whitespace-nowrap">
+                            <StatusBadge name={lead.status?.name} sortOrder={lead.status?.sort_order} />
                           </td>
-                          <td className="px-4 py-2 whitespace-nowrap" style={{ color: "var(--color-sumi600)" }}>
-                            {lead.temperature?.name ?? "—"}
+                          <td className="px-4 py-2 whitespace-nowrap">
+                            {lead.temperature
+                              ? <TemperatureBadge code={lead.temperature.code} name={lead.temperature.name} />
+                              : <span style={{ color: "var(--color-sumi400)" }}>—</span>
+                            }
                           </td>
                           <td className="px-4 py-2 whitespace-nowrap" style={{ color: "var(--color-sumi600)" }}>
                             {lead.owner?.full_name ?? "—"}

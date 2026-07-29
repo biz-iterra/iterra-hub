@@ -135,6 +135,7 @@ export default async function DealEditPage({
           application_date: deal.application_date,
           review_completed_date: deal.review_completed_date,
           closed_at: deal.closed_at,
+          updated_at: deal.updated_at,
         }}
         masters={masters}
         isAdmin={isAdmin}

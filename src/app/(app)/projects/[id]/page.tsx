@@ -1,6 +1,7 @@
 import { getProject } from "@/actions/projects";
 import Link from "next/link";
 import { ArrowLeft, ArrowUpRight, FolderKanban, Users, Handshake, Pencil } from "lucide-react";
+import { ProjectStatusBadge, PipelineBadge, StageBadge } from "@/components/ui/badges";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -93,18 +94,7 @@ export default async function ProjectDetailPage({
             {project.name}
           </h1>
           {project.project_status?.name && (
-            <span
-              style={{
-                backgroundColor: "var(--color-sage)",
-                color: "#fff",
-                borderRadius: "var(--radius-badge)",
-                padding: "0.125rem 0.5rem",
-                fontSize: "0.75rem",
-                fontWeight: 600,
-              }}
-            >
-              {project.project_status.name}
-            </span>
+            <ProjectStatusBadge name={project.project_status.name} sortOrder={project.project_status.sort_order} seed={project.project_status.id} />
           )}
           <Link
             href={`/projects/${project.id}/edit`}
@@ -349,10 +339,10 @@ export default async function ProjectDetailPage({
                       {d.name}
                     </td>
                     <td style={{ borderBottom: "1px solid var(--color-border-default)", padding: "0.5rem", fontSize: "0.875rem" }}>
-                      {d.pipeline_type?.name ?? "-"}
+                      <PipelineBadge name={d.pipeline_type?.name} />
                     </td>
                     <td style={{ borderBottom: "1px solid var(--color-border-default)", padding: "0.5rem", fontSize: "0.875rem" }}>
-                      {d.deal_stage?.name ?? "-"}
+                      <StageBadge name={d.deal_stage?.name} sortOrder={d.deal_stage?.sort_order} />
                     </td>
                     <td style={{ borderBottom: "1px solid var(--color-border-default)", padding: "0.5rem", fontSize: "0.875rem" }}>
                       {d.amount != null ? `¥${d.amount.toLocaleString()}` : "-"}

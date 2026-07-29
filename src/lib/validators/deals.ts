@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { uuidString } from "./common";
+import { expectedUpdatedAtSchema, uuidString } from "./common";
 
 export const createDealSchema = z.object({
   name: z.string().min(1, "取引名は必須です").max(200),
@@ -23,6 +23,8 @@ export const createDealSchema = z.object({
 );
 
 export const updateDealSchema = z.object({
+  /** 楽観ロック: 編集開始時点の updated_at */
+  expected_updated_at: expectedUpdatedAtSchema,
   name: z.string().min(1).max(200).optional(),
   pipeline_type_id: uuidString().optional(),
   deal_stage_id: uuidString().optional(),

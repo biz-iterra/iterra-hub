@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { conflictErrorMessage } from "@/lib/validators/common";
 import {
   createProjectSchema,
   updateProjectSchema,
@@ -173,42 +174,31 @@ export async function updateProject(
     .single();
   if (fetchErr) return { data: null, error: fetchErr.message };
 
+  // expected_updated_at は DB カラムではないため更新値から除外する
+  const { expected_updated_at, ...fields } = parsed.data;
+
   const updates: Record<string, unknown> = {
-    ...parsed.data,
+    ...fields,
     last_updated_by: user.id,
   };
   if (
-    parsed.data.project_status_id &&
-    parsed.data.project_status_id !== before.project_status_id
+    fields.project_status_id &&
+    fields.project_status_id !== before.project_status_id
   ) {
     updates.status_updated_at = new Date().toISOString();
   }
 
-  const { data, error } = await supabase
-    .from("projects")
-    .update(updates)
-    .eq("id", id)
-    .select()
-    .single();
-  if (error) return { data: null, error: error.message };
-
-  // 変更履歴記録
-  const histories = Object.keys(parsed.data)
-    .filter((key) => (parsed.data as Record<string, unknown>)[key] !== before[key])
-    .map((field) => ({
-      project_id: id,
-      field_name: field,
-      old_value: before[field] != null ? String(before[field]) : null,
-      new_value:
-        (parsed.data as Record<string, unknown>)[field] != null
-          ? String((parsed.data as Record<string, unknown>)[field])
-          : null,
-      changed_by: user.id,
-    }));
-
-  if (histories.length > 0) {
-    await supabase.from("project_change_histories").insert(histories);
+  // 楽観ロック: 編集開始時点から updated_at が変わっていれば 0 行更新になる
+  let updateQuery = supabase.from("projects").update(updates).eq("id", id);
+  if (expected_updated_at) {
+    updateQuery = updateQuery.eq("updated_at", expected_updated_at);
   }
+
+  const { data, error } = await updateQuery.select().maybeSingle();
+  if (error) return { data: null, error: error.message };
+  if (!data) return { data: null, error: conflictErrorMessage("このプロジェクト") };
+
+  // 変更履歴は entity_change_logs のトリガーが自動記録する（20260728000002）
 
   revalidatePath("/projects");
   revalidatePath(`/projects/${id}`);

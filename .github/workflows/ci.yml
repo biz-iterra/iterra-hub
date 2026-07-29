@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# 同一ブランチの古い実行は打ち切る（Actions の無料枠を無駄に消費しないため）
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: 依存インストール
+        run: npm ci
+
+      - name: 型チェック
+        run: npm run typecheck
+
+      - name: ユニットテスト
+        run: npm test
+
+      - name: ビルド
+        run: npm run build
+        env:
+          # ビルド時に接続はしないためダミー値で足りる
+          NEXT_PUBLIC_SUPABASE_URL: https://dummy.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: dummy-anon-key
+
+      # 既存コードに lint 負債（no-explicit-any 等）が残っているため、
+      # 現時点では失敗させず結果の可視化に留める。
+      # 解消後に continue-on-error を外して必須化すること。
+      - name: Lint（参考実行）
+        run: npm run lint
+        continue-on-error: true

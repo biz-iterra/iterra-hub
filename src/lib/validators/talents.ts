@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { uuidString } from "./common";
+import { expectedUpdatedAtSchema, uuidString } from "./common";
 
 export const createTalentSchema = z.object({
   contact_id: uuidString("コンタクトは必須です"),
@@ -10,7 +10,10 @@ export const createTalentSchema = z.object({
   overall_assessment: z.string().max(3000).nullable().optional(),
 });
 
-export const updateTalentSchema = createTalentSchema.omit({ contact_id: true }).partial();
+export const updateTalentSchema = createTalentSchema
+  .omit({ contact_id: true })
+  .partial()
+  .extend({ expected_updated_at: expectedUpdatedAtSchema });
 
 // talent_skills
 export const createTalentSkillSchema = z.object({

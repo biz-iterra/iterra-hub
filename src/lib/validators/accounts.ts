@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { uuidString } from "./common";
+import { expectedUpdatedAtSchema, uuidString } from "./common";
 
 export const createAccountSchema = z.object({
   name: z.string().min(1, "アカウント名は必須です").max(200),
@@ -11,7 +11,9 @@ export const createAccountSchema = z.object({
   owner_user_id: uuidString().nullable().optional(),
 });
 
-export const updateAccountSchema = createAccountSchema.partial();
+export const updateAccountSchema = createAccountSchema
+  .partial()
+  .extend({ expected_updated_at: expectedUpdatedAtSchema });
 
 // account_contacts
 export const createAccountContactSchema = z.object({

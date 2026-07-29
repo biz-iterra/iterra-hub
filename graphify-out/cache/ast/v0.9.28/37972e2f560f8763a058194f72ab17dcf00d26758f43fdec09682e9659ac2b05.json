@@ -1,0 +1,1 @@
+{"nodes": [{"id": "c_users_bizis_iterra_jp_iterra_hub_supabase_migrations_20260419000013_rename_lead_stage_sql_to_sales_sql", "label": "20260419000013_rename_lead_stage_sql_to_sales.sql", "file_type": "code", "source_file": "supabase/migrations/20260419000013_rename_lead_stage_sql_to_sales.sql", "source_location": null}], "edges": []}

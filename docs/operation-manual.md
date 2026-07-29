@@ -1,6 +1,6 @@
 # ITERRA CRM 運用マニュアル
 
-最終更新: 2026-04-21 / 対象バージョン: `main` ブランチ現行実装
+最終更新: 2026-07-29 / 対象バージョン: `main` ブランチ現行実装
 
 本書は ITERRA CRM（`iterra-hub`）を日常業務で利用するユーザー向けの操作マニュアルである。
 画面構成・ロール別の権限・各機能の作業フローを、実際のボタン／遷移レベルで記述する。
@@ -610,9 +610,53 @@ Supabase Dashboard > SQL Editor で実行可能。
 
 ---
 
+## 13. バックアップと復旧
+
+Supabase Free プランには PITR（ポイントインタイムリカバリ）が無い。
+そのため GitHub Actions で日次の論理バックアップを取得している。
+
+### 13.1 バックアップの仕組み
+
+| 項目 | 内容 |
+|---|---|
+| ワークフロー | `.github/workflows/db-backup.yml` |
+| 実行時刻 | 毎日 JST 03:00（UTC 18:00）。手動実行も可 |
+| 形式 | `pg_dump --format=custom`（`pg_restore` で部分復元が可能） |
+| 保管先 | GitHub Actions のアーティファクト（保持 30 日） |
+| 必要な secret | `SUPABASE_DB_URL`（Project Settings > Database の接続文字列） |
+
+取得後に `pg_restore --list` で主要テーブル（leads / deals / contacts / companies / accounts / entity_change_logs）が
+含まれることを検証している。空ダンプがそのまま保管されるのを防ぐため。
+
+このジョブは毎日 DB に接続するため、**無操作による Supabase プロジェクトの一時停止も同時に防いでいる**。
+
+### 13.2 復旧手順
+
+1. Actions の該当実行からアーティファクトをダウンロードして展開する
+2. 復旧先の接続文字列を用意する（本番へ直接戻す前に、必ず検証用プロジェクトで試すこと）
+3. 全体を戻す場合:
+
+```bash
+pg_restore --no-owner --no-privileges --clean --if-exists   --dbname "<接続文字列>" iterra-hub-<日時>.dump
+```
+
+4. 特定テーブルだけ戻す場合:
+
+```bash
+pg_restore --no-owner --no-privileges   --table=leads   --dbname "<接続文字列>" iterra-hub-<日時>.dump
+```
+
+### 13.3 運用上の注意
+
+- 保持は 30 日。四半期や年次で残す必要がある場合は、ワークフロー内にコメントしてある R2 退避を有効にする
+- 復旧点は最大 24 時間前。それより細かい復旧が必要な業務が出てきた場合は、有償プランの PITR を検討する
+- `entity_change_logs`（§ 変更履歴）はトリガーで全変更を記録しているため、
+  誤更新の調査は復旧より先にこのテーブルを確認する方が早い
+
 ## 変更履歴
 
 | 日付 | 変更内容 |
 |---|---|
+| 2026-07-28 | § 13 追加: バックアップと復旧（日次 pg_dump / 復旧手順） |
 | 2026-04-22 | § 12 追加: リードスコア週次再計算バッチ運用情報（Phase 6） |
 | 2026-04-21 | 初版作成（`main` ブランチ現行実装に準拠） |

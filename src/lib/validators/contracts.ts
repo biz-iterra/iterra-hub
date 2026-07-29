@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { uuidString } from "./common";
+import { expectedUpdatedAtSchema, uuidString } from "./common";
 
 const contractBaseSchema = z.object({
   deal_id: uuidString("ディールは必須です"),
@@ -31,4 +31,6 @@ export const createContractSchema = contractBaseSchema.refine(
   { message: "サインバック日は送付日以降にしてください", path: ["signback_date"] }
 );
 
-export const updateContractSchema = contractBaseSchema.partial();
+export const updateContractSchema = contractBaseSchema
+  .partial()
+  .extend({ expected_updated_at: expectedUpdatedAtSchema });

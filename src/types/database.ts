@@ -1,3 +1,8 @@
+import type { Database } from "./database.generated";
+
+// NOTE: テーブル行型は supabase gen types の生成物から導出する（`npm run db:types` で更新）。
+// 手書きしないこと。スキーマとの乖離をビルドで検出するための措置。
+
 import type {
   CrmUserRole,
   ContactType,
@@ -27,321 +32,65 @@ type SoftDeletable = {
 
 // === マスタ型 ===
 
-export type PipelineType = {
-  id: string;
-  name: string;
-  description: string | null;
-  sort_order: number;
-} & SoftDeletable &
-  Timestamps;
+export type PipelineType = Database["public"]["Tables"]["pipeline_types"]["Row"];
 
-export type DealStage = {
-  id: string;
-  pipeline_type_id: string;
-  name: string;
-  current_situation: string | null;
-  required_action: string | null;
-  customer_situation: string | null;
-  transition_condition: string | null;
-  sort_order: number;
-} & SoftDeletable &
-  Timestamps;
+export type DealStage = Database["public"]["Tables"]["deal_stages"]["Row"];
 
-export type DealStatus = {
-  id: string;
-  name: string;
-  pipeline_type_id: string;
-  deal_stage_id: string | null;
-  sort_order: number;
-} & SoftDeletable &
-  Timestamps;
+export type DealStatus = Database["public"]["Tables"]["deal_statuses"]["Row"];
 
-export type ContractType = {
-  id: string;
-  name: string;
-} & SoftDeletable &
-  Timestamps;
+export type ContractType = Database["public"]["Tables"]["contract_types"]["Row"];
 
-export type CorporateType = {
-  id: string;
-  name: string;
-} & SoftDeletable &
-  Timestamps;
+export type CorporateType = Database["public"]["Tables"]["corporate_types"]["Row"];
 
-export type Service = {
-  id: string;
-  name: string;
-  description: string | null;
-} & SoftDeletable &
-  Timestamps;
+export type Service = Database["public"]["Tables"]["services"]["Row"];
 
-export type LeadSource = {
-  id: string;
-  name: string;
-  slug: string;
-  description: string | null;
-} & SoftDeletable &
-  Timestamps;
+export type LeadSource = Database["public"]["Tables"]["lead_sources"]["Row"];
 
-export type AccountType = {
-  id: string;
-  name: string;
-  slug: string | null;
-} & SoftDeletable &
-  Timestamps;
+export type AccountType = Database["public"]["Tables"]["account_types"]["Row"];
 
-export type AccountStatus = {
-  id: string;
-  name: string;
-} & SoftDeletable &
-  Timestamps;
+export type AccountStatus = Database["public"]["Tables"]["account_statuses"]["Row"];
 
-export type ContactStatus = {
-  id: string;
-  name: string;
-} & SoftDeletable &
-  Timestamps;
+export type ContactStatus = Database["public"]["Tables"]["contact_statuses"]["Row"];
 
-export type CompanyStatus = {
-  id: string;
-  name: string;
-} & SoftDeletable &
-  Timestamps;
+export type CompanyStatus = Database["public"]["Tables"]["company_statuses"]["Row"];
 
-export type SkillCategory = {
-  id: string;
-  name: string;
-  sort_order: number;
-} & SoftDeletable &
-  Timestamps;
+export type SkillCategory = Database["public"]["Tables"]["skill_categories"]["Row"];
 
-export type Skill = {
-  id: string;
-  skill_category_id: string;
-  name: string;
-  sort_order: number;
-} & SoftDeletable &
-  Timestamps;
+export type Skill = Database["public"]["Tables"]["skills"]["Row"];
 
 // === エンティティ型 ===
 
-export type CrmUser = {
-  id: string;
-  email: string;
-  full_name: string;
-  full_name_kana: string | null;
-  role: CrmUserRole;
-  avatar_url: string | null;
-  is_active: boolean;
-} & Timestamps;
+export type CrmUser = Database["public"]["Tables"]["crm_users"]["Row"];
 
-export type Company = {
-  id: string;
-  company_code: string;
-  corporate_type_id: string | null;
-  name: string;
-  name_kana: string | null;
-  representative_name: string | null;
-  corporate_number: string | null;
-  invoice_registered: boolean;
-  invoice_registration_number: string | null;
-  postal_code: string | null;
-  prefecture: string | null;
-  city: string | null;
-  address_line1: string | null;
-  address_line2: string | null;
-  phone: string | null;
-  fax: string | null;
-  website_url: string | null;
-  industry_classification_id: string | null;
-  registration_certificate_url: string | null;
-  internal_memo: string | null;
-  lead_source_id: string | null;
-  owner_user_id: string | null;
-  primary_contact_id: string | null;
-  company_status_id: string;
-  status_updated_at: string | null;
-} & SoftDeletable &
-  Timestamps;
+export type Company = Database["public"]["Tables"]["companies"]["Row"];
 
-export type Account = {
-  id: string;
-  account_code: string;
-  company_id: string | null;
-  account_type_id: string | null;
-  account_status_id: string;
-  name: string;
-  description: string | null;
-  lead_source_id: string | null;
-  owner_user_id: string | null;
-  status_updated_at: string | null;
-} & SoftDeletable &
-  Timestamps;
+export type Account = Database["public"]["Tables"]["accounts"]["Row"];
 
-export type Contact = {
-  id: string;
-  contact_code: string;
-  last_name: string;
-  middle_name: string | null;
-  first_name: string;
-  last_name_kana: string | null;
-  middle_name_kana: string | null;
-  first_name_kana: string | null;
-  contact_status_id: string;
-  contact_type: ContactType | null;
-  company_id: string | null;
-  invoice_registered: boolean;
-  invoice_registration_number: string | null;
-  postal_code: string | null;
-  prefecture: string | null;
-  city: string | null;
-  address_line1: string | null;
-  address_line2: string | null;
-  department: string | null;
-  job_title: string | null;
-  birth_date: string | null;
-  blood_type: "A" | "B" | "AB" | "O" | null;
-  potential_number: number | null;
-  constellation_id: string | null;
-  lead_source_id: string | null;
-  line_user_id: string | null;
-  website_url: string | null;
-  internal_memo: string | null;
-  owner_user_id: string | null;
-  status_updated_at: string | null;
-} & SoftDeletable &
-  Timestamps;
+export type Contact = Database["public"]["Tables"]["contacts"]["Row"];
 
-export type Deal = {
-  id: string;
-  deal_code: string;
-  name: string;
-  pipeline_type_id: string;
-  deal_stage_id: string;
-  deal_status_id: string;
-  amount: number | null;
-  account_id: string;
-  owner_user_id: string | null;
-  contract_name: string | null;
-  application_date: string | null;
-  review_completed_date: string | null;
-  stage_updated_at: string | null;
-  closed_at: string | null;
-  last_updated_by: string | null;
-} & SoftDeletable &
-  Timestamps;
+export type Deal = Database["public"]["Tables"]["deals"]["Row"];
 
-export type Contract = {
-  id: string;
-  contract_code: string;
-  deal_id: string;
-  contract_method: ContractMethod | null;
-  contract_type_id: string | null;
-  contract_name: string | null;
-  counterparty_type: CounterpartyType | null;
-  counterparty_company_id: string | null;
-  counterparty_contact_id: string | null;
-  counterparty_manager_id: string | null;
-  contract_content: string | null;
-  sent_date: string | null;
-  signback_date: string | null;
-  execution_date: string | null;
-  start_date: string | null;
-  end_date: string | null;
-  auto_renewal: boolean;
-  cancellation_date: string | null;
-  original_document_url: string | null;
-  contract_url: string | null;
-  registered_by: string | null;
-} & SoftDeletable &
-  Timestamps;
+export type Contract = Database["public"]["Tables"]["contracts"]["Row"];
 
-export type Talent = {
-  id: string;
-  contact_id: string;
-  personality_memo: string | null;
-  custom_strengths: string | null;
-  custom_weaknesses: string | null;
-  aptitude_notes: string | null;
-  overall_assessment: string | null;
-} & SoftDeletable &
-  Timestamps;
+export type Talent = Database["public"]["Tables"]["talents"]["Row"];
 
 // === 従属エンティティ ===
 
-export type ContactEmail = {
-  id: string;
-  contact_id: string;
-  email: string;
-  label: EmailLabel;
-  is_primary: boolean;
-  created_at: string;
-};
+export type ContactEmail = Database["public"]["Tables"]["contact_emails"]["Row"];
 
-export type ContactPhone = {
-  id: string;
-  contact_id: string;
-  phone: string;
-  label: PhoneLabel;
-  is_primary: boolean;
-  created_at: string;
-};
+export type ContactPhone = Database["public"]["Tables"]["contact_phones"]["Row"];
 
-export type FinancialInfo = {
-  id: string;
-  company_id: string | null;
-  contact_id: string | null;
-  bank_name: string;
-  bank_code: string | null;
-  branch_name: string | null;
-  branch_code: string | null;
-  account_type: BankAccountType | null;
-  account_number: string | null;
-  account_holder: string | null;
-  account_holder_kana: string | null;
-  passbook_copy_url: string | null;
-  is_primary: boolean;
-} & SoftDeletable &
-  Timestamps;
+export type FinancialInfo = Database["public"]["Tables"]["financial_info"]["Row"];
 
-export type TalentSkill = {
-  id: string;
-  talent_id: string;
-  skill_id: string;
-  proficiency_level: number;
-  years_experience: number | null;
-  note: string | null;
-} & Timestamps;
+export type TalentSkill = Database["public"]["Tables"]["talent_skills"]["Row"];
 
-export type TalentCareer = {
-  id: string;
-  talent_id: string;
-  career_type: CareerType;
-  organization: string;
-  title: string | null;
-  description: string | null;
-  start_date: string | null;
-  end_date: string | null;
-  is_current: boolean;
-  sort_order: number;
-} & Timestamps;
+export type TalentCareer = Database["public"]["Tables"]["talent_careers"]["Row"];
 
 // === 中間テーブル ===
 
-export type AccountContact = {
-  id: string;
-  account_id: string;
-  contact_id: string;
-  role: AccountContactRole | null;
-  created_at: string;
-};
+export type AccountContact = Database["public"]["Tables"]["account_contacts"]["Row"];
 
-export type DealService = {
-  id: string;
-  deal_id: string;
-  service_id: string;
-  created_at: string;
-};
+export type DealService = Database["public"]["Tables"]["deal_services"]["Row"];
 
 export type LeadLargeSegment = {
   id: string;

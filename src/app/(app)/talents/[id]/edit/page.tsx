@@ -79,7 +79,9 @@ export default async function TalentEditPage({
         custom_weaknesses: talent.custom_weaknesses ?? null,
         aptitude_notes: talent.aptitude_notes ?? null,
         overall_assessment: talent.overall_assessment ?? null,
+        updated_at: talent.updated_at ?? null,
       }}
+      initialCareers={talent.talent_careers ?? []}
       contactName={contactName}
       isAdmin={isAdmin}
     />

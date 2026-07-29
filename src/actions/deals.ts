@@ -6,6 +6,7 @@ import {
   updateDealSchema,
   createDealServiceSchema,
 } from "@/lib/validators";
+import { conflictErrorMessage } from "@/lib/validators/common";
 import type { z } from "zod";
 
 type ActionResult<T> = { data: T | null; error: string | null };
@@ -245,61 +246,54 @@ export async function updateDeal(
 
   if (fetchError) return { data: null, error: fetchError.message };
 
+  // expected_updated_at は DB カラムではないため更新値から除外する
+  const { expected_updated_at, ...fields } = parsed.data;
+
   const updateData = {
-    ...parsed.data,
+    ...fields,
     last_updated_by: user.id,
-    ...(parsed.data.deal_stage_id &&
-      parsed.data.deal_stage_id !== current.deal_stage_id && {
+    ...(fields.deal_stage_id &&
+      fields.deal_stage_id !== current.deal_stage_id && {
         stage_updated_at: new Date().toISOString(),
       }),
   };
 
-  const { data: deal, error } = await supabase
-    .from("deals")
-    .update(updateData)
-    .eq("id", id)
-    .select()
-    .single();
+  // 楽観ロック: 編集開始時点から updated_at が変わっていれば 0 行更新になる
+  let updateQuery = supabase.from("deals").update(updateData).eq("id", id);
+  if (expected_updated_at) {
+    updateQuery = updateQuery.eq("updated_at", expected_updated_at);
+  }
+
+  const { data: deal, error } = await updateQuery.select().maybeSingle();
 
   if (error) return { data: null, error: error.message };
+  if (!deal) {
+    return { data: null, error: conflictErrorMessage("このディール") };
+  }
 
   // ステージ変更履歴
-  if (parsed.data.deal_stage_id && parsed.data.deal_stage_id !== current.deal_stage_id) {
+  if (fields.deal_stage_id && fields.deal_stage_id !== current.deal_stage_id) {
     await supabase.from("deal_stage_histories").insert({
       deal_id: id,
       from_stage_id: current.deal_stage_id,
-      to_stage_id: parsed.data.deal_stage_id,
+      to_stage_id: fields.deal_stage_id,
       changed_by: user.id,
     });
   }
 
-  // ステータス変更履歴
-  if (parsed.data.deal_status_id && parsed.data.deal_status_id !== current.deal_status_id) {
+  // ステータス変更履歴（stage_id は NOT NULL のため必ず渡す）
+  if (fields.deal_status_id && fields.deal_status_id !== current.deal_status_id) {
     await supabase.from("deal_status_histories").insert({
       deal_id: id,
+      stage_id: fields.deal_stage_id ?? current.deal_stage_id,
       from_status_id: current.deal_status_id,
-      to_status_id: parsed.data.deal_status_id,
+      to_status_id: fields.deal_status_id,
       changed_by: user.id,
     });
   }
 
   // 全フィールド変更履歴
-  const changes: Record<string, { from: any; to: any }> = {};
-  for (const key of Object.keys(parsed.data)) {
-    if (parsed.data[key as keyof typeof parsed.data] !== current[key]) {
-      changes[key] = {
-        from: current[key],
-        to: parsed.data[key as keyof typeof parsed.data],
-      };
-    }
-  }
-  if (Object.keys(changes).length > 0) {
-    await supabase.from("deal_change_histories").insert({
-      deal_id: id,
-      changes: JSON.stringify(changes),
-      changed_by: user.id,
-    });
-  }
+  // 変更履歴は entity_change_logs のトリガーが自動記録する（20260728000002）
 
   return { data: deal, error: null };
 }

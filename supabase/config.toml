@@ -62,7 +62,25 @@ schema_paths = []
 enabled = true
 # Specifies an ordered list of seed files to load during db reset.
 # Supports glob patterns relative to supabase directory: "./seeds/*.sql"
-sql_paths = ["./seed.sql"]
+# seed-talent-classification.sql はスキル体系（skill_categories / skills）の正本のため
+# seed.sql（talent_skills サンプルが skill_code を参照）より先に読み込む
+# seed は本番投入の可否で分割している（docs/deployment-nas.md 参照）
+#   01-masters                    : 業務マスタ（本番・開発 共通）
+#   seed-talent-classification    : スキル体系 + タレント分類マスタ（本番・開発 共通）
+#   02-dev-users / 03-dev-samples : 開発環境専用。本番へは投入しない
+#   04-leads                      : 実業務データ（本番へは担当者 UUID を置換して投入）
+#
+# 依存順: マスタ → スキル体系 → ユーザー → サンプル（skills/users 参照）→ leads（users 参照）
+#
+# seed-leads-generated.sql は 04-leads.sql の生成元スナップショットのため読み込まない
+# （再生成は scripts/generate-leads-seed.mjs）
+sql_paths = [
+  "./seeds/01-masters.sql",
+  "./seed-talent-classification.sql",
+  "./seeds/02-dev-users.sql",
+  "./seeds/03-dev-samples.sql",
+  "./seeds/04-leads.sql",
+]
 
 [db.network_restrictions]
 # Enable management of network restrictions.

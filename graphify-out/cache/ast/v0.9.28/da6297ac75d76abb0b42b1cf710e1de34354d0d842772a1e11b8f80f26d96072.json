@@ -1,0 +1,1 @@
+{"nodes": [{"id": "c_users_bizis_iterra_jp_iterra_hub_supabase_migrations_20260422000013_drop_lead_callers_sql", "label": "20260422000013_drop_lead_callers.sql", "file_type": "code", "source_file": "supabase/migrations/20260422000013_drop_lead_callers.sql", "source_location": null}], "edges": []}

@@ -2,29 +2,72 @@ import { getContact } from "@/actions/contacts";
 import Link from "next/link";
 import {
   ArrowLeft,
-  ArrowUpRight,
-  Mail,
-  Phone,
-  Building2,
   Briefcase,
-  User,
-  Star,
+  FileText,
+  Layers,
+  Mail,
+  MapPin,
   Pencil,
+  Sparkles,
+  Star,
+  StickyNote,
+  User,
 } from "lucide-react";
+import { DetailSection } from "@/components/ui/DetailSection";
+import { InfoField } from "@/components/ui/InfoField";
+import { LabelBadge } from "@/components/ui/badges";
+import { EntityLink } from "@/components/ui/EntityLink";
 
 function formatDate(date: string | null | undefined): string {
-  if (!date) return "\u2014";
+  if (!date) return "—";
   return new Date(date).toLocaleDateString("ja-JP");
 }
 
-const contactTypeBadgeStyle: Record<string, { bg: string; label: string }> = {
-  individual: { bg: "var(--color-sage200, #d1e7dd)", label: "\u500B\u4EBA" },
-  corporate_rep: { bg: "var(--color-terra200, #f5d0c5)", label: "\u6CD5\u4EBA\u4EE3\u8868" },
-  employee: { bg: "var(--color-amber200, #ffeeba)", label: "\u5F93\u696D\u54E1" },
-  other: { bg: "var(--color-sumi100)", label: "\u305D\u306E\u4ED6" },
+const contactTypeLabel: Record<string, string> = {
+  individual: "個人",
+  corporate_rep: "法人代表",
+  employee: "従業員",
+  other: "その他",
 };
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const backLinkStyle = {
+  display: "inline-flex" as const,
+  alignItems: "center" as const,
+  gap: "0.25rem",
+  color: "var(--color-sumi600)",
+  fontSize: "0.875rem",
+  textDecoration: "none",
+};
+
+const editButtonStyle = {
+  marginLeft: "auto",
+  display: "inline-flex" as const,
+  alignItems: "center" as const,
+  gap: "0.375rem",
+  backgroundColor: "var(--color-terra)",
+  color: "#fff",
+  borderRadius: "var(--radius-button)",
+  padding: "0.5rem 1rem",
+  textDecoration: "none",
+  fontWeight: 500,
+  fontSize: "0.875rem",
+};
+
+const badgeStyle = {
+  backgroundColor: "var(--color-sumi100)",
+  borderRadius: "var(--radius-badge)",
+  padding: "0.125rem 0.5rem",
+  fontSize: "0.75rem",
+  color: "var(--color-text-body)",
+};
+
+const roleBadgeStyle = {
+  ...badgeStyle,
+  fontSize: "0.625rem",
+  color: "var(--color-sumi600)",
+};
 
 export default async function ContactDetailPage({
   params,
@@ -35,37 +78,13 @@ export default async function ContactDetailPage({
 
   if (!UUID_REGEX.test(id)) {
     return (
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          minHeight: "50vh",
-          gap: "1rem",
-        }}
-      >
-        <p style={{ color: "var(--color-text-body)", fontSize: "1rem" }}>
+      <div style={{ padding: "2rem" }}>
+        <p style={{ color: "var(--color-text-body)", marginBottom: "1rem" }}>
           不正なパラメータです
         </p>
-        <Link
-          href="/contacts"
-          className="hover:bg-[var(--color-bg-hover)]"
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "0.25rem",
-            color: "var(--color-terra)",
-            textDecoration: "none",
-            padding: "0.125rem 0.375rem",
-            margin: "-0.125rem -0.375rem",
-            borderRadius: "var(--radius-sm)",
-            transition: "background-color 0.15s",
-            fontSize: "0.875rem",
-          }}
-        >
-          コンタクト一覧へ戻る
-          <ArrowUpRight size={14} />
+        <Link href="/contacts" style={backLinkStyle}>
+          <ArrowLeft size={16} />
+          コンタクト一覧
         </Link>
       </div>
     );
@@ -76,601 +95,243 @@ export default async function ContactDetailPage({
 
   if (error || !c) {
     return (
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          minHeight: "50vh",
-          gap: "1rem",
-        }}
-      >
-        <p style={{ color: "var(--color-text-body)", fontSize: "1rem" }}>
-          {"\u30B3\u30F3\u30BF\u30AF\u30C8\u304C\u898B\u3064\u304B\u308A\u307E\u305B\u3093"}
+      <div style={{ padding: "2rem" }}>
+        <p style={{ color: "var(--color-text-body)", marginBottom: "1rem" }}>
+          コンタクトが見つかりません
         </p>
-        <Link
-          href="/contacts"
-          className="hover:bg-[var(--color-bg-hover)]"
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "0.25rem",
-            color: "var(--color-terra)",
-            textDecoration: "none",
-            padding: "0.125rem 0.375rem",
-            margin: "-0.125rem -0.375rem",
-            borderRadius: "var(--radius-sm)",
-            transition: "background-color 0.15s",
-            fontSize: "0.875rem",
-          }}
-        >
-          {"\u2190 \u30B3\u30F3\u30BF\u30AF\u30C8\u4E00\u89A7\u3078\u623B\u308B"}
+        <Link href="/contacts" style={backLinkStyle}>
+          <ArrowLeft size={16} />
+          コンタクト一覧
         </Link>
       </div>
     );
   }
 
-  const typeBadge = contactTypeBadgeStyle[c.contact_type] ?? contactTypeBadgeStyle.other;
   const emails = c.contact_emails ?? [];
   const phones = c.contact_phones ?? [];
   const accountContacts = c.account_contacts ?? [];
   const talent = Array.isArray(c.talent) ? c.talent[0] : c.talent;
   const talentSkills = talent?.talent_skills ?? [];
   const talentCareers = talent?.talent_careers ?? [];
+  const address = [c.prefecture, c.city, c.street, c.building]
+    .filter(Boolean)
+    .join(" ");
 
   return (
-    <div style={{ padding: "1.5rem", maxWidth: "1200px", margin: "0 auto" }}>
+    <div style={{ padding: "1.5rem", maxWidth: "1280px", margin: "0 auto" }}>
       {/* ---- Header ---- */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "1rem",
-          marginBottom: "1rem",
-        }}
-      >
-        <Link
-          href="/contacts"
-          style={{ color: "var(--color-sumi600)", display: "inline-flex", alignItems: "center", gap: "0.25rem", fontSize: "0.875rem", textDecoration: "none" }}
-        >
+      <div style={{ marginBottom: "1.5rem" }}>
+        <Link href="/contacts" style={{ ...backLinkStyle, marginBottom: "0.75rem" }}>
           <ArrowLeft size={16} />
-          {"\u30B3\u30F3\u30BF\u30AF\u30C8\u4E00\u89A7"}
+          コンタクト一覧
         </Link>
-      </div>
-
-      <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1.5rem" }}>
-        <div>
-          <p style={{ color: "var(--color-sumi600)", fontSize: "0.75rem", marginBottom: "0.25rem" }}>
-            {c.contact_code}
-          </p>
-          <h1 style={{ color: "var(--color-text-title)", fontSize: "1.5rem", fontWeight: 700, margin: 0 }}>
-            {c.last_name} {c.first_name}
-          </h1>
-        </div>
-        {c.contact_status?.name && (
-          <span
-            style={{
-              backgroundColor: "var(--color-sage)",
-              color: "#fff",
-              borderRadius: "var(--radius-badge)",
-              padding: "0.125rem 0.5rem",
-              fontSize: "0.75rem",
-              fontWeight: 600,
-              alignSelf: "flex-end",
-            }}
-          >
-            {c.contact_status.name}
-          </span>
-        )}
-        <Link
-          href={`/contacts/${c.id}/edit`}
+        <div
           style={{
-            marginLeft: "auto",
-            display: "inline-flex",
+            display: "flex",
             alignItems: "center",
-            gap: "0.375rem",
-            backgroundColor: "var(--color-terra)",
-            color: "#fff",
-            borderRadius: "var(--radius-button)",
-            padding: "0.5rem 1rem",
-            textDecoration: "none",
-            fontWeight: 500,
-            fontSize: "0.875rem",
+            gap: "0.75rem",
+            flexWrap: "wrap",
+            marginTop: "0.5rem",
           }}
         >
-          <Pencil size={14} />
-          編集
-        </Link>
+          {c.contact_code && (
+            <span
+              style={{
+                color: "var(--color-sumi600)",
+                fontSize: "0.75rem",
+                fontWeight: 600,
+              }}
+            >
+              {c.contact_code}
+            </span>
+          )}
+          <h1
+            style={{
+              color: "var(--color-text-title)",
+              fontSize: "1.5rem",
+              fontWeight: 700,
+              margin: 0,
+            }}
+          >
+            {c.last_name} {c.first_name ?? ""}
+          </h1>
+          <Link href={`/contacts/${c.id}/edit`} style={editButtonStyle}>
+            <Pencil size={14} />
+            編集
+          </Link>
+        </div>
       </div>
 
-      {/* ---- 2-Column Grid ---- */}
+      {/* ---- 8:2 Grid ---- */}
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "2fr 1fr",
+          gridTemplateColumns: "8fr 2fr",
           gap: "1.5rem",
           alignItems: "start",
         }}
       >
-        {/* ======== Left Column ======== */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-          {/* -- Basic Info Card -- */}
-          <div
-            style={{
-              backgroundColor: "#fff",
-              borderRadius: "var(--radius-card)",
-              boxShadow: "var(--elevation-low)",
-              padding: "1.5rem",
-            }}
-          >
-            <h2
-              style={{
-                color: "var(--color-text-title)",
-                fontSize: "1rem",
-                fontWeight: 700,
-                margin: "0 0 1rem 0",
-                display: "flex",
-                alignItems: "center",
-                gap: "0.5rem",
-              }}
-            >
-              <User size={16} />
-              {"\u57FA\u672C\u60C5\u5831"}
-            </h2>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
-              <div
-                style={{
-                  borderBottom: "1px solid var(--color-border-default)",
-                  paddingBottom: "16px",
-                  marginBottom: "16px",
-                }}
-              >
-                <p style={{ color: "var(--color-sumi600)", fontSize: "0.75rem", fontWeight: 600, marginBottom: "0.25rem" }}>
-                  {"\u59D3"}
-                </p>
-                <p style={{ color: "var(--color-text-body)", fontSize: "0.875rem", margin: 0 }}>
-                  {c.last_name ?? "\u2014"}
-                </p>
-              </div>
-              <div
-                style={{
-                  borderBottom: "1px solid var(--color-border-default)",
-                  paddingBottom: "16px",
-                  marginBottom: "16px",
-                }}
-              >
-                <p style={{ color: "var(--color-sumi600)", fontSize: "0.75rem", fontWeight: 600, marginBottom: "0.25rem" }}>
-                  {"\u540D"}
-                </p>
-                <p style={{ color: "var(--color-text-body)", fontSize: "0.875rem", margin: 0 }}>
-                  {c.first_name ?? "\u2014"}
-                </p>
-              </div>
-              <div
-                style={{
-                  borderBottom: "1px solid var(--color-border-default)",
-                  paddingBottom: "16px",
-                  marginBottom: "16px",
-                }}
-              >
-                <p style={{ color: "var(--color-sumi600)", fontSize: "0.75rem", fontWeight: 600, marginBottom: "0.25rem" }}>
-                  {"\u30D5\u30EA\u30AC\u30CA\uFF08\u59D3\uFF09"}
-                </p>
-                <p style={{ color: "var(--color-text-body)", fontSize: "0.875rem", margin: 0 }}>
-                  {c.last_name_kana ?? "\u2014"}
-                </p>
-              </div>
-              <div
-                style={{
-                  borderBottom: "1px solid var(--color-border-default)",
-                  paddingBottom: "16px",
-                  marginBottom: "16px",
-                }}
-              >
-                <p style={{ color: "var(--color-sumi600)", fontSize: "0.75rem", fontWeight: 600, marginBottom: "0.25rem" }}>
-                  {"\u30D5\u30EA\u30AC\u30CA\uFF08\u540D\uFF09"}
-                </p>
-                <p style={{ color: "var(--color-text-body)", fontSize: "0.875rem", margin: 0 }}>
-                  {c.first_name_kana ?? "\u2014"}
-                </p>
-              </div>
-            </div>
-
+        {/* ======== Left ======== */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+          <DetailSection title="基本情報" icon={User}>
             <div
               style={{
-                borderBottom: "1px solid var(--color-border-default)",
-                paddingBottom: "16px",
-                marginBottom: "16px",
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "1rem",
               }}
             >
-              <p style={{ color: "var(--color-sumi600)", fontSize: "0.75rem", fontWeight: 600, marginBottom: "0.25rem" }}>
-                {"\u30B9\u30C6\u30FC\u30BF\u30B9"}
-              </p>
-              <span
-                style={{
-                  backgroundColor: "var(--color-sumi100)",
-                  borderRadius: "var(--radius-badge)",
-                  padding: "0.125rem 0.5rem",
-                  fontSize: "0.75rem",
-                  color: "var(--color-text-body)",
-                }}
-              >
-                {c.contact_status?.name ?? "\u2014"}
-              </span>
+              <InfoField label="姓" value={c.last_name} />
+              <InfoField label="名" value={c.first_name} />
+              <InfoField label="フリガナ（姓）" value={c.last_name_kana} />
+              <InfoField label="フリガナ（名）" value={c.first_name_kana} />
+              <InfoField label="部署" value={c.department} />
+              <InfoField label="役職" value={c.job_title} />
             </div>
+          </DetailSection>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
-              <div
-                style={{
-                  borderBottom: "1px solid var(--color-border-default)",
-                  paddingBottom: "16px",
-                  marginBottom: "16px",
-                }}
-              >
-                <p style={{ color: "var(--color-sumi600)", fontSize: "0.75rem", fontWeight: 600, marginBottom: "0.25rem" }}>
-                  {"\u7A2E\u5225"}
-                </p>
-                <p style={{ color: "var(--color-text-body)", fontSize: "0.875rem", margin: 0 }}>
-                  {typeBadge.label}
-                </p>
-              </div>
-              <div
-                style={{
-                  borderBottom: "1px solid var(--color-border-default)",
-                  paddingBottom: "16px",
-                  marginBottom: "16px",
-                }}
-              >
-                <p style={{ color: "var(--color-sumi600)", fontSize: "0.75rem", fontWeight: 600, marginBottom: "0.25rem" }}>
-                  <Building2 size={12} style={{ display: "inline", verticalAlign: "middle" }} />{" "}
-                  {"\u6240\u5C5E\u30AB\u30F3\u30D1\u30CB\u30FC"}
-                </p>
-                <p style={{ color: "var(--color-text-body)", fontSize: "0.875rem", margin: 0 }}>
-                  {c.company ? (
-                    <Link
-                      href={`/companies/${c.company.id}`}
-                      className="hover:bg-[var(--color-bg-hover)]"
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: "0.25rem",
-                        color: "var(--color-terra)",
-                        textDecoration: "none",
-                        padding: "0.125rem 0.375rem",
-                        margin: "-0.125rem -0.375rem",
-                        borderRadius: "var(--radius-sm)",
-                        transition: "background-color 0.15s",
-                        fontSize: "0.875rem",
-                      }}
-                    >
+          <DetailSection title="属性情報" icon={Layers}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr 1fr",
+                gap: "1rem",
+              }}
+            >
+              <InfoField label="ステータス" value={c.contact_status?.name} />
+              <InfoField
+                label="種別"
+                value={contactTypeLabel[c.contact_type] ?? "—"}
+              />
+              <InfoField
+                label="所属カンパニー"
+                value={
+                  c.company ? (
+                    <EntityLink href={`/companies/${c.company.id}`}>
                       {c.company.name}
-                      <ArrowUpRight size={14} />
-                    </Link>
-                  ) : (
-                    "\u2014"
-                  )}
-                </p>
-              </div>
-              <div
-                style={{
-                  borderBottom: "1px solid var(--color-border-default)",
-                  paddingBottom: "16px",
-                  marginBottom: "16px",
-                }}
-              >
-                <p style={{ color: "var(--color-sumi600)", fontSize: "0.75rem", fontWeight: 600, marginBottom: "0.25rem" }}>
-                  {"\u90E8\u7F72"}
-                </p>
-                <p style={{ color: "var(--color-text-body)", fontSize: "0.875rem", margin: 0 }}>
-                  {c.department ?? "\u2014"}
-                </p>
-              </div>
-              <div
-                style={{
-                  borderBottom: "1px solid var(--color-border-default)",
-                  paddingBottom: "16px",
-                  marginBottom: "16px",
-                }}
-              >
-                <p style={{ color: "var(--color-sumi600)", fontSize: "0.75rem", fontWeight: 600, marginBottom: "0.25rem" }}>
-                  {"\u5F79\u8077"}
-                </p>
-                <p style={{ color: "var(--color-text-body)", fontSize: "0.875rem", margin: 0 }}>
-                  {c.job_title ?? "\u2014"}
-                </p>
-              </div>
+                    </EntityLink>
+                  ) : null
+                }
+              />
             </div>
+          </DetailSection>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
-              <div>
-                <p style={{ color: "var(--color-sumi600)", fontSize: "0.75rem", fontWeight: 600, marginBottom: "0.25rem" }}>
-                  生年月日
-                </p>
-                <p style={{ color: "var(--color-text-body)", fontSize: "0.875rem", margin: 0 }}>
-                  {formatDate(c.birth_date)}
-                </p>
-              </div>
-              <div>
-                <p style={{ color: "var(--color-sumi600)", fontSize: "0.75rem", fontWeight: 600, marginBottom: "0.25rem" }}>
-                  血液型
-                </p>
-                <p style={{ color: "var(--color-text-body)", fontSize: "0.875rem", margin: 0 }}>
-                  {c.blood_type ? `${c.blood_type} 型` : "\u2014"}
-                </p>
-              </div>
-              <div>
-                <p style={{ color: "var(--color-sumi600)", fontSize: "0.75rem", fontWeight: 600, marginBottom: "0.25rem" }}>
-                  星座
-                </p>
-                <p style={{ color: "var(--color-text-body)", fontSize: "0.875rem", margin: 0 }}>
-                  {c.constellation_fortune_telling?.constellation ?? "\u2014"}
-                </p>
-              </div>
-              <div>
-                <p style={{ color: "var(--color-sumi600)", fontSize: "0.75rem", fontWeight: 600, marginBottom: "0.25rem" }}>
-                  ポテンシャルタイプ
-                </p>
-                <p style={{ color: "var(--color-text-body)", fontSize: "0.875rem", margin: 0 }}>
-                  {c.number_diagnosis?.type ?? "\u2014"}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* -- Address Card -- */}
-          <div
-            style={{
-              backgroundColor: "#fff",
-              borderRadius: "var(--radius-card)",
-              boxShadow: "var(--elevation-low)",
-              padding: "1.5rem",
-            }}
-          >
-            <h2
-              style={{
-                color: "var(--color-text-title)",
-                fontSize: "1rem",
-                fontWeight: 700,
-                margin: "0 0 1rem 0",
-              }}
-            >
-              {"\u4F4F\u6240"}
-            </h2>
-
+          <DetailSection title="プロファイル" icon={Sparkles}>
             <div
               style={{
-                borderBottom: "1px solid var(--color-border-default)",
-                paddingBottom: "16px",
-                marginBottom: "16px",
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr 1fr 1fr",
+                gap: "1rem",
               }}
             >
-              <p style={{ color: "var(--color-sumi600)", fontSize: "0.75rem", fontWeight: 600, marginBottom: "0.25rem" }}>
-                {"\u90F5\u4FBF\u756A\u53F7"}
-              </p>
-              <p style={{ color: "var(--color-text-body)", fontSize: "0.875rem", margin: 0 }}>
-                {c.postal_code ? `\u3012${c.postal_code}` : "\u2014"}
-              </p>
+              <InfoField label="生年月日" value={formatDate(c.birth_date)} />
+              <InfoField
+                label="血液型"
+                value={c.blood_type ? `${c.blood_type} 型` : null}
+              />
+              <InfoField
+                label="星座"
+                value={c.constellation_fortune_telling?.constellation}
+              />
+              <InfoField
+                label="ポテンシャルタイプ"
+                value={c.number_diagnosis?.type}
+              />
             </div>
+          </DetailSection>
 
-            <div>
-              <p style={{ color: "var(--color-sumi600)", fontSize: "0.75rem", fontWeight: 600, marginBottom: "0.25rem" }}>
-                {"\u4F4F\u6240"}
-              </p>
-              <p style={{ color: "var(--color-text-body)", fontSize: "0.875rem", margin: 0 }}>
-                {[c.prefecture, c.city, c.street, c.building]
-                  .filter(Boolean)
-                  .join(" ") || "\u2014"}
-              </p>
+          <DetailSection title="連絡先" icon={Mail}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+              <InfoField
+                label="メール"
+                value={
+                  emails.length === 0 ? null : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
+                      {emails.map((e: any) => (
+                        <div
+                          key={e.id}
+                          style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
+                        >
+                          {e.is_primary && (
+                            <Star size={12} style={{ color: "var(--color-terra)" }} />
+                          )}
+                          <span style={roleBadgeStyle}>{e.label ?? "main"}</span>
+                          <span>{e.email}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )
+                }
+              />
+              <InfoField
+                label="電話"
+                value={
+                  phones.length === 0 ? null : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
+                      {phones.map((p: any) => (
+                        <div
+                          key={p.id}
+                          style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
+                        >
+                          {p.is_primary && (
+                            <Star size={12} style={{ color: "var(--color-terra)" }} />
+                          )}
+                          <span style={roleBadgeStyle}>{p.label ?? "main"}</span>
+                          <span>{p.phone}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )
+                }
+              />
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+                <InfoField
+                  label="郵便番号"
+                  value={c.postal_code ? `〒${c.postal_code}` : null}
+                />
+                <InfoField label="住所" value={address} />
+              </div>
             </div>
-          </div>
+          </DetailSection>
 
-          {/* -- Invoice Card -- */}
-          <div
-            style={{
-              backgroundColor: "#fff",
-              borderRadius: "var(--radius-card)",
-              boxShadow: "var(--elevation-low)",
-              padding: "1.5rem",
-            }}
-          >
-            <h2
-              style={{
-                color: "var(--color-text-title)",
-                fontSize: "1rem",
-                fontWeight: 700,
-                margin: "0 0 1rem 0",
-              }}
-            >
-              {"\u30A4\u30F3\u30DC\u30A4\u30B9"}
-            </h2>
-
+          <DetailSection title="インボイス" icon={FileText}>
             <div
               style={{
-                borderBottom: "1px solid var(--color-border-default)",
-                paddingBottom: "16px",
-                marginBottom: "16px",
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "1rem",
               }}
             >
-              <p style={{ color: "var(--color-sumi600)", fontSize: "0.75rem", fontWeight: 600, marginBottom: "0.25rem" }}>
-                {"\u767B\u9332\u6709\u7121"}
-              </p>
-              <p style={{ color: "var(--color-text-body)", fontSize: "0.875rem", margin: 0 }}>
-                {c.invoice_registration_number ? "登録済み" : "未登録"}
-              </p>
+              <InfoField
+                label="登録有無"
+                value={c.invoice_registration_number ? "登録済み" : "未登録"}
+              />
+              <InfoField
+                label="登録番号"
+                value={c.invoice_registration_number}
+              />
             </div>
+          </DetailSection>
 
-            <div>
-              <p style={{ color: "var(--color-sumi600)", fontSize: "0.75rem", fontWeight: 600, marginBottom: "0.25rem" }}>
-                {"\u767B\u9332\u756A\u53F7"}
-              </p>
-              <p style={{ color: "var(--color-text-body)", fontSize: "0.875rem", margin: 0 }}>
-                {c.invoice_registration_number ?? "\u2014"}
-              </p>
-            </div>
-          </div>
-
-          {/* -- Memo Card -- */}
-          <div
-            style={{
-              backgroundColor: "#fff",
-              borderRadius: "var(--radius-card)",
-              boxShadow: "var(--elevation-low)",
-              padding: "1.5rem",
-            }}
-          >
-            <h2
-              style={{
-                color: "var(--color-text-title)",
-                fontSize: "1rem",
-                fontWeight: 700,
-                margin: "0 0 1rem 0",
-              }}
-            >
-              {"\u30E1\u30E2"}
-            </h2>
-            <p
-              style={{
-                color: "var(--color-text-body)",
-                fontSize: "0.875rem",
-                margin: 0,
-                whiteSpace: "pre-wrap",
-              }}
-            >
-              {c.internal_memo ?? "\u2014"}
-            </p>
-          </div>
+          {c.internal_memo && (
+            <DetailSection title="メモ" icon={StickyNote}>
+              <InfoField label="社内メモ" value={c.internal_memo} />
+            </DetailSection>
+          )}
         </div>
 
-        {/* ======== Right Column ======== */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-          {/* -- Contact Info Card -- */}
-          <div
-            style={{
-              backgroundColor: "#fff",
-              borderRadius: "var(--radius-card)",
-              boxShadow: "var(--elevation-low)",
-              padding: "1.5rem",
-            }}
-          >
-            <h2
-              style={{
-                color: "var(--color-text-title)",
-                fontSize: "1rem",
-                fontWeight: 700,
-                margin: "0 0 1rem 0",
-                display: "flex",
-                alignItems: "center",
-                gap: "0.5rem",
-              }}
-            >
-              <Mail size={16} />
-              {"\u9023\u7D61\u5148"}
-            </h2>
-
-            {/* Emails */}
-            <div
-              style={{
-                borderBottom: "1px solid var(--color-border-default)",
-                paddingBottom: "16px",
-                marginBottom: "16px",
-              }}
-            >
-              <p style={{ color: "var(--color-sumi600)", fontSize: "0.75rem", fontWeight: 600, marginBottom: "0.5rem" }}>
-                {"\u30E1\u30FC\u30EB"}
-              </p>
-              {emails.length === 0 ? (
-                <p style={{ color: "var(--color-text-body)", fontSize: "0.875rem", margin: 0 }}>
-                  {"\u2014"}
-                </p>
-              ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
-                  {emails.map((e: any) => (
-                    <div key={e.id} style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                      {e.is_primary && <Star size={12} style={{ color: "var(--color-terra)" }} />}
-                      <span
-                        style={{
-                          backgroundColor: "var(--color-sumi100)",
-                          borderRadius: "var(--radius-badge)",
-                          padding: "0.125rem 0.5rem",
-                          fontSize: "0.625rem",
-                          color: "var(--color-sumi600)",
-                        }}
-                      >
-                        {e.label ?? "main"}
-                      </span>
-                      <span style={{ color: "var(--color-text-body)", fontSize: "0.875rem" }}>
-                        {e.email}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Phones */}
-            <div>
-              <p style={{ color: "var(--color-sumi600)", fontSize: "0.75rem", fontWeight: 600, marginBottom: "0.5rem" }}>
-                <Phone size={12} style={{ display: "inline", verticalAlign: "middle" }} />{" "}
-                {"\u96FB\u8A71"}
-              </p>
-              {phones.length === 0 ? (
-                <p style={{ color: "var(--color-text-body)", fontSize: "0.875rem", margin: 0 }}>
-                  {"\u2014"}
-                </p>
-              ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
-                  {phones.map((p: any) => (
-                    <div key={p.id} style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                      {p.is_primary && <Star size={12} style={{ color: "var(--color-terra)" }} />}
-                      <span
-                        style={{
-                          backgroundColor: "var(--color-sumi100)",
-                          borderRadius: "var(--radius-badge)",
-                          padding: "0.125rem 0.5rem",
-                          fontSize: "0.625rem",
-                          color: "var(--color-sumi600)",
-                        }}
-                      >
-                        {p.label ?? "main"}
-                      </span>
-                      <span style={{ color: "var(--color-text-body)", fontSize: "0.875rem" }}>
-                        {p.phone}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* -- Account Contacts Card -- */}
-          <div
-            style={{
-              backgroundColor: "#fff",
-              borderRadius: "var(--radius-card)",
-              boxShadow: "var(--elevation-low)",
-              padding: "1.5rem",
-            }}
-          >
-            <h2
-              style={{
-                color: "var(--color-text-title)",
-                fontSize: "1rem",
-                fontWeight: 700,
-                margin: "0 0 1rem 0",
-                display: "flex",
-                alignItems: "center",
-                gap: "0.5rem",
-              }}
-            >
-              <Briefcase size={16} />
-              {"\u6240\u5C5E\u30A2\u30AB\u30A6\u30F3\u30C8"}
-            </h2>
+        {/* ======== Right ======== */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+          <DetailSection title="所属アカウント" icon={Briefcase}>
             {accountContacts.length === 0 ? (
-              <p style={{ color: "var(--color-sumi600)", fontSize: "0.875rem", margin: 0 }}>
-                {"\u2014"}
+              <p
+                style={{
+                  color: "var(--color-sumi400)",
+                  fontSize: "0.875rem",
+                  margin: 0,
+                }}
+              >
+                —
               </p>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
@@ -678,297 +339,128 @@ export default async function ContactDetailPage({
                   <div
                     key={ac.id}
                     style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
                       borderBottom: "1px solid var(--color-border-default)",
-                      paddingBottom: "12px",
+                      paddingBottom: "0.5rem",
                     }}
                   >
-                    <Link
-                      href={`/accounts/${ac.account?.id}`}
-                      className="hover:bg-[var(--color-bg-hover)]"
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: "0.25rem",
-                        color: "var(--color-terra)",
-                        textDecoration: "none",
-                        padding: "0.125rem 0.375rem",
-                        margin: "-0.125rem -0.375rem",
-                        borderRadius: "var(--radius-sm)",
-                        transition: "background-color 0.15s",
-                        fontSize: "0.875rem",
-                      }}
-                    >
-                      {ac.account?.name ?? "\u2014"}
-                      <ArrowUpRight size={14} />
-                    </Link>
-                    {ac.role && (
+                    {ac.account?.account_code && (
                       <span
                         style={{
-                          backgroundColor: "var(--color-sumi100)",
-                          borderRadius: "var(--radius-badge)",
-                          padding: "0.125rem 0.5rem",
-                          fontSize: "0.75rem",
-                          color: "var(--color-text-body)",
+                          display: "block",
+                          color: "var(--color-sumi500)",
+                          fontSize: "0.6875rem",
+                          fontFamily: "monospace",
+                          letterSpacing: "0.02em",
                         }}
                       >
-                        {ac.role}
+                        {ac.account.account_code}
                       </span>
                     )}
+                    <EntityLink href={`/accounts/${ac.account?.id}`} compact>
+                      {ac.account?.name ?? "—"}
+                    </EntityLink>
                   </div>
                 ))}
               </div>
             )}
-          </div>
+          </DetailSection>
 
-          {/* -- Talent Card (conditional) -- */}
           {talent && (
-            <div
-              style={{
-                backgroundColor: "#fff",
-                borderRadius: "var(--radius-card)",
-                boxShadow: "var(--elevation-low)",
-                padding: "1.5rem",
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: "0.5rem",
-                  marginBottom: "1rem",
-                }}
-              >
-                <h2
-                  style={{
-                    color: "var(--color-text-title)",
-                    fontSize: "1rem",
-                    fontWeight: 700,
-                    margin: 0,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "0.5rem",
-                  }}
-                >
-                  <Star size={16} />
-                  タレント情報
-                </h2>
-                <Link
-                  href={`/talents/${talent.id}`}
-                  className="hover:bg-[var(--color-bg-hover)]"
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "0.25rem",
-                    color: "var(--color-terra)",
-                    textDecoration: "none",
-                    padding: "0.25rem 0.5rem",
-                    borderRadius: "var(--radius-sm)",
-                    fontSize: "0.75rem",
-                    fontWeight: 500,
-                    border: "1px solid var(--color-border-default)",
-                    transition: "background-color 0.15s",
-                  }}
-                >
+            <DetailSection title="タレント情報" icon={Star}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                <EntityLink href={`/talents/${talent.id}`} compact>
                   タレント詳細
-                  <ArrowUpRight size={14} />
-                </Link>
-              </div>
-
-              {/* Personality Memo */}
-              {talent.personality_memo && (
-                <div
-                  style={{
-                    borderBottom: "1px solid var(--color-border-default)",
-                    paddingBottom: "16px",
-                    marginBottom: "16px",
-                  }}
-                >
-                  <p style={{ color: "var(--color-sumi600)", fontSize: "0.75rem", fontWeight: 600, marginBottom: "0.25rem" }}>
-                    {"\u6027\u683C\u5206\u6790\u30E1\u30E2"}
-                  </p>
-                  <p style={{ color: "var(--color-text-body)", fontSize: "0.875rem", margin: 0, whiteSpace: "pre-wrap" }}>
-                    {talent.personality_memo}
-                  </p>
-                </div>
-              )}
-
-              {/* Strengths / Weaknesses */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
-                <div
-                  style={{
-                    borderBottom: "1px solid var(--color-border-default)",
-                    paddingBottom: "16px",
-                    marginBottom: "16px",
-                  }}
-                >
-                  <p style={{ color: "var(--color-sumi600)", fontSize: "0.75rem", fontWeight: 600, marginBottom: "0.25rem" }}>
-                    {"\u5F37\u307F"}
-                  </p>
-                  <p style={{ color: "var(--color-text-body)", fontSize: "0.875rem", margin: 0, whiteSpace: "pre-wrap" }}>
-                    {talent.custom_strengths ?? "\u2014"}
-                  </p>
-                </div>
-                <div
-                  style={{
-                    borderBottom: "1px solid var(--color-border-default)",
-                    paddingBottom: "16px",
-                    marginBottom: "16px",
-                  }}
-                >
-                  <p style={{ color: "var(--color-sumi600)", fontSize: "0.75rem", fontWeight: 600, marginBottom: "0.25rem" }}>
-                    {"\u5F31\u307F"}
-                  </p>
-                  <p style={{ color: "var(--color-text-body)", fontSize: "0.875rem", margin: 0, whiteSpace: "pre-wrap" }}>
-                    {talent.custom_weaknesses ?? "\u2014"}
-                  </p>
-                </div>
-              </div>
-
-              {/* Aptitude Notes */}
-              {talent.aptitude_notes && (
-                <div
-                  style={{
-                    borderBottom: "1px solid var(--color-border-default)",
-                    paddingBottom: "16px",
-                    marginBottom: "16px",
-                  }}
-                >
-                  <p style={{ color: "var(--color-sumi600)", fontSize: "0.75rem", fontWeight: 600, marginBottom: "0.25rem" }}>
-                    適性メモ
-                  </p>
-                  <p style={{ color: "var(--color-text-body)", fontSize: "0.875rem", margin: 0, whiteSpace: "pre-wrap" }}>
-                    {talent.aptitude_notes}
-                  </p>
-                </div>
-              )}
-
-              {/* Overall Assessment */}
-              {talent.overall_assessment && (
-                <div
-                  style={{
-                    borderBottom: "1px solid var(--color-border-default)",
-                    paddingBottom: "16px",
-                    marginBottom: "16px",
-                  }}
-                >
-                  <p style={{ color: "var(--color-sumi600)", fontSize: "0.75rem", fontWeight: 600, marginBottom: "0.25rem" }}>
-                    総合評価
-                  </p>
-                  <p style={{ color: "var(--color-text-body)", fontSize: "0.875rem", margin: 0, whiteSpace: "pre-wrap" }}>
-                    {talent.overall_assessment}
-                  </p>
-                </div>
-              )}
-
-              {/* Skills */}
-              {talentSkills.length > 0 && (
-                <div
-                  style={{
-                    borderBottom: "1px solid var(--color-border-default)",
-                    paddingBottom: "16px",
-                    marginBottom: "16px",
-                  }}
-                >
-                  <p style={{ color: "var(--color-sumi600)", fontSize: "0.75rem", fontWeight: 600, marginBottom: "0.5rem" }}>
-                    {"\u30B9\u30AD\u30EB"}
-                  </p>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
-                    {talentSkills.map((ts: any) => (
-                      <span
-                        key={ts.id ?? ts.skill?.id}
-                        style={{
-                          backgroundColor: "var(--color-sumi100)",
-                          borderRadius: "var(--radius-badge)",
-                          padding: "0.125rem 0.5rem",
-                          fontSize: "0.75rem",
-                          color: "var(--color-text-body)",
-                        }}
-                      >
-                        {ts.skill?.name}
-                        {ts.proficiency_level != null && ` Lv.${ts.proficiency_level}`}
-                        {ts.years_experience != null && `（${ts.years_experience}年）`}
-                      </span>
-                    ))}
+                </EntityLink>
+                {talent.personality_memo && (
+                  <InfoField label="性格分析メモ" value={talent.personality_memo} />
+                )}
+                {(talent.custom_strengths || talent.custom_weaknesses) && (
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+                    <InfoField label="強み" value={talent.custom_strengths} />
+                    <InfoField label="弱み" value={talent.custom_weaknesses} />
                   </div>
-                </div>
-              )}
-
-              {/* Careers */}
-              {talentCareers.length > 0 && (
-                <div>
-                  <p style={{ color: "var(--color-sumi600)", fontSize: "0.75rem", fontWeight: 600, marginBottom: "0.5rem" }}>
-                    {"\u7D4C\u6B74"}
-                  </p>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                    {talentCareers.map((career: any) => (
-                      <div
-                        key={career.id}
-                        style={{
-                          borderBottom: "1px solid var(--color-border-default)",
-                          paddingBottom: "12px",
-                        }}
-                      >
-                        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.25rem" }}>
-                          {career.career_type && (
-                            <span
-                              style={{
-                                backgroundColor: "var(--color-sumi100)",
-                                borderRadius: "var(--radius-badge)",
-                                padding: "0.125rem 0.5rem",
-                                fontSize: "0.625rem",
-                                color: "var(--color-sumi600)",
-                              }}
-                            >
-                              {career.career_type}
-                            </span>
-                          )}
-                          <span style={{ color: "var(--color-text-body)", fontSize: "0.875rem", fontWeight: 600 }}>
-                            {career.organization ?? "\u2014"}
-                          </span>
-                          {career.title && (
-                            <span style={{ color: "var(--color-sumi600)", fontSize: "0.75rem" }}>
-                              / {career.title}
-                            </span>
-                          )}
-                          {career.is_current && (
-                            <span
-                              style={{
-                                backgroundColor: "var(--color-sage)",
-                                color: "#fff",
-                                borderRadius: "var(--radius-badge)",
-                                padding: "0.125rem 0.375rem",
-                                fontSize: "0.625rem",
-                                fontWeight: 600,
-                              }}
-                            >
-                              現在
-                            </span>
-                          )}
-                        </div>
-                        <span style={{ color: "var(--color-sumi600)", fontSize: "0.75rem" }}>
-                          {formatDate(career.start_date)} ~ {career.is_current ? "現在" : formatDate(career.end_date)}
-                        </span>
-                        {career.description && (
-                          <p
+                )}
+                {talent.aptitude_notes && (
+                  <InfoField label="適性メモ" value={talent.aptitude_notes} />
+                )}
+                {talent.overall_assessment && (
+                  <InfoField label="総合評価" value={talent.overall_assessment} />
+                )}
+                {talentSkills.length > 0 && (
+                  <InfoField
+                    label="スキル"
+                    value={
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: "0.375rem" }}>
+                        {talentSkills.map((ts: any) => (
+                          <LabelBadge
+                            key={ts.id ?? ts.skill?.id}
+                            name={
+                              (ts.skill?.name ?? "") +
+                              (ts.proficiency_level != null ? ` Lv.${ts.proficiency_level}` : "") +
+                              (ts.years_experience != null ? `（${ts.years_experience}年）` : "")
+                            }
+                          />
+                        ))}
+                      </div>
+                    }
+                  />
+                )}
+                {talentCareers.length > 0 && (
+                  <InfoField
+                    label="経歴"
+                    value={
+                      <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                        {talentCareers.map((career: any) => (
+                          <div
+                            key={career.id}
                             style={{
-                              color: "var(--color-text-body)",
-                              fontSize: "0.75rem",
-                              margin: "0.25rem 0 0 0",
+                              borderBottom: "1px solid var(--color-border-default)",
+                              paddingBottom: "0.5rem",
                             }}
                           >
-                            {career.description}
-                          </p>
-                        )}
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "0.375rem",
+                                marginBottom: "0.125rem",
+                                flexWrap: "wrap",
+                              }}
+                            >
+                              {career.career_type && (
+                                <span style={roleBadgeStyle}>{career.career_type}</span>
+                              )}
+                              <span style={{ fontSize: "0.8125rem", fontWeight: 600 }}>
+                                {career.organization ?? "—"}
+                              </span>
+                              {career.title && (
+                                <span
+                                  style={{
+                                    color: "var(--color-sumi600)",
+                                    fontSize: "0.75rem",
+                                  }}
+                                >
+                                  / {career.title}
+                                </span>
+                              )}
+                            </div>
+                            <span
+                              style={{
+                                color: "var(--color-sumi600)",
+                                fontSize: "0.75rem",
+                              }}
+                            >
+                              {formatDate(career.start_date)} ~{" "}
+                              {career.is_current ? "現在" : formatDate(career.end_date)}
+                            </span>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
+                    }
+                  />
+                )}
+              </div>
+            </DetailSection>
           )}
         </div>
       </div>

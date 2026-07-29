@@ -1,0 +1,72 @@
+name: DB Backup
+
+# Supabase Free プランには PITR（ポイントインタイムリカバリ）が無いため、
+# 日次で論理バックアップを取得して復旧点を確保する。
+# あわせて定期的に DB へ接続するため、無操作によるプロジェクト一時停止も防げる。
+
+on:
+  schedule:
+    # UTC 18:00 = JST 翌 03:00
+    - cron: "0 18 * * *"
+  workflow_dispatch: # 手動実行も可能
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      # Supabase は PostgreSQL 17。runner 既定の client ではバージョン差で失敗するため明示導入する
+      - name: PostgreSQL 17 クライアントを導入
+        run: |
+          sudo sh -c 'echo "deb https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/pgdg.gpg
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-17
+
+      - name: ダンプを取得
+        env:
+          # Supabase ダッシュボード > Project Settings > Database の接続文字列
+          # （Direct connection 推奨。IPv4 制約がある場合は Session pooler）
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ]; then
+            echo "::error::secrets.SUPABASE_DB_URL が未設定です"
+            exit 1
+          fi
+          STAMP=$(date -u +%Y%m%d-%H%M%S)
+          echo "STAMP=$STAMP" >> "$GITHUB_ENV"
+          # -Fc: カスタム形式（pg_restore で部分復元が可能）
+          pg_dump "$SUPABASE_DB_URL" \
+            --no-owner --no-privileges \
+            --format=custom \
+            --file="iterra-hub-$STAMP.dump"
+          ls -lh iterra-hub-*.dump
+
+      - name: 取得内容を検証
+        run: |
+          # 主要テーブルが含まれているかを確認（空ダンプの取り違えを防ぐ）
+          pg_restore --list "iterra-hub-$STAMP.dump" > toc.txt
+          for t in leads deals contacts companies accounts entity_change_logs; do
+            grep -q "TABLE DATA public $t " toc.txt || {
+              echo "::error::テーブル $t がダンプに含まれていません"; exit 1; }
+          done
+          echo "検証 OK: $(wc -l < toc.txt) エントリ"
+
+      - name: アーティファクトとして保管
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-backup-${{ env.STAMP }}
+          path: iterra-hub-*.dump
+          retention-days: 30
+          if-no-files-found: error
+
+      # 長期保管が必要な場合は Cloudflare R2 等へ退避する（要 secrets 設定）
+      # - name: R2 へアップロード
+      #   env:
+      #     AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      #     AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      #   run: |
+      #     aws s3 cp "iterra-hub-$STAMP.dump" \
+      #       "s3://${{ secrets.R2_BUCKET }}/iterra-hub/" \
+      #       --endpoint-url "${{ secrets.R2_ENDPOINT }}"

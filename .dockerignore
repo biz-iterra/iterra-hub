@@ -1,0 +1,31 @@
+# 依存とビルド成果物（イメージ内で再生成する）
+node_modules
+.next
+out
+build
+
+# バージョン管理・CI
+.git
+.gitignore
+.github
+
+# 環境変数（ビルド引数とランタイム注入で渡す）
+.env
+.env.*
+
+# DB 関連（DB は Supabase SaaS 側。イメージには不要）
+supabase
+
+# 開発・検証用
+scripts
+docs
+coverage
+*.md
+*.csv
+.vscode
+.claude
+
+# Docker 自身
+Dockerfile
+.dockerignore
+docker-compose*.yml

@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { conflictErrorMessage } from "@/lib/validators/common";
 import { createCompanySchema, updateCompanySchema } from "@/lib/validators";
 
 type ActionResult<T> = { data: T | null; error: string | null };
@@ -116,33 +117,35 @@ export async function updateCompany(id: string, input: Record<string, unknown>):
   // 変更前データ取得（変更履歴用）
   const { data: before } = await supabase.from("companies").select("*").eq("id", id).single();
 
+  // expected_updated_at は DB カラムではないため更新値から除外する
+  const { expected_updated_at, ...fields } = parsed.data;
+
   // status_updated_at はステータス変更時に更新
-  const updates: Record<string, unknown> = { ...parsed.data };
+  const updates: Record<string, unknown> = { ...fields };
   if (
     before &&
-    parsed.data.company_status_id &&
-    parsed.data.company_status_id !== before.company_status_id
+    fields.company_status_id &&
+    fields.company_status_id !== before.company_status_id
   ) {
     updates.status_updated_at = new Date().toISOString();
   }
 
-  const { data, error } = await supabase.from("companies").update({ ...updates, last_updated_by: user.id }).eq("id", id).select().single();
+  // 楽観ロック: 編集開始時点から updated_at が変わっていれば 0 行更新になる
+  let updateQuery = supabase
+    .from("companies")
+    .update({ ...updates, last_updated_by: user.id })
+    .eq("id", id);
+  if (expected_updated_at) {
+    updateQuery = updateQuery.eq("updated_at", expected_updated_at);
+  }
+
+  const { data, error } = await updateQuery.select().maybeSingle();
   if (error) return { data: null, error: error.message };
+  if (!data) return { data: null, error: conflictErrorMessage("このカンパニー") };
 
   // 変更履歴記録
   if (before && data) {
-    const changes: { field_name: string; old_value: string | null; new_value: string | null }[] = [];
-    for (const [key, newVal] of Object.entries(parsed.data as Record<string, any>)) {
-      const oldVal = (before as any)[key];
-      if (String(oldVal ?? "") !== String(newVal ?? "")) {
-        changes.push({ field_name: key, old_value: String(oldVal ?? ""), new_value: String(newVal ?? "") });
-      }
-    }
-    if (changes.length > 0) {
-      await supabase.from("company_change_histories").insert(
-        changes.map((c) => ({ company_id: id, ...c, changed_by: user.id }))
-      );
-    }
+    // 変更履歴は entity_change_logs のトリガーが自動記録する（20260728000002）
   }
 
   return { data, error: null };

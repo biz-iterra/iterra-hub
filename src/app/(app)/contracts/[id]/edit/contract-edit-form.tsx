@@ -10,6 +10,8 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 type SelectOption = { value: string; label: string };
 
 type ContractData = {
+  /** 楽観ロック用。編集開始時点の値をそのまま保存時に送り返す */
+  updated_at?: string | null;
   id: string;
   contract_name: string | null;
   contract_code: string | null;
@@ -261,6 +263,8 @@ export function ContractEditForm({
       original_document_url: values.original_document_url || null,
       contract_url: values.contract_url || null,
       registered_by: values.registered_by || null,
+      // 楽観ロック: 編集開始時点の updated_at を送り、他者更新があれば競合として弾く
+      expected_updated_at: contract.updated_at ?? undefined,
     };
 
     const result = await updateContract(contract.id, payload);

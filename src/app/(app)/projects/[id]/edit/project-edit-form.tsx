@@ -10,6 +10,8 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 type SelectOption = { value: string; label: string };
 
 type ProjectData = {
+  /** 楽観ロック用。編集開始時点の値をそのまま保存時に送り返す */
+  updated_at?: string | null;
   id: string;
   name: string;
   description: string | null;
@@ -165,6 +167,8 @@ export function ProjectEditForm({
       end_date: values.end_date || null,
       owner_user_id: values.owner_user_id || null,
       internal_memo: values.internal_memo || null,
+      // 楽観ロック: 編集開始時点の updated_at を送り、他者更新があれば競合として弾く
+      expected_updated_at: project.updated_at ?? undefined,
     };
 
     const result = await updateProject(project.id, payload);

@@ -1,0 +1,69 @@
+# ============================================================
+# iterra-hub — NAS(UGREEN DXP4800 GT) 上の実行構成
+#
+# 公開経路: Cloudflare Tunnel（hub.iterra.online）
+#   アプリはホストにポートを公開せず、cloudflared からのみ到達させる。
+#   NAS の外向き通信だけで成立するため、ルーターのポート開放は不要。
+#
+# 前提: 同ディレクトリに .env を置く（.env.example を参照）
+# 起動: docker compose up -d
+# ============================================================
+
+services:
+  app:
+    # CI でビルドし GHCR へ push したイメージを使う。
+    # 切り戻す場合は .env の IMAGE_TAG に sha-<コミットSHA> を指定する。
+    image: ghcr.io/biz-iterra/iterra-hub:${IMAGE_TAG:-latest}
+    container_name: iterra-hub-app
+    restart: unless-stopped
+
+    environment:
+      # サーバー側でのみ使用（RLS をバイパスするため外部に出さない）
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:?SUPABASE_SERVICE_ROLE_KEY is required}
+      TZ: Asia/Tokyo
+
+    healthcheck:
+      # /api/health は middleware の認証対象外にしてある
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    networks:
+      - internal
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: iterra-hub-tunnel
+    restart: unless-stopped
+
+    # Zero Trust ダッシュボードで発行したトークンで接続する
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:?CLOUDFLARE_TUNNEL_TOKEN is required}
+      TZ: Asia/Tokyo
+
+    # アプリが healthy になってから公開する
+    depends_on:
+      app:
+        condition: service_healthy
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    networks:
+      - internal
+
+networks:
+  internal:
+    driver: bridge

@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { conflictErrorMessage } from "@/lib/validators/common";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import {
@@ -395,21 +396,35 @@ export async function updateLead(
 
   // sub_owner_user_ids が含まれている場合は lead_owners を更新（leads テーブルには不要）
   const subOwnerIdsRaw = (safeUpdates as any).sub_owner_user_ids as string[] | undefined;
-  const { sub_owner_user_ids: _subOwner, ...safeUpdatesWithoutSub } = safeUpdates as any;
+  // expected_updated_at は DB カラムではないため更新値から除外する
+  const {
+    sub_owner_user_ids: _subOwner,
+    expected_updated_at: expectedUpdatedAt,
+    ...safeUpdatesWithoutSub
+  } = safeUpdates as any;
 
   const updatePayload = {
     ...safeUpdatesWithoutSub,
     last_updated_by: user.id,
   };
 
-  const { data: updated, error: updateErr } = await supabase
+  // 楽観ロック: 編集開始時点から updated_at が変わっていれば 0 行更新になる
+  let updateQuery = supabase
     .from("leads")
     .update(updatePayload)
-    .eq("id", id)
+    .eq("id", id);
+  if (expectedUpdatedAt) {
+    updateQuery = updateQuery.eq("updated_at", expectedUpdatedAt);
+  }
+
+  const { data: updated, error: updateErr } = await updateQuery
     .select(LEAD_SELECT)
-    .single();
+    .maybeSingle();
 
   if (updateErr) return { ok: false, errors: { _: [updateErr.message] } };
+  if (!updated) {
+    return { ok: false, errors: { _: [conflictErrorMessage("このリード")] } };
+  }
 
   // 副担当更新（sub_owner_user_ids が渡された場合のみ: 全削除 → bulk insert）
   if (subOwnerIdsRaw !== undefined) {
@@ -668,269 +683,87 @@ export async function promoteLeadToDeal(leadId: string): Promise<ActionResult<an
     return { data: null, error: "Deal ステータスが見つかりません" };
   }
 
-  // --- エンティティ作成（手動ロールバック方式）---
-  let newCompanyId: string | null = null;
-  let newContactId: string | null = null;
-  let newAccountId: string | null = null;
-  let newDealId: string | null = null;
-
-  // ロールバックヘルパー
-  const rollback = async () => {
-    if (newDealId) await supabase.from("deals").delete().eq("id", newDealId);
-    if (newAccountId) await supabase.from("accounts").delete().eq("id", newAccountId);
-    if (newContactId) await supabase.from("contacts").delete().eq("id", newContactId);
-    if (newCompanyId) await supabase.from("companies").delete().eq("id", newCompanyId);
-  };
-
-  // ヘルパーに渡すために LeadRow 型にキャスト
+  // --- ペイロード構築（値の整形は TS 側、書き込みは DB 関数の責務）---
   const leadRow = lead as unknown as LeadRow;
 
-  // 1. Company 作成（法人のみ）
-  if (isCorporate) {
-    const companyPayload = buildCompanyPayloadFromLead(leadRow, user.id);
-    console.log("[promoteLeadToDeal] step1: creating Company", companyPayload.name);
+  const companyPayload = isCorporate
+    ? buildCompanyPayloadFromLead(leadRow, user.id)
+    : null;
 
-    const { data: newCompany, error: companyErr } = await supabase
-      .from("companies")
-      .insert(companyPayload)
-      .select("id")
-      .single();
+  const contactPayload = buildContactPayloadFromLead(
+    leadRow,
+    {
+      contactType: isCorporate ? "corporate_rep" : "individual",
+      // Company の id は DB 関数内で採番されるため、ここでは解決しない
+      companyId: null,
+    },
+    user.id
+  );
 
-    if (companyErr || !newCompany) {
-      console.error("[promoteLeadToDeal] step1 FAILED:", companyErr?.message, companyErr?.code);
-      return {
-        data: null,
-        error: `Company の作成に失敗しました: ${companyErr?.message ?? "unknown"}`,
-      };
+  // 担当者電話。未入力かつ個人昇格なら代表電話をフォールバックに使う
+  // （法人は company_phone を companies.phone に転記済みのため対象外）
+  const contactPhone =
+    lead.contact_phone ?? (isCorporate ? null : lead.company_phone ?? null);
+
+  const accountPayload = {
+    name: isCorporate ? lead.company_name ?? lead.lead_name : lead.lead_name,
+    account_type_id: lead.account_type_id,
+    account_status_id: ACCOUNT_STATUS_PROSPECT,
+    lead_source_id: lead.lead_source_id ?? null,
+    owner_user_id: lead.owner_user_id,
+    created_by: user.id,
+  };
+
+  const dealPayload = {
+    name: `${lead.lead_name} 案件`,
+    pipeline_type_id: pipeline.id,
+    deal_stage_id: firstStage.id,
+    deal_status_id: firstStatus.id,
+    owner_user_id: lead.owner_user_id,
+    created_by: user.id,
+    last_updated_by: user.id,
+  };
+
+  // --- 一括作成（単一トランザクション。失敗時は DB 側で自動ロールバック）---
+  // 関数内で lead 行を FOR UPDATE ロックするため、同時実行による二重昇格も防がれる
+  const { data: promoted, error: rpcError } = await supabase.rpc(
+    "promote_lead_to_deal",
+    {
+      p_lead_id: leadId,
+      p_company: companyPayload,
+      p_contact: contactPayload,
+      p_contact_email: lead.contact_email ?? null,
+      p_contact_phone: contactPhone,
+      p_account: accountPayload,
+      p_deal: dealPayload,
     }
-    newCompanyId = newCompany.id;
-    console.log("[promoteLeadToDeal] step1 OK: company_id=", newCompanyId);
-  }
+  );
 
-  // 2. Contact 作成（担当者情報転記・フォールバック含む）
-  {
-    const contactType = isCorporate ? "corporate_rep" as const : "individual" as const;
-    const contactPayload = buildContactPayloadFromLead(
-      leadRow,
-      { contactType, companyId: newCompanyId },
-      user.id
+  if (rpcError || !promoted) {
+    console.error(
+      "[promoteLeadToDeal] RPC FAILED:",
+      rpcError?.message,
+      rpcError?.code
     );
-
-    console.log("[promoteLeadToDeal] step2: creating Contact", contactPayload.last_name, contactPayload.first_name, contactType);
-
-    const { data: newContact, error: contactErr } = await supabase
-      .from("contacts")
-      .insert(contactPayload)
-      .select("id")
-      .single();
-
-    if (contactErr || !newContact) {
-      console.error("[promoteLeadToDeal] step2 FAILED:", contactErr?.message, contactErr?.code, contactErr?.details);
-      await rollback();
-      return {
-        data: null,
-        error: `Contact の作成に失敗しました: ${contactErr?.message ?? "unknown"}`,
-      };
-    }
-    newContactId = newContact.id;
-    console.log("[promoteLeadToDeal] step2 OK: contact_id=", newContactId);
-
-    // 法人かつ Contact 作成成功 → Company の primary_contact_id を更新
-    if (isCorporate && newCompanyId) {
-      await supabase
-        .from("companies")
-        .update({ primary_contact_id: newContactId })
-        .eq("id", newCompanyId);
-    }
-
-    // contact_email がある場合は contact_emails に追加
-    if (lead.contact_email && newContactId) {
-      console.log("[promoteLeadToDeal] step2a: inserting contact_emails email=", lead.contact_email);
-      const { error: emailErr } = await supabase
-        .from("contact_emails")
-        .insert({
-          contact_id: newContactId,
-          email: lead.contact_email,
-          label: "work",
-          is_primary: true,
-          created_by: user.id,
-          last_updated_by: user.id,
-        });
-      if (emailErr) {
-        console.warn("[promoteLeadToDeal] step2a email insert WARN:", emailErr.message);
-      } else {
-        console.log("[promoteLeadToDeal] step2a email inserted OK");
-      }
-    }
-
-    // contact_phone がある場合は contact_phones に追加（担当者電話）
-    if (lead.contact_phone && newContactId) {
-      console.log("[promoteLeadToDeal] step2b: inserting contact_phones (contact_phone) phone=", lead.contact_phone);
-      const { error: cPhoneErr } = await supabase
-        .from("contact_phones")
-        .insert({
-          contact_id: newContactId,
-          phone: lead.contact_phone,
-          label: "work",
-          is_primary: true,
-          created_by: user.id,
-          last_updated_by: user.id,
-        });
-      if (cPhoneErr) {
-        console.warn("[promoteLeadToDeal] step2b contact_phone insert WARN:", cPhoneErr.message);
-      } else {
-        console.log("[promoteLeadToDeal] step2b contact_phone inserted OK");
-      }
-    } else if (!lead.contact_phone && lead.company_phone && newContactId) {
-      // contact_phone が未入力かつ company_phone がある場合: company_phone を代表電話として登録
-      // （個人昇格の場合のみ; 法人は company_phone が companies.phone に転記済み）
-      if (!isCorporate) {
-        console.log("[promoteLeadToDeal] step2b: inserting contact_phones (company_phone fallback for individual) phone=", lead.company_phone);
-        const { error: cPhoneFallbackErr } = await supabase
-          .from("contact_phones")
-          .insert({
-            contact_id: newContactId,
-            phone: lead.company_phone,
-            label: "work",
-            is_primary: true,
-            created_by: user.id,
-            last_updated_by: user.id,
-          });
-        if (cPhoneFallbackErr) {
-          console.warn("[promoteLeadToDeal] step2b company_phone fallback insert WARN:", cPhoneFallbackErr.message);
-        }
-      }
-    }
-  }
-
-  // 3. Account 作成
-  {
-    const accountName = isCorporate
-      ? (lead.company_name ?? lead.lead_name)
-      : lead.lead_name;
-
-    console.log("[promoteLeadToDeal] step3: creating Account", accountName);
-    const { data: newAccount, error: accountErr } = await supabase
-      .from("accounts")
-      .insert({
-        name: accountName,
-        account_type_id: lead.account_type_id,
-        account_status_id: ACCOUNT_STATUS_PROSPECT,
-        company_id: newCompanyId,
-        lead_source_id: lead.lead_source_id ?? null,
-        owner_user_id: lead.owner_user_id,
-        created_by: user.id,
-      })
-      .select("id")
-      .single();
-
-    if (accountErr || !newAccount) {
-      console.error("[promoteLeadToDeal] step3 FAILED:", accountErr?.message, accountErr?.code, accountErr?.details);
-      await rollback();
-      return {
-        data: null,
-        error: `Account の作成に失敗しました: ${accountErr?.message ?? "unknown"}`,
-      };
-    }
-    newAccountId = newAccount.id;
-    console.log("[promoteLeadToDeal] step3 OK: account_id=", newAccountId);
-  }
-
-  // 4. account_contacts 紐付け
-  {
-    console.log("[promoteLeadToDeal] step4: creating account_contacts");
-    const { error: acErr } = await supabase
-      .from("account_contacts")
-      .insert({
-        account_id: newAccountId,
-        contact_id: newContactId,
-        role: "primary",
-      });
-
-    if (acErr) {
-      console.error("[promoteLeadToDeal] step4 FAILED:", acErr.message, acErr.code);
-      await rollback();
-      return {
-        data: null,
-        error: `account_contacts の作成に失敗しました: ${acErr.message}`,
-      };
-    }
-    console.log("[promoteLeadToDeal] step4 OK");
-  }
-
-  // 5. Deal 作成
-  {
-    console.log("[promoteLeadToDeal] step5: creating Deal");
-    const { data: newDeal, error: dealErr } = await supabase
-      .from("deals")
-      .insert({
-        name: `${lead.lead_name} 案件`,
-        pipeline_type_id: pipeline.id,
-        deal_stage_id: firstStage.id,
-        deal_status_id: firstStatus.id,
-        account_id: newAccountId,
-        owner_user_id: lead.owner_user_id,
-        created_by: user.id,
-        last_updated_by: user.id,
-      })
-      .select("id")
-      .single();
-
-    if (dealErr || !newDeal) {
-      console.error("[promoteLeadToDeal] step5 FAILED:", dealErr?.message, dealErr?.code, dealErr?.details);
-      await rollback();
-      return {
-        data: null,
-        error: `Deal の作成に失敗しました: ${dealErr?.message ?? "unknown"}`,
-      };
-    }
-    newDealId = newDeal.id;
-    console.log("[promoteLeadToDeal] step5 OK: deal_id=", newDealId);
-  }
-
-  // 6. leads の promoted_* を一括更新
-  console.log("[promoteLeadToDeal] step6: updating leads promoted_*");
-  const { error: updateErr } = await supabase
-    .from("leads")
-    .update({
-      promoted_deal_id: newDealId,
-      promoted_company_id: newCompanyId,
-      promoted_contact_id: newContactId,
-      promoted_account_id: newAccountId,
-      last_updated_by: user.id,
-    })
-    .eq("id", leadId);
-
-  if (updateErr) {
-    console.error("[promoteLeadToDeal] step6 FAILED:", updateErr.message, updateErr.code);
-    await rollback();
     return {
       data: null,
-      error: `Lead の promoted_* 更新に失敗したため関連エンティティを削除しました: ${updateErr.message}`,
+      error: rpcError?.message ?? "Deal 昇格に失敗しました",
     };
   }
-  console.log("[promoteLeadToDeal] step6 OK - all entities created");
 
-  // 7. deal_stage_histories / deal_status_histories に初回エントリ
-  await supabase.from("deal_stage_histories").insert({
-    deal_id: newDealId,
-    from_stage_id: null,
-    to_stage_id: firstStage.id,
-    changed_by: user.id,
-  });
-  await supabase.from("deal_status_histories").insert({
-    deal_id: newDealId,
-    from_status_id: null,
-    to_status_id: firstStatus.id,
-    changed_by: user.id,
-  });
+  const result = promoted as {
+    deal_id: string;
+    company_id: string | null;
+    contact_id: string;
+    account_id: string;
+  };
 
   return {
     data: {
-      deal_id: newDealId,
-      company_id: newCompanyId,
-      contact_id: newContactId,
-      account_id: newAccountId,
+      deal_id: result.deal_id,
+      company_id: result.company_id,
+      contact_id: result.contact_id,
+      account_id: result.account_id,
     },
     error: null,
   };

@@ -10,6 +10,8 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 type SelectOption = { value: string; label: string };
 
 type CompanyData = {
+  /** 楽観ロック用。編集開始時点の値をそのまま保存時に送り返す */
+  updated_at?: string | null;
   id: string;
   name: string;
   name_kana: string | null;
@@ -253,6 +255,8 @@ export function CompanyEditForm({
       fax: values.fax || null,
       website_url: values.website_url || null,
       internal_memo: values.internal_memo || null,
+      // 楽観ロック: 編集開始時点の updated_at を送り、他者更新があれば競合として弾く
+      expected_updated_at: company.updated_at ?? undefined,
     };
 
     const result = await updateCompany(company.id, payload);

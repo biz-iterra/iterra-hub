@@ -2,16 +2,43 @@ import { getCompany } from "@/actions/companies";
 import Link from "next/link";
 import {
   ArrowLeft,
-  ArrowUpRight,
+  Briefcase,
   Building2,
-  MapPin,
-  Globe,
-  Phone as PhoneIcon,
   FileText,
+  Layers,
+  Mail,
   Pencil,
+  StickyNote,
+  Users,
 } from "lucide-react";
+import { DetailSection } from "@/components/ui/DetailSection";
+import { InfoField } from "@/components/ui/InfoField";
+import { EntityLink } from "@/components/ui/EntityLink";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const backLinkStyle = {
+  display: "inline-flex" as const,
+  alignItems: "center" as const,
+  gap: "0.25rem",
+  color: "var(--color-sumi600)",
+  fontSize: "0.875rem",
+  textDecoration: "none",
+};
+
+const editButtonStyle = {
+  marginLeft: "auto",
+  display: "inline-flex" as const,
+  alignItems: "center" as const,
+  gap: "0.375rem",
+  backgroundColor: "var(--color-terra)",
+  color: "#fff",
+  borderRadius: "var(--radius-button)",
+  padding: "0.5rem 1rem",
+  textDecoration: "none",
+  fontWeight: 500,
+  fontSize: "0.875rem",
+};
 
 export default async function CompanyDetailPage({
   params,
@@ -26,18 +53,9 @@ export default async function CompanyDetailPage({
         <p style={{ color: "var(--color-text-body)", marginBottom: "1rem" }}>
           不正なパラメータです
         </p>
-        <Link
-          href="/companies"
-          className="hover:bg-[var(--color-bg-hover)]"
-          style={{
-            color: "var(--color-terra)",
-            textDecoration: "none",
-            padding: "0.125rem 0.375rem",
-            margin: "-0.125rem -0.375rem",
-            borderRadius: "var(--radius-sm)",
-          }}
-        >
-          カンパニー一覧へ戻る
+        <Link href="/companies" style={backLinkStyle}>
+          <ArrowLeft size={16} />
+          カンパニー一覧
         </Link>
       </div>
     );
@@ -51,18 +69,9 @@ export default async function CompanyDetailPage({
         <p style={{ color: "var(--color-text-body)", marginBottom: "1rem" }}>
           カンパニーが見つかりません
         </p>
-        <Link
-          href="/companies"
-          className="hover:bg-[var(--color-bg-hover)]"
-          style={{
-            color: "var(--color-terra)",
-            textDecoration: "none",
-            padding: "0.125rem 0.375rem",
-            margin: "-0.125rem -0.375rem",
-            borderRadius: "var(--radius-sm)",
-          }}
-        >
-          カンパニー一覧へ戻る
+        <Link href="/companies" style={backLinkStyle}>
+          <ArrowLeft size={16} />
+          カンパニー一覧
         </Link>
       </div>
     );
@@ -84,21 +93,10 @@ export default async function CompanyDetailPage({
     : null;
 
   return (
-    <div style={{ padding: "1.5rem", maxWidth: "1200px", margin: "0 auto" }}>
-      {/* ヘッダー */}
+    <div style={{ padding: "1.5rem", maxWidth: "1280px", margin: "0 auto" }}>
+      {/* ---- Header ---- */}
       <div style={{ marginBottom: "1.5rem" }}>
-        <Link
-          href="/companies"
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "0.25rem",
-            color: "var(--color-sumi600)",
-            fontSize: "0.875rem",
-            textDecoration: "none",
-            marginBottom: "0.75rem",
-          }}
-        >
+        <Link href="/companies" style={{ ...backLinkStyle, marginBottom: "0.75rem" }}>
           <ArrowLeft size={16} />
           カンパニー一覧
         </Link>
@@ -108,6 +106,7 @@ export default async function CompanyDetailPage({
             alignItems: "center",
             gap: "0.75rem",
             flexWrap: "wrap",
+            marginTop: "0.5rem",
           }}
         >
           {company.company_code && (
@@ -131,85 +130,25 @@ export default async function CompanyDetailPage({
           >
             {company.name}
           </h1>
-          {company.company_status?.name && (
-            <span
-              style={{
-                backgroundColor: "var(--color-sage)",
-                color: "#fff",
-                borderRadius: "var(--radius-badge)",
-                padding: "0.125rem 0.5rem",
-                fontSize: "0.75rem",
-                fontWeight: 600,
-              }}
-            >
-              {company.company_status.name}
-            </span>
-          )}
-          <Link
-            href={`/companies/${company.id}/edit`}
-            style={{
-              marginLeft: "auto",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "0.375rem",
-              backgroundColor: "var(--color-terra)",
-              color: "#fff",
-              borderRadius: "var(--radius-button)",
-              padding: "0.5rem 1rem",
-              textDecoration: "none",
-              fontWeight: 500,
-              fontSize: "0.875rem",
-            }}
-          >
+          <Link href={`/companies/${company.id}/edit`} style={editButtonStyle}>
             <Pencil size={14} />
             編集
           </Link>
         </div>
       </div>
 
-      {/* 2カラムレイアウト */}
+      {/* ---- 8:2 Grid ---- */}
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "2fr 1fr",
+          gridTemplateColumns: "8fr 2fr",
           gap: "1.5rem",
           alignItems: "start",
         }}
       >
-        {/* 左カラム */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-          {/* 基本情報カード */}
-          <div
-            style={{
-              backgroundColor: "#fff",
-              borderRadius: "var(--radius-card)",
-              boxShadow: "var(--elevation-low)",
-              padding: "1.5rem",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "0.5rem",
-                marginBottom: "1rem",
-              }}
-            >
-              <Building2
-                size={18}
-                style={{ color: "var(--color-text-title)" }}
-              />
-              <h2
-                style={{
-                  color: "var(--color-text-title)",
-                  fontSize: "1rem",
-                  fontWeight: 600,
-                  margin: 0,
-                }}
-              >
-                基本情報
-              </h2>
-            </div>
+        {/* ======== Left ======== */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+          <DetailSection title="基本情報" icon={Building2}>
             <div
               style={{
                 display: "grid",
@@ -217,101 +156,26 @@ export default async function CompanyDetailPage({
                 gap: "1rem",
               }}
             >
-              <InfoItem label="会社名" value={company.name} />
-              <InfoItem label="フリガナ" value={company.name_kana} />
-              <InfoItem label="代表者名" value={company.representative_name} />
-              <InfoItem
-                label="法人格"
-                value={company.corporate_types?.name}
+              <InfoField label="会社名" value={company.name} />
+              <InfoField label="フリガナ" value={company.name_kana} />
+              <InfoField label="代表者名" value={company.representative_name} />
+              <InfoField label="法人番号" value={company.corporate_number} />
+              <InfoField
+                label="担当者"
+                value={
+                  company.primary_contact ? (
+                    <EntityLink href={`/contacts/${company.primary_contact.id}`}>
+                      {company.primary_contact.last_name}{" "}
+                      {company.primary_contact.first_name}
+                    </EntityLink>
+                  ) : null
+                }
               />
-              <InfoItem label="法人番号" value={company.corporate_number} />
-              <InfoItem
-                label="ステータス"
-                value={company.company_status?.name}
-              />
-              <InfoItem label="業種分類" value={industryLabel} />
-              <InfoItem
-                label="リードソース"
-                value={company.lead_sources?.name}
-              />
-              <div>
-                <span
-                  style={{
-                    color: "var(--color-sumi600)",
-                    fontSize: "0.75rem",
-                    fontWeight: 600,
-                    display: "block",
-                    marginBottom: "0.25rem",
-                  }}
-                >
-                  担当者
-                </span>
-                {company.primary_contact ? (
-                  <Link
-                    href={`/contacts/${company.primary_contact.id}`}
-                    className="hover:bg-[var(--color-bg-hover)]"
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "0.25rem",
-                      color: "var(--color-terra)",
-                      textDecoration: "none",
-                      padding: "0.125rem 0.375rem",
-                      margin: "-0.125rem -0.375rem",
-                      borderRadius: "var(--radius-sm)",
-                      transition: "background-color 0.15s",
-                      fontSize: "0.875rem",
-                    }}
-                  >
-                    {company.primary_contact.last_name}{" "}
-                    {company.primary_contact.first_name}
-                    <ArrowUpRight size={14} />
-                  </Link>
-                ) : (
-                  <span style={{ color: "var(--color-sumi400)", fontSize: "0.875rem" }}>
-                    -
-                  </span>
-                )}
-              </div>
-              <InfoItem
-                label="社内担当者"
-                value={company.crm_users?.full_name}
-              />
+              <InfoField label="社内担当者" value={company.crm_users?.full_name} />
             </div>
-          </div>
+          </DetailSection>
 
-          {/* 住所カード */}
-          <div
-            style={{
-              backgroundColor: "#fff",
-              borderRadius: "var(--radius-card)",
-              boxShadow: "var(--elevation-low)",
-              padding: "1.5rem",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "0.5rem",
-                marginBottom: "1rem",
-              }}
-            >
-              <MapPin
-                size={18}
-                style={{ color: "var(--color-text-title)" }}
-              />
-              <h2
-                style={{
-                  color: "var(--color-text-title)",
-                  fontSize: "1rem",
-                  fontWeight: 600,
-                  margin: 0,
-                }}
-              >
-                住所
-              </h2>
-            </div>
+          <DetailSection title="属性情報" icon={Layers}>
             <div
               style={{
                 display: "grid",
@@ -319,46 +183,14 @@ export default async function CompanyDetailPage({
                 gap: "1rem",
               }}
             >
-              <InfoItem label="郵便番号" value={company.postal_code} />
-              <InfoItem label="都道府県" value={company.prefecture} />
-              <InfoItem label="市区町村" value={company.city} />
-              <InfoItem label="番地" value={company.address_line1} />
-              <InfoItem label="建物名" value={company.address_line2} />
+              <InfoField label="法人格" value={company.corporate_types?.name} />
+              <InfoField label="業種" value={industryLabel} />
+              <InfoField label="ステータス" value={company.company_status?.name} />
+              <InfoField label="リードソース" value={company.lead_sources?.name} />
             </div>
-          </div>
+          </DetailSection>
 
-          {/* 連絡先カード */}
-          <div
-            style={{
-              backgroundColor: "#fff",
-              borderRadius: "var(--radius-card)",
-              boxShadow: "var(--elevation-low)",
-              padding: "1.5rem",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "0.5rem",
-                marginBottom: "1rem",
-              }}
-            >
-              <PhoneIcon
-                size={18}
-                style={{ color: "var(--color-text-title)" }}
-              />
-              <h2
-                style={{
-                  color: "var(--color-text-title)",
-                  fontSize: "1rem",
-                  fontWeight: 600,
-                  margin: 0,
-                }}
-              >
-                連絡先
-              </h2>
-            </div>
+          <DetailSection title="連絡先" icon={Mail}>
             <div
               style={{
                 display: "grid",
@@ -366,79 +198,37 @@ export default async function CompanyDetailPage({
                 gap: "1rem",
               }}
             >
-              <InfoItem label="代表電話" value={company.phone} />
-              <InfoItem label="FAX" value={company.fax} />
-              <div style={{ gridColumn: "1 / -1" }}>
-                <span
-                  style={{
-                    color: "var(--color-sumi600)",
-                    fontSize: "0.75rem",
-                    fontWeight: 600,
-                    display: "block",
-                    marginBottom: "0.25rem",
-                  }}
-                >
-                  ホームページURL
-                </span>
-                {company.website_url ? (
-                  <a
-                    href={company.website_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      color: "var(--color-terra)",
-                      fontSize: "0.875rem",
-                      textDecoration: "underline",
-                    }}
-                  >
-                    {company.website_url}
-                  </a>
-                ) : (
-                  <span
-                    style={{
-                      color: "var(--color-sumi400)",
-                      fontSize: "0.875rem",
-                    }}
-                  >
-                    -
-                  </span>
-                )}
-              </div>
+              <InfoField label="郵便番号" value={company.postal_code} />
+              <InfoField label="都道府県" value={company.prefecture} />
+              <InfoField label="市区町村" value={company.city} />
+              <InfoField label="番地" value={company.address_line1} />
+              <InfoField label="建物名" value={company.address_line2} />
+              <InfoField label="代表電話" value={company.phone} />
+              <InfoField label="FAX" value={company.fax} />
+              <InfoField
+                label="ホームページURL"
+                full
+                value={
+                  company.website_url ? (
+                    <a
+                      href={company.website_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        color: "var(--color-terra)",
+                        textDecoration: "underline",
+                        wordBreak: "break-all",
+                      }}
+                    >
+                      {company.website_url}
+                    </a>
+                  ) : null
+                }
+              />
             </div>
-          </div>
+          </DetailSection>
 
-          {/* インボイスカード */}
-          <div
-            style={{
-              backgroundColor: "#fff",
-              borderRadius: "var(--radius-card)",
-              boxShadow: "var(--elevation-low)",
-              padding: "1.5rem",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "0.5rem",
-                marginBottom: "1rem",
-              }}
-            >
-              <FileText
-                size={18}
-                style={{ color: "var(--color-text-title)" }}
-              />
-              <h2
-                style={{
-                  color: "var(--color-text-title)",
-                  fontSize: "1rem",
-                  fontWeight: 600,
-                  margin: 0,
-                }}
-              >
-                インボイス
-              </h2>
-            </div>
+          <DetailSection title="インボイス" icon={FileText}>
             <div
               style={{
                 display: "grid",
@@ -446,147 +236,56 @@ export default async function CompanyDetailPage({
                 gap: "1rem",
               }}
             >
-              <InfoItem
-                label="インボイス登録"
+              <InfoField
+                label="登録有無"
                 value={company.invoice_registration_number ? "登録済み" : "未登録"}
               />
-              <InfoItem
+              <InfoField
                 label="登録番号"
                 value={company.invoice_registration_number}
               />
             </div>
-          </div>
+          </DetailSection>
 
-          {/* メモカード */}
           {company.internal_memo && (
-            <div
-              style={{
-                backgroundColor: "#fff",
-                borderRadius: "var(--radius-card)",
-                boxShadow: "var(--elevation-low)",
-                padding: "1.5rem",
-              }}
-            >
-              <h2
-                style={{
-                  color: "var(--color-text-title)",
-                  fontSize: "1rem",
-                  fontWeight: 600,
-                  margin: "0 0 0.75rem 0",
-                }}
-              >
-                メモ
-              </h2>
-              <p
-                style={{
-                  color: "var(--color-text-body)",
-                  fontSize: "0.875rem",
-                  whiteSpace: "pre-wrap",
-                  margin: 0,
-                }}
-              >
-                {company.internal_memo}
-              </p>
-            </div>
+            <DetailSection title="メモ" icon={StickyNote}>
+              <InfoField label="社内メモ" value={company.internal_memo} />
+            </DetailSection>
           )}
         </div>
 
-        {/* 右カラム */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-          {/* アカウント一覧カード */}
-          <div
-            style={{
-              backgroundColor: "#fff",
-              borderRadius: "var(--radius-card)",
-              boxShadow: "var(--elevation-low)",
-              padding: "1.5rem",
-            }}
-          >
-            <h2
-              style={{
-                color: "var(--color-text-title)",
-                fontSize: "1rem",
-                fontWeight: 600,
-                margin: "0 0 1rem 0",
-              }}
-            >
-              アカウント一覧
-            </h2>
+        {/* ======== Right ======== */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+          <DetailSection title="アカウント一覧" icon={Briefcase}>
             {activeAccounts.length > 0 ? (
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead>
-                  <tr>
-                    <th
+              <div
+                style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}
+              >
+                {activeAccounts.map((account: any) => (
+                  <div
+                    key={account.id}
+                    style={{
+                      borderBottom: "1px solid var(--color-border-default)",
+                      paddingBottom: "0.5rem",
+                    }}
+                  >
+                    <span
                       style={{
-                        backgroundColor: "var(--color-sumi50)",
-                        fontSize: "0.75rem",
-                        fontWeight: 600,
-                        color: "var(--color-sumi700)",
-                        padding: "0.5rem",
-                        textAlign: "left",
+                        display: "block",
+                        color: "var(--color-sumi500)",
+                        fontSize: "0.6875rem",
+                        fontFamily: "monospace",
+                        letterSpacing: "0.02em",
                       }}
                     >
-                      コード
-                    </th>
-                    <th
-                      style={{
-                        backgroundColor: "var(--color-sumi50)",
-                        fontSize: "0.75rem",
-                        fontWeight: 600,
-                        color: "var(--color-sumi700)",
-                        padding: "0.5rem",
-                        textAlign: "left",
-                      }}
-                    >
-                      アカウント名
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {activeAccounts.map((account: any) => (
-                    <tr key={account.id}>
-                      <td
-                        style={{
-                          borderBottom:
-                            "1px solid var(--color-border-default)",
-                          padding: "0.5rem",
-                        }}
-                      >
-                        <Link
-                          href={`/accounts/${account.id}`}
-                          className="hover:bg-[var(--color-bg-hover)]"
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: "0.25rem",
-                            color: "var(--color-terra)",
-                            textDecoration: "none",
-                            padding: "0.125rem 0.375rem",
-                            margin: "-0.125rem -0.375rem",
-                            borderRadius: "var(--radius-sm)",
-                            transition: "background-color 0.15s",
-                            fontSize: "0.875rem",
-                          }}
-                        >
-                          {account.account_code}
-                          <ArrowUpRight size={14} />
-                        </Link>
-                      </td>
-                      <td
-                        style={{
-                          borderBottom:
-                            "1px solid var(--color-border-default)",
-                          padding: "0.5rem",
-                          color: "var(--color-text-body)",
-                          fontSize: "0.875rem",
-                        }}
-                      >
-                        {account.name}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      {account.account_code}
+                    </span>
+                    <EntityLink href={`/accounts/${account.id}`} compact>
+                      {account.name}
+                    </EntityLink>
+                  </div>
+                ))}
+              </div>
             ) : (
               <p
                 style={{
@@ -595,151 +294,44 @@ export default async function CompanyDetailPage({
                   margin: 0,
                 }}
               >
-                アカウントなし
+                —
               </p>
             )}
-          </div>
+          </DetailSection>
 
-          {/* コンタクト一覧カード */}
-          <div
-            style={{
-              backgroundColor: "#fff",
-              borderRadius: "var(--radius-card)",
-              boxShadow: "var(--elevation-low)",
-              padding: "1.5rem",
-            }}
-          >
-            <h2
-              style={{
-                color: "var(--color-text-title)",
-                fontSize: "1rem",
-                fontWeight: 600,
-                margin: "0 0 1rem 0",
-              }}
-            >
-              コンタクト一覧
-            </h2>
+          <DetailSection title="コンタクト一覧" icon={Users}>
             {activeContacts.length > 0 ? (
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead>
-                  <tr>
-                    <th
-                      style={{
-                        backgroundColor: "var(--color-sumi50)",
-                        fontSize: "0.75rem",
-                        fontWeight: 600,
-                        color: "var(--color-sumi700)",
-                        padding: "0.5rem",
-                        textAlign: "left",
-                      }}
-                    >
-                      コード
-                    </th>
-                    <th
-                      style={{
-                        backgroundColor: "var(--color-sumi50)",
-                        fontSize: "0.75rem",
-                        fontWeight: 600,
-                        color: "var(--color-sumi700)",
-                        padding: "0.5rem",
-                        textAlign: "left",
-                      }}
-                    >
-                      氏名
-                    </th>
-                    <th
-                      style={{
-                        backgroundColor: "var(--color-sumi50)",
-                        fontSize: "0.75rem",
-                        fontWeight: 600,
-                        color: "var(--color-sumi700)",
-                        padding: "0.5rem",
-                        textAlign: "left",
-                      }}
-                    >
-                      部署
-                    </th>
-                    <th
-                      style={{
-                        backgroundColor: "var(--color-sumi50)",
-                        fontSize: "0.75rem",
-                        fontWeight: 600,
-                        color: "var(--color-sumi700)",
-                        padding: "0.5rem",
-                        textAlign: "left",
-                      }}
-                    >
-                      役職
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {activeContacts.map((contact: any) => (
-                    <tr key={contact.id}>
-                      <td
+              <div
+                style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}
+              >
+                {activeContacts.map((contact: any) => (
+                  <div
+                    key={contact.id}
+                    style={{
+                      borderBottom: "1px solid var(--color-border-default)",
+                      paddingBottom: "0.5rem",
+                    }}
+                  >
+                    <EntityLink href={`/contacts/${contact.id}`} compact>
+                      {contact.last_name} {contact.first_name}
+                    </EntityLink>
+                    {(contact.department || contact.job_title) && (
+                      <span
                         style={{
-                          borderBottom:
-                            "1px solid var(--color-border-default)",
-                          padding: "0.5rem",
+                          display: "block",
+                          color: "var(--color-sumi600)",
+                          fontSize: "0.75rem",
+                          marginTop: "0.125rem",
                         }}
                       >
-                        <Link
-                          href={`/contacts/${contact.id}`}
-                          className="hover:bg-[var(--color-bg-hover)]"
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: "0.25rem",
-                            color: "var(--color-terra)",
-                            textDecoration: "none",
-                            padding: "0.125rem 0.375rem",
-                            margin: "-0.125rem -0.375rem",
-                            borderRadius: "var(--radius-sm)",
-                            transition: "background-color 0.15s",
-                            fontSize: "0.875rem",
-                          }}
-                        >
-                          {contact.contact_code}
-                          <ArrowUpRight size={14} />
-                        </Link>
-                      </td>
-                      <td
-                        style={{
-                          borderBottom:
-                            "1px solid var(--color-border-default)",
-                          padding: "0.5rem",
-                          color: "var(--color-text-body)",
-                          fontSize: "0.875rem",
-                        }}
-                      >
-                        {contact.last_name} {contact.first_name}
-                      </td>
-                      <td
-                        style={{
-                          borderBottom:
-                            "1px solid var(--color-border-default)",
-                          padding: "0.5rem",
-                          color: "var(--color-text-body)",
-                          fontSize: "0.875rem",
-                        }}
-                      >
-                        {contact.department ?? "-"}
-                      </td>
-                      <td
-                        style={{
-                          borderBottom:
-                            "1px solid var(--color-border-default)",
-                          padding: "0.5rem",
-                          color: "var(--color-text-body)",
-                          fontSize: "0.875rem",
-                        }}
-                      >
-                        {contact.job_title ?? "-"}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                        {[contact.department, contact.job_title]
+                          .filter(Boolean)
+                          .join(" / ")}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
             ) : (
               <p
                 style={{
@@ -748,44 +340,12 @@ export default async function CompanyDetailPage({
                   margin: 0,
                 }}
               >
-                コンタクトなし
+                —
               </p>
             )}
-          </div>
+          </DetailSection>
         </div>
       </div>
-    </div>
-  );
-}
-
-function InfoItem({
-  label,
-  value,
-}: {
-  label: string;
-  value: string | null | undefined;
-}) {
-  return (
-    <div>
-      <span
-        style={{
-          color: "var(--color-sumi600)",
-          fontSize: "0.75rem",
-          fontWeight: 600,
-          display: "block",
-          marginBottom: "0.25rem",
-        }}
-      >
-        {label}
-      </span>
-      <span
-        style={{
-          color: value ? "var(--color-text-body)" : "var(--color-sumi400)",
-          fontSize: "0.875rem",
-        }}
-      >
-        {value ?? "-"}
-      </span>
     </div>
   );
 }

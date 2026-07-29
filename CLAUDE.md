@@ -13,22 +13,41 @@ ITERRA CRM（顧客関係管理）システム。
 ## 技術スタック
 
 - 言語: TypeScript
-- フレームワーク: Next.js 15 (App Router) + Tailwind CSS v4 + shadcn/ui v4 (base-ui)
+- フレームワーク: Next.js 16.2 (App Router / Turbopack) + React 19 + Tailwind CSS v4 + shadcn/ui v4 (base-ui)
+  - `next.config.ts` で `experimental.turbopackFileSystemCacheForDev` を有効化（dev のファイルシステムキャッシュ）
 - データベース: PostgreSQL (Supabase)
 - BaaS: Supabase (Auth + RLS + Storage)
 - バリデーション: Zod
-- インフラ: Vercel (Free Tier) + Supabase (Free Tier)
+- テスト: Vitest（判定ロジックのユニットテスト）
+- インフラ: 自社 NAS 上の Docker + Cloudflare Tunnel（`hub.iterra.online`）+ Supabase (Free / Tokyo)
+  - **Vercel は使用しない。** Hobby プランは商用利用が規約で認められておらず基幹システムに適さない
+  - Cloudflare Access で社内メンバー限定の認証層を前置
+  - イメージは CI でビルドし GHCR 経由で NAS へ配布
+  - 構成と手順は `docs/deployment-nas.md`
 
 ## ディレクトリ構造
 
 ```
-├── docs/                  # 設計書・仕様書
+├── docs/                  # 設計書・手順書
 │   ├── database-design.md # DB設計書
-│   └── test-checklist.md  # テストチェックリスト
+│   ├── deployment-nas.md  # 本番Supabase構築 + NASデプロイ手順
+│   ├── operation-manual.md # 操作マニュアル（§13 バックアップと復旧）
+│   ├── test-checklist.md  # テストチェックリスト
+│   └── archive/           # 役目を終えたドキュメント（現行仕様の参照には使わない）
 ├── supabase/
-│   ├── config.toml        # ローカルSupabase設定（ポート: 5433x系）
-│   ├── migrations/        # DBマイグレーション（13ファイル）
-│   └── seed.sql           # シードデータ（テストユーザー+マスタ+サンプルデータ）
+│   ├── config.toml        # ローカルSupabase設定（ポート: 5433x系 / db.seed.sql_paths）
+│   ├── migrations/        # DBマイグレーション
+│   ├── seeds/             # 用途別に分割したseed（本番投入の可否で分ける）
+│   │   ├── 01-masters.sql        # 業務マスタ（本番投入する）
+│   │   ├── 02-dev-users.sql      # テストユーザー（開発専用）
+│   │   ├── 03-dev-samples.sql    # サンプル取引データ（開発専用）
+│   │   ├── 04-leads.sql          # リード実業務データ 3,008件（本番投入する）
+│   │   ├── prod-retired-users.sql        # 退職済み担当者（本番のみ・手動実行）
+│   │   └── prod-disable-system-account.sql # システム用アカウントの封じ込め（本番のみ）
+│   └── seed-talent-classification.sql # スキル体系（T/D/B/M）+ タレント分類マスタ
+├── scripts/               # 補助スクリプト（seed生成・UUID置換等）
+├── Dockerfile             # NAS実行用イメージ（standalone出力）
+├── docker-compose.yml     # app + cloudflared
 ├── src/
 │   ├── app/(auth)/        # 認証不要ページ (login)
 │   ├── app/(app)/         # 認証必須ページ
@@ -38,16 +57,21 @@ ITERRA CRM（顧客関係管理）システム。
 │   │   ├── companies/     # カンパニー（一覧・検索）
 │   │   ├── accounts/      # アカウント（一覧・検索）
 │   │   ├── contracts/     # 契約（一覧・検索）
-│   │   ├── talents/       # タレント（一覧・検索）
-│   │   └── admin/         # マスタ管理（9タブ・CRUD）
-│   ├── app/api/           # Route Handlers
+│   │   ├── talents/       # タレント（一覧・検索・系統/グレード/職種の自動判定）
+│   │   ├── leads/         # リード（MA・スコアリング・Deal昇格）
+│   │   ├── campaigns/     # キャンペーン
+│   │   ├── projects/      # プロジェクト
+│   │   ├── manual/        # 操作マニュアル（静的ページ）
+│   │   └── admin/         # マスタ管理（7グループ・21タブ・CRUD）
+│   ├── app/api/health/    # ヘルスチェック（Docker healthcheck / 外形監視用）
 │   ├── actions/           # Server Actions（masters, companies, accounts, contacts, deals, contracts, talents, activities）
 │   ├── components/ui/     # shadcn/ui コンポーネント
 │   ├── components/layout/ # レイアウト (sidebar, header)
 │   ├── hooks/             # カスタムフック
 │   ├── lib/supabase/      # Supabaseクライアント (client, server, middleware, admin)
+│   ├── lib/talent-classification/ # 系統・グレード・職種の判定ロジック（純粋関数）
 │   ├── lib/validators/    # Zodスキーマ（common, masters, companies, accounts, contacts, deals, contracts, talents, activities）
-│   └── types/             # 型定義（database.ts, enums.ts）
+│   └── types/             # 型定義（database.generated.ts が正本。database.ts はそこから導出）
 ├── src/middleware.ts       # 認証 + ロール別ルーティング
 └── .env.local.example     # 環境変数テンプレート
 ```
@@ -59,6 +83,36 @@ ITERRA CRM（顧客関係管理）システム。
 - Server Actionsで書き込み処理、Server Componentsでデータ取得
 - コミット: Conventional Commits形式
 - DB設計は `docs/database-design.md` に基づく。変更時は設計書を先に更新する
+
+### データ整合性の規約（必須遵守）
+
+- **複数テーブルへの書き込みは DB 関数にまとめる。**
+  supabase-js は複数文を単一トランザクションにできないため、アプリ側で順に INSERT すると
+  途中失敗や実行中断で中途半端なデータが残る。PL/pgSQL 関数にして `.rpc()` で呼ぶ。
+  値の整形は TS 側、書き込みは DB 側という分担にする（例: `promote_lead_to_deal`）
+- **更新系 Server Action は楽観ロックを通す。**
+  `expected_updated_at`（編集開始時点の `updated_at`）を受け取り WHERE 条件に含める。
+  0 行更新なら `conflictErrorMessage()` を返す。後勝ちでの上書きを防ぐため
+- **変更履歴はアプリから INSERT しない。**
+  `entity_change_logs` のトリガーが全経路を自動記録する（service_role 経由や SQL 直接操作も対象）。
+  スコア等の自動計算による派生値は記録対象から除外している（マイグレーション 20260728000003）
+- **DB 型定義は生成物を使う。**
+  `npm run db:types` で `src/types/database.generated.ts` を更新する。手書きしない。
+  存在しないカラム参照をビルドで検出するための措置
+- **マイグレーションのタイムスタンプは既存の最新より後にする。**
+  過去日付で作ると `supabase db push` が out-of-order でスキップし、
+  適用に `--include-all` が必要になる（実際に発生済み。`docs/deployment-nas.md § 0.2`）
+
+### 品質チェック
+
+コミット前に以下がすべて通ること。CI（`.github/workflows/ci.yml`）では typecheck / test / build を必須にしている。
+
+```bash
+npm run typecheck && npm test && npm run build
+```
+
+`npm run lint` は既存負債（`no-explicit-any` 等 216 件）が残っているため CI では失敗させていない。
+新規コードでは増やさないこと。
 
 ## アクセス制御ルール（必須遵守）
 

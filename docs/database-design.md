@@ -2,7 +2,10 @@
 
 ## 1. Context
 
-ITERRAの営業・取引管理CRMシステムを新規構築する。現在スプレッドシートで管理しているデータをSupabase（PostgreSQL）に移行し、Next.js 15のWebアプリケーションとして提供する。
+ITERRAの営業・取引管理CRMシステムを新規構築する。現在スプレッドシートで管理しているデータをSupabase（PostgreSQL）に移行し、Next.js（App Router）のWebアプリケーションとして提供する。
+
+> 本書では過去の実装フェーズの記録も保持している。「Phase N」以下の記述は当時の作業内容であり、
+> 現行の技術スタックは `README.md` を参照すること。
 
 **確定事項:**
 - シングルテナント（ITERRA社内のみ）
@@ -2422,3 +2425,93 @@ CREATE POLICY lead_activities_update ON lead_activities
 | `src/app/(app)/leads/[id]/lead-detail-client.tsx` | `LeadActivityEditModal` 追加、アコーディオンに編集ボタン追加（caller_user_id 本人 OR manager/admin で表示） |
 | `CLAUDE.md` | 「履歴テーブル: INSERT ONLY」記述に lead_activities 例外を明記 |
 
+
+---
+
+## § 18. タレント分類マスタ（系統 / グレード / 職種）（2026-04-21 導入）
+
+### 18.1 目的
+
+タレントの保有スキル（`talent_skills` × `skills`）と実績（`talent_achievements`）から、
+**系統（System）・グレード（Grade）・適合職種（Job Type）** を自動判定する。
+判定結果はテーブルに永続化せず、参照時に純粋関数で算出する（マスタ変更が即時反映される）。
+
+### 18.2 テーブル
+
+| テーブル | 用途 | 主なキー |
+|---|---|---|
+| `talent_system_tags` | 系統マスタ（G / SP / CO の 3 件） | `system_code` UNIQUE |
+| `talent_grades` | グレードマスタ（A1〜L4 の 16 段階） | `grade_code` UNIQUE、`sort_order`（1=最低 16=最高） |
+| `talent_grade_requirements` | 系統 × グレードの昇格要件（36 件 = 3 系統 × A2〜L1） | UNIQUE (`system_code`, `grade_code`) |
+| `talent_job_types` | 職種マスタ（19 件） | `job_type_code` UNIQUE |
+| `talent_achievements_master` | 実績マスタ（9 件） | `achievement_code` UNIQUE |
+| `talent_achievements` | タレント × 実績（junction） | UNIQUE (`talent_id`, `achievement_code`) |
+
+`skills` テーブルの拡張カラム:
+
+| カラム | 型 | 内容 |
+|---|---|---|
+| `skill_code` | VARCHAR(8) UNIQUE | `T01` / `D14` 等。判定ロジックが参照する識別子 |
+| `axis` | VARCHAR(1) | `T`（Technical）/ `D`（Domain）/ `B`（Business）/ `M`（Management） |
+| `system_tags` | TEXT[] | そのスキルが属する系統（`{G,SP}` 等）。系統判定の `tag_filter` が参照 |
+| `note` | TEXT | 補足 |
+
+`talent_skills.proficiency_level` の CHECK 制約は 0〜5 に拡張済み。
+
+### 18.3 判定ロジック（`src/lib/talent-classification/`）
+
+すべて副作用のない純粋関数。Server Action `getTalentProfile` がマスタを読み込んで呼び出す。
+
+| ファイル | 役割 |
+|---|---|
+| `system-classifier.ts` | `determination_rule.conditions` を全件 AND 評価して該当 `system_code` を返す |
+| `grade-calculator.ts` | 系統ごとに `skill_thresholds`（AND）+ `required_achievements`（AND）を評価し、`sort_order` 降順で最初に充足したグレードを返す |
+| `job-type-classifier.ts` | `rules` を AND 評価。ルール内の `skill_ids_any` は OR、`axis_filter` は「その軸で `min_star` 以上が `min_count` 件以上」 |
+| `d-co-pool.ts` | `skill_ids_any_pool: "d_co_system_skill_ids"` の実体（D 軸 × CO 系統のスキルコード一覧） |
+| `index.ts` | 上記を統合し `TalentProfileResult`（systems / grades / primary_system / highest_grade / job_types）を返す |
+
+判定上の取り決め:
+
+- **L2〜L4 は自動判定の対象外**（人事評価による）。グレードマスタの `sort_order` を基準に、L1 の `sort_order` 以下のみ評価する
+- どの要件も満たさない場合は**グレードマスタの最下位**（`sort_order` 最小 = A1）を返す。マスタが空の場合は `null`
+- 1 ルール内に `skill_ids_any` と `axis_filter` が併記された場合は**両方を満たすこと**（AND）
+- `skill_ids_any_pool` に未知のプール名が指定された場合は空配列扱い（= 要件未達）とし、`console.warn` を出す
+
+### 18.4 RLS
+
+- マスタ 5 テーブル: SELECT は認証済み全員、INSERT / UPDATE / DELETE は `is_admin()` のみ
+- `talent_achievements`: SELECT / INSERT は `is_manager_or_above()` または「対象 talent の contact が自分の担当」、UPDATE / DELETE は `is_admin()` または同オーナー条件
+- **Server Action 側では実績の追加・更新・削除を manager 以上に限定**している（`src/actions/talent-classification.ts`）。
+  RLS より厳しい制限を UI（`canEdit`）と一致させるための多層防御であり、RLS 単独に依存しない
+
+### 18.5 マイグレーションと seed
+
+| ファイル | 内容 |
+|---|---|
+| `supabase/migrations/20260421000001_add_definition_to_masters.sql` | 全マスタへ `definition` 追加（`description` を持つ 3 テーブルはリネーム） |
+| `supabase/migrations/20260421000002_talent_classification_masters.sql` | `skills` 拡張 + 分類マスタ 6 テーブル + RLS |
+| `supabase/seed-talent-classification.sql` | スキル体系（4 カテゴリ / 99 スキル）+ 分類マスタ。**スキル体系の正本** |
+
+**適用順序の注意:**
+
+- 上記 2 本のマイグレーションはタイムスタンプが `20260421` であり、既に適用済みの `20260422*` / `20260426000001` より**過去**に位置する。
+  ローカル DB には適用済みのためファイル名は変更していない。リモートへ反映する際は
+  `supabase db push --include-all` が必要になる（out-of-order のためデフォルトではスキップされる）
+- `20260421000001` は `lead_callers`（`20260422000013` で DROP 済み）を対象に含めない。
+  含めると廃止後の環境で適用に失敗する
+- seed は本番投入の可否で `supabase/seeds/` 配下に分割している（`01-masters` / `02-dev-users` /
+  `03-dev-samples` / `04-leads`）。`seed-talent-classification.sql` はスキル体系の正本で、
+  `03-dev-samples.sql` の `talent_skills` サンプルが `skill_code`（B13 / B09 / T20）を参照するため
+  **サンプルより先**に読み込む。読み込み順は `config.toml` の `sql_paths` で管理する
+- 同 seed は全 INSERT が `ON CONFLICT DO NOTHING` で、既存データを削除しない
+  （旧実装は `DELETE FROM talent_skills / skills` を行っており、本番実行でタレントの保有スキルが全消失する構造だった）
+
+### 18.6 影響ファイル
+
+| ファイル | 内容 |
+|---|---|
+| `src/lib/validators/talent-classification.ts` | マスタ・実績の Zod スキーマと型 |
+| `src/actions/talent-classification.ts` | マスタ取得 / 実績 CRUD / `getTalentProfile` |
+| `src/lib/talent-classification/*` | 判定ロジック（純粋関数） |
+| `src/app/(app)/talents/[id]/page.tsx` | プロファイル・実績・ロールを取得してクライアントへ渡す |
+| `src/app/(app)/talents/[id]/talent-detail-client.tsx` | 基本性質 / スキル / 職種 / 経歴の 4 タブ |

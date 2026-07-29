@@ -2,39 +2,11 @@ import { getContract } from "@/actions/contracts";
 import { getCurrentUser } from "@/actions/users";
 import Link from "next/link";
 import { ArrowLeft, ArrowUpRight, FileText, Calendar, Building2, User, Pencil } from "lucide-react";
-
-const CONTRACT_METHOD_LABELS: Record<string, string> = {
-  paper: "紙面",
-  electronic: "電子",
-  verbal: "口頭",
-};
+import { ContractMethodBadge } from "@/components/ui/badges";
 
 function formatDate(value: string | null | undefined): string {
   if (!value) return "—";
   return new Date(value).toLocaleDateString("ja-JP");
-}
-
-function ContractMethodBadge({ method }: { method: string | null }) {
-  if (!method) return <span>—</span>;
-
-  const label = CONTRACT_METHOD_LABELS[method] ?? method;
-
-  const style: React.CSSProperties = {
-    display: "inline-block",
-    borderRadius: "var(--radius-badge)",
-    padding: "0.125rem 0.5rem",
-    fontSize: "0.75rem",
-    backgroundColor: "var(--color-sumi100)",
-  };
-
-  if (method === "electronic") {
-    style.backgroundColor = "var(--color-sage)";
-    style.color = "#fff";
-  } else if (method === "verbal") {
-    style.backgroundColor = "var(--color-amber)";
-  }
-
-  return <span style={style}>{label}</span>;
 }
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { uuidString, optionalUuidSchema, emailSchema, phoneSchema, corporateNumberSchema } from "./common";
+import { uuidString, optionalUuidSchema, emailSchema, phoneSchema, corporateNumberSchema, expectedUpdatedAtSchema } from "./common";
 
 // ---------- leadCreateSchema ----------
 export const leadCreateSchema = z.object({
@@ -85,6 +85,8 @@ export const leadCreateSchema = z.object({
 
 // ---------- leadUpdateSchema ----------
 export const leadUpdateSchema = z.object({
+  /** 楽観ロック: 編集開始時点の updated_at */
+  expected_updated_at: expectedUpdatedAtSchema,
   id: uuidString("[id] リードIDは必須です"),
 
   lead_name: z

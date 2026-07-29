@@ -623,7 +623,7 @@ Supabase Free プランには PITR（ポイントインタイムリカバリ）�
 | 実行時刻 | 毎日 JST 03:00（UTC 18:00）。手動実行も可 |
 | 形式 | `pg_dump --format=custom`（`pg_restore` で部分復元が可能） |
 | 保管先 | GitHub Actions のアーティファクト（保持 30 日） |
-| 必要な secret | `SUPABASE_DB_URL`（Project Settings > Database の接続文字列） |
+| 必要な secret | `SUPABASE_DB_PASSWORD`（DB パスワードのみ。接続文字列ではない） |
 
 取得後に `pg_restore --list` で主要テーブル（leads / deals / contacts / companies / accounts / entity_change_logs）が
 含まれることを検証している。空ダンプがそのまま保管されるのを防ぐため。

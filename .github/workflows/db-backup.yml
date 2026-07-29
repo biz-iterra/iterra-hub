@@ -26,18 +26,27 @@ jobs:
 
       - name: ダンプを取得
         env:
-          # Supabase ダッシュボード > Project Settings > Database の接続文字列
-          # （Direct connection 推奨。IPv4 制約がある場合は Session pooler）
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          # 接続文字列（postgresql://...）は組み立てない。
+          # パスワードに @ & # / : ? が含まれると URL のパースが崩れ、
+          # ホスト名が誤認識される（実際に発生済み）。
+          # libpq の環境変数で渡せば URL エンコードは不要。
+          #
+          # Direct connection（db.<ref>.supabase.co）は IPv6 専用で
+          # GitHub Actions からも名前解決できないため Session pooler を使う。
+          PGHOST: aws-0-ap-northeast-1.pooler.supabase.com
+          PGPORT: "5432"
+          PGUSER: postgres.aqkesxqxrsucgrnguhnb
+          PGDATABASE: postgres
+          PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
-          if [ -z "$SUPABASE_DB_URL" ]; then
-            echo "::error::secrets.SUPABASE_DB_URL が未設定です"
+          if [ -z "$PGPASSWORD" ]; then
+            echo "::error::secrets.SUPABASE_DB_PASSWORD が未設定です"
             exit 1
           fi
           STAMP=$(date -u +%Y%m%d-%H%M%S)
           echo "STAMP=$STAMP" >> "$GITHUB_ENV"
           # -Fc: カスタム形式（pg_restore で部分復元が可能）
-          pg_dump "$SUPABASE_DB_URL" \
+          pg_dump \
             --no-owner --no-privileges \
             --format=custom \
             --file="iterra-hub-$STAMP.dump"

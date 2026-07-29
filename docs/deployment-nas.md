@@ -23,7 +23,7 @@ Vercel から自社 NAS 上の Docker へ移行するための構成と手順。
 | 実機検証 | § 7.2 のチェックリストを通しで実施 |
 | 外部監視の設定 | UptimeRobot 等で `/api/health` を 5 分間隔監視（§ 8.1） |
 | NAS の自動起動確認 | 停電復帰時に NAS と Docker が自動起動するか（§ 8） |
-| DB パスワードのローテーション | 構築時に平文で扱ったため要変更。あわせて `SUPABASE_DB_URL` Secret も更新 |
+| DB パスワードのローテーション | 構築時に平文で扱ったため要変更。あわせて Secret `SUPABASE_DB_PASSWORD` も更新 |
 
 ### 実施済みの内容（記録）
 
@@ -276,7 +276,13 @@ node scripts/remap-lead-owners.mjs --out ./04-leads-prod.sql --map <旧UUID>=<�
 |---|---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase → Settings → **API** → Project URL | `https://<ref>.supabase.co`。ローカルの `.env.local` にある値と同じ |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase → Settings → **API Keys** → Publishable key<br>（旧方式なら Legacy API Keys タブの `anon public`） | ブラウザに配布される公開値。`.env.local` の値と同じ |
-| `SUPABASE_DB_URL` | プロジェクト画面上部の **Connect** → **Session pooler** | `[YOUR-PASSWORD]` を実際の DB パスワードに置換して登録する。**新規に取得が必要**。<br>Direct connection は IPv6 専用で GitHub Actions からも繋がらないため **必ず pooler 形式**（§0.4） |
+| `SUPABASE_DB_PASSWORD` | Database → Settings → Reset database password | **パスワードのみ**を登録する（接続文字列ではない） |
+
+> **接続文字列を Secret にしないこと。** パスワードに `@ & # / : ?` が含まれると
+> URL のパースが崩れ、`could not translate host name "pZ...@aws-0-..."` のように
+> ホスト名を誤認識する（実際に発生した）。
+> ワークフローは libpq の環境変数（`PGHOST` / `PGUSER` / `PGPASSWORD` 等）で渡すため、
+> URL エンコードは不要。ホストやユーザー名は機密でないのでワークフローに直書きしている。
 
 `NEXT_PUBLIC_*` は**イメージのビルド時に確定し、クライアントバンドルへ焼き込まれる**。
 値を変えたらイメージの再ビルドが必要で、コンテナの環境変数を書き換えても反映されない。

@@ -24,6 +24,22 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y postgresql-client-17
 
+          # runner にはより古い client がプリインストールされており、
+          # PATH の優先順位によって pg_dump と pg_restore で版が食い違う。
+          # 実際に pg_dump(17) のダンプを古い pg_restore が読めず
+          # 「unsupported version (1.16) in file header」で失敗した。
+          # 17 のディレクトリを PATH の先頭に置いて版を揃える。
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+
+      - name: クライアントの版を確認
+        run: |
+          echo "pg_dump   : $(command -v pg_dump) / $(pg_dump --version)"
+          echo "pg_restore: $(command -v pg_restore) / $(pg_restore --version)"
+          # 版が揃っていることを確認（揃っていないとダンプを検証できない）
+          test "$(pg_dump --version | grep -oE '[0-9]+' | head -1)" \
+             = "$(pg_restore --version | grep -oE '[0-9]+' | head -1)" \
+            || { echo "::error::pg_dump と pg_restore のメジャー版が一致していません"; exit 1; }
+
       - name: ダンプを取得
         env:
           # 接続文字列（postgresql://...）は組み立てない。

@@ -1,0 +1,60 @@
+name: Health Check
+
+# 本番（hub.iterra.online）の疎通を日次で確認する。
+#
+# 分単位の死活監視はここでは行わない。GitHub Actions の cron は
+#   - 実行が数分〜数十分遅延することがある
+#   - private リポジトリの無料枠（2,000 分/月）を圧迫する（15 分間隔で約 1,440 分/月）
+# ため、短間隔の監視は外部サービス（UptimeRobot 等）に任せる。
+# 詳細は docs/deployment-nas.md § 8 を参照。
+#
+# ここでは「DB 疎通まで含めた詳細チェック」を 1 日 1 回だけ実施する。
+
+on:
+  schedule:
+    # UTC 22:00 = JST 翌 07:00（業務開始前に検知したい）
+    - cron: "0 22 * * *"
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: アプリと DB の疎通を確認
+        run: |
+          URL="https://hub.iterra.online/api/health?deep=1"
+
+          for i in 1 2 3; do
+            RESPONSE=$(curl -sS --max-time 20 -w '\n%{http_code}' "$URL" || echo -e '\n000')
+            CODE=$(echo "$RESPONSE" | tail -n1)
+            BODY=$(echo "$RESPONSE" | sed '$d')
+
+            if [ "$CODE" = "200" ]; then
+              echo "✅ 正常: $BODY"
+              echo "### ヘルスチェック成功" >> "$GITHUB_STEP_SUMMARY"
+              echo '```json' >> "$GITHUB_STEP_SUMMARY"
+              echo "$BODY" >> "$GITHUB_STEP_SUMMARY"
+              echo '```' >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+
+            echo "試行 $i 失敗 (HTTP $CODE): $BODY"
+            [ "$i" -lt 3 ] && sleep 30
+          done
+
+          # 切り分けの手掛かりを残す
+          {
+            echo "### ヘルスチェック失敗"
+            echo ""
+            echo "| HTTP | 意味 | 確認先 |"
+            echo "|---|---|---|"
+            echo "| 000 | 到達不可 | Cloudflare / DNS |"
+            echo "| 502 / 1033 | Tunnel 未接続 | NAS の \`docker compose logs cloudflared\` |"
+            echo "| 503 | DB 疎通不可 | Supabase の稼働状況 |"
+            echo "| 200 以外の HTML | Access の Bypass 未設定 | Cloudflare Access のポリシー |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          echo "::error::本番のヘルスチェックが 3 回連続で失敗しました（HTTP $CODE）"
+          exit 1

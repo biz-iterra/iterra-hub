@@ -4,19 +4,49 @@ Vercel から自社 NAS 上の Docker へ移行するための構成と手順。
 
 ## 進捗（最終更新: 2026-07-29）
 
+**移行は完了し、`https://hub.iterra.online` でログインできる状態。**
+
 | # | 作業 | 状態 |
 |---|---|---|
 | 0 | 本番 Supabase の構築（マイグレーション / マスタ / leads 3,008 件 / ユーザー） | ✅ 完了 |
 | 1 | GitHub Secrets の登録 | ✅ 完了 |
-| 2 | Cloudflare Tunnel の作成 | ⬜ トークン取得まで |
-| 3 | Cloudflare Access（`iterra-members` / `health-check-bypass`） | ✅ 完了・認証確認済み |
-| 4 | Supabase Auth の URL 設定（`hub.iterra.online`） | ⬜ 未実施 |
-| 5 | NAS への配置と起動 | ⬜ 未実施 |
-| 6〜9 | 更新・ロールバック手順 / 動作確認 / 運用 | 手順のみ整備済み |
+| 2 | Cloudflare Tunnel | ✅ 完了 |
+| 3 | Cloudflare Access（`iterra-members` / `health-check-bypass`） | ✅ 完了 |
+| 4 | Supabase Auth の URL 設定 | ✅ 完了 |
+| 5 | NAS への配置と起動 | ✅ 完了（app healthy / tunnel 接続済み） |
+| 6〜9 | 更新・ロールバック手順 / 動作確認 / 運用 | 手順整備済み |
 
-現時点で `https://hub.iterra.online` にアクセスすると、Access の認証を通過した後に
-**Error 1033（Cloudflare Tunnel error）** になる。NAS 側の `cloudflared` と `app` が
-未起動のためで、§5 を実施すれば解消する。
+### 残作業
+
+| 作業 | 内容 |
+|---|---|
+| 実機検証 | § 7.2 のチェックリストを通しで実施 |
+| 外部監視の設定 | UptimeRobot 等で `/api/health` を 5 分間隔監視（§ 8.1） |
+| NAS の自動起動確認 | 停電復帰時に NAS と Docker が自動起動するか（§ 8） |
+| DB パスワードのローテーション | 構築時に平文で扱ったため要変更。あわせて `SUPABASE_DB_URL` Secret も更新 |
+
+### 実施済みの内容（記録）
+
+- 本番 Supabase: `aqkesxqxrsucgrnguhnb`（Tokyo）。マイグレーション 68 本適用済み
+- `admin@iterra.jp` は 35 カラムの `created_by` DEFAULT に使われるため削除せず封じ込め（§0.5）
+- 退職者 3 名（小川 / 田中 / 伏見）はメール送信なしで SQL 作成。UUID を開発環境と揃えたため
+  `04-leads.sql` は置換なしで投入できた
+- 実運用アカウント: `ishida@iterra.jp`（admin / `is_active = true`）
+- Access の認証はメール OTP（One-time PIN）。`@iterra.jp` のメールボックスが実在する
+  アドレスでないとコードが届かない（未登録アドレスでも「送信しました」と表示される仕様）
+
+### 構築時に詰まった点（再発防止）
+
+| 症状 | 原因と対処 |
+|---|---|
+| `supabase link` が `AlreadyExists` | `supabase/.temp` の残骸。削除して再実行 |
+| `db push` が `20260416040014` で失敗 | CLI の表示上の問題。記録は済んでおり `Remote database is up to date` になった。ポリシー数を照合して実適用を確認した |
+| `psql: command not found` | Windows に psql 単体は入っていない。ローカル Supabase の PostgreSQL 17 コンテナを経由する（§0.4） |
+| `could not translate host name db.<ref>.supabase.co` | Direct connection は IPv6 専用。**Session pooler を使う**（§0.4） |
+| `Tenant or user not found` | pooler の `aws-0` / `aws-1` の選択誤り。DNS はどちらも解決するため試して判別 |
+| Access の認証コードが届かない | 実在しないメールアドレスを入力していた。未登録でも「送信しました」と表示される（ユーザー列挙対策） |
+| `cloudflared`: `Provided Tunnel token is not valid` | `.env` にプレースホルダの山括弧 `<>` が残っていた。`sed -i 's/[<>]//g' .env` で除去 |
+| `git checkout` で `Deletion of directory failed` | dev サーバー（Turbopack）がファイルをロック。停止してから実行する |
 
 ### 実施済みの内容（記録）
 
@@ -472,12 +502,75 @@ docker compose up -d
 
 ## 7. 動作確認
 
+### 7.1 経路の確認
+
 | 確認項目 | 期待結果 |
 |---|---|
 | `curl https://hub.iterra.online/api/health` | `{"status":"ok"}` / HTTP 200 |
 | `curl "https://hub.iterra.online/api/health?deep=1"` | `{"status":"ok","database":"ok"}` |
 | ブラウザで `https://hub.iterra.online` | Access の認証 → アプリのログイン画面 |
 | 未認証で `/dashboard` | `/login` へ 307 リダイレクト |
+
+### 7.2 本番実機の検証チェックリスト
+
+移行直後に一度通しで確認する。開発環境向けの詳細手順は `docs/test-checklist.md`。
+ここでは **本番固有の観点**（データ量・レイテンシ・本番ユーザー・移行の副作用）に絞る。
+
+#### 表示・データ
+
+| # | 確認項目 | 期待結果 |
+|---|---|---|
+| 1 | ダッシュボードの KPI カード | 数値が表示される（DB 接続の確認） |
+| 2 | リード一覧 `/leads` | **3,008 件**。ページネーションが 30 件単位で動く |
+| 3 | リード詳細を開く | スコア・温度感・対応履歴が表示される |
+| 4 | 対応履歴のある リード | `lead_activities` が時系列で並ぶ（全体で 1,008 件） |
+| 5 | コンタクト・カンパニー・アカウント・ディール一覧 | **0 件**（本番はサンプル未投入。空状態の表示が崩れないこと） |
+| 6 | タレント一覧 | 0 件。職種タブが「分類マスタが未登録」ではなく空表示になること |
+| 7 | 管理画面 `/admin` | 7 グループ・21 タブが表示され、マスタに値が入っている |
+
+#### 権限・ユーザー
+
+| # | 確認項目 | 期待結果 |
+|---|---|---|
+| 8 | 担当者ドロップダウン（リード編集等） | **石田のみ**が候補に出る（退職者 3 名は `is_active = false` で除外） |
+| 9 | 既存リードの担当者表示 | 小川 / 田中 / 伏見の名前が**表示される**（履歴として保持） |
+| 10 | サイドバー | admin なので「各種設定」「契約」が表示される |
+| 11 | `admin@iterra.jp` でログイン試行 | **失敗する**（`banned_until = infinity`） |
+
+#### 書き込み・整合性
+
+| # | 確認項目 | 期待結果 |
+|---|---|---|
+| 12 | リードを新規登録 | 保存でき、一覧に出る |
+| 13 | リードを編集して保存 | 反映される |
+| 14 | **楽観ロック**: 同じリードを 2 つのタブで開き、両方で保存 | 後から保存した側が「他のユーザーによって更新されています」で弾かれる |
+| 15 | **変更履歴**: 編集後に `entity_change_logs` を確認 | 変更カラムのみ記録され、`changed_by` に石田の UUID が入る |
+| 16 | **Deal 昇格**: リードを Opportunity ステージへ | Company / Contact / Account / Deal が同時に作成される |
+| 17 | 昇格済みリードを再度昇格 | 「すでに Deal に昇格済みです」で拒否される |
+
+#### パフォーマンス（本番固有）
+
+| # | 確認項目 | 目安 |
+|---|---|---|
+| 18 | 各ページの初回表示 | **middleware が全リクエストで `auth.getUser()` を呼ぶ**ため、NAS ↔ Supabase(Tokyo) の往復が全ページに乗る。1 秒を大きく超えるなら要検討 |
+| 19 | リード一覧（3,008 件）の表示 | ページネーションが効いているので件数の影響は小さいはず |
+| 20 | 社外ネットワークからのアクセス | Cloudflare 経由なので社内と体感差が小さいこと |
+
+18 で遅さが問題になる場合、セッション検証の間引き（毎リクエストではなく一定間隔で検証）が
+最初の改善候補になる。
+
+#### 確認用クエリ
+
+```sql
+-- 15 の変更履歴確認
+SELECT table_name, operation, changed_fields, changed_by, changed_at
+  FROM entity_change_logs
+ ORDER BY changed_at DESC LIMIT 5;
+
+-- 16 の昇格結果確認
+SELECT promoted_deal_id, promoted_company_id, promoted_contact_id, promoted_account_id
+  FROM leads WHERE promoted_deal_id IS NOT NULL;
+```
 
 ## 8. 運用上の注意
 
@@ -487,6 +580,45 @@ docker compose up -d
 - `middleware` は全リクエストで Supabase の `auth.getUser()` を呼ぶため、
   NAS ↔ Supabase(Tokyo) 間のレイテンシが全ページに乗る。体感が遅い場合はここを最初に疑う
 - ログは 10MB × 3 世代でローテーションする設定（`docker-compose.yml`）
+
+### 8.1 死活監視
+
+**分単位の監視は外部サービスに任せる。** GitHub Actions の cron は実行が数分〜数十分
+遅延することがあり、private リポジトリの無料枠（2,000 分/月）も圧迫するため
+（15 分間隔で約 1,440 分/月）監視用途には向かない。
+
+| 層 | 手段 | 間隔 | 状態 |
+|---|---|---|---|
+| コンテナ | Docker healthcheck（`/api/health`） | 30 秒 | 設定済み。3 回失敗で unhealthy |
+| 外形（分単位） | **UptimeRobot 等の無料監視サービス** | 5 分 | **要設定** |
+| 外形（詳細） | GitHub Actions `health-check.yml`（`?deep=1` で DB 疎通も確認） | 日次 JST 07:00 | 設定済み |
+
+外部監視サービスの設定値:
+
+| 項目 | 値 |
+|---|---|
+| 監視 URL | `https://hub.iterra.online/api/health` |
+| 期待するステータス | 200 |
+| 期待する本文 | `{"status":"ok"}` |
+
+このパスは Cloudflare Access の Bypass 対象（§3.1）なので、認証なしで監視できる。
+`?deep=1` を付けると Supabase への疎通も確認するが、外部監視では付けなくてよい
+（DB 障害でアプリを再起動しても復旧しないため、アプリの生存確認に絞る）。
+
+Cloudflare の Health Checks は Pro プラン以上の機能なので、無料構成では使えない。
+
+### 8.2 復旧の優先順位
+
+障害時は以下の順で切り分ける。
+
+1. `https://hub.iterra.online/api/health` — 200 なら経路は生きている
+2. `docker compose ps` — `app` が healthy か
+3. `docker compose logs cloudflared` — `Registered tunnel connection` が出ているか
+4. Supabase のステータス — https://status.supabase.com/
+5. `docker compose logs app` — アプリ側のエラー
+
+`app` が unhealthy で再起動を繰り返す場合、多くは `.env` の環境変数の不備。
+`docker compose config` で展開後の値を確認する（**出力にシークレットが含まれるため画面共有時は注意**）。
 
 ## 9. トラブルシューティング
 

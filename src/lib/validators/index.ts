@@ -12,3 +12,4 @@ export * from "./leads";
 export * from "./campaigns";
 export * from "./lead-activities";
 export * from "./talent-classification";
+export * from "./users";

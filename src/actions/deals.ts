@@ -5,6 +5,7 @@ import {
   createDealSchema,
   updateDealSchema,
   createDealServiceSchema,
+  moveDealCardSchema,
 } from "@/lib/validators";
 import { conflictErrorMessage } from "@/lib/validators/common";
 import type {
@@ -303,6 +304,125 @@ export async function updateDeal(
 
   // 全フィールド変更履歴
   // 変更履歴は entity_change_logs のトリガーが自動記録する（20260728000002）
+
+  return { data: deal, error: null };
+}
+
+// ---------- カンバン D&D: ステージ/ステータス移動 ----------
+export async function moveDealCard(
+  input: z.infer<typeof moveDealCardSchema>
+): Promise<ActionResult<DealWithRelations>> {
+  const { supabase, user, role } = await getAuthenticatedUser();
+  if (!supabase || !user) return { data: null, error: "認証が必要です" };
+
+  const parsed = moveDealCardSchema.safeParse(input);
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    return {
+      data: null,
+      error: `${issue.message} / 受信値: ${JSON.stringify(input)}`,
+    };
+  }
+  const { dealId, groupBy, targetId, expectedUpdatedAt } = parsed.data;
+
+  // 現在値取得
+  const { data: current, error: fetchError } = await supabase
+    .from("deals")
+    .select("id, owner_user_id, pipeline_type_id, deal_stage_id, deal_status_id")
+    .eq("id", dealId)
+    .single();
+  if (fetchError || !current) return { data: null, error: "商談が見つかりません" };
+
+  // owner チェック（admin 以外は自分の担当のみ）
+  if (role !== "admin" && current.owner_user_id !== user.id) {
+    return { data: null, error: "この商談を編集する権限がありません" };
+  }
+
+  let newStageId = current.deal_stage_id;
+  let newStatusId = current.deal_status_id;
+
+  if (groupBy === "stage") {
+    // ドロップ先ステージ（同一パイプライン）に属する有効なステータスのうち sort_order 最小を採用
+    const { data: statusRow, error: statusError } = await supabase
+      .from("deal_statuses")
+      .select("id")
+      .eq("deal_stage_id", targetId)
+      .eq("pipeline_type_id", current.pipeline_type_id)
+      .is("deleted_at", null)
+      .order("sort_order", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    if (statusError) return { data: null, error: statusError.message };
+    if (!statusRow) {
+      return { data: null, error: "移動先ステージにステータスが未定義です" };
+    }
+    newStageId = targetId;
+    newStatusId = statusRow.id;
+  } else {
+    // ドロップ先ステータス。deal_stage_id を持つ場合はステージも追随
+    const { data: statusRow, error: statusError } = await supabase
+      .from("deal_statuses")
+      .select("id, deal_stage_id")
+      .eq("id", targetId)
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (statusError) return { data: null, error: statusError.message };
+    if (!statusRow) return { data: null, error: "移動先ステータスが見つかりません" };
+    newStatusId = statusRow.id;
+    if (statusRow.deal_stage_id) newStageId = statusRow.deal_stage_id;
+  }
+
+  const stageChanged = newStageId !== current.deal_stage_id;
+  const statusChanged = newStatusId !== current.deal_status_id;
+
+  if (!stageChanged && !statusChanged) {
+    // 変更なし（同じ列内へのドロップ等）: 現在の状態をそのまま返す
+    const { data: deal, error } = await supabase
+      .from("deals")
+      .select(DEAL_SELECT)
+      .eq("id", dealId)
+      .single();
+    if (error) return { data: null, error: error.message };
+    return { data: deal, error: null };
+  }
+
+  const updateData = {
+    deal_stage_id: newStageId,
+    deal_status_id: newStatusId,
+    last_updated_by: user.id,
+    ...(stageChanged && { stage_updated_at: new Date().toISOString() }),
+  };
+
+  // 楽観ロック: 編集開始時点から updated_at が変わっていれば 0 行更新になる
+  const { data: deal, error } = await supabase
+    .from("deals")
+    .update(updateData)
+    .eq("id", dealId)
+    .eq("updated_at", expectedUpdatedAt)
+    .select(DEAL_SELECT)
+    .maybeSingle();
+
+  if (error) return { data: null, error: error.message };
+  if (!deal) return { data: null, error: conflictErrorMessage("この商談") };
+
+  if (stageChanged) {
+    await supabase.from("deal_stage_histories").insert({
+      deal_id: dealId,
+      from_stage_id: current.deal_stage_id,
+      to_stage_id: newStageId,
+      changed_by: user.id,
+    });
+  }
+
+  if (statusChanged) {
+    await supabase.from("deal_status_histories").insert({
+      deal_id: dealId,
+      stage_id: newStageId,
+      from_status_id: current.deal_status_id,
+      to_status_id: newStatusId,
+      changed_by: user.id,
+    });
+  }
 
   return { data: deal, error: null };
 }

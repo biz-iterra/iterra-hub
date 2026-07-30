@@ -43,3 +43,13 @@ export const createDealServiceSchema = z.object({
   deal_id: uuidString(),
   service_id: uuidString(),
 });
+
+// カンバン D&D によるステージ/ステータス移動
+export const moveDealCardSchema = z.object({
+  dealId: uuidString("[dealId] UUID 形式で指定してください"),
+  groupBy: z.enum(["stage", "status"]),
+  targetId: uuidString("[targetId] UUID 形式で指定してください"),
+  expectedUpdatedAt: z
+    .string()
+    .min(1, "[expectedUpdatedAt] 楽観ロックのため必須です"),
+});

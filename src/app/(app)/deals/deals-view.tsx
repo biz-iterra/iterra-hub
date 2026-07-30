@@ -1,14 +1,15 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import {
   LayoutGrid,
   List,
   Plus,
   ChevronDown,
+  X,
 } from "lucide-react";
-import { getDealsForKanban, getDeals } from "@/actions/deals";
+import { getDealsForKanban, getDeals, moveDealCard } from "@/actions/deals";
 import { StageBadge, StatusBadge } from "@/components/ui/badges";
 import { FilterGroup, FilterClearButton } from "@/components/ui/FilterGroup";
 import { FilterSelect } from "@/components/ui/FilterSelect";
@@ -64,6 +65,50 @@ function getScaleColor(index: number) {
   return COLOR_SCALE[index % COLOR_SCALE.length];
 }
 
+// ---------- カンバン D&D 用ヘルパー ----------
+// 楽観的更新: 対象ディールを一旦すべての列から取り除き、指定列に部分更新して差し込む
+function relocateDeal<C extends { deals: DealWithRelations[] }>(
+  columns: C[],
+  dealId: string,
+  getColumnId: (column: C) => string,
+  targetColumnId: string,
+  patch: Partial<DealWithRelations>
+): C[] {
+  let movedDeal: DealWithRelations | null = null;
+  const withoutSource = columns.map((c) => {
+    const idx = c.deals.findIndex((d) => d.id === dealId);
+    if (idx === -1) return c;
+    movedDeal = { ...c.deals[idx], ...patch };
+    return { ...c, deals: c.deals.filter((d) => d.id !== dealId) };
+  });
+  if (!movedDeal) return columns;
+  const finalDeal: DealWithRelations = movedDeal;
+  return withoutSource.map((c) =>
+    getColumnId(c) === targetColumnId
+      ? { ...c, deals: [...c.deals, finalDeal] }
+      : c
+  );
+}
+
+// サーバーの確定結果で全列を整合させる（対象ディールを差し替えて所属列に配置し直す）
+function replaceDealEverywhere<C extends { deals: DealWithRelations[] }>(
+  columns: C[],
+  dealId: string,
+  getColumnId: (column: C) => string,
+  targetColumnId: string,
+  updatedDeal: DealWithRelations
+): C[] {
+  const withoutSource = columns.map((c) => ({
+    ...c,
+    deals: c.deals.filter((d) => d.id !== dealId),
+  }));
+  return withoutSource.map((c) =>
+    getColumnId(c) === targetColumnId
+      ? { ...c, deals: [...c.deals, updatedDeal] }
+      : c
+  );
+}
+
 export function DealsView({
   pipelines,
   defaultPipelineId,
@@ -100,6 +145,88 @@ export function DealsView({
 
   const [isPending, startTransition] = useTransition();
   const [pipelineOpen, setPipelineOpen] = useState(false);
+  const [dndError, setDndError] = useState<string | null>(null);
+
+  function handleDropDeal(dealId: string, targetColumnId: string) {
+    if (!kanbanData) return;
+
+    const sourceDeal =
+      kanbanData.stages.flatMap((s) => s.deals).find((d) => d.id === dealId) ??
+      kanbanData.statuses.flatMap((s) => s.deals).find((d) => d.id === dealId);
+    if (!sourceDeal) return;
+
+    const currentColumnId =
+      groupBy === "stage" ? sourceDeal.deal_stage_id : sourceDeal.deal_status_id;
+    if (currentColumnId === targetColumnId) return;
+
+    const previousKanbanData = kanbanData;
+    const expectedUpdatedAt = sourceDeal.updated_at ?? "";
+
+    setDndError(null);
+
+    // 楽観的 UI: ドロップ先の列へ即座に移動
+    setKanbanData((prev) => {
+      if (!prev) return prev;
+      if (groupBy === "stage") {
+        return {
+          ...prev,
+          stages: relocateDeal(
+            prev.stages,
+            dealId,
+            (c) => c.stage.id,
+            targetColumnId,
+            { deal_stage_id: targetColumnId }
+          ),
+        };
+      }
+      return {
+        ...prev,
+        statuses: relocateDeal(
+          prev.statuses,
+          dealId,
+          (c) => c.status.id,
+          targetColumnId,
+          { deal_status_id: targetColumnId }
+        ),
+      };
+    });
+
+    startTransition(async () => {
+      const { data, error } = await moveDealCard({
+        dealId,
+        groupBy,
+        targetId: targetColumnId,
+        expectedUpdatedAt,
+      });
+
+      if (error || !data) {
+        setKanbanData(previousKanbanData);
+        setDndError(error ?? "商談の移動に失敗しました");
+        return;
+      }
+
+      // サーバーの確定結果でステージ列・ステータス列の両方を整合させる
+      setKanbanData((prev) => {
+        if (!prev) return prev;
+        return {
+          stages: replaceDealEverywhere(
+            prev.stages,
+            dealId,
+            (c) => c.stage.id,
+            data.deal_stage_id,
+            data
+          ),
+          statuses: replaceDealEverywhere(
+            prev.statuses,
+            dealId,
+            (c) => c.status.id,
+            data.deal_status_id,
+            data
+          ),
+        };
+      });
+    });
+  }
 
   function handlePipelineChange(pipelineId: string) {
     setSelectedPipelineId(pipelineId);
@@ -443,6 +570,9 @@ export function DealsView({
           stageFilter={stageFilter}
           statusFilter={statusFilter}
           searchQuery={search}
+          onDropDeal={handleDropDeal}
+          dndError={dndError}
+          onDismissError={() => setDndError(null)}
         />
       ) : (
         <>
@@ -473,13 +603,23 @@ function KanbanView({
   stageFilter,
   statusFilter,
   searchQuery,
+  onDropDeal,
+  dndError,
+  onDismissError,
 }: {
   data: KanbanData;
   groupBy: GroupBy;
   stageFilter: string | null;
   statusFilter: string | null;
   searchQuery: string;
+  onDropDeal: (dealId: string, targetColumnId: string) => void;
+  dndError: string | null;
+  onDismissError: () => void;
 }) {
+  const [draggingDealId, setDraggingDealId] = useState<string | null>(null);
+  const [dragOverColumnId, setDragOverColumnId] = useState<string | null>(null);
+  const wasDraggedRef = useRef(false);
+
   if (!data) {
     return (
       <div
@@ -548,20 +688,49 @@ function KanbanView({
   }
 
   return (
-    <div
-      className="no-scrollbar"
-      style={{
-        display: "flex",
-        flexDirection: "row",
-        gap: "1rem",
-        overflowX: "auto",
-        paddingBottom: "1rem",
-        alignItems: "flex-start",
-      }}
-    >
-      {columns.map((col) => {
-        const color = colorByColumnId.get(col.id) ?? getScaleColor(0);
-        return (
+    <div>
+      {dndError && (
+        <div
+          role="alert"
+          className="flex items-center justify-between gap-3 px-4 py-2 mb-3 text-sm"
+          style={{
+            border: "1px solid var(--color-error)",
+            borderRadius: "var(--radius-card)",
+            color: "var(--color-error)",
+            backgroundColor: "var(--color-error-bg, #fdecea)",
+          }}
+        >
+          <span>{dndError}</span>
+          <button
+            type="button"
+            onClick={onDismissError}
+            aria-label="閉じる"
+            style={{
+              color: "var(--color-error)",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+            }}
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
+      <div
+        className="no-scrollbar"
+        style={{
+          display: "flex",
+          flexDirection: "row",
+          gap: "1rem",
+          overflowX: "auto",
+          paddingBottom: "1rem",
+          alignItems: "flex-start",
+        }}
+      >
+        {columns.map((col) => {
+          const color = colorByColumnId.get(col.id) ?? getScaleColor(0);
+          const isDragOver = dragOverColumnId === col.id;
+          return (
         <div
           key={col.id}
           style={{
@@ -599,8 +768,33 @@ function KanbanView({
             </span>
           </div>
 
-          {/* カード一覧 */}
-          <div className="flex flex-col gap-2 flex-1">
+          {/* カード一覧（ドロップ先） */}
+          <div
+            className="flex flex-col gap-2 flex-1"
+            style={{
+              borderRadius: "var(--radius-card)",
+              outline: isDragOver ? "2px dashed var(--color-terra)" : "none",
+              outlineOffset: "2px",
+              backgroundColor: isDragOver ? "var(--color-bg-hover)" : "transparent",
+              transition: "background-color 0.15s ease",
+              minHeight: 60,
+              padding: isDragOver ? "0.25rem" : 0,
+            }}
+            onDragOver={(e) => {
+              e.preventDefault();
+              e.dataTransfer.dropEffect = "move";
+              if (dragOverColumnId !== col.id) setDragOverColumnId(col.id);
+            }}
+            onDragLeave={() => {
+              setDragOverColumnId((prev) => (prev === col.id ? null : prev));
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              const dealId = e.dataTransfer.getData("text/plain");
+              setDragOverColumnId(null);
+              if (dealId) onDropDeal(dealId, col.id);
+            }}
+          >
             {col.deals.length === 0 ? (
               <div
                 className="p-4 text-center text-xs rounded"
@@ -616,6 +810,26 @@ function KanbanView({
                 <Link
                   key={deal.id}
                   href={`/deals/${deal.id}`}
+                  draggable
+                  onDragStart={(e) => {
+                    wasDraggedRef.current = true;
+                    e.dataTransfer.setData("text/plain", deal.id);
+                    e.dataTransfer.effectAllowed = "move";
+                    setDraggingDealId(deal.id);
+                  }}
+                  onDragEnd={() => {
+                    setDraggingDealId(null);
+                    setDragOverColumnId(null);
+                    // click イベントより後にリセットしてカード遷移の誤発火を防ぐ
+                    setTimeout(() => {
+                      wasDraggedRef.current = false;
+                    }, 0);
+                  }}
+                  onClick={(e) => {
+                    if (wasDraggedRef.current) {
+                      e.preventDefault();
+                    }
+                  }}
                   className="block transition-shadow hover:shadow-md"
                   style={{
                     backgroundColor: "#fff",
@@ -625,6 +839,8 @@ function KanbanView({
                     display: "flex",
                     flexDirection: "column",
                     gap: "0.75rem",
+                    cursor: draggingDealId === deal.id ? "grabbing" : "grab",
+                    opacity: draggingDealId === deal.id ? 0.5 : 1,
                   }}
                 >
                   <div
@@ -702,8 +918,9 @@ function KanbanView({
             )}
           </div>
         </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }

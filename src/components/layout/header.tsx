@@ -1,9 +1,11 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { BookOpen, LogOut, User } from "lucide-react";
+import { BookOpen, ChevronDown, LogOut, User, UserCog } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { GlobalSearch } from "./global-search";
 
 const pathLabels: Record<string, string> = {
   "/dashboard": "ダッシュボード",
@@ -18,6 +20,7 @@ const pathLabels: Record<string, string> = {
   "/projects": "プロジェクト",
   "/admin": "管理",
   "/admin/deleted": "削除済みレコード",
+  "/profile": "プロフィール設定",
 };
 
 // パスセグメントの変換辞書（末尾 / 中間両方で使用）
@@ -56,6 +59,8 @@ export function Header({ userName }: { userName?: string }) {
   const pathname = usePathname();
   const router = useRouter();
   const breadcrumb = getBreadcrumb(pathname);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const handleLogout = async () => {
     const supabase = createClient();
@@ -64,16 +69,35 @@ export function Header({ userName }: { userName?: string }) {
     router.refresh();
   };
 
+  // 外側クリック / Esc でユーザーメニューを閉じる
+  useEffect(() => {
+    if (!menuOpen) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    function handleKeydown(e: KeyboardEvent) {
+      if (e.key === "Escape") setMenuOpen(false);
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeydown);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeydown);
+    };
+  }, [menuOpen]);
+
   return (
     <header
-      className="flex items-center justify-between h-14 px-6 shrink-0"
+      className="flex items-center h-14 px-6 shrink-0"
       style={{
         backgroundColor: "#fff",
         borderBottom: "1px solid var(--color-border-default)",
       }}
     >
       {/* Breadcrumb */}
-      <nav className="flex items-center gap-1.5 text-sm">
+      <nav className="flex items-center gap-1.5 text-sm flex-shrink-0">
         {breadcrumb.map((item, i) => (
           <span key={item.href} className="flex items-center gap-1.5">
             {i > 0 && (
@@ -94,8 +118,13 @@ export function Header({ userName }: { userName?: string }) {
         ))}
       </nav>
 
+      {/* 横断検索 */}
+      <div className="flex-1 flex justify-center px-4">
+        <GlobalSearch />
+      </div>
+
       {/* User menu */}
-      <div className="flex items-center gap-4 flex-shrink-0">
+      <div className="flex items-center gap-2 flex-shrink-0">
         <Link
           href="/manual"
           title="マニュアル"
@@ -116,32 +145,109 @@ export function Header({ userName }: { userName?: string }) {
         >
           <BookOpen size={18} />
         </Link>
-        <div className="flex items-center gap-2">
-          <User size={18} style={{ color: "var(--color-sumi500)" }} />
-          <span
-            className="text-sm"
-            style={{ color: "var(--color-text-list)" }}
+
+        <div ref={menuRef} className="relative">
+          <button
+            type="button"
+            onClick={() => setMenuOpen((v) => !v)}
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            className="flex items-center gap-2 cursor-pointer transition-colors"
+            style={{
+              padding: "0.375rem 0.625rem",
+              borderRadius: "var(--radius-button)",
+              backgroundColor: menuOpen ? "var(--color-bg-hover)" : "transparent",
+              border: "none",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = "var(--color-bg-hover)";
+            }}
+            onMouseLeave={(e) => {
+              if (!menuOpen) e.currentTarget.style.backgroundColor = "transparent";
+            }}
           >
-            {userName || "ユーザー"}
-          </span>
+            <User size={18} style={{ color: "var(--color-sumi500)" }} />
+            <span
+              className="text-sm"
+              style={{ color: "var(--color-text-list)" }}
+            >
+              {userName || "ユーザー"}
+            </span>
+            <ChevronDown
+              size={14}
+              style={{
+                color: "var(--color-sumi400)",
+                transform: menuOpen ? "rotate(180deg)" : "none",
+                transition: "transform 0.15s",
+              }}
+            />
+          </button>
+
+          {menuOpen && (
+            <div
+              role="menu"
+              className="absolute right-0"
+              style={{
+                top: "calc(100% + 0.375rem)",
+                minWidth: "12rem",
+                backgroundColor: "#fff",
+                border: "1px solid var(--color-border-default)",
+                borderRadius: "var(--radius-panel)",
+                boxShadow: "var(--elevation-high)",
+                padding: "0.375rem",
+                zIndex: 50,
+              }}
+            >
+              <Link
+                href="/profile"
+                role="menuitem"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-2 text-sm transition-colors"
+                style={{
+                  padding: "0.5rem 0.625rem",
+                  borderRadius: "var(--radius-md)",
+                  color: "var(--color-text-body)",
+                  textDecoration: "none",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = "var(--color-bg-hover)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = "transparent";
+                }}
+              >
+                <UserCog size={15} />
+                プロフィール設定
+              </Link>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setMenuOpen(false);
+                  handleLogout();
+                }}
+                className="flex items-center gap-2 text-sm cursor-pointer transition-colors w-full"
+                style={{
+                  padding: "0.5rem 0.625rem",
+                  borderRadius: "var(--radius-md)",
+                  color: "var(--color-text-body)",
+                  border: "none",
+                  background: "none",
+                  textAlign: "left",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = "var(--color-bg-hover)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = "transparent";
+                }}
+              >
+                <LogOut size={15} />
+                ログアウト
+              </button>
+            </div>
+          )}
         </div>
-        <button
-          onClick={handleLogout}
-          className="flex items-center gap-1.5 text-sm cursor-pointer transition-colors px-3 py-1.5"
-          style={{
-            color: "var(--color-sumi600)",
-            borderRadius: "var(--radius-button)",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = "var(--color-bg-hover)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = "transparent";
-          }}
-        >
-          <LogOut size={16} />
-          <span>ログアウト</span>
-        </button>
       </div>
     </header>
   );

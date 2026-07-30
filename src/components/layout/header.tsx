@@ -61,6 +61,8 @@ export function Header({ userName }: { userName?: string }) {
   const breadcrumb = getBreadcrumb(pathname);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const itemRefs = useRef<(HTMLElement | null)[]>([]);
 
   const handleLogout = async () => {
     const supabase = createClient();
@@ -69,7 +71,19 @@ export function Header({ userName }: { userName?: string }) {
     router.refresh();
   };
 
-  // 外側クリック / Esc でユーザーメニューを閉じる
+  const closeMenu = (opts?: { restoreFocus?: boolean }) => {
+    setMenuOpen(false);
+    if (opts?.restoreFocus) triggerRef.current?.focus();
+  };
+
+  // 開いたら先頭のメニュー項目へフォーカスを移す
+  useEffect(() => {
+    if (menuOpen) {
+      itemRefs.current[0]?.focus();
+    }
+  }, [menuOpen]);
+
+  // 外側クリックでユーザーメニューを閉じる（Esc はメニュー内の keydown ハンドラで処理）
   useEffect(() => {
     if (!menuOpen) return;
     function handleClickOutside(e: MouseEvent) {
@@ -77,16 +91,34 @@ export function Header({ userName }: { userName?: string }) {
         setMenuOpen(false);
       }
     }
-    function handleKeydown(e: KeyboardEvent) {
-      if (e.key === "Escape") setMenuOpen(false);
-    }
     document.addEventListener("mousedown", handleClickOutside);
-    document.addEventListener("keydown", handleKeydown);
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("keydown", handleKeydown);
     };
   }, [menuOpen]);
+
+  // メニュー内での ↑↓ 移動 / Esc でのクローズ + トリガーへのフォーカス復帰
+  const handleMenuKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const items = itemRefs.current.filter((el): el is HTMLElement => el !== null);
+    if (items.length === 0) return;
+    const currentIndex = items.findIndex((el) => el === document.activeElement);
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      const next = items[(currentIndex + 1 + items.length) % items.length];
+      next.focus();
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      const prev = items[(currentIndex - 1 + items.length) % items.length];
+      prev.focus();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      closeMenu({ restoreFocus: true });
+    } else if (e.key === "Tab") {
+      // メニュー外へフォーカスが抜ける前に閉じる
+      closeMenu();
+    }
+  };
 
   return (
     <header
@@ -148,10 +180,12 @@ export function Header({ userName }: { userName?: string }) {
 
         <div ref={menuRef} className="relative">
           <button
+            ref={triggerRef}
             type="button"
             onClick={() => setMenuOpen((v) => !v)}
             aria-haspopup="menu"
             aria-expanded={menuOpen}
+            aria-controls="user-menu-dropdown"
             className="flex items-center gap-2 cursor-pointer transition-colors"
             style={{
               padding: "0.375rem 0.625rem",
@@ -185,8 +219,11 @@ export function Header({ userName }: { userName?: string }) {
 
           {menuOpen && (
             <div
+              id="user-menu-dropdown"
               role="menu"
+              aria-label="ユーザーメニュー"
               className="absolute right-0"
+              onKeyDown={handleMenuKeyDown}
               style={{
                 top: "calc(100% + 0.375rem)",
                 minWidth: "12rem",
@@ -199,6 +236,9 @@ export function Header({ userName }: { userName?: string }) {
               }}
             >
               <Link
+                ref={(el) => {
+                  itemRefs.current[0] = el;
+                }}
                 href="/profile"
                 role="menuitem"
                 onClick={() => setMenuOpen(false)}
@@ -220,6 +260,9 @@ export function Header({ userName }: { userName?: string }) {
                 プロフィール設定
               </Link>
               <button
+                ref={(el) => {
+                  itemRefs.current[1] = el;
+                }}
                 type="button"
                 role="menuitem"
                 onClick={() => {

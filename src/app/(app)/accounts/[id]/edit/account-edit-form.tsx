@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Save, Trash2 } from "lucide-react";
 import { updateAccount, deleteAccount } from "@/actions/accounts";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useToast } from "@/components/ui/toast";
+import { isFieldValidationError } from "@/lib/errors";
 
 type SelectOption = { value: string; label: string };
 
@@ -165,6 +167,7 @@ export function AccountEditForm({
   isAdmin: boolean;
 }) {
   const router = useRouter();
+  const { showToast } = useToast();
   const [values, setValues] = useState({
     name: account.name ?? "",
     company_id: account.company_id ?? "",
@@ -202,9 +205,14 @@ export function AccountEditForm({
     const result = await updateAccount(account.id, payload);
     setSaving(false);
     if (result.error) {
-      setError(result.error);
+      if (isFieldValidationError(result.error)) {
+        setError(result.error);
+      } else {
+        showToast({ type: "error", message: result.error });
+      }
       return;
     }
+    showToast({ type: "success", message: "保存しました" });
     router.push(`/accounts/${account.id}`);
     router.refresh();
   };
@@ -214,6 +222,7 @@ export function AccountEditForm({
     if (result.error) {
       return { error: result.error };
     }
+    showToast({ type: "success", message: "取引先を削除しました" });
     router.push("/accounts");
     router.refresh();
     return { error: null };

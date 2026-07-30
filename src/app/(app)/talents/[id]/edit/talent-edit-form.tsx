@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Save, Trash2, Plus, Pencil, X, Check } from "lucide-react";
 import { updateTalent, deleteTalent, addTalentCareer, updateTalentCareer, removeTalentCareer } from "@/actions/talents";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useToast } from "@/components/ui/toast";
+import { isFieldValidationError } from "@/lib/errors";
 import type { TalentCareerRow } from "@/types/relations";
 
 // ---------- 型 ----------
@@ -498,6 +500,7 @@ export function TalentEditForm({
   isAdmin: boolean;
 }) {
   const router = useRouter();
+  const { showToast } = useToast();
 
   // ---- タレント基本情報 state ----
   const [values, setValues] = useState({
@@ -527,7 +530,6 @@ export function TalentEditForm({
   );
   const [addFormErrors, setAddFormErrors] = useState<Record<string, string>>({});
   const [addSaving, setAddSaving] = useState(false);
-  const [careerError, setCareerError] = useState<string | null>(null);
 
   // 編集フォームの管理 (careerのidをキーに)
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -557,9 +559,15 @@ export function TalentEditForm({
     const result = await updateTalent(talent.id, payload);
     setSaving(false);
     if (result.error) {
-      setError(result.error);
+      if (isFieldValidationError(result.error)) {
+        setError(result.error);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      } else {
+        showToast({ type: "error", message: result.error });
+      }
       return;
     }
+    showToast({ type: "success", message: "保存しました" });
     router.push(`/talents/${talent.id}`);
     router.refresh();
   };
@@ -569,6 +577,7 @@ export function TalentEditForm({
     if (result.error) {
       return { error: result.error };
     }
+    showToast({ type: "success", message: "タレントを削除しました" });
     router.push("/talents");
     router.refresh();
     return { error: null };
@@ -592,7 +601,6 @@ export function TalentEditForm({
     }
 
     setAddSaving(true);
-    setCareerError(null);
 
     const result = await addTalentCareer({
       talent_id: talent.id,
@@ -609,7 +617,7 @@ export function TalentEditForm({
     setAddSaving(false);
 
     if (result.error) {
-      setCareerError(result.error);
+      showToast({ type: "error", message: result.error });
       return;
     }
 
@@ -622,6 +630,7 @@ export function TalentEditForm({
     setAddFormValues(emptyCareerForm(nextSortOrder));
     setAddFormErrors({});
     setAddFormOpen(false);
+    showToast({ type: "success", message: "経歴を追加しました" });
     router.refresh();
   };
 
@@ -631,7 +640,6 @@ export function TalentEditForm({
     const nextSortOrder =
       careers.length > 0 ? Math.max(...careers.map((c) => c.sort_order)) + 10 : 0;
     setAddFormValues(emptyCareerForm(nextSortOrder));
-    setCareerError(null);
   };
 
   // ---- 経歴 編集開始 ----
@@ -669,7 +677,6 @@ export function TalentEditForm({
     }
 
     setEditSaving(true);
-    setCareerError(null);
 
     const result = await updateTalentCareer(editingId, {
       career_type: editFormValues.career_type,
@@ -685,7 +692,7 @@ export function TalentEditForm({
     setEditSaving(false);
 
     if (result.error) {
-      setCareerError(result.error);
+      showToast({ type: "error", message: result.error });
       return;
     }
 
@@ -695,13 +702,13 @@ export function TalentEditForm({
       .sort((a, b) => a.sort_order - b.sort_order);
     setCareers(next);
     setEditingId(null);
+    showToast({ type: "success", message: "経歴を更新しました" });
     router.refresh();
   };
 
   const handleEditCancel = () => {
     setEditingId(null);
     setEditFormErrors({});
-    setCareerError(null);
   };
 
   // ---- 経歴 削除 ----
@@ -711,6 +718,7 @@ export function TalentEditForm({
     if (result.error) return { error: result.error };
     setCareers((prev) => prev.filter((c) => c.id !== deletingId));
     setDeletingId(null);
+    showToast({ type: "success", message: "経歴を削除しました" });
     router.refresh();
     return { error: null };
   };
@@ -735,6 +743,24 @@ export function TalentEditForm({
       <div style={styles.headerRow}>
         <h1 style={styles.title}>{contactName} を編集</h1>
       </div>
+
+      {error && (
+        <div
+          style={{
+            backgroundColor: "var(--color-error-bg, #fdecea)",
+            color: "var(--color-error)",
+            border: "1px solid var(--color-error)",
+            borderRadius: "var(--radius-card)",
+            padding: "0.75rem 1rem",
+            marginBottom: "1rem",
+            fontSize: "0.875rem",
+            whiteSpace: "pre-wrap",
+          }}
+          role="alert"
+        >
+          {error}
+        </div>
+      )}
 
       <form onSubmit={handleSubmit}>
         {/* 性格分析 */}
@@ -811,8 +837,6 @@ export function TalentEditForm({
           <p style={styles.hint}>{values.overall_assessment.length} / 3000 文字</p>
         </div>
 
-        {error && <p style={styles.error}>{error}</p>}
-
         <div style={styles.footer}>
           <div>
             {isAdmin && (
@@ -845,8 +869,6 @@ export function TalentEditForm({
       {/* 経歴セクション（form の外 — 個別に保存するため） */}
       <div style={styles.card}>
         <h2 style={styles.sectionTitle}>経歴</h2>
-
-        {careerError && <p style={{ ...styles.error, marginTop: 0, marginBottom: "0.75rem" }}>{careerError}</p>}
 
         {/* 経歴カード一覧 */}
         {careers.length === 0 && !addFormOpen && (
@@ -964,7 +986,6 @@ export function TalentEditForm({
             style={styles.btnAdd}
             onClick={() => {
               setEditingId(null);
-              setCareerError(null);
               const nextSortOrder =
                 careers.length > 0
                   ? Math.max(...careers.map((c) => c.sort_order)) + 10

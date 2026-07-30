@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Save, Trash2 } from "lucide-react";
 import { updateProject, deleteProject } from "@/actions/projects";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useToast } from "@/components/ui/toast";
+import { isFieldValidationError } from "@/lib/errors";
 
 type SelectOption = { value: string; label: string };
 
@@ -138,6 +140,7 @@ export function ProjectEditForm({
   isAdmin: boolean;
 }) {
   const router = useRouter();
+  const { showToast } = useToast();
   const [values, setValues] = useState({
     name: project.name,
     description: project.description ?? "",
@@ -174,9 +177,14 @@ export function ProjectEditForm({
     const result = await updateProject(project.id, payload);
     setSaving(false);
     if (result.error) {
-      setError(result.error);
+      if (isFieldValidationError(result.error)) {
+        setError(result.error);
+      } else {
+        showToast({ type: "error", message: result.error });
+      }
       return;
     }
+    showToast({ type: "success", message: "保存しました" });
     router.push(`/projects/${project.id}`);
     router.refresh();
   };
@@ -186,6 +194,7 @@ export function ProjectEditForm({
     if (result.error) {
       return { error: result.error };
     }
+    showToast({ type: "success", message: "プロジェクトを削除しました" });
     router.push("/projects");
     router.refresh();
     return { error: null };

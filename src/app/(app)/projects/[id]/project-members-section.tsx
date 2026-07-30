@@ -8,6 +8,7 @@ import {
   bulkAddMembersFromDeals,
 } from "@/actions/projects";
 import { getCrmUsers } from "@/actions/users";
+import { useToast } from "@/components/ui/toast";
 import { useEffect } from "react";
 
 type Member = {
@@ -27,8 +28,7 @@ export function ProjectMembersSection({
   const [users, setUsers] = useState<{ id: string; full_name: string; role: string }[]>([]);
   const [selectedUserId, setSelectedUserId] = useState("");
   const [isPending, startTransition] = useTransition();
-  const [message, setMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const { showToast } = useToast();
 
   useEffect(() => {
     (async () => {
@@ -42,12 +42,10 @@ export function ProjectMembersSection({
 
   const handleAdd = () => {
     if (!selectedUserId) return;
-    setError(null);
-    setMessage(null);
     startTransition(async () => {
       const result = await addProjectMember({ project_id: projectId, user_id: selectedUserId });
       if (result.error) {
-        setError(result.error);
+        showToast({ type: "error", message: result.error });
         return;
       }
       const user = users.find((u) => u.id === selectedUserId);
@@ -62,33 +60,35 @@ export function ProjectMembersSection({
         ]);
       }
       setSelectedUserId("");
+      showToast({ type: "success", message: "メンバーを追加しました" });
     });
   };
 
   const handleRemove = (userId: string) => {
-    setError(null);
-    setMessage(null);
     startTransition(async () => {
       const result = await removeProjectMember(projectId, userId);
       if (result.error) {
-        setError(result.error);
+        showToast({ type: "error", message: result.error });
         return;
       }
       setMembers((prev) => prev.filter((m) => m.user_id !== userId));
+      showToast({ type: "success", message: "メンバーを削除しました" });
     });
   };
 
   const handleBulkAdd = () => {
-    setError(null);
-    setMessage(null);
     startTransition(async () => {
       const result = await bulkAddMembersFromDeals(projectId);
       if (result.error) {
-        setError(result.error);
+        showToast({ type: "error", message: result.error });
         return;
       }
       const added = (result.data as { added: number } | null)?.added ?? 0;
-      setMessage(added > 0 ? `${added} 名を一括追加しました。再読み込みで反映されます。` : "追加対象はありません");
+      if (added > 0) {
+        showToast({ type: "success", message: `${added} 名を一括追加しました。再読み込みで反映されます。` });
+      } else {
+        showToast({ type: "info", message: "追加対象はありません" });
+      }
     });
   };
 
@@ -176,13 +176,6 @@ export function ProjectMembersSection({
         <Sparkles size={12} />
         配下商談の担当者を一括追加
       </button>
-
-      {error && (
-        <p style={{ color: "var(--color-error)", fontSize: "0.75rem", margin: "0 0 0.5rem 0" }}>{error}</p>
-      )}
-      {message && (
-        <p style={{ color: "var(--color-sage)", fontSize: "0.75rem", margin: "0 0 0.5rem 0" }}>{message}</p>
-      )}
 
       {/* メンバー一覧 */}
       {members.length > 0 ? (

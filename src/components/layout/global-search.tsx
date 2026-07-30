@@ -214,6 +214,16 @@ export function GlobalSearch() {
     items: results.filter((r) => r.type === type),
   })).filter((g) => g.items.length > 0);
 
+  const listboxId = "global-search-listbox";
+  const getOptionId = (item: SearchResult) => `global-search-option-${item.type}-${item.id}`;
+  const activeItem = activeIndex >= 0 ? results[activeIndex] : undefined;
+  const resultCountMessage =
+    showDropdown && !loading
+      ? grouped.length === 0
+        ? "該当なし"
+        : `${results.length} 件の候補`
+      : "";
+
   return (
     <div ref={wrapperRef} style={styles.wrapper}>
       <div style={styles.inputWrap}>
@@ -224,6 +234,12 @@ export function GlobalSearch() {
           value={query}
           placeholder="検索 (Ctrl+K)"
           aria-label="横断検索"
+          role="combobox"
+          aria-expanded={showDropdown}
+          aria-controls={showDropdown ? listboxId : undefined}
+          aria-autocomplete="list"
+          aria-haspopup="listbox"
+          aria-activedescendant={showDropdown && activeItem ? getOptionId(activeItem) : undefined}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={handleKeyDown}
           style={styles.input}
@@ -251,19 +267,27 @@ export function GlobalSearch() {
         )}
       </div>
 
+      {/* 検索結果件数の変化をスクリーンリーダーへ通知（視覚的には非表示） */}
+      <span className="sr-only" role="status" aria-live="polite">
+        {resultCountMessage}
+      </span>
+
       {showDropdown && (
-        <div style={styles.dropdown} role="listbox">
+        <div id={listboxId} style={styles.dropdown} role="listbox" aria-label="検索結果">
           {loading && results.length === 0 && <p style={styles.empty}>検索中...</p>}
           {!loading && grouped.length === 0 && <p style={styles.empty}>該当なし</p>}
           {grouped.map((group) => (
-            <div key={group.type}>
-              <p style={styles.groupLabel}>{group.items[0].typeLabel}</p>
+            <div key={group.type} role="group" aria-label={group.items[0].typeLabel}>
+              <p style={styles.groupLabel} role="presentation">
+                {group.items[0].typeLabel}
+              </p>
               {group.items.map((item) => {
                 const index = results.indexOf(item);
                 const isActive = index === activeIndex;
                 return (
                   <button
                     key={`${item.type}-${item.id}`}
+                    id={getOptionId(item)}
                     type="button"
                     style={{
                       ...styles.item,

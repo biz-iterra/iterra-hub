@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Save } from "lucide-react";
 import { createContact } from "@/actions/contacts";
+import { useToast } from "@/components/ui/toast";
+import { isFieldValidationError } from "@/lib/errors";
 
 type SelectOption = { value: string; label: string };
 
@@ -162,6 +164,7 @@ function onBlur(
 
 export function ContactNewForm({ masters }: { masters: Masters }) {
   const router = useRouter();
+  const { showToast } = useToast();
   const [values, setValues] = useState({
     last_name: "",
     middle_name: "",
@@ -232,9 +235,14 @@ export function ContactNewForm({ masters }: { masters: Masters }) {
     const result = await createContact(payload);
     setSaving(false);
     if (result.error) {
-      setError(result.error);
+      if (isFieldValidationError(result.error)) {
+        setError(result.error);
+      } else {
+        showToast({ type: "error", message: result.error });
+      }
       return;
     }
+    showToast({ type: "success", message: "連絡先を作成しました" });
     const newId = (result.data as { id?: string } | null)?.id;
     if (newId) {
       router.push(`/contacts/${newId}`);

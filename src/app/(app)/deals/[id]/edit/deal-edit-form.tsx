@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Save, Trash2 } from "lucide-react";
 import { updateDeal, deleteDeal } from "@/actions/deals";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useToast } from "@/components/ui/toast";
+import { isFieldValidationError } from "@/lib/errors";
 
 type SelectOption = { value: string; label: string };
 type StageOption = SelectOption & { pipeline_type_id: string };
@@ -171,6 +173,7 @@ export function DealEditForm({
   isAdmin: boolean;
 }) {
   const router = useRouter();
+  const { showToast } = useToast();
   const [values, setValues] = useState({
     name: deal.name ?? "",
     pipeline_type_id: deal.pipeline_type_id ?? "",
@@ -193,6 +196,7 @@ export function DealEditForm({
     if (result.error) {
       return { error: result.error };
     }
+    showToast({ type: "success", message: "商談を削除しました" });
     router.push("/deals");
     router.refresh();
     return { error: null };
@@ -271,9 +275,14 @@ export function DealEditForm({
     const result = await updateDeal(deal.id, payload);
     setSaving(false);
     if (result.error) {
-      setError(result.error);
+      if (isFieldValidationError(result.error)) {
+        setError(result.error);
+      } else {
+        showToast({ type: "error", message: result.error });
+      }
       return;
     }
+    showToast({ type: "success", message: "保存しました" });
     router.push(`/deals/${deal.id}`);
     router.refresh();
   };

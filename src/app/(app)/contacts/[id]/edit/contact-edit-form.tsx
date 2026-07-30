@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Save, Trash2 } from "lucide-react";
 import { updateContact, deleteContact } from "@/actions/contacts";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useToast } from "@/components/ui/toast";
+import { isFieldValidationError } from "@/lib/errors";
 
 type SelectOption = { value: string; label: string };
 
@@ -213,6 +215,7 @@ export function ContactEditForm({
   isAdmin: boolean;
 }) {
   const router = useRouter();
+  const { showToast } = useToast();
   const [values, setValues] = useState({
     last_name: contact.last_name ?? "",
     middle_name: contact.middle_name ?? "",
@@ -283,16 +286,21 @@ export function ContactEditForm({
     try {
       const result = await updateContact(contact.id, payload);
       if (result.error) {
-        setError(result.error);
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        if (isFieldValidationError(result.error)) {
+          setError(result.error);
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        } else {
+          showToast({ type: "error", message: result.error });
+        }
         setSaving(false);
         return;
       }
+      showToast({ type: "success", message: "保存しました" });
       // 遷移先で画面が切り替わるため saving は解除しない（再クリック防止）
       router.push(`/contacts/${contact.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      const message = err instanceof Error ? err.message : String(err);
+      showToast({ type: "error", message });
       setSaving(false);
     }
   };
@@ -302,6 +310,7 @@ export function ContactEditForm({
     if (result.error) {
       return { error: result.error };
     }
+    showToast({ type: "success", message: "連絡先を削除しました" });
     router.push("/contacts");
     router.refresh();
     return { error: null };

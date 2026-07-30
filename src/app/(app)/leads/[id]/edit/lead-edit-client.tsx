@@ -7,11 +7,12 @@ import {
   ArrowLeft,
   Save,
   Trash2,
-  ArrowUpRight,
   Loader2,
 } from "lucide-react";
 import { updateLead, deleteLead } from "@/actions/leads";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useToast } from "@/components/ui/toast";
+import { isFieldValidationError } from "@/lib/errors";
 import type { LeadDetail } from "@/types/relations";
 
 type SelectOption = { value: string; label: string };
@@ -132,6 +133,7 @@ export function LeadEditClient({
   currentUser: { id: string; full_name: string; role: string };
 }) {
   const router = useRouter();
+  const { showToast } = useToast();
 
   const isManagerOrAbove =
     currentUser.role === "manager" || currentUser.role === "admin";
@@ -195,12 +197,12 @@ export function LeadEditClient({
   );
 
   const [saving, setSaving] = useState(false);
+  // フィールド単位のエラー（従業員数・資本金の形式不正などの事前検証、
+  // および Server Action が返す Zod / マスタ由来のフィールドエラー）はインラインのまま
   const [saveError, setSaveError] = useState<string | null>(null);
+  // 法人番号重複の警告（保存はブロックしない）。入力値に紐づく警告のためインラインのまま
   const [saveWarning, setSaveWarning] = useState<string | null>(null);
   const [saveWarningDismissed, setSaveWarningDismissed] = useState(false);
-  const [promoteMessage, setPromoteMessage] = useState<string | null>(null);
-  const [promoteWarning, setPromoteWarning] = useState<string | null>(null);
-  const [promoteWarningDismissed, setPromoteWarningDismissed] = useState(false);
   const [promotedDealId, setPromotedDealId] = useState<string | null>(
     lead.promoted_deal_id ?? null
   );
@@ -304,12 +306,14 @@ export function LeadEditClient({
   const companySizeName = lead.company_size?.name ?? null;
 
   // 保存処理の本体（昇格確認後または昇格不要時に呼ばれる）
-  const executeSave = async (): Promise<{ redirectTo: string | null; error: string | null; promoteError?: string }> => {
+  // isPromotionFlow: true の場合、Server Action のエラーは Opportunity 昇格確認ダイアログ内に
+  // インライン表示するためトーストにしない（確認ダイアログ内のエラー表示は仕様上インライン）
+  const executeSave = async (
+    opts: { isPromotionFlow?: boolean } = {}
+  ): Promise<{ redirectTo: string | null; error: string | null }> => {
     setSaving(true);
     setSaveError(null);
     setSaveWarning(null);
-    setPromoteMessage(null);
-    setPromoteWarning(null);
 
     const employeeCountNum = values.employee_count.trim() === "" ? null : parseInt(values.employee_count, 10);
     if (employeeCountNum !== null && (Number.isNaN(employeeCountNum) || employeeCountNum < 0)) {
@@ -364,33 +368,39 @@ export function LeadEditClient({
 
     if (!result.ok) {
       const firstError = Object.values(result.errors).flat()[0] ?? "保存に失敗しました";
-      // corporate_number 重複エラー（昇格ブロック）
-      if ("corporate_number" in result.errors) {
-        setPromoteWarning(result.errors.corporate_number[0]);
-        setPromoteWarningDismissed(false);
-        return { redirectTo: null, error: null, promoteError: result.errors.corporate_number[0] };
-      } else if (firstError.includes("Deal昇格に失敗")) {
-        setPromoteWarning(firstError);
-        return { redirectTo: `/leads/${lead.id}`, error: null, promoteError: firstError };
-      } else {
-        setSaveError(firstError);
+      if (opts.isPromotionFlow) {
+        // 昇格確認ダイアログ内でインライン表示するため呼び出し元に返すのみ（トーストにしない）
         return { redirectTo: null, error: firstError };
       }
+      // フィールドエラー（Zod / マスタ未投入等）はインライン表示、
+      // 権限エラー・楽観ロック競合・DB エラー等はトーストで通知
+      if (isFieldValidationError(firstError)) {
+        setSaveError(firstError);
+      } else {
+        showToast({ type: "error", message: firstError });
+      }
+      return { redirectTo: null, error: firstError };
     }
 
-    // warnings（法人番号重複など）を表示
+    // warnings（法人番号重複など）は入力値に紐づく警告のためインライン表示
     if (result.warnings && result.warnings.length > 0) {
       setSaveWarning(result.warnings[0]);
       setSaveWarningDismissed(false);
     }
 
     const updatedLead = result.lead;
-    if (
-      updatedLead?.promoted_deal_id &&
-      updatedLead.promoted_deal_id !== promotedDealId
-    ) {
-      setPromotedDealId(updatedLead.promoted_deal_id);
-      setPromoteMessage("商談に昇格しました！");
+    const justPromoted =
+      !!updatedLead?.promoted_deal_id && updatedLead.promoted_deal_id !== promotedDealId;
+    if (justPromoted) {
+      setPromotedDealId(updatedLead!.promoted_deal_id!);
+      showToast({
+        type: "success",
+        message: isCorporateSelected
+          ? "商談に昇格しました。会社情報と連絡先も作成されました"
+          : "商談に昇格しました。連絡先も作成されました",
+      });
+    } else {
+      showToast({ type: "success", message: "保存しました" });
     }
 
     // warnings がある場合はページ遷移しない（ユーザーに認識させる）
@@ -414,9 +424,9 @@ export function LeadEditClient({
     }
   };
 
-  // 昇格確認モーダルの onConfirm
+  // 昇格確認モーダルの onConfirm（エラーはモーダル内にインライン表示）
   const handlePromoteConfirm = async (): Promise<{ error: string | null }> => {
-    const result = await executeSave();
+    const result = await executeSave({ isPromotionFlow: true });
     if (result.error) {
       return { error: result.error };
     }
@@ -434,9 +444,11 @@ export function LeadEditClient({
       startDeleteTransition(async () => {
         const result = await deleteLead(lead.id);
         if (result.error) {
+          // 削除確認ダイアログ内にインライン表示
           resolve({ error: result.error });
           return;
         }
+        showToast({ type: "success", message: "リードを削除しました" });
         router.push("/leads");
         resolve({ error: null });
       });
@@ -545,41 +557,6 @@ export function LeadEditClient({
         </div>
       </div>
 
-      {/* Deal 昇格メッセージ */}
-      {promoteMessage && (
-        <div
-          style={{
-            backgroundColor: "rgba(122,165,146,0.15)",
-            border: "1px solid var(--color-sage)",
-            borderRadius: "var(--radius-card)",
-            padding: "0.75rem 1rem",
-            marginBottom: "1rem",
-            color: "#4D7A65",
-            fontSize: "0.875rem",
-            display: "flex",
-            alignItems: "center",
-            gap: "0.5rem",
-          }}
-        >
-          {promoteMessage}
-          {promotedDealId && (
-            <Link
-              href={`/deals/${promotedDealId}`}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "0.25rem",
-                color: "var(--color-terra)",
-                fontWeight: 600,
-                textDecoration: "none",
-              }}
-            >
-              商談を見る
-              <ArrowUpRight size={14} />
-            </Link>
-          )}
-        </div>
-      )}
       {/* 法人番号重複など warnings バナー */}
       {saveWarning && !saveWarningDismissed && (
         <div
@@ -603,43 +580,6 @@ export function LeadEditClient({
           <button
             type="button"
             onClick={() => setSaveWarningDismissed(true)}
-            style={{
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              color: "#8A6D1E",
-              fontSize: "1rem",
-              lineHeight: 1,
-              padding: "0.125rem",
-              flexShrink: 0,
-            }}
-            aria-label="閉じる"
-          >
-            ×
-          </button>
-        </div>
-      )}
-      {promoteWarning && !promoteWarningDismissed && (
-        <div
-          style={{
-            backgroundColor: "rgba(229,196,127,0.2)",
-            border: "1px solid var(--color-amber)",
-            borderRadius: "var(--radius-card)",
-            padding: "0.75rem 1rem",
-            marginBottom: "1rem",
-            color: "#8A6D1E",
-            fontSize: "0.875rem",
-            display: "flex",
-            alignItems: "flex-start",
-            gap: "0.5rem",
-          }}
-        >
-          <span style={{ flex: 1 }}>
-            <strong>商談昇格に問題が発生しました:</strong> {promoteWarning}
-          </span>
-          <button
-            type="button"
-            onClick={() => setPromoteWarningDismissed(true)}
             style={{
               background: "none",
               border: "none",

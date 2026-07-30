@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Save } from "lucide-react";
 import { createDeal } from "@/actions/deals";
+import { useToast } from "@/components/ui/toast";
+import { isFieldValidationError } from "@/lib/errors";
 
 type SelectOption = { value: string; label: string };
 type StageOption = SelectOption & { pipeline_type_id: string };
@@ -133,6 +135,7 @@ function onBlur(
 
 export function DealNewForm({ masters }: { masters: Masters }) {
   const router = useRouter();
+  const { showToast } = useToast();
   const [values, setValues] = useState({
     name: "",
     pipeline_type_id: "",
@@ -208,9 +211,14 @@ export function DealNewForm({ masters }: { masters: Masters }) {
     const result = await createDeal(payload);
     setSaving(false);
     if (result.error) {
-      setError(result.error);
+      if (isFieldValidationError(result.error)) {
+        setError(result.error);
+      } else {
+        showToast({ type: "error", message: result.error });
+      }
       return;
     }
+    showToast({ type: "success", message: "商談を作成しました" });
     const newId = (result.data as { id?: string } | null)?.id;
     if (newId) {
       router.push(`/deals/${newId}`);

@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Save } from "lucide-react";
 import { createCampaign } from "@/actions/campaigns";
+import { useToast } from "@/components/ui/toast";
+import { isFieldValidationError } from "@/lib/errors";
 
 const styles = {
   container: { padding: "1.5rem", maxWidth: 800, margin: "0 auto" } as CSSProperties,
@@ -80,6 +82,7 @@ function onBlur(e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTM
 
 export function CampaignNewForm() {
   const router = useRouter();
+  const { showToast } = useToast();
   const [values, setValues] = useState({
     name: "",
     type: "" as "generation" | "nurturing" | "qualification" | "",
@@ -114,9 +117,14 @@ export function CampaignNewForm() {
     });
     setSaving(false);
     if (result.error) {
-      setError(result.error);
+      if (isFieldValidationError(result.error)) {
+        setError(result.error);
+      } else {
+        showToast({ type: "error", message: result.error });
+      }
       return;
     }
+    showToast({ type: "success", message: "キャンペーンを作成しました" });
     const newId = (result.data as { id?: string } | null)?.id;
     if (newId) {
       router.push(`/campaigns/${newId}`);

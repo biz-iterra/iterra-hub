@@ -1,0 +1,226 @@
+"use client";
+
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
+import { CheckCircle2, AlertTriangle, Info, X } from "lucide-react";
+
+export type ToastType = "success" | "error" | "info";
+
+export type ToastInput = {
+  type: ToastType;
+  message: string;
+};
+
+type ToastItem = ToastInput & { id: number };
+
+type ToastContextValue = {
+  showToast: (toast: ToastInput) => void;
+};
+
+const ToastContext = createContext<ToastContextValue | null>(null);
+
+// success/info の自動消滅までの時間。error は自動消滅させない（見落とし防止）
+const AUTO_DISMISS_MS = 4000;
+// フェードイン/アウトのトランジション時間（prefers-reduced-motion時は0）
+const TRANSITION_MS = 200;
+
+const ICONS: Record<ToastType, typeof CheckCircle2> = {
+  success: CheckCircle2,
+  error: AlertTriangle,
+  info: Info,
+};
+
+// 配色は eight-import-view.tsx の alertOk/alertError/alertWarn と同じ方式:
+// 背景はトークン値（--color-success #10B981 / --color-error #EF4444 / --color-info #3B82F6）
+// 由来の rgba、文字色は WCAG AA（4.5:1 以上）を満たすまで濃くした色を選定
+// - success: #047857 は #10B981 系背景に対し約 5.2:1
+// - error:   #B91C1C は #EF4444 系背景に対し約 6.4:1（既存 alertError と同一）
+// - info:    #1D4ED8 は #3B82F6 系背景に対し約 6.3:1
+const TONE_STYLES: Record<ToastType, { background: string; border: string; color: string }> = {
+  success: {
+    background: "rgba(16, 185, 129, 0.1)",
+    border: "1px solid rgba(16, 185, 129, 0.35)",
+    color: "#047857",
+  },
+  error: {
+    background: "rgba(239, 68, 68, 0.08)",
+    border: "1px solid rgba(239, 68, 68, 0.3)",
+    color: "#B91C1C",
+  },
+  info: {
+    background: "rgba(59, 130, 246, 0.08)",
+    border: "1px solid rgba(59, 130, 246, 0.3)",
+    color: "#1D4ED8",
+  },
+};
+
+/**
+ * 共通トースト通知の Context フック。
+ *
+ * ```tsx
+ * import { useToast } from "@/components/ui/toast";
+ * const { showToast } = useToast();
+ * showToast({ type: "success", message: "保存しました" });
+ * ```
+ *
+ * - success / info: 約4秒で自動消滅（role="status" aria-live="polite"）
+ * - error: 自動消滅させない。閉じるボタンでのみ消える（role="alert" aria-live="assertive"）
+ */
+export function useToast(): ToastContextValue {
+  const ctx = useContext(ToastContext);
+  if (!ctx) {
+    throw new Error("useToast() は ToastProvider の内側でのみ使用できます");
+  }
+  return ctx;
+}
+
+function usePrefersReducedMotion(): boolean {
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    const mql = window.matchMedia("(prefers-reduced-motion: reduce)");
+    setReduced(mql.matches);
+    const handleChange = (e: MediaQueryListEvent) => setReduced(e.matches);
+    mql.addEventListener("change", handleChange);
+    return () => mql.removeEventListener("change", handleChange);
+  }, []);
+  return reduced;
+}
+
+function ToastItemView({
+  toast,
+  onDismiss,
+}: {
+  toast: ToastItem;
+  onDismiss: (id: number) => void;
+}) {
+  const [visible, setVisible] = useState(false);
+  const removeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reducedMotion = usePrefersReducedMotion();
+
+  // マウント時にフェードイン
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => setVisible(true));
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  const startDismiss = useCallback(() => {
+    setVisible(false);
+    if (reducedMotion) {
+      onDismiss(toast.id);
+      return;
+    }
+    removeTimerRef.current = setTimeout(() => onDismiss(toast.id), TRANSITION_MS);
+  }, [onDismiss, toast.id, reducedMotion]);
+
+  // success/info のみ自動消滅。error は閉じるボタンのみ
+  useEffect(() => {
+    if (toast.type === "error") return;
+    const timer = setTimeout(startDismiss, AUTO_DISMISS_MS);
+    return () => clearTimeout(timer);
+    // startDismiss は toast.id ごとに安定しているため依存に含めない
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [toast.type]);
+
+  useEffect(() => {
+    return () => {
+      if (removeTimerRef.current) clearTimeout(removeTimerRef.current);
+    };
+  }, []);
+
+  const tone = TONE_STYLES[toast.type];
+  const Icon = ICONS[toast.type];
+  const isError = toast.type === "error";
+
+  const style: CSSProperties = {
+    display: "flex",
+    alignItems: "flex-start",
+    gap: "0.625rem",
+    minWidth: "20rem",
+    maxWidth: "26rem",
+    padding: "0.875rem 1rem",
+    borderRadius: "var(--radius-md)",
+    boxShadow: "var(--elevation-high)",
+    backgroundColor: tone.background,
+    border: tone.border,
+    color: tone.color,
+    opacity: visible ? 1 : 0,
+    transform: visible ? "translateY(0)" : "translateY(0.5rem)",
+    transition: reducedMotion ? "none" : `opacity ${TRANSITION_MS}ms ease, transform ${TRANSITION_MS}ms ease`,
+  };
+
+  return (
+    <div role={isError ? "alert" : "status"} aria-live={isError ? "assertive" : "polite"} style={style}>
+      <Icon size={18} style={{ flexShrink: 0, marginTop: "0.0625rem" }} aria-hidden="true" />
+      <p style={{ flex: 1, fontSize: "0.875rem", lineHeight: 1.5, margin: 0 }}>{toast.message}</p>
+      <button
+        type="button"
+        onClick={startDismiss}
+        aria-label="通知を閉じる"
+        style={{
+          flexShrink: 0,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          width: "1.25rem",
+          height: "1.25rem",
+          border: "none",
+          background: "none",
+          padding: 0,
+          color: tone.color,
+          cursor: "pointer",
+        }}
+      >
+        <X size={14} />
+      </button>
+    </div>
+  );
+}
+
+export function ToastProvider({ children }: { children: ReactNode }) {
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const idRef = useRef(0);
+
+  const showToast = useCallback((toast: ToastInput) => {
+    const id = ++idRef.current;
+    setToasts((prev) => [...prev, { ...toast, id }]);
+  }, []);
+
+  const dismiss = useCallback((id: number) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
+  return (
+    <ToastContext.Provider value={{ showToast }}>
+      {children}
+      <div
+        aria-label="通知"
+        style={{
+          position: "fixed",
+          right: "1.25rem",
+          bottom: "1.25rem",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "flex-end",
+          gap: "0.625rem",
+          // --zindex-tooltip (60) と同値。モーダル(40)・オーバーレイ(50)より前面に出す
+          zIndex: 60,
+          pointerEvents: "none",
+        }}
+      >
+        {toasts.map((toast) => (
+          <div key={toast.id} style={{ pointerEvents: "auto" }}>
+            <ToastItemView toast={toast} onDismiss={dismiss} />
+          </div>
+        ))}
+      </div>
+    </ToastContext.Provider>
+  );
+}

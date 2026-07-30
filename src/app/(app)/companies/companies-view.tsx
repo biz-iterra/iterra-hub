@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Plus, Building2 } from "lucide-react";
 import { getCompanies } from "@/actions/companies";
 import { StatusBadge } from "@/components/ui/badges";
@@ -41,6 +42,7 @@ export function CompaniesView({
   corporateTypes,
   users,
 }: CompaniesViewProps) {
+  const router = useRouter();
   const [data, setData] = useState<CompaniesData>(initialData);
   const [statusFilter, setStatusFilter] = useState("");
   const [corporateTypeFilter, setCorporateTypeFilter] = useState("");
@@ -217,7 +219,7 @@ export function CompaniesView({
                   onMouseLeave={(e) =>
                     (e.currentTarget.style.backgroundColor = "transparent")
                   }
-                  onClick={() => (window.location.href = `/companies/${company.id}`)}
+                  onClick={() => router.push(`/companies/${company.id}`)}
                 >
                   {/* 会社名 */}
                   <td className="px-4 py-3">

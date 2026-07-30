@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Save } from "lucide-react";
 import { createAccount } from "@/actions/accounts";
+import { useToast } from "@/components/ui/toast";
+import { isFieldValidationError } from "@/lib/errors";
 
 type SelectOption = { value: string; label: string };
 
@@ -131,6 +133,7 @@ function onBlur(
 
 export function AccountNewForm({ masters }: { masters: Masters }) {
   const router = useRouter();
+  const { showToast } = useToast();
   const [values, setValues] = useState({
     name: "",
     company_id: "",
@@ -168,9 +171,14 @@ export function AccountNewForm({ masters }: { masters: Masters }) {
     const result = await createAccount(payload);
     setSaving(false);
     if (result.error) {
-      setError(result.error);
+      if (isFieldValidationError(result.error)) {
+        setError(result.error);
+      } else {
+        showToast({ type: "error", message: result.error });
+      }
       return;
     }
+    showToast({ type: "success", message: "取引先を作成しました" });
     const newId = (result.data as { id?: string } | null)?.id;
     if (newId) {
       router.push(`/accounts/${newId}`);

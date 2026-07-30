@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import { getCampaigns } from "@/actions/campaigns";
 import { CampaignTypeBadge, CampaignStatusBadge } from "@/components/ui/badges";
@@ -30,6 +31,7 @@ export function CampaignsView({
   initialData: Paged<Row<"campaigns">> | null;
   currentUserRole: string;
 }) {
+  const router = useRouter();
   const [data, setData] = useState(initialData);
   const [typeFilter, setTypeFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -212,7 +214,7 @@ export function CampaignsView({
                   onMouseLeave={(e) =>
                     (e.currentTarget.style.backgroundColor = "transparent")
                   }
-                  onClick={() => (window.location.href = `/campaigns/${campaign.id}`)}
+                  onClick={() => router.push(`/campaigns/${campaign.id}`)}
                 >
                   {/* キャンペーン名 */}
                   <td className="px-4 py-3">

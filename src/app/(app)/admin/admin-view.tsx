@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback, type FormEvent } from "react";
 import { ArrowUpRight } from "lucide-react";
+import { useToast } from "@/components/ui/toast";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   getPipelineTypes, createPipelineType, updatePipelineType, deletePipelineType,
   getDealStages, createDealStage, updateDealStage, deleteDealStage,
@@ -254,36 +256,6 @@ function Modal({
   );
 }
 
-// ===== Delete Confirm Modal =====
-
-function DeleteConfirmModal({
-  itemName,
-  loading,
-  onConfirm,
-  onCancel,
-}: {
-  itemName: string;
-  loading: boolean;
-  onConfirm: () => void;
-  onCancel: () => void;
-}) {
-  return (
-    <Modal title="削除確認" onClose={onCancel}>
-      <p style={{ ...styles.sub, marginBottom: "1.5rem" }}>
-        「{itemName}」を本当に削除しますか？
-      </p>
-      <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
-        <button style={styles.btnOutline} onClick={onCancel} disabled={loading}>
-          キャンセル
-        </button>
-        <button style={styles.btnDanger} onClick={onConfirm} disabled={loading}>
-          {loading ? "処理中..." : "削除"}
-        </button>
-      </div>
-    </Modal>
-  );
-}
-
 // ===== Form Modal =====
 
 function FormModal({
@@ -291,7 +263,6 @@ function FormModal({
   fields,
   initialValues,
   loading,
-  error,
   onSubmit,
   onCancel,
 }: {
@@ -299,7 +270,6 @@ function FormModal({
   fields: FieldDef[];
   initialValues: Record<string, unknown>;
   loading: boolean;
-  error: string | null;
   onSubmit: (values: Record<string, unknown>) => void;
   onCancel: () => void;
 }) {
@@ -387,7 +357,6 @@ function FormModal({
             </div>
           ))}
         </div>
-        {error && <p style={{ ...styles.error, marginTop: "0.75rem" }}>{error}</p>}
         <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end", marginTop: "1.5rem" }}>
           <button type="button" style={styles.btnOutline} onClick={onCancel} disabled={loading}>
             キャンセル
@@ -420,21 +389,21 @@ function SimpleMasterTab({
   onRefresh: () => void;
   fields: FieldDef[];
 }) {
+  const { showToast } = useToast();
   const [showCreate, setShowCreate] = useState(false);
   const [editItem, setEditItem] = useState<MasterItem | null>(null);
   const [deleteItem, setDeleteItem] = useState<MasterItem | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const handleCreate = async (values: Record<string, unknown>) => {
     setLoading(true);
-    setError(null);
     const result = await onCreate(values);
     setLoading(false);
     if (result.error) {
-      setError(result.error);
+      showToast({ type: "error", message: result.error });
       return;
     }
+    showToast({ type: "success", message: `${title}を追加しました` });
     setShowCreate(false);
     onRefresh();
   };
@@ -442,29 +411,25 @@ function SimpleMasterTab({
   const handleUpdate = async (values: Record<string, unknown>) => {
     if (!editItem) return;
     setLoading(true);
-    setError(null);
     const result = await onUpdate(editItem.id, values);
     setLoading(false);
     if (result.error) {
-      setError(result.error);
+      showToast({ type: "error", message: result.error });
       return;
     }
+    showToast({ type: "success", message: `${title}を保存しました` });
     setEditItem(null);
     onRefresh();
   };
 
   const handleDelete = async () => {
-    if (!deleteItem) return;
-    setLoading(true);
-    setError(null);
+    if (!deleteItem) return { error: "対象が不明です" };
     const result = await onDelete(deleteItem.id);
-    setLoading(false);
-    if (result.error) {
-      setError(result.error);
-      return;
-    }
+    if (result.error) return { error: result.error };
+    showToast({ type: "success", message: `${title}を削除しました` });
     setDeleteItem(null);
     onRefresh();
+    return { error: null };
   };
 
   const defaultValues: Record<string, unknown> = {};
@@ -476,7 +441,7 @@ function SimpleMasterTab({
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
         <h2 style={{ ...styles.title, fontSize: "1rem", fontWeight: 600 }}>{title}</h2>
-        <button style={styles.btnPrimary} onClick={() => { setError(null); setShowCreate(true); }}>
+        <button style={styles.btnPrimary} onClick={() => setShowCreate(true)}>
           追加
         </button>
       </div>
@@ -565,13 +530,13 @@ function SimpleMasterTab({
                     <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
                       <button
                         style={{ ...styles.btnOutline, ...styles.btnSmall }}
-                        onClick={() => { setError(null); setEditItem(item); }}
+                        onClick={() => setEditItem(item)}
                       >
                         編集
                       </button>
                       <button
                         style={{ ...styles.btnDanger, ...styles.btnSmall }}
-                        onClick={() => { setError(null); setDeleteItem(item); }}
+                        onClick={() => setDeleteItem(item)}
                       >
                         削除
                       </button>
@@ -591,7 +556,6 @@ function SimpleMasterTab({
           fields={fields}
           initialValues={defaultValues}
           loading={loading}
-          error={error}
           onSubmit={handleCreate}
           onCancel={() => setShowCreate(false)}
         />
@@ -604,21 +568,21 @@ function SimpleMasterTab({
           fields={fields}
           initialValues={Object.fromEntries(fields.map((f) => [f.key, editItem[f.key]]))}
           loading={loading}
-          error={error}
           onSubmit={handleUpdate}
           onCancel={() => setEditItem(null)}
         />
       )}
 
       {/* Delete Modal */}
-      {deleteItem && (
-        <DeleteConfirmModal
-          itemName={deleteItem.name}
-          loading={loading}
-          onConfirm={handleDelete}
-          onCancel={() => setDeleteItem(null)}
-        />
-      )}
+      <ConfirmDialog
+        open={deleteItem !== null}
+        title="削除確認"
+        message={deleteItem ? `「${deleteItem.name}」を本当に削除しますか？` : ""}
+        confirmLabel="削除"
+        danger
+        onConfirm={handleDelete}
+        onClose={() => setDeleteItem(null)}
+      />
     </div>
   );
 }
@@ -1070,7 +1034,7 @@ function LeadScoreRulesTab({ scoreMasters }: { scoreMasters?: ScoreRuleMasters }
   const [editItem, setEditItem] = useState<LeadScoreRule | null>(null);
   const [deleteItem, setDeleteItem] = useState<LeadScoreRule | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { showToast } = useToast();
 
   const CATEGORY_OPTIONS = [
     { value: "attribute", label: "属性" },
@@ -1110,27 +1074,29 @@ function LeadScoreRulesTab({ scoreMasters }: { scoreMasters?: ScoreRuleMasters }
   ];
 
   const handleCreate = async (values: Record<string, unknown>) => {
-    setLoading(true); setError(null);
+    setLoading(true);
     const result = await createLeadScoreRule(values);
     setLoading(false);
-    if (result.error) { setError(result.error); return; }
+    if (result.error) { showToast({ type: "error", message: result.error }); return; }
+    showToast({ type: "success", message: "スコアリングルールを追加しました" });
     setShowCreate(false); loadRules();
   };
   const handleUpdate = async (values: Record<string, unknown>) => {
     if (!editItem) return;
-    setLoading(true); setError(null);
+    setLoading(true);
     const result = await updateLeadScoreRule(editItem.id, values);
     setLoading(false);
-    if (result.error) { setError(result.error); return; }
+    if (result.error) { showToast({ type: "error", message: result.error }); return; }
+    showToast({ type: "success", message: "スコアリングルールを保存しました" });
     setEditItem(null); loadRules();
   };
   const handleDelete = async () => {
-    if (!deleteItem) return;
-    setLoading(true); setError(null);
+    if (!deleteItem) return { error: "対象が不明です" };
     const result = await deleteLeadScoreRule(deleteItem.id);
-    setLoading(false);
-    if (result.error) { setError(result.error); return; }
+    if (result.error) return { error: result.error };
+    showToast({ type: "success", message: "スコアリングルールを削除しました" });
     setDeleteItem(null); loadRules();
+    return { error: null };
   };
 
   if (loadingData) return <p style={styles.sub}>読み込み中...</p>;
@@ -1189,7 +1155,7 @@ function LeadScoreRulesTab({ scoreMasters }: { scoreMasters?: ScoreRuleMasters }
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
         <h2 style={{ ...styles.title, fontSize: "1rem", fontWeight: 600 }}>スコアリングルール</h2>
-        <button style={styles.btnPrimary} onClick={() => { setError(null); setShowCreate(true); }}>
+        <button style={styles.btnPrimary} onClick={() => setShowCreate(true)}>
           追加
         </button>
       </div>
@@ -1218,15 +1184,13 @@ function LeadScoreRulesTab({ scoreMasters }: { scoreMasters?: ScoreRuleMasters }
                 catLabel={catLabel}
                 ctLabel={ctLabel}
                 conditionValueName={resolveConditionValueName(rule.condition_type, rule.condition_value_id)}
-                onEdit={() => { setError(null); setEditItem(rule); }}
-                onDelete={() => { setError(null); setDeleteItem(rule); }}
+                onEdit={() => setEditItem(rule)}
+                onDelete={() => setDeleteItem(rule)}
               />
             ))}
           </tbody>
         </table>
       </div>
-
-      {error && <p style={{ ...styles.error, marginTop: "0.75rem" }}>{error}</p>}
 
       {showCreate && (
         <FormModal
@@ -1234,7 +1198,6 @@ function LeadScoreRulesTab({ scoreMasters }: { scoreMasters?: ScoreRuleMasters }
           fields={formFields}
           initialValues={defaultValues}
           loading={loading}
-          error={error}
           onSubmit={handleCreate}
           onCancel={() => setShowCreate(false)}
         />
@@ -1250,19 +1213,19 @@ function LeadScoreRulesTab({ scoreMasters }: { scoreMasters?: ScoreRuleMasters }
             ])
           )}
           loading={loading}
-          error={error}
           onSubmit={handleUpdate}
           onCancel={() => setEditItem(null)}
         />
       )}
-      {deleteItem && (
-        <DeleteConfirmModal
-          itemName={deleteItem.description ?? deleteItem.condition_type}
-          loading={loading}
-          onConfirm={handleDelete}
-          onCancel={() => setDeleteItem(null)}
-        />
-      )}
+      <ConfirmDialog
+        open={deleteItem !== null}
+        title="削除確認"
+        message={deleteItem ? `「${deleteItem.description ?? deleteItem.condition_type}」を本当に削除しますか？` : ""}
+        confirmLabel="削除"
+        danger
+        onConfirm={handleDelete}
+        onClose={() => setDeleteItem(null)}
+      />
     </div>
   );
 }
@@ -1343,7 +1306,7 @@ function LeadScoreThresholdsTab({ leadTemperatures }: { leadTemperatures: Master
   const [editItem, setEditItem] = useState<LeadScoreThreshold | null>(null);
   const [deleteItem, setDeleteItem] = useState<LeadScoreThreshold | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { showToast } = useToast();
 
   const loadThresholds = useCallback(async () => {
     setLoadingData(true);
@@ -1363,23 +1326,19 @@ function LeadScoreThresholdsTab({ leadTemperatures }: { leadTemperatures: Master
   ];
 
   const handleCreate = async (_values: Record<string, unknown>) => {
-    setLoading(true); setError(null);
+    setLoading(true);
     const result = await Promise.resolve({ data: null, error: "この画面からは作成できません。DBマイグレーションで管理してください。" });
     setLoading(false);
-    if (result.error) { setError(result.error); return; }
+    if (result.error) { showToast({ type: "error", message: result.error }); return; }
   };
   const handleUpdate = async (_values: Record<string, unknown>) => {
-    setLoading(true); setError(null);
+    setLoading(true);
     const result = await Promise.resolve({ data: null, error: "この画面からは更新できません。DBマイグレーションで管理してください。" });
     setLoading(false);
-    if (result.error) { setError(result.error); return; }
+    if (result.error) { showToast({ type: "error", message: result.error }); return; }
   };
   const handleDelete = async () => {
-    setLoading(true); setError(null);
-    const result = await Promise.resolve({ data: null, error: "この画面からは削除できません。DBマイグレーションで管理してください。" });
-    setLoading(false);
-    if (result.error) { setError(result.error); return; }
-    setDeleteItem(null);
+    return { error: "この画面からは削除できません。DBマイグレーションで管理してください。" };
   };
 
   const resolveTemperatureName = (temperatureId: string | null): string => {
@@ -1395,7 +1354,7 @@ function LeadScoreThresholdsTab({ leadTemperatures }: { leadTemperatures: Master
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
         <h2 style={{ ...styles.title, fontSize: "1rem", fontWeight: 600 }}>スコア→温度感 変換ルール</h2>
-        <button style={styles.btnPrimary} onClick={() => { setError(null); setShowCreate(true); }}>
+        <button style={styles.btnPrimary} onClick={() => setShowCreate(true)}>
           追加
         </button>
       </div>
@@ -1424,15 +1383,13 @@ function LeadScoreThresholdsTab({ leadTemperatures }: { leadTemperatures: Master
                 key={t.id}
                 item={t}
                 temperatureName={resolveTemperatureName(t.temperature_id)}
-                onEdit={() => { setError(null); setEditItem(t); }}
-                onDelete={() => { setError(null); setDeleteItem(t); }}
+                onEdit={() => setEditItem(t)}
+                onDelete={() => setDeleteItem(t)}
               />
             ))}
           </tbody>
         </table>
       </div>
-
-      {error && <p style={{ ...styles.error, marginTop: "0.75rem" }}>{error}</p>}
 
       {showCreate && (
         <FormModal
@@ -1440,7 +1397,6 @@ function LeadScoreThresholdsTab({ leadTemperatures }: { leadTemperatures: Master
           fields={formFields}
           initialValues={defaultValues}
           loading={loading}
-          error={error}
           onSubmit={handleCreate}
           onCancel={() => setShowCreate(false)}
         />
@@ -1451,19 +1407,19 @@ function LeadScoreThresholdsTab({ leadTemperatures }: { leadTemperatures: Master
           fields={formFields}
           initialValues={{ min_score: editItem.min_score, max_score: editItem.max_score ?? "", temperature_id: editItem.temperature_id ?? "" }}
           loading={loading}
-          error={error}
           onSubmit={handleUpdate}
           onCancel={() => setEditItem(null)}
         />
       )}
-      {deleteItem && (
-        <DeleteConfirmModal
-          itemName={resolveTemperatureName(deleteItem.temperature_id)}
-          loading={loading}
-          onConfirm={handleDelete}
-          onCancel={() => setDeleteItem(null)}
-        />
-      )}
+      <ConfirmDialog
+        open={deleteItem !== null}
+        title="削除確認"
+        message={deleteItem ? `「${resolveTemperatureName(deleteItem.temperature_id)}」を本当に削除しますか？` : ""}
+        confirmLabel="削除"
+        danger
+        onConfirm={handleDelete}
+        onClose={() => setDeleteItem(null)}
+      />
     </div>
   );
 }

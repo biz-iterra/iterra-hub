@@ -9,6 +9,7 @@ import {
   type DeletedEntity,
 } from "@/actions/deleted";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useToast } from "@/components/ui/toast";
 
 const ENTITY_LABELS: Record<DeletedEntity, string> = {
   companies: "会社情報",
@@ -183,6 +184,7 @@ export function DeletedView({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmTarget, setConfirmTarget] = useState<RecordItem | null>(null);
+  const { showToast } = useToast();
 
   const load = useCallback(async (entity: DeletedEntity, p: number) => {
     setLoading(true);
@@ -216,6 +218,7 @@ export function DeletedView({
     if (result.error) return { error: result.error };
     setCounts((c) => ({ ...c, [active]: Math.max(0, c[active] - 1) }));
     await load(active, page);
+    showToast({ type: "success", message: "復元しました" });
     return { error: null };
   };
 

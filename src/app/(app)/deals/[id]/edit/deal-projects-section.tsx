@@ -5,6 +5,7 @@ import Link from "next/link";
 import { FolderKanban, Plus, X, ArrowUpRight } from "lucide-react";
 import { getProjects, addDealProject, removeDealProject } from "@/actions/projects";
 import { ProjectStatusBadge } from "@/components/ui/badges";
+import { useToast } from "@/components/ui/toast";
 
 type LinkedProject = {
   id: string;
@@ -32,7 +33,7 @@ export function DealProjectsSection({
   >([]);
   const [selectedId, setSelectedId] = useState("");
   const [isPending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
+  const { showToast } = useToast();
 
   useEffect(() => {
     (async () => {
@@ -54,11 +55,10 @@ export function DealProjectsSection({
 
   const handleAdd = () => {
     if (!selectedId) return;
-    setError(null);
     startTransition(async () => {
       const result = await addDealProject({ deal_id: dealId, project_id: selectedId });
       if (result.error) {
-        setError(result.error);
+        showToast({ type: "error", message: result.error });
         return;
       }
       const proj = allProjects.find((p) => p.id === selectedId);
@@ -78,18 +78,19 @@ export function DealProjectsSection({
         ]);
       }
       setSelectedId("");
+      showToast({ type: "success", message: "プロジェクトを紐づけました" });
     });
   };
 
   const handleRemove = (projectId: string) => {
-    setError(null);
     startTransition(async () => {
       const result = await removeDealProject(dealId, projectId);
       if (result.error) {
-        setError(result.error);
+        showToast({ type: "error", message: result.error });
         return;
       }
       setProjects((prev) => prev.filter((p) => p.project?.id !== projectId));
+      showToast({ type: "success", message: "紐づけを解除しました" });
     });
   };
 
@@ -162,12 +163,6 @@ export function DealProjectsSection({
           紐づける
         </button>
       </div>
-
-      {error && (
-        <p style={{ color: "var(--color-error)", fontSize: "0.75rem", margin: "0 0 0.5rem 0" }}>
-          {error}
-        </p>
-      )}
 
       {/* プロジェクト一覧 */}
       {projects.length > 0 ? (

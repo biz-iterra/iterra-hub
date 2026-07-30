@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Save } from "lucide-react";
 import { createProject } from "@/actions/projects";
+import { useToast } from "@/components/ui/toast";
+import { isFieldValidationError } from "@/lib/errors";
 
 type SelectOption = { value: string; label: string };
 
@@ -108,6 +110,7 @@ export function ProjectNewForm({
   owners: SelectOption[];
 }) {
   const router = useRouter();
+  const { showToast } = useToast();
   const [values, setValues] = useState({
     name: "",
     description: "",
@@ -141,9 +144,14 @@ export function ProjectNewForm({
     const result = await createProject(payload);
     setSaving(false);
     if (result.error) {
-      setError(result.error);
+      if (isFieldValidationError(result.error)) {
+        setError(result.error);
+      } else {
+        showToast({ type: "error", message: result.error });
+      }
       return;
     }
+    showToast({ type: "success", message: "プロジェクトを作成しました" });
     const newId = (result.data as { id?: string } | null)?.id;
     if (newId) router.push(`/projects/${newId}`);
     else router.push("/projects");

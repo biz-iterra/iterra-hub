@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Save } from "lucide-react";
 import { createCompany } from "@/actions/companies";
+import { useToast } from "@/components/ui/toast";
+import { isFieldValidationError } from "@/lib/errors";
 
 type SelectOption = { value: string; label: string };
 
@@ -142,6 +144,7 @@ function onBlur(e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTM
 
 export function CompanyNewForm({ masters }: { masters: Masters }) {
   const router = useRouter();
+  const { showToast } = useToast();
   const [values, setValues] = useState({
     name: "",
     name_kana: "",
@@ -211,9 +214,14 @@ export function CompanyNewForm({ masters }: { masters: Masters }) {
     const result = await createCompany(payload);
     setSaving(false);
     if (result.error) {
-      setError(result.error);
+      if (isFieldValidationError(result.error)) {
+        setError(result.error);
+      } else {
+        showToast({ type: "error", message: result.error });
+      }
       return;
     }
+    showToast({ type: "success", message: "会社情報を作成しました" });
     const newId = (result.data as { id?: string } | null)?.id;
     if (newId) {
       router.push(`/companies/${newId}`);

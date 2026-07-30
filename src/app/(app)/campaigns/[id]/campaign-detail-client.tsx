@@ -13,6 +13,7 @@ import {
   TemperatureBadge,
   CategoryBadge,
 } from "@/components/ui/badges";
+import { useToast } from "@/components/ui/toast";
 import type {
   CampaignLeadRow,
   Row,
@@ -132,7 +133,7 @@ function AttachLeadsModal({
   const [search, setSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { showToast } = useToast();
 
   const filtered = unassignedLeads.filter((l) =>
     l.lead_name?.toLowerCase().includes(search.toLowerCase())
@@ -150,19 +151,20 @@ function AttachLeadsModal({
   const handleAttach = async () => {
     if (selectedIds.size === 0) return;
     setSaving(true);
-    setError(null);
+    const count = selectedIds.size;
     const result = await attachLeadsToCampaign({
       campaignId,
       leadIds: Array.from(selectedIds),
     });
     setSaving(false);
     if (result.error) {
-      setError(result.error);
+      showToast({ type: "error", message: result.error });
       return;
     }
     const attached = unassignedLeads.filter((l) => selectedIds.has(l.id));
     onAttached(attached);
     onClose();
+    showToast({ type: "success", message: `リードを${count}件紐付けました` });
   };
 
   const overlayStyle: CSSProperties = {
@@ -346,7 +348,6 @@ function AttachLeadsModal({
           <span style={{ fontSize: "0.8125rem", color: "var(--color-sumi600)" }}>
             {selectedIds.size > 0 ? `${selectedIds.size} 件選択中` : "チェックして選択"}
           </span>
-          {error && <p style={{ ...styles.error, margin: 0 }}>{error}</p>}
           <div style={{ display: "flex", gap: "0.75rem" }}>
             <button type="button" style={styles.btnOutline} onClick={onClose} disabled={saving}>
               キャンセル
@@ -379,6 +380,7 @@ export function CampaignDetailClient({
   currentUser: { id: string; full_name: string; role: string };
 }) {
   const router = useRouter();
+  const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState<Tab>("basic");
   const [, startTransition] = useTransition();
 
@@ -388,7 +390,6 @@ export function CampaignDetailClient({
   // ---- リード管理 ----
   const [campaignLeads, setCampaignLeads] = useState(initialCampaignLeads);
   const [unassignedLeads, setUnassignedLeads] = useState(initialUnassignedLeads);
-  const [leadError, setLeadError] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
 
   const handleLeadsAttached = (attachedLeads: UnassignedLeadRow[]) => {
@@ -419,15 +420,15 @@ export function CampaignDetailClient({
   };
 
   const handleDetachLead = (leadId: string) => {
-    setLeadError(null);
     startTransition(async () => {
       const result = await detachLeadFromCampaign(leadId, campaign.id);
       if (result.error) {
-        setLeadError(result.error);
+        showToast({ type: "error", message: result.error });
         return;
       }
       // 解除されたリードを紐付け一覧から削除し、未紐付けへは戻さない（ページリロードで解決）
       setCampaignLeads((prev) => prev.filter((cl) => cl.lead?.id !== leadId));
+      showToast({ type: "success", message: "リードの紐付けを解除しました" });
       router.refresh();
     });
   };
@@ -597,8 +598,6 @@ export function CampaignDetailClient({
               </button>
             </div>
           )}
-
-          {leadError && <p style={styles.error}>{leadError}</p>}
 
           {/* リード一覧 */}
           {campaignLeads.length === 0 ? (

@@ -12,6 +12,7 @@ import {
   UploadCloud,
 } from "lucide-react";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useToast } from "@/components/ui/toast";
 import {
   commitEightImport,
   dryRunEightImport,
@@ -172,14 +173,13 @@ export function EightImportView({
   const [preview, setPreview] = useState<EightImportPreview | null>(null);
   const [result, setResult] = useState<EightImportResult | null>(null);
   const [loading, setLoading] = useState<"dryrun" | "commit" | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { showToast } = useToast();
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (!f) return;
-    setError(null);
     setPreview(null);
     setResult(null);
     setFile(f);
@@ -189,14 +189,12 @@ export function EightImportView({
     setFile(null);
     setPreview(null);
     setResult(null);
-    setError(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const runDryRun = async () => {
     if (!file) return;
     setLoading("dryrun");
-    setError(null);
     setResult(null);
 
     const fd = new FormData();
@@ -205,7 +203,7 @@ export function EightImportView({
     setLoading(null);
 
     if (res.error || !res.data) {
-      setError(res.error ?? "内容を確認できませんでした");
+      showToast({ type: "error", message: res.error ?? "内容を確認できませんでした" });
       return;
     }
     setPreview(res.data);
@@ -214,7 +212,6 @@ export function EightImportView({
   const runCommit = async (): Promise<{ error: string | null }> => {
     if (!file || !preview) return { error: "取込対象がありません" };
     setLoading("commit");
-    setError(null);
 
     const fd = new FormData();
     fd.append("file", file);
@@ -223,7 +220,6 @@ export function EightImportView({
     setLoading(null);
 
     if (res.error || !res.data) {
-      setError(res.error ?? "取込に失敗しました");
       return { error: res.error ?? "取込に失敗しました" };
     }
     setResult(res.data);
@@ -261,13 +257,6 @@ export function EightImportView({
         Eight プレミアムでダウンロードした CSV をそのまま取り込めます（Shift_JIS のままで可）。
         同じ人と複数回名刺交換した行は 1 件のリードにまとめ、交換日は対応履歴として残します。
       </p>
-
-      {error && (
-        <div style={styles.alertError}>
-          <strong style={{ display: "block", marginBottom: "0.25rem" }}>取込できません</strong>
-          {error}
-        </div>
-      )}
 
       {/* ---- 1. ファイル選択 ---- */}
       <div style={styles.card}>

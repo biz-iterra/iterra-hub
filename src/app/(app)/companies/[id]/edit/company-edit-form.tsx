@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Save, Trash2 } from "lucide-react";
 import { updateCompany, deleteCompany } from "@/actions/companies";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useToast } from "@/components/ui/toast";
+import { isFieldValidationError } from "@/lib/errors";
 
 type SelectOption = { value: string; label: string };
 
@@ -189,6 +191,7 @@ export function CompanyEditForm({
   isAdmin: boolean;
 }) {
   const router = useRouter();
+  const { showToast } = useToast();
   const [values, setValues] = useState({
     name: company.name ?? "",
     name_kana: company.name_kana ?? "",
@@ -262,9 +265,14 @@ export function CompanyEditForm({
     const result = await updateCompany(company.id, payload);
     setSaving(false);
     if (result.error) {
-      setError(result.error);
+      if (isFieldValidationError(result.error)) {
+        setError(result.error);
+      } else {
+        showToast({ type: "error", message: result.error });
+      }
       return;
     }
+    showToast({ type: "success", message: "保存しました" });
     router.push(`/companies/${company.id}`);
     router.refresh();
   };
@@ -274,6 +282,7 @@ export function CompanyEditForm({
     if (result.error) {
       return { error: result.error };
     }
+    showToast({ type: "success", message: "会社情報を削除しました" });
     router.push("/companies");
     router.refresh();
     return { error: null };

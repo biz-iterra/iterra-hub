@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Save } from "lucide-react";
 import { createLead } from "@/actions/leads";
+import { useToast } from "@/components/ui/toast";
+import { isFieldValidationError } from "@/lib/errors";
 
 type SelectOption = { value: string; label: string };
 type StatusOption = SelectOption & { stage_id: string };
@@ -107,6 +109,7 @@ export function LeadNewForm({
   currentUser: CurrentUser;
 }) {
   const router = useRouter();
+  const { showToast } = useToast();
   const isManagerOrAbove = currentUser.role === "manager" || currentUser.role === "admin";
 
   const [values, setValues] = useState({
@@ -146,6 +149,7 @@ export function LeadNewForm({
   const [subOwnerUserIds, setSubOwnerUserIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // 法人番号重複の警告（保存はブロックしない）。入力値に紐づく警告のためインラインのまま
   const [warning, setWarning] = useState<string | null>(null);
 
   const set = <K extends keyof typeof values>(key: K, value: (typeof values)[K]) => {
@@ -270,15 +274,22 @@ export function LeadNewForm({
     setSaving(false);
     if (!result.ok) {
       const firstError = Object.values(result.errors).flat()[0] ?? "保存に失敗しました";
-      setError(firstError);
+      // フィールドエラー（Zod / マスタ未投入等）はインライン表示、それ以外はトースト
+      if (isFieldValidationError(firstError)) {
+        setError(firstError);
+      } else {
+        showToast({ type: "error", message: firstError });
+      }
       return;
     }
 
-    // warnings がある場合は表示した上でリダイレクト
+    // warnings（法人番号重複など）は入力値に紐づく警告のためインライン表示
     if (result.warnings && result.warnings.length > 0) {
       setWarning(result.warnings[0]);
       // warnings がある場合もリダイレクトは行う（作成自体は成功）
     }
+
+    showToast({ type: "success", message: "リードを作成しました" });
 
     const newId = (result.lead as { id?: string } | null)?.id;
     if (newId) {
@@ -321,7 +332,7 @@ export function LeadNewForm({
             fontSize: "0.875rem",
           }}
         >
-          <strong>確認が必要な項目があります:</strong> {warning}
+          <strong>リードは作成されました。ただし以下を確認してください:</strong> {warning}
         </div>
       )}
 

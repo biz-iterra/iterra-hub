@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Save, Trash2 } from "lucide-react";
 import { updateCampaign, deleteCampaign } from "@/actions/campaigns";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useToast } from "@/components/ui/toast";
+import { isFieldValidationError } from "@/lib/errors";
 import type { Row } from "@/types/relations";
 
 const styles = {
@@ -96,6 +98,7 @@ export function CampaignEditClient({
   currentUser: { id: string; full_name: string; role: string };
 }) {
   const router = useRouter();
+  const { showToast } = useToast();
 
   const isAdmin = currentUser.role === "admin";
 
@@ -109,7 +112,8 @@ export function CampaignEditClient({
     status: campaign.status ?? "draft",
   });
   const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
+  // フィールドエラー（Zod / マスタ由来）はインラインのまま
+  const [error, setError] = useState<string | null>(null);
 
   // ---- 削除確認ダイアログ ----
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -120,7 +124,7 @@ export function CampaignEditClient({
 
   const handleSave = async () => {
     setSaving(true);
-    setSaveError(null);
+    setError(null);
     const result = await updateCampaign({
       id: campaign.id,
       name: values.name,
@@ -132,15 +136,22 @@ export function CampaignEditClient({
     });
     setSaving(false);
     if (result.error) {
-      setSaveError(result.error);
+      if (isFieldValidationError(result.error)) {
+        setError(result.error);
+      } else {
+        showToast({ type: "error", message: result.error });
+      }
       return;
     }
+    showToast({ type: "success", message: "保存しました" });
     router.replace(`/campaigns/${campaign.id}`);
   };
 
+  // 削除失敗時はエラーを確認ダイアログ内にインライン表示
   const handleDelete = async (): Promise<{ error: string | null }> => {
     const result = await deleteCampaign(campaign.id);
     if (result.error) return { error: result.error };
+    showToast({ type: "success", message: "キャンペーンを削除しました" });
     router.push("/campaigns");
     router.refresh();
     return { error: null };
@@ -224,7 +235,7 @@ export function CampaignEditClient({
         </div>
       </div>
 
-      {saveError && <p style={styles.error}>{saveError}</p>}
+      {error && <p style={styles.error}>{error}</p>}
 
       {/* === 基本情報 === */}
       <div style={styles.card}>

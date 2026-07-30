@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Save } from "lucide-react";
 import { createContract } from "@/actions/contracts";
+import { useToast } from "@/components/ui/toast";
+import { isFieldValidationError } from "@/lib/errors";
 
 type SelectOption = { value: string; label: string };
 
@@ -147,6 +149,7 @@ const COUNTERPARTY_TYPES: SelectOption[] = [
 
 export function ContractNewForm({ masters }: { masters: Masters }) {
   const router = useRouter();
+  const { showToast } = useToast();
   const [values, setValues] = useState({
     deal_id: "",
     contract_method: "",
@@ -220,9 +223,14 @@ export function ContractNewForm({ masters }: { masters: Masters }) {
     const result = await createContract(payload);
     setSaving(false);
     if (result.error) {
-      setError(result.error);
+      if (isFieldValidationError(result.error)) {
+        setError(result.error);
+      } else {
+        showToast({ type: "error", message: result.error });
+      }
       return;
     }
+    showToast({ type: "success", message: "契約を作成しました" });
     const newId = (result.data as { id?: string } | null)?.id;
     if (newId) {
       router.push(`/contracts/${newId}`);

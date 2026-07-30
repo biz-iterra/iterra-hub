@@ -3,6 +3,7 @@
 import { getContracts } from "@/actions/contracts";
 import { FileText, Plus } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState, useEffect, useCallback, useTransition } from "react";
 import { ContractMethodBadge } from "@/components/ui/badges";
 import { FilterGroup, FilterClearButton } from "@/components/ui/FilterGroup";
@@ -65,6 +66,7 @@ const CONTRACT_METHOD_OPTIONS = [
 // Component
 // ---------------------------------------------------------------------------
 export function ContractsView({ initialData, isManagerOrAbove, contractTypes }: Props) {
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
   const [rows, setRows] = useState<ContractRow[]>(initialData?.rows ?? []);
@@ -325,7 +327,7 @@ export function ContractsView({ initialData, isManagerOrAbove, contractTypes }: 
                       onMouseLeave={(e) =>
                         (e.currentTarget.style.backgroundColor = "transparent")
                       }
-                      onClick={() => { window.location.href = `/contracts/${row.id}`; }}
+                      onClick={() => router.push(`/contracts/${row.id}`)}
                     >
                       {/* 契約書名 */}
                       <td style={{ padding: "0.75rem 1rem" }}>

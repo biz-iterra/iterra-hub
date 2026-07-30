@@ -84,6 +84,9 @@ ITERRA CRM（顧客関係管理）システム。
 - Server Actionsで書き込み処理、Server Componentsでデータ取得
 - コミット: Conventional Commits形式
 - DB設計は `docs/database-design.md` に基づく。変更時は設計書を先に更新する
+- 操作結果（保存・削除・移動の成否）はトーストで通知する。`useToast()`（`src/components/ui/toast.tsx`）を使う
+- フィールド単位のバリデーションエラー（入力必須・形式不正など、入力箇所に紐づくもの）はインライン表示のまま。トーストにしない
+- エラートーストは自動消滅させない（見落とし防止のため閉じるボタンでのみ消す。success/info は約4秒で自動消滅）
 
 ### データ整合性の規約（必須遵守）
 

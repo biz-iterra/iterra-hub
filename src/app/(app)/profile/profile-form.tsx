@@ -7,6 +7,7 @@ import { updateOwnProfile } from "@/actions/users";
 import { createClient } from "@/lib/supabase/client";
 import { InfoField } from "@/components/ui/InfoField";
 import { LabelBadge } from "@/components/ui/badges";
+import { useToast } from "@/components/ui/toast";
 import type { CrmUserRole } from "@/types/enums";
 
 type CurrentUser = {
@@ -91,11 +92,6 @@ const styles = {
     fontSize: "0.875rem",
     margin: "0.75rem 0 0 0",
   } as CSSProperties,
-  success: {
-    color: "var(--color-success)",
-    fontSize: "0.875rem",
-    margin: "0.75rem 0 0 0",
-  } as CSSProperties,
   footer: {
     display: "flex",
     justifyContent: "flex-end",
@@ -114,26 +110,24 @@ function onBlur(e: React.FocusEvent<HTMLInputElement>) {
 
 export function ProfileForm({ user }: { user: CurrentUser }) {
   const router = useRouter();
+  const { showToast } = useToast();
 
   // 基本情報
   const [fullName, setFullName] = useState(user.full_name);
   const [updatedAt, setUpdatedAt] = useState(user.updated_at);
   const [savingProfile, setSavingProfile] = useState(false);
-  const [profileError, setProfileError] = useState<string | null>(null);
-  const [profileSuccess, setProfileSuccess] = useState<string | null>(null);
 
   // パスワード変更
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [savingPassword, setSavingPassword] = useState(false);
+  // フィールド単位のバリデーションエラー（8文字未満・不一致）はインライン表示のまま。
+  // 保存処理そのものの成否（サーバー/DBエラー、成功）はトーストに統一する
   const [passwordError, setPasswordError] = useState<string | null>(null);
-  const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
 
   const handleSaveProfile = async (e: FormEvent) => {
     e.preventDefault();
     setSavingProfile(true);
-    setProfileError(null);
-    setProfileSuccess(null);
 
     const result = await updateOwnProfile({
       full_name: fullName,
@@ -142,21 +136,20 @@ export function ProfileForm({ user }: { user: CurrentUser }) {
     setSavingProfile(false);
 
     if (result.error) {
-      setProfileError(result.error);
+      showToast({ type: "error", message: result.error });
       return;
     }
     if (result.data) {
       setUpdatedAt(result.data.updated_at);
       setFullName(result.data.full_name);
     }
-    setProfileSuccess("表示名を更新しました");
+    showToast({ type: "success", message: "表示名を更新しました" });
     router.refresh();
   };
 
   const handleChangePassword = async (e: FormEvent) => {
     e.preventDefault();
     setPasswordError(null);
-    setPasswordSuccess(null);
 
     if (newPassword.length < 8) {
       setPasswordError("パスワードは8文字以上で入力してください");
@@ -173,12 +166,12 @@ export function ProfileForm({ user }: { user: CurrentUser }) {
     setSavingPassword(false);
 
     if (error) {
-      setPasswordError(`パスワードの変更に失敗しました: ${error.message}`);
+      showToast({ type: "error", message: `パスワードの変更に失敗しました: ${error.message}` });
       return;
     }
     setNewPassword("");
     setConfirmPassword("");
-    setPasswordSuccess("パスワードを変更しました");
+    showToast({ type: "success", message: "パスワードを変更しました" });
   };
 
   const roleKey = (user.role as CrmUserRole) in ROLE_LABELS ? (user.role as CrmUserRole) : "member";
@@ -208,9 +201,6 @@ export function ProfileForm({ user }: { user: CurrentUser }) {
               />
             </div>
           </div>
-
-          {profileError && <p style={styles.error}>{profileError}</p>}
-          {profileSuccess && <p style={styles.success}>{profileSuccess}</p>}
 
           <div style={styles.footer}>
             <button type="submit" style={styles.btnPrimary} disabled={savingProfile}>
@@ -258,7 +248,6 @@ export function ProfileForm({ user }: { user: CurrentUser }) {
           </div>
 
           {passwordError && <p style={styles.error}>{passwordError}</p>}
-          {passwordSuccess && <p style={styles.success}>{passwordSuccess}</p>}
 
           <div style={styles.footer}>
             <button type="submit" style={styles.btnPrimary} disabled={savingPassword}>

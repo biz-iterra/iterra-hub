@@ -28,6 +28,7 @@ import {
   CategoryBadge,
   ActivityTypeBadge,
 } from "@/components/ui/badges";
+import { useToast } from "@/components/ui/toast";
 import type {
   LeadActivityWithRelations,
   LeadDetail,
@@ -415,7 +416,9 @@ function LeadActivityEditModal({
     note: act.note ?? "",
   });
   const [saving, setSaving] = useState(false);
+  // 必須項目の未入力（入力箇所に紐づく検証）はインラインのまま
   const [error, setError] = useState<string | null>(null);
+  const { showToast } = useToast();
 
   const setF = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) =>
     setForm((prev) => ({ ...prev, [k]: v }));
@@ -438,9 +441,10 @@ function LeadActivityEditModal({
     });
     setSaving(false);
     if (result.error || !result.data) {
-      setError(result.error ?? "保存結果を取得できませんでした");
+      showToast({ type: "error", message: result.error ?? "保存結果を取得できませんでした" });
       return;
     }
+    showToast({ type: "success", message: "対応履歴を更新しました" });
     onSaved(result.data);
     onClose();
   };
@@ -615,7 +619,9 @@ function CustomerActivityModal({
     source: "",
   });
   const [saving, setSaving] = useState(false);
+  // 必須項目の未入力（入力箇所に紐づく検証）はインラインのまま
   const [error, setError] = useState<string | null>(null);
+  const { showToast } = useToast();
 
   const setF = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) =>
     setForm((prev) => ({ ...prev, [k]: v }));
@@ -636,9 +642,10 @@ function CustomerActivityModal({
     });
     setSaving(false);
     if (result.error || !result.data) {
-      setError(result.error ?? "保存結果を取得できませんでした");
+      showToast({ type: "error", message: result.error ?? "保存結果を取得できませんでした" });
       return;
     }
+    showToast({ type: "success", message: "顧客行動ログを追加しました" });
     onSaved(result.data);
     onClose();
   };
@@ -727,6 +734,7 @@ export function LeadDetailClient({
   initialLeadCampaigns?: CampaignRef[];
 }) {
   const [activeTab, setActiveTab] = useState<Tab>("basic");
+  const { showToast } = useToast();
 
   const isAdmin = currentUser.role === "admin";
   const isManagerOrAbove =
@@ -746,6 +754,7 @@ export function LeadDetailClient({
     activity_type_id: "",
     note: "",
   });
+  // 必須項目の未入力（入力箇所に紐づく検証）はインラインのまま
   const [actError, setActError] = useState<string | null>(null);
   const [actSaving, setActSaving] = useState(false);
   const [deletingActId, setDeletingActId] = useState<string | null>(null);
@@ -777,11 +786,11 @@ export function LeadDetailClient({
     });
     setActSaving(false);
     if (result.error) {
-      setActError(result.error);
+      showToast({ type: "error", message: result.error });
       return;
     }
     if (!result.data) {
-      setActError("登録結果を取得できませんでした");
+      showToast({ type: "error", message: "登録結果を取得できませんでした" });
       return;
     }
     const created = result.data;
@@ -794,6 +803,7 @@ export function LeadDetailClient({
       activity_type_id: "",
       note: "",
     });
+    showToast({ type: "success", message: "対応履歴を追加しました" });
   };
 
   const handleDeleteActivity = async (actId: string) => {
@@ -801,10 +811,11 @@ export function LeadDetailClient({
     const result = await deleteLeadActivity(actId);
     setDeletingActId(null);
     if (result.error) {
-      setActError(result.error);
+      showToast({ type: "error", message: result.error });
       return;
     }
     setActivities((prev) => prev.filter((a) => a.id !== actId));
+    showToast({ type: "success", message: "対応履歴を削除しました" });
   };
 
   const handleEditActivitySaved = (updated: LeadActivityWithRelations) => {
@@ -819,17 +830,17 @@ export function LeadDetailClient({
   );
   const [showAddCustomerActivity, setShowAddCustomerActivity] = useState(false);
   const [deletingCaId, setDeletingCaId] = useState<string | null>(null);
-  const [caError, setCaError] = useState<string | null>(null);
 
   const handleDeleteCustomerActivity = async (caId: string) => {
     setDeletingCaId(caId);
     const result = await deleteLeadCustomerActivity(caId);
     setDeletingCaId(null);
     if (result.error) {
-      setCaError(result.error);
+      showToast({ type: "error", message: result.error });
       return;
     }
     setCustomerActivities((prev) => prev.filter((a) => a.id !== caId));
+    showToast({ type: "success", message: "顧客行動ログを削除しました" });
   };
 
   // ---- キャンペーン（参照のみ）----
@@ -1402,8 +1413,6 @@ export function LeadDetailClient({
               行動ログを追加
             </button>
           </div>
-
-          {caError && <p style={styles.error}>{caError}</p>}
 
           {customerActivities.length === 0 ? (
             <div

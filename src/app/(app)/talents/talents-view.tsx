@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { UserCircle, Plus } from "lucide-react";
 import { getTalents } from "@/actions/talents";
 import { SearchInput } from "@/components/ui/SearchInput";
@@ -55,6 +56,7 @@ const PER_PAGE = DEFAULT_PAGE_SIZE;
 // Component
 // ---------------------------------------------------------------------------
 export function TalentsView({ initialData }: Props) {
+  const router = useRouter();
   const [data, setData] = useState(initialData);
   const [keyword, setKeyword] = useState("");
   const [page, setPage] = useState(1);
@@ -205,7 +207,7 @@ export function TalentsView({ initialData }: Props) {
                     onMouseLeave={(e) =>
                       (e.currentTarget.style.backgroundColor = "transparent")
                     }
-                    onClick={() => (window.location.href = `/talents/${row.id}`)}
+                    onClick={() => router.push(`/talents/${row.id}`)}
                   >
                     {/* 連絡先名 */}
                     <td className="px-4 py-3 whitespace-nowrap">

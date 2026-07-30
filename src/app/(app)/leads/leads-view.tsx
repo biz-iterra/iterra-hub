@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Plus, ArrowUpDown } from "lucide-react";
 import { getLeads } from "@/actions/leads";
 import { SearchInput } from "@/components/ui/SearchInput";
@@ -62,6 +63,7 @@ export function LeadsView({
   users,
   // currentUserRole は props 型に残しているが、現状 UI 分岐に使っていないため受け取らない
 }: LeadsViewProps) {
+  const router = useRouter();
   const [data, setData] = useState(initialData);
   const [stageFilter, setStageFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -305,9 +307,7 @@ export function LeadsView({
                     onMouseLeave={(e) =>
                       (e.currentTarget.style.backgroundColor = "transparent")
                     }
-                    onClick={() =>
-                      (window.location.href = `/leads/${lead.id}`)
-                    }
+                    onClick={() => router.push(`/leads/${lead.id}`)}
                   >
                     {/* リード名 */}
                     <td className="px-4 py-3">

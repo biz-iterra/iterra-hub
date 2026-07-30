@@ -17,6 +17,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { SystemTagBadge, GradeBadge, LabelBadge } from "@/components/ui/badges";
+import { useToast } from "@/components/ui/toast";
 import { addTalentAchievement, removeTalentAchievement } from "@/actions/talent-classification";
 import type { TalentProfileResult } from "@/lib/talent-classification";
 import type {
@@ -252,11 +253,10 @@ function JobTypeTabContent({
   userRole: string | null;
 }) {
   const router = useRouter();
+  const { showToast } = useToast();
   const [addCode, setAddCode] = useState<string>("");
   const [addDate, setAddDate] = useState<string>("");
   const [addNote, setAddNote] = useState<string>("");
-  const [addError, setAddError] = useState<string | null>(null);
-  const [removeError, setRemoveError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const canEdit = userRole === "admin" || userRole === "manager";
@@ -269,8 +269,6 @@ function JobTypeTabContent({
 
   const handleAdd = () => {
     if (!addCode) return;
-    setAddError(null);
-    setRemoveError(null);
     startTransition(async () => {
       const result = await addTalentAchievement({
         talent_id: talentId,
@@ -279,9 +277,10 @@ function JobTypeTabContent({
         note: addNote || null,
       });
       if (result.error) {
-        setAddError(result.error);
+        showToast({ type: "error", message: result.error });
         return;
       }
+      showToast({ type: "success", message: "実績を追加しました" });
       setAddCode("");
       setAddDate("");
       setAddNote("");
@@ -290,13 +289,13 @@ function JobTypeTabContent({
   };
 
   const handleRemove = (achievementId: string) => {
-    setRemoveError(null);
     startTransition(async () => {
       const result = await removeTalentAchievement(achievementId);
       if (result.error) {
-        setRemoveError(result.error);
+        showToast({ type: "error", message: result.error });
         return;
       }
+      showToast({ type: "success", message: "実績を削除しました" });
       router.refresh();
     });
   };
@@ -641,18 +640,6 @@ function JobTypeTabContent({
           </div>
         )}
 
-        {removeError && (
-          <p
-            style={{
-              color: "#B91C1C",
-              fontSize: "0.8125rem",
-              margin: "0 0 0.75rem 0",
-            }}
-          >
-            {removeError}
-          </p>
-        )}
-
         {/* 実績追加フォーム（admin/manager のみ） */}
         {canEdit && unownedMaster.length > 0 && (
           <div
@@ -763,17 +750,6 @@ function JobTypeTabContent({
                   boxSizing: "border-box",
                 }}
               />
-            )}
-            {addError && (
-              <p
-                style={{
-                  color: "#B91C1C",
-                  fontSize: "0.8125rem",
-                  margin: "0.375rem 0 0 0",
-                }}
-              >
-                {addError}
-              </p>
             )}
           </div>
         )}

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Plus, Mail, Phone } from "lucide-react";
 import { getContacts } from "@/actions/contacts";
 import { SearchInput } from "@/components/ui/SearchInput";
@@ -90,6 +91,7 @@ const PER_PAGE = DEFAULT_PAGE_SIZE;
 // Component
 // ---------------------------------------------------------------------------
 export function ContactsView({ initialData, statuses, users }: Props) {
+  const router = useRouter();
   const [data, setData] = useState(initialData);
   const [statusFilter, setStatusFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
@@ -271,7 +273,7 @@ export function ContactsView({ initialData, statuses, users }: Props) {
                   onMouseLeave={(e) =>
                     (e.currentTarget.style.backgroundColor = "transparent")
                   }
-                  onClick={() => (window.location.href = `/contacts/${row.id}`)}
+                  onClick={() => router.push(`/contacts/${row.id}`)}
                 >
                   {/* 氏名 */}
                   <td className="px-4 py-3 whitespace-nowrap">

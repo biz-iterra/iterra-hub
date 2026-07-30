@@ -2,12 +2,14 @@
 
 import { useRef, useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   LayoutGrid,
   List,
   Plus,
   ChevronDown,
-  X,
+  AlertTriangle,
+  CalendarDays,
 } from "lucide-react";
 import { getDealsForKanban, getDeals, moveDealCard } from "@/actions/deals";
 import { StageBadge, StatusBadge } from "@/components/ui/badges";
@@ -15,6 +17,7 @@ import { FilterGroup, FilterClearButton } from "@/components/ui/FilterGroup";
 import { FilterSelect } from "@/components/ui/FilterSelect";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { Pagination } from "@/components/ui/Pagination";
+import { useToast } from "@/components/ui/toast";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants/pagination";
 import type { DealWithRelations, Paged } from "@/types/relations";
 
@@ -47,6 +50,50 @@ function formatDateTime(value: string | null | undefined): string {
   const hh = String(d.getHours()).padStart(2, "0");
   const mi = String(d.getMinutes()).padStart(2, "0");
   return `${yyyy}/${mm}/${dd} ${hh}:${mi}`;
+}
+
+// ---------- カンバンカードの時間軸情報ヘルパー ----------
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+function formatShortDate(value: string): string {
+  const d = new Date(value);
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${mm}/${dd}`;
+}
+
+/**
+ * ステージが最後に動いてからの経過日数。
+ * updated_at ではなく stage_updated_at を見るのは、
+ * 他項目の編集では「進捗が動いた」ことにならないため
+ * （カンバンで見たいのは進捗の停滞）。stage_updated_at 未設定なら created_at で代替する。
+ *
+ * WARNING / ATTENTION の 2 段階で返し、閾値未満は null にしてノイズを増やさない。
+ */
+const STAGNANT_ATTENTION_DAYS = 14;
+const STAGNANT_WARNING_DAYS = 30;
+
+/**
+ * バッジは 11px の小文字なので、--color-error（#EF4444）を直接使うと
+ * 白背景で約 3.8:1 しかなく WCAG AA（通常文字 4.5:1）に届かない。
+ * toast.tsx と同じ濃色（#B91C1C ≒ 6.4:1）を文字色に使う。
+ */
+const STAGNANT_SEVERE_TEXT = "#B91C1C";
+
+type StagnationInfo = { days: number; color: string; severe: boolean };
+
+function getStagnation(deal: DealWithRelations): StagnationInfo | null {
+  const since = deal.stage_updated_at ?? deal.created_at;
+  if (!since) return null;
+  if (deal.closed_at) return null; // クローズ済みは停滞の概念が当てはまらない
+  const days = Math.floor((Date.now() - new Date(since).getTime()) / MS_PER_DAY);
+  if (days < STAGNANT_ATTENTION_DAYS) return null;
+  const severe = days >= STAGNANT_WARNING_DAYS;
+  return {
+    days,
+    color: severe ? STAGNANT_SEVERE_TEXT : "var(--color-sumi600)",
+    severe,
+  };
 }
 
 // カラースケール（sort_order のインデックスで循環）
@@ -145,7 +192,7 @@ export function DealsView({
 
   const [isPending, startTransition] = useTransition();
   const [pipelineOpen, setPipelineOpen] = useState(false);
-  const [dndError, setDndError] = useState<string | null>(null);
+  const { showToast } = useToast();
   // D&D 直後のカードを一時ハイライトするための ID（成功フィードバック）
   const [movedDealId, setMovedDealId] = useState<string | null>(null);
   const movedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -165,7 +212,6 @@ export function DealsView({
     const previousKanbanData = kanbanData;
     const expectedUpdatedAt = sourceDeal.updated_at ?? "";
 
-    setDndError(null);
     setMovedDealId(dealId);
     if (movedTimerRef.current) clearTimeout(movedTimerRef.current);
     movedTimerRef.current = setTimeout(() => setMovedDealId(null), 1600);
@@ -208,7 +254,7 @@ export function DealsView({
       if (error || !data) {
         setKanbanData(previousKanbanData);
         setMovedDealId(null);
-        setDndError(error ?? "商談の移動に失敗しました");
+        showToast({ type: "error", message: error ?? "商談の移動に失敗しました" });
         return;
       }
 
@@ -579,8 +625,6 @@ export function DealsView({
           searchQuery={search}
           onDropDeal={handleDropDeal}
           movedDealId={movedDealId}
-          dndError={dndError}
-          onDismissError={() => setDndError(null)}
         />
       ) : (
         <>
@@ -613,8 +657,6 @@ function KanbanView({
   searchQuery,
   onDropDeal,
   movedDealId,
-  dndError,
-  onDismissError,
 }: {
   data: KanbanData;
   groupBy: GroupBy;
@@ -623,8 +665,6 @@ function KanbanView({
   searchQuery: string;
   onDropDeal: (dealId: string, targetColumnId: string) => void;
   movedDealId: string | null;
-  dndError: string | null;
-  onDismissError: () => void;
 }) {
   const [draggingDealId, setDraggingDealId] = useState<string | null>(null);
   const [dragOverColumnId, setDragOverColumnId] = useState<string | null>(null);
@@ -699,33 +739,6 @@ function KanbanView({
 
   return (
     <div>
-      {dndError && (
-        <div
-          role="alert"
-          className="flex items-center justify-between gap-3 px-4 py-2 mb-3 text-sm"
-          style={{
-            border: "1px solid var(--color-error)",
-            borderRadius: "var(--radius-card)",
-            color: "var(--color-error)",
-            backgroundColor: "var(--color-error-bg, #fdecea)",
-          }}
-        >
-          <span>{dndError}</span>
-          <button
-            type="button"
-            onClick={onDismissError}
-            aria-label="閉じる"
-            style={{
-              color: "var(--color-error)",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-            }}
-          >
-            <X size={14} />
-          </button>
-        </div>
-      )}
       <div
         className="no-scrollbar"
         style={{
@@ -903,6 +916,65 @@ function KanbanView({
                   >
                     {formatAmount(deal.amount)}
                   </p>
+                  {(() => {
+                    const stagnation = getStagnation(deal);
+                    const applicationDate = deal.application_date;
+                    if (!stagnation && !applicationDate) return null;
+                    return (
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          gap: "0.5rem",
+                        }}
+                      >
+                        {applicationDate ? (
+                          <span
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "0.25rem",
+                              fontSize: "0.75rem",
+                              color: "var(--color-sumi600)",
+                            }}
+                          >
+                            <CalendarDays size={12} aria-hidden="true" />
+                            申込 {formatShortDate(applicationDate)}
+                          </span>
+                        ) : (
+                          <span />
+                        )}
+                        {stagnation && (
+                          <span
+                            title={`ステージが ${stagnation.days} 日動いていません`}
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "0.1875rem",
+                              borderRadius: "var(--radius-badge)",
+                              border: `1px solid ${
+                                stagnation.severe
+                                  ? "var(--color-error)"
+                                  : "var(--color-border-default)"
+                              }`,
+                              color: stagnation.color,
+                              fontSize: "0.6875rem",
+                              fontWeight: stagnation.severe ? 600 : 500,
+                              padding: "0.0625rem 0.375rem",
+                              whiteSpace: "nowrap",
+                              flexShrink: 0,
+                            }}
+                          >
+                            {stagnation.severe && (
+                              <AlertTriangle size={11} aria-hidden="true" />
+                            )}
+                            {stagnation.days}日 停滞
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })()}
                   <div
                     style={{
                       display: "flex",
@@ -946,6 +1018,8 @@ function KanbanView({
 
 // ---------- テーブルビュー ----------
 function TableView({ data }: { data: ListData }) {
+  const router = useRouter();
+
   if (!data || data.rows.length === 0) {
     return (
       <div
@@ -1018,7 +1092,7 @@ function TableView({ data }: { data: ListData }) {
               onMouseLeave={(e) =>
                 (e.currentTarget.style.backgroundColor = "transparent")
               }
-              onClick={() => { window.location.href = `/deals/${deal.id}`; }}
+              onClick={() => router.push(`/deals/${deal.id}`)}
             >
               <td className="px-4 py-3">
                 <Link

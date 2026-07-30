@@ -6,6 +6,7 @@ import { Handshake, Plus, X, ArrowUpRight } from "lucide-react";
 import { getDeals } from "@/actions/deals";
 import { addDealProject, removeDealProject } from "@/actions/projects";
 import { PipelineBadge, StageBadge } from "@/components/ui/badges";
+import { useToast } from "@/components/ui/toast";
 
 type LinkedDeal = {
   id: string;
@@ -37,7 +38,7 @@ export function ProjectDealsSection({
   >([]);
   const [selectedId, setSelectedId] = useState("");
   const [isPending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
+  const { showToast } = useToast();
 
   useEffect(() => {
     (async () => {
@@ -62,11 +63,10 @@ export function ProjectDealsSection({
 
   const handleAdd = () => {
     if (!selectedId) return;
-    setError(null);
     startTransition(async () => {
       const result = await addDealProject({ deal_id: selectedId, project_id: projectId });
       if (result.error) {
-        setError(result.error);
+        showToast({ type: "error", message: result.error });
         return;
       }
       const d = allDeals.find((x) => x.id === selectedId);
@@ -92,18 +92,19 @@ export function ProjectDealsSection({
         ]);
       }
       setSelectedId("");
+      showToast({ type: "success", message: "商談を紐づけました" });
     });
   };
 
   const handleRemove = (dealId: string) => {
-    setError(null);
     startTransition(async () => {
       const result = await removeDealProject(dealId, projectId);
       if (result.error) {
-        setError(result.error);
+        showToast({ type: "error", message: result.error });
         return;
       }
       setLinked((prev) => prev.filter((l) => l.deal?.id !== dealId));
+      showToast({ type: "success", message: "紐づけを解除しました" });
     });
   };
 
@@ -188,18 +189,6 @@ export function ProjectDealsSection({
           紐づける
         </button>
       </div>
-
-      {error && (
-        <p
-          style={{
-            color: "var(--color-error)",
-            fontSize: "0.75rem",
-            margin: "0 0 0.5rem 0",
-          }}
-        >
-          {error}
-        </p>
-      )}
 
       {/* 商談一覧 */}
       {linked.length > 0 ? (

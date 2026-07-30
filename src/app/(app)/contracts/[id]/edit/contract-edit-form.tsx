@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Save, Trash2 } from "lucide-react";
 import { updateContract, deleteContract } from "@/actions/contracts";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useToast } from "@/components/ui/toast";
+import { isFieldValidationError } from "@/lib/errors";
 
 type SelectOption = { value: string; label: string };
 
@@ -194,6 +196,7 @@ export function ContractEditForm({
   isAdmin: boolean;
 }) {
   const router = useRouter();
+  const { showToast } = useToast();
   const [values, setValues] = useState({
     deal_id: contract.deal_id ?? "",
     contract_method: contract.contract_method ?? "",
@@ -270,9 +273,14 @@ export function ContractEditForm({
     const result = await updateContract(contract.id, payload);
     setSaving(false);
     if (result.error) {
-      setError(result.error);
+      if (isFieldValidationError(result.error)) {
+        setError(result.error);
+      } else {
+        showToast({ type: "error", message: result.error });
+      }
       return;
     }
+    showToast({ type: "success", message: "保存しました" });
     router.push(`/contracts/${contract.id}`);
     router.refresh();
   };
@@ -282,6 +290,7 @@ export function ContractEditForm({
     if (result.error) {
       return { error: result.error };
     }
+    showToast({ type: "success", message: "契約を削除しました" });
     router.push("/contracts");
     router.refresh();
     return { error: null };

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Plus, Briefcase } from "lucide-react";
 import { getAccounts } from "@/actions/accounts";
 import { StatusBadge } from "@/components/ui/badges";
@@ -42,6 +43,7 @@ export function AccountsView({
   accountTypes,
   users,
 }: AccountsViewProps) {
+  const router = useRouter();
   const [data, setData] = useState<AccountsData>(initialData);
   const [statusFilter, setStatusFilter] = useState("");
   const [accountTypeFilter, setAccountTypeFilter] = useState("");
@@ -218,7 +220,7 @@ export function AccountsView({
                   onMouseLeave={(e) =>
                     (e.currentTarget.style.backgroundColor = "transparent")
                   }
-                  onClick={() => (window.location.href = `/accounts/${account.id}`)}
+                  onClick={() => router.push(`/accounts/${account.id}`)}
                 >
                   {/* 取引先名 */}
                   <td className="px-4 py-3">

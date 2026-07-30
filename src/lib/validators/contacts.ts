@@ -1,5 +1,10 @@
 import { z } from "zod";
-import { expectedUpdatedAtSchema, uuidString, urlSchema } from "./common";
+import {
+  birthDateSchema,
+  expectedUpdatedAtSchema,
+  uuidString,
+  urlSchema,
+} from "./common";
 
 const contactBaseSchema = z.object({
   last_name: z.string().min(1, "姓は必須です").max(50),
@@ -20,7 +25,7 @@ const contactBaseSchema = z.object({
   address_line2: z.string().max(200).nullable().optional(),
   department: z.string().max(100).nullable().optional(),
   job_title: z.string().max(100).nullable().optional(),
-  birth_date: z.string().nullable().optional(), // ISO date string
+  birth_date: birthDateSchema,
   blood_type: z.enum(["A", "B", "AB", "O"]).nullable().optional(),
   potential_number: z.number().int().min(1).max(60).nullable().optional(),
   constellation_id: uuidString().nullable().optional(),

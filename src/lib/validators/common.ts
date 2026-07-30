@@ -73,3 +73,29 @@ export const urlSchema = z
   .nullable()
   .optional()
   .or(z.literal("").transform(() => null));
+
+/**
+ * 生年月日スキーマ。
+ *
+ * ポテンシャル診断（potential_number / constellation_id）は birth_date から
+ * 算出されるため、未来日が入ると診断結果が意味を持たなくなる。
+ * 空文字は「未入力」として null に寄せる。
+ */
+export const birthDateSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "[birth_date] 日付形式（YYYY-MM-DD）で入力してください")
+  .refine(
+    (v) => {
+      const d = new Date(`${v}T00:00:00Z`);
+      if (Number.isNaN(d.getTime())) return false;
+      // 実在日チェック（2026-02-30 のような値を弾く）
+      return d.toISOString().slice(0, 10) === v;
+    },
+    { message: "[birth_date] 存在しない日付です" }
+  )
+  .refine((v) => v <= new Date().toISOString().slice(0, 10), {
+    message: "[birth_date] 生年月日に未来の日付は指定できません",
+  })
+  .nullable()
+  .optional()
+  .or(z.literal("").transform(() => null));

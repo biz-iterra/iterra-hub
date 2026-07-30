@@ -1822,7 +1822,7 @@ potential_number = ((diffDays + 1) mod 60 + 60) mod 60 + 1
 
 ### 10.8 エッジケース
 
-- `birth_date` が未来日: バリデータ層（Zod）で弾く方針（既存未実装なら TODO）。自動診断ロジック自体はエラーにはしない。
+- `birth_date` が未来日: バリデータ層（Zod）で弾く。`src/lib/validators/common.ts` の `birthDateSchema` が未来日・存在しない日付（例 `2020-02-30`）・日付形式違反を拒否する。空文字は null に寄せる。自動診断ロジック自体はエラーにはしない。
 - `birth_date` が極端に古い/新しい: 計算式は整数範囲内で完結（diff が大きくても mod 60 で丸まる）ので破綻しない。
 - **`birth_date` を null 化する更新:** `potential_number` と `constellation_id` も同じタイミングで自動的に null にリセットする。診断結果は `birth_date` に従属する派生値であり、単独では保持しない。ユーザーが同じリクエストで明示的に両フィールドを送っている場合はその値を優先。
 

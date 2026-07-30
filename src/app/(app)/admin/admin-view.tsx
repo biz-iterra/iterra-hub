@@ -2018,6 +2018,26 @@ export function AdminView() {
         </h1>
         <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
           <a
+            href="/admin/leads/import"
+            className="hover:bg-[var(--color-bg-hover)]"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "0.25rem",
+              color: "var(--color-terra)",
+              textDecoration: "none",
+              padding: "0.375rem 0.75rem",
+              borderRadius: "var(--radius-sm)",
+              fontSize: "0.875rem",
+              fontWeight: 500,
+              border: "1px solid var(--color-border-default)",
+              transition: "background-color 0.15s",
+            }}
+          >
+            Eight 名刺データを取込
+            <ArrowUpRight size={14} />
+          </a>
+          <a
             href="/admin/deleted"
             className="hover:bg-[var(--color-bg-hover)]"
             style={{

@@ -194,7 +194,7 @@ export function ProjectsView({
                   </tr>
                 </thead>
                 <tbody>
-                  {items.map((p: any) => (
+                  {items.map((p) => (
                     <tr
                       key={p.id}
                       onClick={() => router.push(`/projects/${p.id}`)}

@@ -90,7 +90,7 @@ export default async function ContactDetailPage({
   }
 
   const { data: contact, error } = await getContact(id);
-  const c = contact as any;
+  const c = contact;
 
   if (error || !c) {
     return (
@@ -109,10 +109,11 @@ export default async function ContactDetailPage({
   const emails = c.contact_emails ?? [];
   const phones = c.contact_phones ?? [];
   const accountContacts = c.account_contacts ?? [];
-  const talent = Array.isArray(c.talent) ? c.talent[0] : c.talent;
+  // contacts : talents は 1 対 1（talents.contact_id に unique 制約）
+  const talent = c.talent;
   const talentSkills = talent?.talent_skills ?? [];
   const talentCareers = talent?.talent_careers ?? [];
-  const address = [c.prefecture, c.city, c.street, c.building]
+  const address = [c.prefecture, c.city, c.address_line1, c.address_line2]
     .filter(Boolean)
     .join(" ");
 
@@ -200,7 +201,9 @@ export default async function ContactDetailPage({
               <InfoField label="ステータス" value={c.contact_status?.name} />
               <InfoField
                 label="種別"
-                value={contactTypeLabel[c.contact_type] ?? "—"}
+                value={
+                  c.contact_type ? contactTypeLabel[c.contact_type] ?? "—" : "—"
+                }
               />
               <InfoField
                 label="所属カンパニー"
@@ -246,7 +249,7 @@ export default async function ContactDetailPage({
                 value={
                   emails.length === 0 ? null : (
                     <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
-                      {emails.map((e: any) => (
+                      {emails.map((e) => (
                         <div
                           key={e.id}
                           style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
@@ -267,7 +270,7 @@ export default async function ContactDetailPage({
                 value={
                   phones.length === 0 ? null : (
                     <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
-                      {phones.map((p: any) => (
+                      {phones.map((p) => (
                         <div
                           key={p.id}
                           style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
@@ -334,7 +337,7 @@ export default async function ContactDetailPage({
               </p>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-                {accountContacts.map((ac: any) => (
+                {accountContacts.map((ac) => (
                   <div
                     key={ac.id}
                     style={{
@@ -390,7 +393,7 @@ export default async function ContactDetailPage({
                     label="スキル"
                     value={
                       <div style={{ display: "flex", flexWrap: "wrap", gap: "0.375rem" }}>
-                        {talentSkills.map((ts: any) => (
+                        {talentSkills.map((ts) => (
                           <LabelBadge
                             key={ts.id ?? ts.skill?.id}
                             name={
@@ -409,7 +412,7 @@ export default async function ContactDetailPage({
                     label="経歴"
                     value={
                       <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                        {talentCareers.map((career: any) => (
+                        {talentCareers.map((career) => (
                           <div
                             key={career.id}
                             style={{

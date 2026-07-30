@@ -39,7 +39,7 @@ export function DealProjectsSection({
       const res = await getProjects({ perPage: 200 });
       if (res.data?.rows) {
         setAllProjects(
-          res.data.rows.map((p: any) => ({
+          res.data.rows.map((p) => ({
             id: p.id,
             project_code: p.project_code,
             name: p.name,

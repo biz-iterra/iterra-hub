@@ -20,12 +20,20 @@ import {
   type LeadRow,
 } from "@/lib/leads/promote-helpers";
 import type { z } from "zod";
+import type {
+  LeadDetail,
+  LeadListRow,
+  LeadPromotionResult,
+  LeadWithRelations,
+  Paged,
+  Row,
+} from "@/types/relations";
 
 type ActionResult<T> = { data: T | null; error: string | null };
 
 // Lead 作成/更新の戻り値型（warnings 付き）
 type LeadMutationResult =
-  | { ok: true; lead: any; warnings?: string[] }
+  | { ok: true; lead: LeadWithRelations; warnings?: string[] }
   | { ok: false; errors: Record<string, string[]> };
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -55,6 +63,7 @@ const LEAD_SELECT = `
   large_segment:lead_large_segments(id, code, name),
   small_segment:lead_small_segments(id, code, name),
   owner:crm_users!leads_owner_user_id_fkey(id, full_name),
+  lead_source:lead_sources(id, name),
   company_size:lead_company_sizes(id, code, name),
   score_breakdowns:lead_score_breakdowns(id, score_delta, applied_at, rule:lead_score_rules(id, category, condition_type, description)),
   customer_activities:lead_customer_activities(id, occurred_at, detail, source, created_at, activity_type:lead_customer_activity_types(id, code, name)),
@@ -65,7 +74,7 @@ const LEAD_SELECT = `
 // ---------- 一覧取得（v_leads_with_category View を使用）----------
 export async function getLeads(
   params?: z.infer<typeof leadFiltersSchema>
-): Promise<ActionResult<{ rows: any[]; total: number }>> {
+): Promise<ActionResult<Paged<LeadListRow>>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
@@ -113,7 +122,7 @@ export async function getLeads(
   if (error) return { data: null, error: error.message };
 
   // 最終アクティビティ日（called_on）を lead_id 単位で集約して付与
-  const items = (data ?? []) as any[];
+  const items = (data ?? []) as LeadListRow[];
   if (items.length > 0) {
     const ids = items.map((l) => l.id);
     const { data: acts } = await supabase
@@ -135,7 +144,7 @@ export async function getLeads(
 }
 
 // ---------- 詳細取得 ----------
-export async function getLeadById(id: string): Promise<ActionResult<any>> {
+export async function getLeadById(id: string): Promise<ActionResult<LeadDetail>> {
   // UUID 形式検証（CLAUDE.md 必須）
   if (!UUID_REGEX.test(id)) {
     return { data: null, error: "不正なパラメータです。受信値: " + id };
@@ -155,9 +164,13 @@ export async function getLeadById(id: string): Promise<ActionResult<any>> {
   if (!data) return { data: null, error: "リードが見つかりません" };
 
   // lead_campaigns join 結果から campaign_ids を抽出し、フラットな配列として付与
-  const rawCampaigns = (data as any).lead_campaigns as { campaign_id: string }[] | null;
-  const campaign_ids: string[] = (rawCampaigns ?? []).map((r) => r.campaign_id);
-  const { lead_campaigns: _lc, ...rest } = data as any;
+  // LEAD_SELECT はテンプレート文字列のため型推論されない。
+  // ここで一度だけ LEAD_SELECT に対応する型として扱う。
+  const row = data as LeadWithRelations & {
+    lead_campaigns: { campaign_id: string }[] | null;
+  };
+  const { lead_campaigns: rawCampaigns, ...rest } = row;
+  const campaign_ids = (rawCampaigns ?? []).map((r) => r.campaign_id);
   return { data: { ...rest, campaign_ids }, error: null };
 }
 
@@ -395,13 +408,13 @@ export async function updateLead(
   }
 
   // sub_owner_user_ids が含まれている場合は lead_owners を更新（leads テーブルには不要）
-  const subOwnerIdsRaw = (safeUpdates as any).sub_owner_user_ids as string[] | undefined;
+  const subOwnerIdsRaw = safeUpdates.sub_owner_user_ids;
   // expected_updated_at は DB カラムではないため更新値から除外する
   const {
     sub_owner_user_ids: _subOwner,
     expected_updated_at: expectedUpdatedAt,
     ...safeUpdatesWithoutSub
-  } = safeUpdates as any;
+  } = safeUpdates;
 
   const updatePayload = {
     ...safeUpdatesWithoutSub,
@@ -429,7 +442,7 @@ export async function updateLead(
   // 副担当更新（sub_owner_user_ids が渡された場合のみ: 全削除 → bulk insert）
   if (subOwnerIdsRaw !== undefined) {
     await supabase.from("lead_owners").delete().eq("lead_id", id);
-    const newOwnerId = (safeUpdatesWithoutSub as any).owner_user_id ?? existing.owner_user_id;
+    const newOwnerId = safeUpdatesWithoutSub.owner_user_id ?? existing.owner_user_id;
     const filteredSubIds = subOwnerIdsRaw.filter((uid) => uid !== newOwnerId);
     if (filteredSubIds.length > 0) {
       const ownerRows = filteredSubIds.map((uid: string) => ({ lead_id: id, user_id: uid }));
@@ -561,7 +574,9 @@ export async function restoreLead(id: string): Promise<ActionResult<null>> {
 // 担当者情報（contact_last_name 等）→ contacts へ転記（未入力時は lead_name からフォールバック）
 // 企業情報（company_name_kana / representative_name / corporate_number 等）→ companies へ転記
 // 二重発火防止: promoted_deal_id が既存の場合はスキップ
-export async function promoteLeadToDeal(leadId: string): Promise<ActionResult<any>> {
+export async function promoteLeadToDeal(
+  leadId: string
+): Promise<ActionResult<LeadPromotionResult>> {
   if (!UUID_REGEX.test(leadId)) {
     return { data: null, error: "不正なパラメータです。受信値: " + leadId };
   }
@@ -604,7 +619,7 @@ export async function promoteLeadToDeal(leadId: string): Promise<ActionResult<an
   }
 
   // 二重発火防止: already promoted
-  if ((lead as any).promoted_deal_id) {
+  if (lead.promoted_deal_id) {
     return { data: null, error: "このリードはすでに Deal に昇格済みです" };
   }
 
@@ -617,7 +632,7 @@ export async function promoteLeadToDeal(leadId: string): Promise<ActionResult<an
   }
 
   const accountTypeInfo = Array.isArray(lead.account_type) ? lead.account_type[0] : lead.account_type;
-  const accountTypeSlug = (accountTypeInfo as any)?.slug as string | null;
+  const accountTypeSlug = accountTypeInfo?.slug ?? null;
 
   // 法人判定: slug が corporate / government の場合は法人系とみなす
   // slug が null（未設定）の場合は company_name の有無で判定（フォールバック）
@@ -751,12 +766,7 @@ export async function promoteLeadToDeal(leadId: string): Promise<ActionResult<an
     };
   }
 
-  const result = promoted as {
-    deal_id: string;
-    company_id: string | null;
-    contact_id: string;
-    account_id: string;
-  };
+  const result = promoted as LeadPromotionResult;
 
   return {
     data: {
@@ -776,7 +786,7 @@ export async function promoteLeadToDeal(leadId: string): Promise<ActionResult<an
 // ---------- 作成 ----------
 export async function createLeadCustomerActivity(
   input: unknown
-): Promise<ActionResult<any>> {
+): Promise<ActionResult<Row<"lead_customer_activities">>> {
   const { supabase, user, role: _role } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
@@ -825,7 +835,7 @@ export async function createLeadCustomerActivity(
 export async function updateLeadCustomerActivity(
   id: string,
   input: unknown
-): Promise<ActionResult<any>> {
+): Promise<ActionResult<Row<"lead_customer_activities">>> {
   if (!UUID_REGEX.test(id)) {
     return { data: null, error: "不正なパラメータです。受信値: " + id };
   }

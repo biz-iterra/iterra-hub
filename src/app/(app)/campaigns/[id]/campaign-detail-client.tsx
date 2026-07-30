@@ -414,7 +414,7 @@ export function CampaignDetailClient({
         return;
       }
       // 解除されたリードを紐付け一覧から削除し、未紐付けへは戻さない（ページリロードで解決）
-      setCampaignLeads((prev) => prev.filter((cl: any) => cl.lead?.id !== leadId));
+      setCampaignLeads((prev) => prev.filter((cl) => cl.lead?.id !== leadId));
       router.refresh();
     });
   };
@@ -612,7 +612,7 @@ export function CampaignDetailClient({
                     </tr>
                   </thead>
                   <tbody>
-                    {campaignLeads.map((cl: any) => {
+                    {campaignLeads.map((cl) => {
                       const lead = cl.lead;
                       if (!lead) return null;
                       return (

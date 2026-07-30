@@ -9,7 +9,7 @@ export default async function NewProjectPage() {
   ]);
   return (
     <ProjectNewForm
-      statuses={(statusesRes.data ?? []).map((s: any) => ({ value: s.id, label: s.name }))}
+      statuses={(statusesRes.data ?? []).map((s) => ({ value: s.id, label: s.name }))}
       owners={(usersRes.data ?? []).map((u) => ({ value: u.id, label: u.full_name }))}
     />
   );

@@ -11,9 +11,13 @@
 import type { Database } from "./database.generated";
 
 type Tables = Database["public"]["Tables"];
+type Views = Database["public"]["Views"];
 
 /** テーブルの行型を短く書くためのヘルパー。例: Row<"deals"> */
 export type Row<K extends keyof Tables> = Tables[K]["Row"];
+
+/** View の行型。例: ViewRow<"v_leads_with_category"> */
+export type ViewRow<K extends keyof Views> = Views[K]["Row"];
 
 /** リレーション先から一部の列だけを取る場合の短縮形 */
 type Ref<K extends keyof Tables, F extends keyof Row<K>> = Pick<Row<K>, F>;
@@ -76,10 +80,36 @@ export type DealDetail = DealWithRelations & {
 // Contact
 // ============================================================
 
+/** contact_emails / contact_phones の一覧表示に使う列 */
+type ContactEmailRef = Ref<"contact_emails", "id" | "email" | "label" | "is_primary">;
+type ContactPhoneRef = Ref<"contact_phones", "id" | "phone" | "label" | "is_primary">;
+
+/** contacts.ts の getContacts に対応 */
 export type ContactWithRelations = Row<"contacts"> & {
   contact_status: NamedRef | null;
   company: NamedRef | null;
   owner: UserRef | null;
+  contact_emails: ContactEmailRef[];
+  contact_phones: ContactPhoneRef[];
+};
+
+/** contacts.ts の getContact に対応（タレント・診断・所属アカウントを含む） */
+export type ContactDetail = ContactWithRelations & {
+  talent:
+    | (Row<"talents"> & {
+        talent_skills: (Row<"talent_skills"> & {
+          skill: (NamedRef & { skill_categories: { name: string } | null }) | null;
+        })[];
+        talent_careers: TalentCareerRow[];
+      })
+    | null;
+  number_diagnosis: Row<"number_diagnosis"> | null;
+  constellation_fortune_telling: Row<"constellation_fortune_telling"> | null;
+  account_contacts: {
+    id: string;
+    role: string | null;
+    account: Ref<"accounts", "id" | "account_code" | "name"> | null;
+  }[];
 };
 
 // ============================================================
@@ -128,11 +158,37 @@ export type CompanyDetail = Row<"companies"> & {
 // Account
 // ============================================================
 
+/** accounts.ts の getAccounts に対応 */
 export type AccountWithRelations = Row<"accounts"> & {
+  company: NamedRef | null;
   account_type: NamedRef | null;
   account_status: NamedRef | null;
-  company: NamedRef | null;
   owner: UserRef | null;
+};
+
+/** accounts.ts の getAccount に対応（所属コンタクト・紐づくディールを含む） */
+export type AccountDetail = AccountWithRelations & {
+  lead_source: NamedRef | null;
+  contacts: {
+    id: string;
+    role: string | null;
+    contact:
+      | (Ref<
+          "contacts",
+          | "id"
+          | "contact_code"
+          | "last_name"
+          | "first_name"
+          | "department"
+          | "job_title"
+          | "deleted_at"
+        > & { company: NamedRef | null })
+      | null;
+  }[];
+  deals: (Ref<"deals", "id" | "deal_code" | "name" | "amount"> & {
+    deal_stage: { name: string } | null;
+    deal_status: { name: string } | null;
+  })[];
 };
 
 // ============================================================
@@ -183,7 +239,10 @@ export type ProjectDetail = Row<"projects"> & {
     deal_id: string;
     created_at: string;
     deal:
-      | (Ref<"deals", "id" | "deal_code" | "name" | "amount" | "closed_at"> & {
+      | (Ref<
+          "deals",
+          "id" | "deal_code" | "name" | "amount" | "closed_at" | "deleted_at"
+        > & {
           account: Ref<"accounts", "id" | "name" | "account_code"> | null;
           pipeline_type: NamedRef | null;
           deal_stage: SortedRef | null;
@@ -197,12 +256,82 @@ export type ProjectDetail = Row<"projects"> & {
 // Lead
 // ============================================================
 
-export type LeadWithRelations = Row<"leads"> & {
-  stage: SortedRef | null;
-  status: NamedRef | null;
-  temperature: NamedRef | null;
-  category: NamedRef | null;
+/** code と name を持つマスタ参照（色を持たないもの） */
+export type CodeNameRef = { id: string; code: string; name: string };
+
+/** 一覧・詳細の双方で JOIN しているマスタ群（LEAD_SELECT と共通） */
+type LeadCommonRelations = {
+  stage:
+    | (SortedRef &
+        Ref<"lead_stages", "slug" | "is_terminal" | "auto_promote_to_deal">)
+    | null;
+  status: (SortedRef & Ref<"lead_statuses", "code">) | null;
+  category: CodedRef | null;
+  temperature: CodedRef | null;
+  account_type: (NamedRef & Ref<"account_types", "slug">) | null;
+  large_segment: CodeNameRef | null;
+  small_segment: CodeNameRef | null;
   owner: UserRef | null;
+};
+
+/**
+ * leads.ts の getLeads に対応。
+ * 取得元は v_leads_with_category View（deleted_at フィルタは View 内で実施）。
+ */
+export type LeadListRow = Omit<ViewRow<"v_leads_with_category">, "id"> &
+  LeadCommonRelations & {
+    /**
+     * View の列は生成型では一律 nullable になるが、実体は leads.id（NOT NULL）。
+     * 行の同定に使うため non-null として扱う。
+     */
+    id: string;
+    /**
+     * lead_activities.called_on の最大値。DB カラムではなく
+     * getLeads が取得後に付与する派生値。
+     */
+    last_activity_at: string | null;
+  };
+
+/** leads.ts の LEAD_SELECT に対応 */
+export type LeadWithRelations = Row<"leads"> &
+  LeadCommonRelations & {
+    lead_source: NamedRef | null;
+    company_size: CodeNameRef | null;
+    score_breakdowns: {
+      id: string;
+      score_delta: number;
+      applied_at: string;
+      rule: Ref<
+        "lead_score_rules",
+        "id" | "category" | "condition_type" | "description"
+      > | null;
+    }[];
+    customer_activities: (Ref<
+      "lead_customer_activities",
+      "id" | "occurred_at" | "detail" | "source" | "created_at"
+    > & {
+      activity_type: CodeNameRef | null;
+    })[];
+    sub_owners: { user_id: string; user: UserRef | null }[];
+  };
+
+/**
+ * leads.ts の promoteLeadToDeal に対応。
+ * DB 関数 promote_lead_to_deal（20260728000001）が返す各エンティティの ID。
+ */
+export type LeadPromotionResult = {
+  deal_id: string;
+  company_id: string | null;
+  contact_id: string;
+  account_id: string;
+};
+
+/**
+ * leads.ts の getLeadById に対応。
+ * lead_campaigns の JOIN 結果は campaign_ids にフラット化して返す。
+ */
+export type LeadDetail = Omit<LeadWithRelations, "lead_campaigns"> & {
+  campaign_ids: string[];
 };
 
 // ============================================================

@@ -28,6 +28,10 @@ import {
   CategoryBadge,
   ActivityTypeBadge,
 } from "@/components/ui/badges";
+import type {
+  LeadActivityWithRelations,
+  LeadDetail,
+} from "@/types/relations";
 
 type Tab = "basic" | "score" | "customer_activities" | "activities" | "campaigns";
 type CampaignRef = { id: string; name: string };
@@ -713,8 +717,8 @@ export function LeadDetailClient({
   currentUser,
   initialLeadCampaigns = [],
 }: {
-  lead: any;
-  activities: any[];
+  lead: LeadDetail;
+  activities: LeadActivityWithRelations[];
   masters: Masters;
   currentUser: { id: string; full_name: string; role: string };
   initialLeadCampaigns?: CampaignRef[];
@@ -773,7 +777,12 @@ export function LeadDetailClient({
       setActError(result.error);
       return;
     }
-    setActivities((prev) => [result.data, ...prev]);
+    if (!result.data) {
+      setActError("登録結果を取得できませんでした");
+      return;
+    }
+    const created = result.data;
+    setActivities((prev) => [created, ...prev]);
     setActForm({
       called_on: new Date().toISOString().slice(0, 10),
       called_at_time: "",
@@ -1129,7 +1138,7 @@ export function LeadDetailClient({
               <div style={{ marginTop: "1rem" }}>
                 <span style={styles.label}>社内担当者（副）</span>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: "0.375rem", marginTop: "0.25rem" }}>
-                  {lead.sub_owners.map((o: any) => (
+                  {lead.sub_owners.map((o) => (
                     <span
                       key={o.user_id}
                       style={{
@@ -1416,7 +1425,7 @@ export function LeadDetailClient({
                   overflow: "hidden",
                 }}
               >
-                {customerActivities.map((ca: any) => (
+                {customerActivities.map((ca) => (
                   <div
                     key={ca.id}
                     className="customer-activity-row"
@@ -1481,7 +1490,7 @@ export function LeadDetailClient({
 
               {/* モバイル: カード表示（768px 以下） */}
               <div className="customer-activity-cards">
-                {customerActivities.map((ca: any) => (
+                {customerActivities.map((ca) => (
                   <div key={ca.id} className="customer-activity-card">
                     {/* 上段: 種別バッジ + 発生日時 */}
                     <div className="customer-activity-card-top">
@@ -1616,7 +1625,7 @@ export function LeadDetailClient({
                   overflow: "hidden",
                 }}
               >
-                {activities.map((act: any) => (
+                {activities.map((act) => (
                   <ActivityAccordionItem
                     key={act.id}
                     act={act}

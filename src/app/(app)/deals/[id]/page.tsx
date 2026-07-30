@@ -261,7 +261,7 @@ export default async function DealDetailPage({
               </p>
             ) : (
               <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
-                {services.map((ds: any) => (
+                {services.map((ds) => (
                   <LabelBadge key={ds.service?.id} name={ds.service?.name} />
                 ))}
               </div>
@@ -297,7 +297,7 @@ export default async function DealDetailPage({
                     </tr>
                   </thead>
                   <tbody>
-                    {contracts.map((c: any) => (
+                    {contracts.map((c) => (
                       <tr key={c.id}>
                         <td style={tdStyle}>
                           <EntityLink href={`/contracts/${c.id}`} compact>
@@ -333,7 +333,7 @@ export default async function DealDetailPage({
               </p>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-                {activities.map((a: any) => (
+                {activities.map((a) => (
                   <div
                     key={a.id}
                     style={{

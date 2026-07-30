@@ -62,11 +62,14 @@ export default async function ProjectDetailPage({
     );
   }
 
+  // deal_projects.deal は論理削除済みも返るため除外する。
+  // 型ガードで null を落として以降の参照を安全にする。
+  type ProjectDeal = NonNullable<(typeof project.deal_projects)[number]["deal"]>;
   const deals = (project.deal_projects ?? [])
-    .map((dp: any) => dp.deal)
-    .filter((d: any) => d && d.deleted_at === null);
+    .map((dp) => dp.deal)
+    .filter((d): d is ProjectDeal => d !== null && d.deleted_at === null);
   const members = project.project_members ?? [];
-  const totalAmount = deals.reduce((sum: number, d: any) => sum + (d.amount ?? 0), 0);
+  const totalAmount = deals.reduce((sum, d) => sum + (d.amount ?? 0), 0);
 
   return (
     <div style={{ padding: "1.5rem", maxWidth: "1200px", margin: "0 auto" }}>
@@ -218,7 +221,7 @@ export default async function ProjectDetailPage({
             </div>
             {members.length > 0 ? (
               <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-                {members.map((m: any) => (
+                {members.map((m) => (
                   <li
                     key={m.id}
                     style={{
@@ -313,7 +316,7 @@ export default async function ProjectDetailPage({
                 </tr>
               </thead>
               <tbody>
-                {deals.map((d: any) => (
+                {deals.map((d) => (
                   <tr key={d.id}>
                     <td style={{ borderBottom: "1px solid var(--color-border-default)", padding: "0.5rem" }}>
                       <Link

@@ -392,7 +392,7 @@ export default async function DashboardPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {recentDeals.map((deal: any) => (
+                  {recentDeals.map((deal) => (
                     <tr
                       key={deal.id}
                       style={{
@@ -488,7 +488,7 @@ export default async function DashboardPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {recentActivities.map((act: any) => (
+                  {recentActivities.map((act) => (
                     <tr
                       key={act.id}
                       style={{

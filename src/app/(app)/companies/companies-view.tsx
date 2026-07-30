@@ -205,7 +205,7 @@ export function CompaniesView({
               </tr>
             </thead>
             <tbody>
-              {items.map((company: any) => (
+              {items.map((company) => (
                 <tr
                   key={company.id}
                   className="transition-colors cursor-pointer"

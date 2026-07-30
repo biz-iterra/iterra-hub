@@ -78,9 +78,9 @@ export default async function CompanyDetailPage({
   }
 
   const activeAccounts =
-    company.accounts?.filter((a: any) => a.deleted_at === null) ?? [];
+    company.accounts?.filter((a) => a.deleted_at === null) ?? [];
   const activeContacts =
-    company.contacts?.filter((c: any) => c.deleted_at === null) ?? [];
+    company.contacts?.filter((c) => c.deleted_at === null) ?? [];
 
   const industryLabel = company.industry_classifications
     ? [
@@ -261,7 +261,7 @@ export default async function CompanyDetailPage({
               <div
                 style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}
               >
-                {activeAccounts.map((account: any) => (
+                {activeAccounts.map((account) => (
                   <div
                     key={account.id}
                     style={{
@@ -304,7 +304,7 @@ export default async function CompanyDetailPage({
               <div
                 style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}
               >
-                {activeContacts.map((contact: any) => (
+                {activeContacts.map((contact) => (
                   <div
                     key={contact.id}
                     style={{

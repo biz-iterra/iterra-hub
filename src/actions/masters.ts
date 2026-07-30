@@ -30,6 +30,7 @@ import {
 } from "@/lib/validators";
 import type { z } from "zod";
 import type { Database } from "@/types/database.generated";
+import type { NamedRef, Row } from "@/types/relations";
 
 type ActionResult<T> = { data: T | null; error: string | null };
 
@@ -89,12 +90,12 @@ async function getAuthenticatedUser() {
   return { supabase: typed as unknown as LooseSupabase, user };
 }
 
-async function getUserRole(supabase: any, userId: string): Promise<string | null> {
+async function getUserRole(supabase: LooseSupabase, userId: string): Promise<string | null> {
   const { data } = await supabase.from("crm_users").select("role").eq("id", userId).single();
   return data?.role ?? null;
 }
 
-async function requireAdmin(supabase: any, userId: string): Promise<string | null> {
+async function requireAdmin(supabase: LooseSupabase, userId: string): Promise<string | null> {
   const role = await getUserRole(supabase, userId);
   if (role !== "admin") return "管理者権限が必要です";
   return null;
@@ -103,10 +104,10 @@ async function requireAdmin(supabase: any, userId: string): Promise<string | nul
 // 汎用: マスタ一覧取得（認証済みユーザー全員）
 // sort_order カラムを持つテーブル（pipeline_types / skill_categories / skills など）は
 // { useSortOrder: true } を指定する。未指定なら name と created_at で並べる。
-export async function getMasterList(
-  tableName: MasterTableName,
+export async function getMasterList<K extends MasterTableName>(
+  tableName: K,
   options?: { useSortOrder?: boolean },
-): Promise<ActionResult<any[]>> {
+): Promise<ActionResult<Row<K>[]>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
@@ -124,11 +125,11 @@ export async function getMasterList(
 }
 
 // 汎用: マスタ作成（admin のみ）
-export async function createMasterRecord(
-  tableName: MasterTableName,
+export async function createMasterRecord<K extends MasterTableName>(
+  tableName: K,
   input: Record<string, unknown>,
   schema: z.ZodSchema
-): Promise<ActionResult<any>> {
+): Promise<ActionResult<Row<K>>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
@@ -145,12 +146,12 @@ export async function createMasterRecord(
 }
 
 // 汎用: マスタ更新（admin のみ）
-export async function updateMasterRecord(
-  tableName: MasterTableName,
+export async function updateMasterRecord<K extends MasterTableName>(
+  tableName: K,
   id: string,
   input: Record<string, unknown>,
   schema: z.ZodSchema
-): Promise<ActionResult<any>> {
+): Promise<ActionResult<Row<K>>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
@@ -197,7 +198,9 @@ export async function updatePipelineType(id: string, input: Record<string, unkno
 export async function deletePipelineType(id: string) { return deleteMasterRecord("pipeline_types", id); }
 
 // Deal Stages
-export async function getDealStages(pipelineTypeId?: string) {
+export async function getDealStages(
+  pipelineTypeId?: string
+): Promise<ActionResult<Row<"deal_stages">[]>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
   let query = supabase.from("deal_stages").select("*").is("deleted_at", null).order("sort_order");
@@ -215,7 +218,10 @@ export async function updateDealStage(id: string, input: Record<string, unknown>
 export async function deleteDealStage(id: string) { return deleteMasterRecord("deal_stages", id); }
 
 // Deal Statuses
-export async function getDealStatuses(pipelineTypeId?: string, dealStageId?: string) {
+export async function getDealStatuses(
+  pipelineTypeId?: string,
+  dealStageId?: string
+): Promise<ActionResult<Row<"deal_statuses">[]>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
   let query = supabase.from("deal_statuses").select("*").is("deleted_at", null).order("sort_order");
@@ -354,7 +360,7 @@ export async function deleteSkill(id: string) { return deleteMasterRecord("skill
 // Lead Categories
 // ※ lead_categories は created_by / last_updated_by カラムを持たないため専用実装
 export async function getLeadCategories() { return getMasterList("lead_categories", { useSortOrder: true }); }
-export async function createLeadCategory(input: Record<string, unknown>): Promise<ActionResult<any>> {
+export async function createLeadCategory(input: Record<string, unknown>): Promise<ActionResult<Row<"lead_categories">>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
   const adminError = await requireAdmin(supabase, user.id);
@@ -365,7 +371,7 @@ export async function createLeadCategory(input: Record<string, unknown>): Promis
   if (error) return { data: null, error: error.message };
   return { data, error: null };
 }
-export async function updateLeadCategory(id: string, input: Record<string, unknown>): Promise<ActionResult<any>> {
+export async function updateLeadCategory(id: string, input: Record<string, unknown>): Promise<ActionResult<Row<"lead_categories">>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
   const adminError = await requireAdmin(supabase, user.id);
@@ -393,7 +399,9 @@ export async function deleteLeadCategory(id: string): Promise<ActionResult<null>
 export async function getLeadStages() { return getMasterList("lead_stages", { useSortOrder: true }); }
 
 // Lead Statuses（stage_id でフィルタ可能）
-export async function getLeadStatuses(stageId?: string) {
+export async function getLeadStatuses(
+  stageId?: string
+): Promise<ActionResult<(Row<"lead_statuses"> & { stage: NamedRef | null })[]>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
   let query = supabase
@@ -417,7 +425,9 @@ export async function getLeadCallStatuses() { return getMasterList("lead_call_st
 export async function getLeadLargeSegments() { return getMasterList("lead_large_segments"); }
 
 // Lead Small Segments（large_segment_id でフィルタ可能）
-export async function getLeadSmallSegments(largeSegmentId?: string) {
+export async function getLeadSmallSegments(
+  largeSegmentId?: string
+): Promise<ActionResult<Row<"lead_small_segments">[]>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
   let query = supabase
@@ -434,7 +444,7 @@ export async function getLeadSmallSegments(largeSegmentId?: string) {
 // Lead Activity Types
 // ※ lead_activity_types は created_by / last_updated_by カラムを持たないため専用実装
 export async function getLeadActivityTypes() { return getMasterList("lead_activity_types", { useSortOrder: true }); }
-export async function createLeadActivityType(input: Record<string, unknown>): Promise<ActionResult<any>> {
+export async function createLeadActivityType(input: Record<string, unknown>): Promise<ActionResult<Row<"lead_activity_types">>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
   const adminError = await requireAdmin(supabase, user.id);
@@ -445,7 +455,7 @@ export async function createLeadActivityType(input: Record<string, unknown>): Pr
   if (error) return { data: null, error: error.message };
   return { data, error: null };
 }
-export async function updateLeadActivityType(id: string, input: Record<string, unknown>): Promise<ActionResult<any>> {
+export async function updateLeadActivityType(id: string, input: Record<string, unknown>): Promise<ActionResult<Row<"lead_activity_types">>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
   const adminError = await requireAdmin(supabase, user.id);
@@ -528,7 +538,7 @@ export async function deleteLeadSmallSegment(id: string) { return deleteMasterRe
 // ============================================================
 
 // Lead Company Sizes（M24）
-export async function getLeadCompanySizes(): Promise<ActionResult<any[]>> {
+export async function getLeadCompanySizes(): Promise<ActionResult<Row<"lead_company_sizes">[]>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
   const { data, error } = await supabase
@@ -539,7 +549,7 @@ export async function getLeadCompanySizes(): Promise<ActionResult<any[]>> {
   if (error) return { data: null, error: error.message };
   return { data, error: null };
 }
-export async function createLeadCompanySize(input: Record<string, unknown>): Promise<ActionResult<any>> {
+export async function createLeadCompanySize(input: Record<string, unknown>): Promise<ActionResult<Row<"lead_company_sizes">>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
   const adminError = await requireAdmin(supabase, user.id);
@@ -550,7 +560,7 @@ export async function createLeadCompanySize(input: Record<string, unknown>): Pro
   if (error) return { data: null, error: error.message };
   return { data, error: null };
 }
-export async function updateLeadCompanySize(id: string, input: Record<string, unknown>): Promise<ActionResult<any>> {
+export async function updateLeadCompanySize(id: string, input: Record<string, unknown>): Promise<ActionResult<Row<"lead_company_sizes">>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
   const adminError = await requireAdmin(supabase, user.id);
@@ -575,7 +585,7 @@ export async function deleteLeadCompanySize(id: string): Promise<ActionResult<nu
 }
 
 // Lead Customer Activity Types（M25）
-export async function getLeadCustomerActivityTypes(): Promise<ActionResult<any[]>> {
+export async function getLeadCustomerActivityTypes(): Promise<ActionResult<Row<"lead_customer_activity_types">[]>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
   const { data, error } = await supabase
@@ -586,7 +596,7 @@ export async function getLeadCustomerActivityTypes(): Promise<ActionResult<any[]
   if (error) return { data: null, error: error.message };
   return { data, error: null };
 }
-export async function createLeadCustomerActivityType(input: Record<string, unknown>): Promise<ActionResult<any>> {
+export async function createLeadCustomerActivityType(input: Record<string, unknown>): Promise<ActionResult<Row<"lead_customer_activity_types">>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
   const adminError = await requireAdmin(supabase, user.id);
@@ -597,7 +607,7 @@ export async function createLeadCustomerActivityType(input: Record<string, unkno
   if (error) return { data: null, error: error.message };
   return { data, error: null };
 }
-export async function updateLeadCustomerActivityType(id: string, input: Record<string, unknown>): Promise<ActionResult<any>> {
+export async function updateLeadCustomerActivityType(id: string, input: Record<string, unknown>): Promise<ActionResult<Row<"lead_customer_activity_types">>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
   const adminError = await requireAdmin(supabase, user.id);
@@ -622,7 +632,7 @@ export async function deleteLeadCustomerActivityType(id: string): Promise<Action
 }
 
 // Lead Score Rules（M26）
-export async function getLeadScoreRules(): Promise<ActionResult<any[]>> {
+export async function getLeadScoreRules(): Promise<ActionResult<Row<"lead_score_rules">[]>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
   const { data, error } = await supabase
@@ -633,7 +643,7 @@ export async function getLeadScoreRules(): Promise<ActionResult<any[]>> {
   if (error) return { data: null, error: error.message };
   return { data, error: null };
 }
-export async function createLeadScoreRule(input: Record<string, unknown>): Promise<ActionResult<any>> {
+export async function createLeadScoreRule(input: Record<string, unknown>): Promise<ActionResult<Row<"lead_score_rules">>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
   const adminError = await requireAdmin(supabase, user.id);
@@ -644,7 +654,7 @@ export async function createLeadScoreRule(input: Record<string, unknown>): Promi
   if (error) return { data: null, error: error.message };
   return { data, error: null };
 }
-export async function updateLeadScoreRule(id: string, input: Record<string, unknown>): Promise<ActionResult<any>> {
+export async function updateLeadScoreRule(id: string, input: Record<string, unknown>): Promise<ActionResult<Row<"lead_score_rules">>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
   const adminError = await requireAdmin(supabase, user.id);
@@ -669,7 +679,7 @@ export async function deleteLeadScoreRule(id: string): Promise<ActionResult<null
 }
 
 // Lead Score Thresholds（旧 lead_scoring_rules）取得 + CRUD
-export async function getLeadScoreThresholds(): Promise<ActionResult<any[]>> {
+export async function getLeadScoreThresholds(): Promise<ActionResult<Row<"lead_score_thresholds">[]>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
   const { data, error } = await supabase
@@ -684,7 +694,7 @@ export async function getLeadScoreThresholds(): Promise<ActionResult<any[]>> {
 // 参照切れルール確認（admin 向け）
 // lead_score_rules.condition_value_id の参照先マスタ行が存在するかチェック
 export async function getLeadScoreRulesWithBrokenRefs(): Promise<ActionResult<{
-  rules: any[];
+  rules: Row<"lead_score_rules">[];
   brokenCount: number;
 }>> {
   const { supabase, user } = await getAuthenticatedUser();

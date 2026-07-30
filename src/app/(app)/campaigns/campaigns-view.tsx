@@ -200,7 +200,7 @@ export function CampaignsView({
               </tr>
             </thead>
             <tbody>
-              {items.map((campaign: any) => (
+              {items.map((campaign) => (
                 <tr
                   key={campaign.id}
                   className="transition-colors cursor-pointer"

@@ -11,6 +11,12 @@ import {
   createContactPhoneSchema,
 } from "@/lib/validators/contacts";
 import { calcPotentialNumber, calcZodiacSign } from "@/lib/diagnosis";
+import type {
+  ContactDetail,
+  ContactWithRelations,
+  Paged,
+  Row,
+} from "@/types/relations";
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -82,7 +88,7 @@ export async function getContacts(
     contactType?: string;
     ownerUserId?: string;
   }
-): Promise<ActionResult<{ rows: unknown[]; total: number }>> {
+): Promise<ActionResult<Paged<ContactWithRelations>>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
@@ -127,7 +133,7 @@ export async function getContacts(
 // ---------------------------------------------------------------------------
 // 詳細取得
 // ---------------------------------------------------------------------------
-export async function getContact(id: string): Promise<ActionResult<unknown>> {
+export async function getContact(id: string): Promise<ActionResult<ContactDetail>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
@@ -140,7 +146,9 @@ export async function getContact(id: string): Promise<ActionResult<unknown>> {
     .single();
 
   if (error) return { data: null, error: error.message };
-  return { data, error: null };
+  // talent_careers.career_type は DB の CHECK 制約で 3 値に限定されているが
+  // 生成型では TEXT のままなので、ここで一度だけ絞り込んだ型に寄せる。
+  return { data: data as ContactDetail, error: null };
 }
 
 // ---------------------------------------------------------------------------
@@ -148,7 +156,7 @@ export async function getContact(id: string): Promise<ActionResult<unknown>> {
 // ---------------------------------------------------------------------------
 export async function createContact(
   input: unknown
-): Promise<ActionResult<unknown>> {
+): Promise<ActionResult<Row<"contacts">>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
@@ -187,7 +195,7 @@ export async function createContact(
 export async function updateContact(
   id: string,
   input: unknown
-): Promise<ActionResult<unknown>> {
+): Promise<ActionResult<Row<"contacts">>> {
   const { supabase, user, role } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
@@ -298,7 +306,7 @@ export async function deleteContact(
 // ---------------------------------------------------------------------------
 export async function addContactEmail(
   input: unknown
-): Promise<ActionResult<unknown>> {
+): Promise<ActionResult<Row<"contact_emails">>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
@@ -323,7 +331,7 @@ export async function addContactEmail(
 export async function updateContactEmail(
   id: string,
   input: { email?: string; label?: string; is_primary?: boolean }
-): Promise<ActionResult<unknown>> {
+): Promise<ActionResult<Row<"contact_emails">>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
@@ -361,7 +369,7 @@ export async function deleteContactEmail(
 // ---------------------------------------------------------------------------
 export async function addContactPhone(
   input: unknown
-): Promise<ActionResult<unknown>> {
+): Promise<ActionResult<Row<"contact_phones">>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
@@ -386,7 +394,7 @@ export async function addContactPhone(
 export async function updateContactPhone(
   id: string,
   input: { phone?: string; label?: string; is_primary?: boolean }
-): Promise<ActionResult<unknown>> {
+): Promise<ActionResult<Row<"contact_phones">>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 

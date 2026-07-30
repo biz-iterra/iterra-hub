@@ -94,7 +94,7 @@ export default async function AccountDetailPage({
   }
 
   const { data: account, error } = await getAccount(id);
-  const a = account as any;
+  const a = account;
 
   if (error || !a) {
     return (
@@ -112,11 +112,11 @@ export default async function AccountDetailPage({
 
   const contacts =
     a.contacts
-      ?.map((ac: any) => ({
+      ?.map((ac) => ({
         ...ac.contact,
         role: ac.role,
       }))
-      .filter((c: any) => c && c.deleted_at === null) ?? [];
+      .filter((c) => c && c.deleted_at === null) ?? [];
 
   const deals = a.deals ?? [];
 
@@ -227,7 +227,7 @@ export default async function AccountDetailPage({
                   </tr>
                 </thead>
                 <tbody>
-                  {deals.map((deal: any) => (
+                  {deals.map((deal) => (
                     <tr key={deal.id}>
                       <td style={tdStyle}>
                         <EntityLink href={`/deals/${deal.id}`} compact>
@@ -261,7 +261,7 @@ export default async function AccountDetailPage({
           <DetailSection title="コンタクト一覧" icon={Users}>
             {contacts.length > 0 ? (
               <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-                {contacts.map((contact: any) => (
+                {contacts.map((contact) => (
                   <div
                     key={contact.id}
                     style={{

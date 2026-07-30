@@ -516,7 +516,7 @@ function KanbanView({
   const columns = q
     ? filteredByColumn.map((c) => ({
         ...c,
-        deals: c.deals.filter((d: any) => {
+        deals: c.deals.filter((d) => {
           const name = String(d.name ?? "").toLowerCase();
           const accountName = String(d.account?.name ?? "").toLowerCase();
           return name.includes(q) || accountName.includes(q);
@@ -611,7 +611,7 @@ function KanbanView({
                 ディールなし
               </div>
             ) : (
-              col.deals.map((deal: any) => (
+              col.deals.map((deal) => (
                 <Link
                   key={deal.id}
                   href={`/deals/${deal.id}`}
@@ -768,7 +768,7 @@ function TableView({ data }: { data: ListData }) {
           </tr>
         </thead>
         <tbody>
-          {data.rows.map((deal: any) => (
+          {data.rows.map((deal) => (
             <tr
               key={deal.id}
               className="transition-colors cursor-pointer"

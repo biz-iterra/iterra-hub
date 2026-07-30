@@ -7,6 +7,12 @@ import {
   updateAccountSchema,
   createAccountContactSchema,
 } from "@/lib/validators/accounts";
+import type {
+  AccountDetail,
+  AccountWithRelations,
+  Paged,
+  Row,
+} from "@/types/relations";
 
 type ActionResult<T> = { data: T | null; error: string | null };
 
@@ -36,7 +42,7 @@ export async function getAccounts(
     accountTypeId?: string;
     ownerUserId?: string;
   }
-): Promise<ActionResult<{ rows: unknown[]; total: number }>> {
+): Promise<ActionResult<Paged<AccountWithRelations>>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
@@ -78,14 +84,14 @@ export async function getAccounts(
 // ---------------------------------------------------------------------------
 // 詳細取得
 // ---------------------------------------------------------------------------
-export async function getAccount(id: string): Promise<ActionResult<unknown>> {
+export async function getAccount(id: string): Promise<ActionResult<AccountDetail>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
   const { data, error } = await supabase
     .from("accounts")
     .select(
-      `*, company:companies(id, name), account_type:account_types(id, name), account_status:account_statuses(id, name), owner:crm_users!accounts_owner_user_id_fkey(id, full_name), contacts:account_contacts(id, role, contact:contacts(id, contact_code, last_name, first_name, department, job_title, deleted_at, company:companies!contacts_company_id_fkey(id, name))), deals(id, deal_code, name, amount, deal_stage:deal_stages(name), deal_status:deal_statuses(name))`
+      `*, company:companies(id, name), account_type:account_types(id, name), account_status:account_statuses(id, name), lead_source:lead_sources(id, name), owner:crm_users!accounts_owner_user_id_fkey(id, full_name), contacts:account_contacts(id, role, contact:contacts(id, contact_code, last_name, first_name, department, job_title, deleted_at, company:companies!contacts_company_id_fkey(id, name))), deals(id, deal_code, name, amount, deal_stage:deal_stages(name), deal_status:deal_statuses(name))`
     )
     .eq("id", id)
     .single();
@@ -99,7 +105,7 @@ export async function getAccount(id: string): Promise<ActionResult<unknown>> {
 // ---------------------------------------------------------------------------
 export async function createAccount(
   input: unknown
-): Promise<ActionResult<unknown>> {
+): Promise<ActionResult<Row<"accounts">>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
@@ -130,7 +136,7 @@ export async function createAccount(
 export async function updateAccount(
   id: string,
   input: unknown
-): Promise<ActionResult<unknown>> {
+): Promise<ActionResult<Row<"accounts">>> {
   const { supabase, user, role } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
@@ -227,7 +233,7 @@ export async function deleteAccount(
 // ---------------------------------------------------------------------------
 export async function addAccountContact(
   input: unknown
-): Promise<ActionResult<unknown>> {
+): Promise<ActionResult<Row<"account_contacts">>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 

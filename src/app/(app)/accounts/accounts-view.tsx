@@ -10,6 +10,7 @@ import { FilterSelect } from "@/components/ui/FilterSelect";
 import { FilterGroup, FilterClearButton } from "@/components/ui/FilterGroup";
 import { Pagination } from "@/components/ui/Pagination";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants/pagination";
+import type { AccountWithRelations, Paged } from "@/types/relations";
 
 function formatDateTime(value: string | null | undefined): string {
   if (!value) return "—";
@@ -25,7 +26,8 @@ function formatDateTime(value: string | null | undefined): string {
 type AccountStatus = { id: string; name: string };
 type AccountType = { id: string; name: string };
 type CrmUser = { id: string; full_name: string; role: string };
-type AccountsData = { rows: unknown[]; total: number } | null;
+// 一覧データは Server Action の戻り値型をそのまま使う
+type AccountsData = Paged<AccountWithRelations> | null;
 
 interface AccountsViewProps {
   initialData: AccountsData;
@@ -95,7 +97,7 @@ export function AccountsView({
     });
   }
 
-  const rows = (data?.rows ?? []) as any[];
+  const rows = data?.rows ?? [];
   const total = data?.total ?? 0;
 
   return (
@@ -205,7 +207,7 @@ export function AccountsView({
               </tr>
             </thead>
             <tbody>
-              {rows.map((account: any) => (
+              {rows.map((account) => (
                 <tr
                   key={account.id}
                   className="transition-colors cursor-pointer"

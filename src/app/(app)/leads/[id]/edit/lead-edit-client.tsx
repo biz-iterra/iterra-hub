@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { updateLead, deleteLead } from "@/actions/leads";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import type { LeadDetail } from "@/types/relations";
 
 type SelectOption = { value: string; label: string };
 type StatusOption = SelectOption & { stage_id: string };
@@ -126,7 +127,7 @@ export function LeadEditClient({
   masters,
   currentUser,
 }: {
-  lead: any;
+  lead: LeadDetail;
   masters: Masters;
   currentUser: { id: string; full_name: string; role: string };
 }) {
@@ -190,7 +191,7 @@ export function LeadEditClient({
 
   // 副担当（主担当と別管理）
   const [subOwnerUserIds, setSubOwnerUserIds] = useState<string[]>(
-    () => (lead.sub_owners ?? []).map((o: any) => o.user_id as string)
+    () => (lead.sub_owners ?? []).map((o) => o.user_id)
   );
 
   const [saving, setSaving] = useState(false);
@@ -383,7 +384,7 @@ export function LeadEditClient({
       setSaveWarningDismissed(false);
     }
 
-    const updatedLead = result.lead as any;
+    const updatedLead = result.lead;
     if (
       updatedLead?.promoted_deal_id &&
       updatedLead.promoted_deal_id !== promotedDealId

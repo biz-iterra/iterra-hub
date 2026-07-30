@@ -91,7 +91,7 @@ export async function getProject(id: string): Promise<ActionResult<ProjectDetail
       deal_projects(
         id, deal_id, created_at,
         deal:deals(
-          id, deal_code, name, amount, closed_at,
+          id, deal_code, name, amount, closed_at, deleted_at,
           account:accounts(id, name, account_code),
           pipeline_type:pipeline_types(id, name),
           deal_stage:deal_stages(id, name, sort_order),

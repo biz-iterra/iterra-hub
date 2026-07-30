@@ -284,7 +284,7 @@ export function LeadsView({
               </tr>
             </thead>
             <tbody>
-              {sortedItems.map((lead: any) => {
+              {sortedItems.map((lead) => {
                 const category = lead.category as { id: string; code: string; name: string; color: string | null } | null;
                 const temp = lead.temperature as {
                   code: string;

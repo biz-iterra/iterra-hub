@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Save, Trash2 } from "lucide-react";
 import { updateCampaign, deleteCampaign } from "@/actions/campaigns";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import type { Row } from "@/types/relations";
 
 const styles = {
   card: {
@@ -91,7 +92,7 @@ export function CampaignEditClient({
   campaign,
   currentUser,
 }: {
-  campaign: any;
+  campaign: Row<"campaigns">;
   currentUser: { id: string; full_name: string; role: string };
 }) {
   const router = useRouter();

@@ -49,7 +49,7 @@ export async function getProjects(params?: {
   let query = supabase
     .from("projects")
     .select(
-      "*, project_status:project_statuses(id, name), owner:crm_users!projects_owner_user_id_fkey(id, full_name)",
+      "*, project_status:project_statuses(id, name, sort_order), owner:crm_users!projects_owner_user_id_fkey(id, full_name)",
       { count: "exact" }
     )
     .is("deleted_at", null)

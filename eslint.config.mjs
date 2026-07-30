@@ -29,10 +29,9 @@ const eslintConfig = defineConfig([
           ignoreRestSiblings: true,
         },
       ],
-      // 既存コードに 200 件超あり、解消には JOIN 込みの戻り値型を多数定義する必要がある。
-      // 一度に潰せないため警告に降格し、CI の --max-warnings で件数を固定して
-      // 「増やさない」ことを担保する（ラチェット方式）。新規コードでは使わないこと。
-      "@typescript-eslint/no-explicit-any": "warn",
+      // JOIN 込みの戻り値型は src/types/relations.ts に集約済み。
+      // 新しい SELECT を書いたらそこに型を足すこと。any で逃げない。
+      "@typescript-eslint/no-explicit-any": "error",
     },
   },
   {

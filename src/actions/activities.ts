@@ -8,7 +8,11 @@ import {
   createActivityLogSchema,
 } from "@/lib/validators";
 import type { z } from "zod";
-import type { DealActivityWithRelations, Row } from "@/types/relations";
+import type {
+  ActivityLogWithRelations,
+  DealActivityWithRelations,
+  Row,
+} from "@/types/relations";
 
 type ActionResult<T> = { data: T | null; error: string | null };
 
@@ -165,7 +169,7 @@ export async function getActivityLogs(params?: {
   entityType?: "deal" | "contact" | "account" | "company";
   page?: number;
   perPage?: number;
-}): Promise<ActionResult<{ items: any[]; count: number }>> {
+}): Promise<ActionResult<{ items: ActivityLogWithRelations[]; count: number }>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 

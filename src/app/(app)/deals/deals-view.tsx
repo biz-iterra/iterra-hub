@@ -15,15 +15,16 @@ import { FilterSelect } from "@/components/ui/FilterSelect";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { Pagination } from "@/components/ui/Pagination";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants/pagination";
+import type { DealWithRelations, Paged } from "@/types/relations";
 
 type Pipeline = { id: string; name: string };
 type Stage = { id: string; name: string; sort_order: number };
 type Status = { id: string; name: string; sort_order: number };
 type CrmUser = { id: string; full_name: string; role: string };
-type StageColumn = { stage: Stage; deals: any[] };
-type StatusColumn = { status: Status; deals: any[] };
+type StageColumn = { stage: Stage; deals: DealWithRelations[] };
+type StatusColumn = { status: Status; deals: DealWithRelations[] };
 type KanbanData = { stages: StageColumn[]; statuses: StatusColumn[] } | null;
-type ListData = { rows: any[]; total: number } | null;
+type ListData = Paged<DealWithRelations> | null;
 type GroupBy = "stage" | "status";
 
 const jpyCurrency = new Intl.NumberFormat("ja-JP", {
@@ -463,7 +464,7 @@ type Column = {
   id: string;
   name: string;
   sort_order: number;
-  deals: any[];
+  deals: DealWithRelations[];
 };
 
 function KanbanView({
@@ -507,7 +508,7 @@ function KanbanView({
   const filter = groupBy === "stage" ? stageFilter : statusFilter;
   const filteredByColumn = filter
     ? rawColumns.map((c) =>
-        c.id === filter ? c : { ...c, deals: [] as any[] }
+        c.id === filter ? c : { ...c, deals: [] }
       )
     : rawColumns;
 

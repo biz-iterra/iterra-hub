@@ -8,7 +8,12 @@ import {
   attachLeadsToCampaignSchema,
 } from "@/lib/validators/campaigns";
 import type { z } from "zod";
-import type { Paged, Row } from "@/types/relations";
+import type {
+  CampaignLeadRow,
+  Paged,
+  Row,
+  UnassignedLeadRow,
+} from "@/types/relations";
 
 type ActionResult<T> = { data: T | null; error: string | null };
 
@@ -293,7 +298,7 @@ export async function attachLeadsToCampaign(
 // ---------- キャンペーンに未紐付けのリード一覧 ----------
 export async function getUnassignedLeadsForCampaign(
   campaignId: string
-): Promise<ActionResult<any[]>> {
+): Promise<ActionResult<UnassignedLeadRow[]>> {
   if (!UUID_REGEX.test(campaignId)) {
     return { data: null, error: "不正なパラメータです。受信値: " + campaignId };
   }
@@ -309,16 +314,16 @@ export async function getUnassignedLeadsForCampaign(
 
   if (attachedError) return { data: null, error: attachedError.message };
 
-  const attachedIds = (attached ?? []).map((r: any) => r.lead_id as string);
+  const attachedIds = (attached ?? []).map((r) => r.lead_id);
 
   // 未紐付けのリードを取得（RLS が自動適用される）
   let query = supabase
     .from("leads")
     .select(
       `
-      id, lead_name, company_name,
+      id, lead_name, company_name, stage_id, status_id, score, temperature_id, owner_user_id,
       category:lead_categories(id, code, name, color),
-      temperature:lead_temperatures(id, code, name)
+      temperature:lead_temperatures(id, code, name, color)
     `
     )
     .is("deleted_at", null)
@@ -336,7 +341,7 @@ export async function getUnassignedLeadsForCampaign(
 // ---------- キャンペーンに紐づく Lead 一覧 ----------
 export async function getCampaignLeads(
   campaignId: string
-): Promise<ActionResult<any[]>> {
+): Promise<ActionResult<CampaignLeadRow[]>> {
   if (!UUID_REGEX.test(campaignId)) {
     return { data: null, error: "不正なパラメータです。受信値: " + campaignId };
   }

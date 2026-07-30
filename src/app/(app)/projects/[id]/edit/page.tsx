@@ -48,7 +48,7 @@ export default async function EditProjectPage({
   const project = projectRes.data;
   const members = project.project_members ?? [];
   const dealProjects = (project.deal_projects ?? []).filter(
-    (dp: any) => dp.deal && dp.deal.deleted_at === null
+    (dp) => dp.deal && dp.deal.deleted_at === null
   );
 
   return (

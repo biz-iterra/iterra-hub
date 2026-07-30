@@ -23,10 +23,10 @@ import type { z } from "zod";
 import type {
   LeadDetail,
   LeadListRow,
+  LeadCustomerActivityWithType,
   LeadPromotionResult,
   LeadWithRelations,
   Paged,
-  Row,
 } from "@/types/relations";
 
 type ActionResult<T> = { data: T | null; error: string | null };
@@ -786,7 +786,7 @@ export async function promoteLeadToDeal(
 // ---------- 作成 ----------
 export async function createLeadCustomerActivity(
   input: unknown
-): Promise<ActionResult<Row<"lead_customer_activities">>> {
+): Promise<ActionResult<LeadCustomerActivityWithType>> {
   const { supabase, user, role: _role } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
@@ -835,7 +835,7 @@ export async function createLeadCustomerActivity(
 export async function updateLeadCustomerActivity(
   id: string,
   input: unknown
-): Promise<ActionResult<Row<"lead_customer_activities">>> {
+): Promise<ActionResult<LeadCustomerActivityWithType>> {
   if (!UUID_REGEX.test(id)) {
     return { data: null, error: "不正なパラメータです。受信値: " + id };
   }

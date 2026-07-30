@@ -220,7 +220,7 @@ export type ContractDetail = ContractWithRelations & {
 
 /** projects.ts の getProjects に対応 */
 export type ProjectWithRelations = Row<"projects"> & {
-  project_status: NamedRef | null;
+  project_status: SortedRef | null;
   owner: UserRef | null;
 };
 
@@ -393,6 +393,49 @@ export type TalentCareerRow = Omit<Row<"talent_careers">, "career_type"> & {
   career_type: TalentCareerType;
 };
 
+/**
+ * campaigns.ts の getUnassignedLeadsForCampaign に対応。
+ * 紐付け直後の楽観更新で CampaignLeadRow を組み立てられるよう、
+ * 一覧表示に必要な列まで取得している。
+ */
+export type UnassignedLeadRow = Ref<
+  "leads",
+  | "id"
+  | "lead_name"
+  | "company_name"
+  | "stage_id"
+  | "status_id"
+  | "score"
+  | "temperature_id"
+  | "owner_user_id"
+> & {
+  category: CodedRef | null;
+  temperature: CodedRef | null;
+};
+
+/** campaigns.ts の getCampaignLeads に対応 */
+export type CampaignLeadRow = {
+  assigned_at: string;
+  lead:
+    | (Ref<
+        "leads",
+        | "id"
+        | "lead_name"
+        | "company_name"
+        | "stage_id"
+        | "status_id"
+        | "score"
+        | "temperature_id"
+        | "owner_user_id"
+      > & {
+        stage: (SortedRef & Ref<"lead_stages", "slug">) | null;
+        status: (SortedRef & Ref<"lead_statuses", "code">) | null;
+        temperature: CodedRef | null;
+        owner: UserRef | null;
+      })
+    | null;
+};
+
 // ============================================================
 // 対応履歴（Deal / Lead）
 // ============================================================
@@ -413,6 +456,27 @@ export type LeadActivityWithRelations = Row<"lead_activities"> & {
   call_status: CodedRef | null;
   caller: UserRef | null;
   activity_type: CodedRef | null;
+};
+
+/**
+ * leads.ts の createLeadCustomerActivity / updateLeadCustomerActivity に対応
+ * （insert/update 後に activity_type を JOIN して返す）。
+ */
+export type LeadCustomerActivityWithType = Row<"lead_customer_activities"> & {
+  activity_type: CodeNameRef | null;
+};
+
+/**
+ * masters.ts の getLeadScoreRulesWithBrokenRefs に対応。
+ * condition_value_id の参照先マスタ行が存在するかを Action 側で判定して付与する。
+ */
+export type LeadScoreRuleWithRefCheck = Row<"lead_score_rules"> & {
+  _refBroken: boolean;
+};
+
+/** activities.ts の getActivityLogs に対応 */
+export type ActivityLogWithRelations = Row<"activity_logs"> & {
+  creator: UserRef | null;
 };
 
 // ============================================================

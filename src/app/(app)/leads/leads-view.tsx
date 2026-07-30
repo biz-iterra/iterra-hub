@@ -15,6 +15,7 @@ import {
   StatusBadge,
   CategoryBadge,
 } from "@/components/ui/badges";
+import type { LeadListRow, Paged } from "@/types/relations";
 
 function formatDateTime(value: string | null | undefined): string {
   if (!value) return "—";
@@ -43,7 +44,7 @@ type LeadCategory = { id: string; code: string; name: string; color: string | nu
 type CrmUser = { id: string; full_name: string; role: string };
 
 interface LeadsViewProps {
-  initialData: { rows: any[]; total: number } | null;
+  initialData: Paged<LeadListRow> | null;
   stages: LeadStage[];
   statuses: LeadStatus[];
   temperatures: LeadTemperature[];
@@ -351,9 +352,9 @@ export function LeadsView({
                     <td
                       className="px-4 py-3 max-w-[140px] truncate"
                       style={{ color: "var(--color-text-list)" }}
-                      title={lead.company_name ?? lead.company?.name ?? ""}
+                      title={lead.company_name ?? ""}
                     >
-                      {lead.company_name || lead.company?.name || (
+                      {lead.company_name || (
                         <span style={{ color: "var(--color-text-list)" }}>—</span>
                       )}
                     </td>

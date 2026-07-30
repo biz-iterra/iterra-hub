@@ -2,6 +2,7 @@ import { getDealsForKanban, getDeals } from "@/actions/deals";
 import { getPipelineTypes, getDealStages, getDealStatuses } from "@/actions/masters";
 import { getCrmUsers } from "@/actions/users";
 import { DealsView } from "./deals-view";
+import type { DealWithRelations, SortedRef } from "@/types/relations";
 
 export default async function DealsPage() {
   const { data: pipelineTypes } = await getPipelineTypes();
@@ -9,8 +10,8 @@ export default async function DealsPage() {
   const defaultPipelineId = pipelines[0]?.id ?? null;
 
   type KanbanData = {
-    stages: { stage: { id: string; name: string; sort_order: number }; deals: any[] }[];
-    statuses: { status: { id: string; name: string; sort_order: number }; deals: any[] }[];
+    stages: { stage: SortedRef; deals: DealWithRelations[] }[];
+    statuses: { status: SortedRef; deals: DealWithRelations[] }[];
   } | null;
 
   const [

@@ -39,8 +39,8 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: https://dummy.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: dummy-anon-key
 
-      # error は 0 件を必須とする。
-      # no-explicit-any は既存 205 件を warning に降格し、上限で件数を固定している
-      # （ラチェット方式）。増やすと CI が落ちる。減らしたらこの数値も下げること。
+      # error / warning ともに 0 件を必須とする。
+      # no-explicit-any は Server Action の戻り値型を src/types/relations.ts に
+      # 集約したことで解消済み。any を足すと CI が落ちる。
       - name: Lint
-        run: npm run lint -- --max-warnings 205
+        run: npm run lint -- --max-warnings 0

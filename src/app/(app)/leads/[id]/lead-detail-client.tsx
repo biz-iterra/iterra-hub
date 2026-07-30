@@ -33,6 +33,9 @@ import type {
   LeadDetail,
 } from "@/types/relations";
 
+/** lead.customer_activities の要素（LEAD_SELECT の customer_activities に対応） */
+type LeadCustomerActivity = LeadDetail["customer_activities"][number];
+
 type Tab = "basic" | "score" | "customer_activities" | "activities" | "campaigns";
 type CampaignRef = { id: string; name: string };
 
@@ -174,12 +177,12 @@ function ActivityAccordionItem({
   onDelete,
   onEdit,
 }: {
-  act: any;
+  act: LeadActivityWithRelations;
   isAdmin: boolean;
   canEdit: boolean;
   deletingActId: string | null;
   onDelete: (id: string) => void;
-  onEdit: (act: any) => void;
+  onEdit: (act: LeadActivityWithRelations) => void;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -398,10 +401,10 @@ function LeadActivityEditModal({
   onClose,
   onSaved,
 }: {
-  act: any;
+  act: LeadActivityWithRelations;
   masters: Masters;
   onClose: () => void;
-  onSaved: (updated: any) => void;
+  onSaved: (updated: LeadActivityWithRelations) => void;
 }) {
   const [form, setForm] = useState({
     called_on: act.called_on ?? new Date().toISOString().slice(0, 10),
@@ -434,8 +437,8 @@ function LeadActivityEditModal({
       note: form.note || null,
     });
     setSaving(false);
-    if (result.error) {
-      setError(result.error);
+    if (result.error || !result.data) {
+      setError(result.error ?? "保存結果を取得できませんでした");
       return;
     }
     onSaved(result.data);
@@ -603,7 +606,7 @@ function CustomerActivityModal({
   leadId: string;
   customerActivityTypes: SelectOption[];
   onClose: () => void;
-  onSaved: (item: any) => void;
+  onSaved: (item: LeadCustomerActivity) => void;
 }) {
   const [form, setForm] = useState({
     activity_type_id: "",
@@ -632,8 +635,8 @@ function CustomerActivityModal({
       source: form.source || null,
     });
     setSaving(false);
-    if (result.error) {
-      setError(result.error);
+    if (result.error || !result.data) {
+      setError(result.error ?? "保存結果を取得できませんでした");
       return;
     }
     onSaved(result.data);
@@ -746,7 +749,7 @@ export function LeadDetailClient({
   const [actError, setActError] = useState<string | null>(null);
   const [actSaving, setActSaving] = useState(false);
   const [deletingActId, setDeletingActId] = useState<string | null>(null);
-  const [editingAct, setEditingAct] = useState<any | null>(null);
+  const [editingAct, setEditingAct] = useState<LeadActivityWithRelations | null>(null);
 
   const setAct = <K extends keyof typeof actForm>(
     key: K,
@@ -804,14 +807,14 @@ export function LeadDetailClient({
     setActivities((prev) => prev.filter((a) => a.id !== actId));
   };
 
-  const handleEditActivitySaved = (updated: any) => {
+  const handleEditActivitySaved = (updated: LeadActivityWithRelations) => {
     setActivities((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
   };
 
   // ---- 顧客行動ログ ----
-  const [customerActivities, setCustomerActivities] = useState<any[]>(
+  const [customerActivities, setCustomerActivities] = useState<LeadCustomerActivity[]>(
     () => (lead.customer_activities ?? []).slice().sort(
-      (a: any, b: any) => new Date(b.occurred_at ?? b.created_at).getTime() - new Date(a.occurred_at ?? a.created_at).getTime()
+      (a, b) => new Date(b.occurred_at ?? b.created_at).getTime() - new Date(a.occurred_at ?? a.created_at).getTime()
     )
   );
   const [showAddCustomerActivity, setShowAddCustomerActivity] = useState(false);
@@ -848,8 +851,8 @@ export function LeadDetailClient({
     id ? (list.find((o) => o.value === id)?.label ?? null) : null;
 
   // スコア内訳
-  const scoreBreakdowns: any[] = lead.score_breakdowns ?? [];
-  const sumDelta = scoreBreakdowns.reduce((acc: number, b: any) => acc + (b.score_delta ?? 0), 0);
+  const scoreBreakdowns = lead.score_breakdowns ?? [];
+  const sumDelta = scoreBreakdowns.reduce((acc, b) => acc + (b.score_delta ?? 0), 0);
 
   return (
     <div style={{ padding: "1.5rem", maxWidth: 960, margin: "0 auto" }}>
@@ -1284,7 +1287,7 @@ export function LeadDetailClient({
               </p>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: "0" }}>
-                {scoreBreakdowns.map((b: any, i: number) => (
+                {scoreBreakdowns.map((b, i) => (
                   <div
                     key={b.id ?? i}
                     className="score-breakdown-row"

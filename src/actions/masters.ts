@@ -30,7 +30,11 @@ import {
 } from "@/lib/validators";
 import type { z } from "zod";
 import type { Database } from "@/types/database.generated";
-import type { NamedRef, Row } from "@/types/relations";
+import type {
+  LeadScoreRuleWithRefCheck,
+  NamedRef,
+  Row,
+} from "@/types/relations";
 
 type ActionResult<T> = { data: T | null; error: string | null };
 
@@ -694,7 +698,7 @@ export async function getLeadScoreThresholds(): Promise<ActionResult<Row<"lead_s
 // 参照切れルール確認（admin 向け）
 // lead_score_rules.condition_value_id の参照先マスタ行が存在するかチェック
 export async function getLeadScoreRulesWithBrokenRefs(): Promise<ActionResult<{
-  rules: Row<"lead_score_rules">[];
+  rules: LeadScoreRuleWithRefCheck[];
   brokenCount: number;
 }>> {
   const { supabase, user } = await getAuthenticatedUser();

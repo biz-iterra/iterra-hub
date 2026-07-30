@@ -10,6 +10,7 @@ import { FilterSelect } from "@/components/ui/FilterSelect";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { Pagination } from "@/components/ui/Pagination";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants/pagination";
+import type { Paged, Row } from "@/types/relations";
 
 function formatDateTime(value: string | null | undefined): string {
   if (!value) return "—";
@@ -26,7 +27,7 @@ export function CampaignsView({
   initialData,
   currentUserRole,
 }: {
-  initialData: { rows: any[]; total: number } | null;
+  initialData: Paged<Row<"campaigns">> | null;
   currentUserRole: string;
 }) {
   const [data, setData] = useState(initialData);

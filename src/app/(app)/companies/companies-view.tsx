@@ -10,6 +10,7 @@ import { FilterSelect } from "@/components/ui/FilterSelect";
 import { FilterGroup, FilterClearButton } from "@/components/ui/FilterGroup";
 import { Pagination } from "@/components/ui/Pagination";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants/pagination";
+import type { CompanyWithRelations, Paged } from "@/types/relations";
 
 function formatDateTime(value: string | null | undefined): string {
   if (!value) return "—";
@@ -25,7 +26,7 @@ function formatDateTime(value: string | null | undefined): string {
 type CompanyStatus = { id: string; name: string };
 type CorporateType = { id: string; name: string };
 type CrmUser = { id: string; full_name: string; role: string };
-type CompaniesData = { rows: any[]; total: number } | null;
+type CompaniesData = Paged<CompanyWithRelations> | null;
 
 interface CompaniesViewProps {
   initialData: CompaniesData;
@@ -248,7 +249,7 @@ export function CompaniesView({
                     className="px-4 py-3"
                     style={{ color: "var(--color-text-list)" }}
                   >
-                    {company.phone_main ?? "—"}
+                    {company.phone ?? "—"}
                   </td>
                   {/* 担当者 */}
                   <td

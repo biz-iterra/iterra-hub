@@ -30,6 +30,11 @@ import {
   getLeadScoreRulesWithBrokenRefs, createLeadScoreRule, updateLeadScoreRule, deleteLeadScoreRule,
   getLeadScoreThresholds,
 } from "@/actions/masters";
+import type { LeadScoreRuleWithRefCheck, Row } from "@/types/relations";
+
+/** スコアリング管理タブで扱うマスタ行 */
+type LeadScoreRule = LeadScoreRuleWithRefCheck;
+type LeadScoreThreshold = Row<"lead_score_thresholds">;
 
 // ===== Types =====
 
@@ -1056,11 +1061,14 @@ type ScoreRuleMasters = {
 };
 
 function LeadScoreRulesTab({ scoreMasters }: { scoreMasters?: ScoreRuleMasters }) {
-  const [rulesData, setRulesData] = useState<{ rules: any[]; brokenCount: number } | null>(null);
+  const [rulesData, setRulesData] = useState<{
+    rules: LeadScoreRule[];
+    brokenCount: number;
+  } | null>(null);
   const [loadingData, setLoadingData] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
-  const [editItem, setEditItem] = useState<any | null>(null);
-  const [deleteItem, setDeleteItem] = useState<any | null>(null);
+  const [editItem, setEditItem] = useState<LeadScoreRule | null>(null);
+  const [deleteItem, setDeleteItem] = useState<LeadScoreRule | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -1235,7 +1243,12 @@ function LeadScoreRulesTab({ scoreMasters }: { scoreMasters?: ScoreRuleMasters }
         <FormModal
           title="スコアリングルールを編集"
           fields={formFields}
-          initialValues={Object.fromEntries(formFields.map((f) => [f.key, editItem[f.key]]))}
+          initialValues={Object.fromEntries(
+            formFields.map((f) => [
+              f.key,
+              (editItem as Record<string, unknown>)[f.key],
+            ])
+          )}
           loading={loading}
           error={error}
           onSubmit={handleUpdate}
@@ -1262,7 +1275,7 @@ function ScoreRuleTableRow({
   onEdit,
   onDelete,
 }: {
-  rule: any;
+  rule: LeadScoreRule;
   catLabel: (v: string) => string;
   ctLabel: (v: string) => string;
   conditionValueName: string | null;
@@ -1324,11 +1337,11 @@ function ScoreRuleTableRow({
  * 追加・編集モーダルでも temperature_id は select 選択方式を採用。
  */
 function LeadScoreThresholdsTab({ leadTemperatures }: { leadTemperatures: MasterItem[] }) {
-  const [thresholds, setThresholds] = useState<any[]>([]);
+  const [thresholds, setThresholds] = useState<LeadScoreThreshold[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
-  const [editItem, setEditItem] = useState<any | null>(null);
-  const [deleteItem, setDeleteItem] = useState<any | null>(null);
+  const [editItem, setEditItem] = useState<LeadScoreThreshold | null>(null);
+  const [deleteItem, setDeleteItem] = useState<LeadScoreThreshold | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -1461,7 +1474,7 @@ function ThresholdTableRow({
   onEdit,
   onDelete,
 }: {
-  item: any;
+  item: LeadScoreThreshold;
   temperatureName: string;
   onEdit: () => void;
   onDelete: () => void;

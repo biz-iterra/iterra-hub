@@ -11,10 +11,11 @@ import { FilterGroup, FilterClearButton } from "@/components/ui/FilterGroup";
 import { Pagination } from "@/components/ui/Pagination";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants/pagination";
 import { useState, useTransition } from "react";
+import type { Paged, ProjectWithRelations } from "@/types/relations";
 
 const PER_PAGE = DEFAULT_PAGE_SIZE;
 
-type ProjectsData = { rows: any[]; total: number } | null;
+type ProjectsData = Paged<ProjectWithRelations> | null;
 type StatusOption = { id: string; name: string; sort_order: number };
 type CrmUser = { id: string; full_name: string; role: string };
 

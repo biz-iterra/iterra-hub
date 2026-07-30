@@ -13,6 +13,11 @@ import {
   TemperatureBadge,
   CategoryBadge,
 } from "@/components/ui/badges";
+import type {
+  CampaignLeadRow,
+  Row,
+  UnassignedLeadRow,
+} from "@/types/relations";
 
 type Tab = "basic" | "leads";
 
@@ -120,8 +125,8 @@ function AttachLeadsModal({
   onClose,
 }: {
   campaignId: string;
-  unassignedLeads: any[];
-  onAttached: (leads: any[]) => void;
+  unassignedLeads: UnassignedLeadRow[];
+  onAttached: (leads: UnassignedLeadRow[]) => void;
   onClose: () => void;
 }) {
   const [search, setSearch] = useState("");
@@ -368,9 +373,9 @@ export function CampaignDetailClient({
   unassignedLeads: initialUnassignedLeads,
   currentUser,
 }: {
-  campaign: any;
-  campaignLeads: any[];
-  unassignedLeads: any[];
+  campaign: Row<"campaigns">;
+  campaignLeads: CampaignLeadRow[];
+  unassignedLeads: UnassignedLeadRow[];
   currentUser: { id: string; full_name: string; role: string };
 }) {
   const router = useRouter();
@@ -386,15 +391,23 @@ export function CampaignDetailClient({
   const [leadError, setLeadError] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
 
-  const handleLeadsAttached = (attachedLeads: any[]) => {
+  const handleLeadsAttached = (attachedLeads: UnassignedLeadRow[]) => {
     // 紐付け済み一覧に追加
-    const newRows = attachedLeads.map((l) => ({
+    // ステージ・ステータス・担当者の名称は未取得のため null。
+    // 次のサーバー再取得で埋まる。
+    const newRows: CampaignLeadRow[] = attachedLeads.map((l) => ({
       lead: {
         id: l.id,
         lead_name: l.lead_name,
+        company_name: l.company_name,
+        stage_id: l.stage_id,
+        status_id: l.status_id,
+        score: l.score,
+        temperature_id: l.temperature_id,
+        owner_user_id: l.owner_user_id,
         stage: null,
         status: null,
-        temperature: l.temperature ?? null,
+        temperature: l.temperature,
         owner: null,
       },
       assigned_at: new Date().toISOString(),

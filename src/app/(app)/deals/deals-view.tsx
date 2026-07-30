@@ -146,6 +146,9 @@ export function DealsView({
   const [isPending, startTransition] = useTransition();
   const [pipelineOpen, setPipelineOpen] = useState(false);
   const [dndError, setDndError] = useState<string | null>(null);
+  // D&D 直後のカードを一時ハイライトするための ID（成功フィードバック）
+  const [movedDealId, setMovedDealId] = useState<string | null>(null);
+  const movedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   function handleDropDeal(dealId: string, targetColumnId: string) {
     if (!kanbanData) return;
@@ -163,6 +166,9 @@ export function DealsView({
     const expectedUpdatedAt = sourceDeal.updated_at ?? "";
 
     setDndError(null);
+    setMovedDealId(dealId);
+    if (movedTimerRef.current) clearTimeout(movedTimerRef.current);
+    movedTimerRef.current = setTimeout(() => setMovedDealId(null), 1600);
 
     // 楽観的 UI: ドロップ先の列へ即座に移動
     setKanbanData((prev) => {
@@ -201,6 +207,7 @@ export function DealsView({
 
       if (error || !data) {
         setKanbanData(previousKanbanData);
+        setMovedDealId(null);
         setDndError(error ?? "商談の移動に失敗しました");
         return;
       }
@@ -571,6 +578,7 @@ export function DealsView({
           statusFilter={statusFilter}
           searchQuery={search}
           onDropDeal={handleDropDeal}
+          movedDealId={movedDealId}
           dndError={dndError}
           onDismissError={() => setDndError(null)}
         />
@@ -604,6 +612,7 @@ function KanbanView({
   statusFilter,
   searchQuery,
   onDropDeal,
+  movedDealId,
   dndError,
   onDismissError,
 }: {
@@ -613,6 +622,7 @@ function KanbanView({
   statusFilter: string | null;
   searchQuery: string;
   onDropDeal: (dealId: string, targetColumnId: string) => void;
+  movedDealId: string | null;
   dndError: string | null;
   onDismissError: () => void;
 }) {
@@ -778,7 +788,6 @@ function KanbanView({
               backgroundColor: isDragOver ? "var(--color-bg-hover)" : "transparent",
               transition: "background-color 0.15s ease",
               minHeight: 60,
-              padding: isDragOver ? "0.25rem" : 0,
             }}
             onDragOver={(e) => {
               e.preventDefault();
@@ -792,6 +801,12 @@ function KanbanView({
               e.preventDefault();
               const dealId = e.dataTransfer.getData("text/plain");
               setDragOverColumnId(null);
+              // 列間移動でカードが再マウントされると元要素の onDragEnd が発火しないため、
+              // ドロップ時点で必ずドラッグ状態を解除する（opacity 残り・次クリック無効化の防止）
+              setDraggingDealId(null);
+              setTimeout(() => {
+                wasDraggedRef.current = false;
+              }, 0);
               if (dealId) onDropDeal(dealId, col.id);
             }}
           >
@@ -830,17 +845,21 @@ function KanbanView({
                       e.preventDefault();
                     }
                   }}
-                  className="block transition-shadow hover:shadow-md"
+                  className="block hover:shadow-md"
                   style={{
                     backgroundColor: "#fff",
                     borderRadius: "var(--radius-card)",
-                    boxShadow: "var(--elevation-low)",
+                    boxShadow:
+                      movedDealId === deal.id
+                        ? "0 0 0 2px var(--color-terra), var(--elevation-low)"
+                        : "var(--elevation-low)",
                     padding: "1rem",
                     display: "flex",
                     flexDirection: "column",
                     gap: "0.75rem",
                     cursor: draggingDealId === deal.id ? "grabbing" : "grab",
                     opacity: draggingDealId === deal.id ? 0.5 : 1,
+                    transition: "opacity 0.15s ease, box-shadow 0.4s ease",
                   }}
                 >
                   <div

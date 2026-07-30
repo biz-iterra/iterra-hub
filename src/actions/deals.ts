@@ -239,8 +239,8 @@ export async function updateDeal(
   // owner チェック（admin 以外は自分の担当のみ）
   if (role !== "admin") {
     const { data: existing } = await supabase.from("deals").select("owner_user_id").eq("id", id).single();
-    if (!existing) return { data: null, error: "ディールが見つかりません" };
-    if (existing.owner_user_id !== user.id) return { data: null, error: "このディールを編集する権限がありません" };
+    if (!existing) return { data: null, error: "商談が見つかりません" };
+    if (existing.owner_user_id !== user.id) return { data: null, error: "この商談を編集する権限がありません" };
   }
 
   const parsed = updateDealSchema.safeParse(input);
@@ -277,7 +277,7 @@ export async function updateDeal(
 
   if (error) return { data: null, error: error.message };
   if (!deal) {
-    return { data: null, error: conflictErrorMessage("このディール") };
+    return { data: null, error: conflictErrorMessage("この商談") };
   }
 
   // ステージ変更履歴

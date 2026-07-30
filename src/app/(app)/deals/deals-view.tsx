@@ -181,7 +181,7 @@ export function DealsView({
           className="text-2xl font-bold"
           style={{ color: "var(--color-text-title)" }}
         >
-          ディール
+          商談
         </h1>
         <Link
           href="/deals/new"
@@ -379,7 +379,7 @@ export function DealsView({
             {/* カンバン検索 */}
             <SearchInput
               value={search}
-              placeholder="ディール名で検索..."
+              placeholder="商談名で検索..."
               onChange={(v) => {
                 setSearch(v);
               }}
@@ -420,7 +420,7 @@ export function DealsView({
           />
           <SearchInput
             value={search}
-            placeholder="ディール名で検索..."
+            placeholder="商談名で検索..."
             onChange={(v) => handleTableFilter("search", v)}
           />
           <FilterClearButton onClear={handleTableClear} />
@@ -512,7 +512,7 @@ function KanbanView({
       )
     : rawColumns;
 
-  // 検索クエリによるクライアントサイド絞り込み（ディール名 / アカウント名 を大文字小文字区別なし部分一致）
+  // 検索クエリによるクライアントサイド絞り込み（商談名 / 取引先名 を大文字小文字区別なし部分一致）
   const q = searchQuery.trim().toLowerCase();
   const columns = q
     ? filteredByColumn.map((c) => ({
@@ -609,7 +609,7 @@ function KanbanView({
                   border: "1px dashed var(--color-border-default)",
                 }}
               >
-                ディールなし
+                商談なし
               </div>
             ) : (
               col.deals.map((deal) => (
@@ -721,7 +721,7 @@ function TableView({ data }: { data: ListData }) {
           color: "var(--color-sumi500)",
         }}
       >
-        ディールがありません
+        商談がありません
       </div>
     );
   }
@@ -752,7 +752,7 @@ function TableView({ data }: { data: ListData }) {
               "ステージ",
               "ステータス",
               "金額",
-              "アカウント",
+              "取引先",
               "担当者",
               "最終更新日",
             ].map((label, i) => (

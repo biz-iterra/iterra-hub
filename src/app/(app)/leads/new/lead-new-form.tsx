@@ -403,7 +403,7 @@ export function LeadNewForm({
               )}
               {isOpportunityStage && (
                 <p style={{ ...styles.helpText, color: "var(--color-terra)" }}>
-                  このステージでは Deal が自動生成されます
+                  このステージでは商談が自動生成されます
                 </p>
               )}
             </div>
@@ -442,7 +442,7 @@ export function LeadNewForm({
                 onFocus={onFocus}
                 onBlur={onBlur}
               />
-              <p style={styles.helpText}>Opportunity 昇格時に自動で Company が作成されます</p>
+              <p style={styles.helpText}>Opportunity 昇格時に自動で会社情報が作成されます</p>
             </div>
             <div>
               <label style={styles.label}>フリガナ</label>

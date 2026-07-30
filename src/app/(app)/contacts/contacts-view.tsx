@@ -156,7 +156,7 @@ export function ContactsView({ initialData, statuses, users }: Props) {
           className="text-2xl font-bold"
           style={{ color: "var(--color-text-title)" }}
         >
-          コンタクト
+          連絡先
         </h1>
         <Link
           href="/contacts/new"
@@ -225,7 +225,7 @@ export function ContactsView({ initialData, statuses, users }: Props) {
             color: "var(--color-sumi500)",
           }}
         >
-          コンタクトが見つかりません
+          連絡先が見つかりません
         </div>
       ) : (
         <div

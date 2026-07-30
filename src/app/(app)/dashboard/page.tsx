@@ -230,9 +230,9 @@ export default async function DashboardPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
           <KpiCard
-            label="進行中ディール"
+            label="進行中商談"
             value={String(activeDealsCount)}
-            sub="クローズ前のディール"
+            sub="クローズ前の商談"
             icon={Target}
           />
           <KpiCard
@@ -247,19 +247,19 @@ export default async function DashboardPage() {
             icon={TrendingUp}
           />
           <KpiCard
-            label="アカウント数"
+            label="取引先数"
             value={String(activeAccountsCount)}
             sub="アクティブのみ"
             icon={Users}
           />
           <KpiCard
-            label="コンタクト数"
+            label="連絡先数"
             value={String(activeContactsCount)}
             sub="アクティブのみ"
             icon={Contact}
           />
           <KpiCard
-            label="カンパニー数"
+            label="会社情報数"
             value={String(activeCompaniesCount)}
             sub="アクティブのみ"
             icon={Building2}
@@ -344,7 +344,7 @@ export default async function DashboardPage() {
             className="text-base font-bold mb-4"
             style={{ color: "var(--color-text-title)" }}
           >
-            最近のディール
+            最近の商談
           </h2>
           {recentDealsError ? (
             <p className="text-sm" style={{ color: "var(--color-sumi600)" }}>
@@ -352,7 +352,7 @@ export default async function DashboardPage() {
             </p>
           ) : !recentDeals || recentDeals.length === 0 ? (
             <p className="text-sm" style={{ color: "var(--color-sumi500)" }}>
-              ディールがありません
+              商談がありません
             </p>
           ) : (
             <div className="overflow-x-auto">
@@ -550,7 +550,7 @@ export default async function DashboardPage() {
             className="text-base font-bold mb-4"
             style={{ color: "var(--color-text-title)" }}
           >
-            担当者別ディール数
+            担当者別商談数
           </h2>
           {ownerDealsError ? (
             <p className="text-sm" style={{ color: "var(--color-sumi600)" }}>
@@ -558,7 +558,7 @@ export default async function DashboardPage() {
             </p>
           ) : ownerStats.length === 0 ? (
             <p className="text-sm" style={{ color: "var(--color-sumi500)" }}>
-              進行中のディールがありません
+              進行中の商談がありません
             </p>
           ) : (
             <div className="space-y-3">

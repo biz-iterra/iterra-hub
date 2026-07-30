@@ -2,7 +2,7 @@ import { z } from "zod";
 import { expectedUpdatedAtSchema, uuidString } from "./common";
 
 export const createAccountSchema = z.object({
-  name: z.string().min(1, "アカウント名は必須です").max(200),
+  name: z.string().min(1, "取引先名は必須です").max(200),
   company_id: uuidString().nullable().optional(),
   account_type_id: uuidString().nullable().optional(),
   account_status_id: uuidString("ステータスは必須です"),

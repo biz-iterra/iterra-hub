@@ -36,7 +36,7 @@ export default async function DealEditPage({
             borderRadius: "var(--radius-sm)",
           }}
         >
-          ディール一覧へ戻る
+          商談一覧へ戻る
         </Link>
       </div>
     );
@@ -65,7 +65,7 @@ export default async function DealEditPage({
     return (
       <div style={{ padding: "2rem" }}>
         <p style={{ color: "var(--color-text-body)", marginBottom: "1rem" }}>
-          ディールが見つかりません
+          商談が見つかりません
         </p>
         <Link
           href="/deals"
@@ -78,7 +78,7 @@ export default async function DealEditPage({
             borderRadius: "var(--radius-sm)",
           }}
         >
-          ディール一覧へ戻る
+          商談一覧へ戻る
         </Link>
       </div>
     );

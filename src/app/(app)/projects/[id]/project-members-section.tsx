@@ -174,7 +174,7 @@ export function ProjectMembersSection({
         }}
       >
         <Sparkles size={12} />
-        配下ディールの担当者を一括追加
+        配下商談の担当者を一括追加
       </button>
 
       {error && (

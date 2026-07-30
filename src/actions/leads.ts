@@ -489,7 +489,7 @@ export async function updateLead(
           // その他の昇格失敗はエラーとして返す（ユーザーに確実に通知）
           return {
             ok: false,
-            errors: { _: [`Deal昇格に失敗しました: ${promoteResult.error}`] },
+            errors: { _: [`商談昇格に失敗しました: ${promoteResult.error}`] },
           };
         }
         console.log("[updateLead] promoteLeadToDeal succeeded");
@@ -614,13 +614,13 @@ export async function promoteLeadToDeal(
   if (!stageInfo?.auto_promote_to_deal) {
     return {
       data: null,
-      error: "現在のステージは Deal 昇格対象ではありません",
+      error: "現在のステージは商談昇格対象ではありません",
     };
   }
 
   // 二重発火防止: already promoted
   if (lead.promoted_deal_id) {
-    return { data: null, error: "このリードはすでに Deal に昇格済みです" };
+    return { data: null, error: "このリードはすでに商談に昇格済みです" };
   }
 
   // 必須情報チェック
@@ -682,7 +682,7 @@ export async function promoteLeadToDeal(
     .single();
 
   if (!firstStage) {
-    return { data: null, error: "Deal ステージが見つかりません" };
+    return { data: null, error: "商談ステージが見つかりません" };
   }
 
   const { data: firstStatus } = await supabase
@@ -695,7 +695,7 @@ export async function promoteLeadToDeal(
     .single();
 
   if (!firstStatus) {
-    return { data: null, error: "Deal ステータスが見つかりません" };
+    return { data: null, error: "商談ステータスが見つかりません" };
   }
 
   // --- ペイロード構築（値の整形は TS 側、書き込みは DB 関数の責務）---
@@ -762,7 +762,7 @@ export async function promoteLeadToDeal(
     );
     return {
       data: null,
-      error: rpcError?.message ?? "Deal 昇格に失敗しました",
+      error: rpcError?.message ?? "商談昇格に失敗しました",
     };
   }
 

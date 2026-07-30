@@ -35,7 +35,7 @@ export default async function AccountEditPage({
             borderRadius: "var(--radius-sm)",
           }}
         >
-          アカウント一覧へ戻る
+          取引先一覧へ戻る
         </Link>
       </div>
     );
@@ -74,7 +74,7 @@ export default async function AccountEditPage({
     return (
       <div style={{ padding: "2rem" }}>
         <p style={{ color: "var(--color-text-body)", marginBottom: "1rem" }}>
-          アカウントが見つかりません
+          取引先が見つかりません
         </p>
         <Link
           href="/accounts"
@@ -87,7 +87,7 @@ export default async function AccountEditPage({
             borderRadius: "var(--radius-sm)",
           }}
         >
-          アカウント一覧へ戻る
+          取引先一覧へ戻る
         </Link>
       </div>
     );

@@ -134,7 +134,7 @@ export function ProjectDealsSection({
               margin: 0,
             }}
           >
-            紐づくディール（{linked.length}件）
+            紐づく商談（{linked.length}件）
           </h2>
         </div>
         <span style={{ fontSize: "0.75rem", color: "var(--color-sumi600)" }}>
@@ -157,7 +157,7 @@ export function ProjectDealsSection({
             outline: "none",
           }}
         >
-          <option value="">-- 紐づけるディールを選択 --</option>
+          <option value="">-- 紐づける商談を選択 --</option>
           {availableDeals.map((d) => (
             <option key={d.id} value={d.id}>
               {d.deal_code} {d.name}
@@ -201,13 +201,13 @@ export function ProjectDealsSection({
         </p>
       )}
 
-      {/* ディール一覧 */}
+      {/* 商談一覧 */}
       {linked.length > 0 ? (
         <div style={{ overflowX: "auto" }}>
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
             <tr>
-              {["コード", "ディール名", "パイプライン", "ステージ", "金額", "アカウント", ""].map(
+              {["コード", "商談名", "パイプライン", "ステージ", "金額", "取引先", ""].map(
                 (h) => (
                   <th
                     key={h}
@@ -334,7 +334,7 @@ export function ProjectDealsSection({
         </div>
       ) : (
         <p style={{ color: "var(--color-sumi400)", fontSize: "0.875rem", margin: 0 }}>
-          まだディールが紐づいていません
+          まだ商談が紐づいていません
         </p>
       )}
     </div>

@@ -933,7 +933,7 @@ export function LeadDetailClient({
                   textDecoration: "none",
                 }}
               >
-                Deal 昇格済み
+                商談昇格済み
                 <ArrowUpRight size={12} />
               </Link>
             )}

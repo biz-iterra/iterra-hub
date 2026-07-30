@@ -306,10 +306,10 @@ const TOC = [
   { id: "section-2", no: "02", label: "ログインとロール", icon: LogIn },
   { id: "section-3", no: "03", label: "画面全体の構成", icon: LayoutGrid },
   { id: "section-4", no: "04", label: "ダッシュボード", icon: Gauge },
-  { id: "section-5", no: "05", label: "MA（リード・キャンペーン）", icon: UserSearch },
-  { id: "section-6", no: "06", label: "SFA（ディール・プロジェクト・契約）", icon: Handshake },
-  { id: "section-7", no: "07", label: "CRM（コンタクト・カンパニー 他）", icon: Users },
-  { id: "section-8", no: "08", label: "各種設定（マスタ管理）", icon: Settings },
+  { id: "section-5", no: "05", label: "マーケティング（リード・キャンペーン）", icon: UserSearch },
+  { id: "section-6", no: "06", label: "営業（商談・プロジェクト・契約）", icon: Handshake },
+  { id: "section-7", no: "07", label: "顧客情報（連絡先・会社情報 他）", icon: Users },
+  { id: "section-8", no: "08", label: "マスタ・取込（マスタ管理）", icon: Settings },
   { id: "section-9", no: "09", label: "編集・削除の共通ルール", icon: Pencil },
   { id: "section-10", no: "10", label: "アクセス制御と見え方", icon: ShieldCheck },
   { id: "section-11", no: "11", label: "よくあるトラブルと対処", icon: LifeBuoy },
@@ -447,30 +447,30 @@ export default function ManualPage() {
           />
           <SubHeading>何ができるシステムか</SubHeading>
           <Paragraph>
-            ITERRA CRM は「リードの獲得 → 育成 → ディール昇格 → 受注 →
+            ITERRA CRM は「リードの獲得 → 育成 → 商談昇格 → 受注 →
             プロジェクト／契約管理」までを 1
             画面で追う統合型の顧客管理システム。従来の CRM に加え、
-            <strong>MA（マーケティングオートメーション）</strong> と{" "}
-            <strong>SFA（セールスフォースオートメーション）</strong>{" "}
+            <strong>マーケティング（マーケティングオートメーション）</strong> と{" "}
+            <strong>営業（セールスフォースオートメーション）</strong>{" "}
             を同居させている。
           </Paragraph>
           <UList
             items={[
               <>
-                <strong>MA 層</strong>:
+                <strong>マーケティング層</strong>:
                 リードの温度感・ステージ・コール履歴・キャンペーン紐付け。
               </>,
               <>
-                <strong>SFA 層</strong>:
-                ディールのパイプライン進捗・プロジェクト・契約。
+                <strong>営業層</strong>:
+                商談のパイプライン進捗・プロジェクト・契約。
               </>,
               <>
-                <strong>CRM 層</strong>:
-                コンタクト・カンパニー・アカウント・タレント。
+                <strong>顧客情報層</strong>:
+                連絡先・会社情報・取引先・タレント。
               </>,
               <>
                 <strong>ポテンシャル診断</strong>:
-                生年月日から自動算出する性質分析（タレント／コンタクト）。
+                生年月日から自動算出する性質分析（タレント／連絡先）。
               </>,
             ]}
           />
@@ -554,17 +554,17 @@ export default function ManualPage() {
             headers={["グループ", "メニュー", "パス", "対象ロール"]}
             rows={[
               ["ダッシュボード", "ダッシュボード", <Code>/dashboard</Code>, "全員"],
-              ["MA", "リード", <Code>/leads</Code>, "全員"],
+              ["マーケティング", "リード", <Code>/leads</Code>, "全員"],
               ["", "キャンペーン", <Code>/campaigns</Code>, "全員"],
-              ["SFA", "ディール", <Code>/deals</Code>, "全員"],
+              ["営業", "商談", <Code>/deals</Code>, "全員"],
               ["", "プロジェクト", <Code>/projects</Code>, "全員"],
               ["", "契約", <Code>/contracts</Code>, "manager / admin"],
-              ["CRM", "コンタクト", <Code>/contacts</Code>, "全員"],
-              ["", "カンパニー", <Code>/companies</Code>, "全員"],
-              ["", "アカウント", <Code>/accounts</Code>, "全員"],
+              ["顧客情報", "連絡先", <Code>/contacts</Code>, "全員"],
+              ["", "会社情報", <Code>/companies</Code>, "全員"],
+              ["", "取引先", <Code>/accounts</Code>, "全員"],
               ["", "タレント", <Code>/talents</Code>, "全員"],
               ["管理", "マニュアル", <Code>/manual</Code>, "全員"],
-              ["", "各種設定", <Code>/admin</Code>, "admin のみ"],
+              ["", "マスタ・取込", <Code>/admin</Code>, "admin のみ"],
             ]}
           />
 
@@ -626,12 +626,12 @@ export default function ManualPage() {
               </p>
               <UList
                 items={[
-                  "進行中ディール件数（closed_at IS NULL）",
-                  "進行中ディール合計金額（JPY）",
+                  "進行中商談件数（closed_at IS NULL）",
+                  "進行中商談合計金額（JPY）",
                   "今月クローズ件数",
-                  "アカウント数（アクティブのみ）",
-                  "コンタクト数（アクティブのみ）",
-                  "カンパニー数（アクティブのみ）",
+                  "取引先数（アクティブのみ）",
+                  "連絡先数（アクティブのみ）",
+                  "会社情報数（アクティブのみ）",
                 ]}
               />
             </div>
@@ -654,9 +654,9 @@ export default function ManualPage() {
               <UList
                 items={[
                   "パイプラインファネル（ステージ別の進行中件数）",
-                  "最近のディール（上位5件）",
+                  "最近の商談（上位5件）",
                   "最近の対応履歴（deal_activities 最新5件）",
-                  "担当者別ディール数（進行中のみ）",
+                  "担当者別商談数（進行中のみ）",
                 ]}
               />
             </div>
@@ -666,19 +666,19 @@ export default function ManualPage() {
           <Steps
             items={[
               "朝一でダッシュボードを開く。",
-              "パイプラインファネルで自分のディール分布を把握。",
+              "パイプラインファネルで自分の商談分布を把握。",
               "最近の対応履歴で他メンバーの最新活動を確認。",
-              "気になるディールがあればサイドバー「ディール」へ移動し詳細へ遷移。",
+              "気になる商談があればサイドバー「商談」へ移動し詳細へ遷移。",
             ]}
           />
         </Card>
 
-        {/* --- 5. MA --- */}
+        {/* --- 5. マーケティング --- */}
         <Card id="section-5">
           <SectionHeader
             number="05"
             icon={Megaphone}
-            title="MA（リード・キャンペーン）"
+            title="マーケティング（リード・キャンペーン）"
             caption="Marketing Automation"
           />
 
@@ -793,16 +793,16 @@ export default function ManualPage() {
           />
         </Card>
 
-        {/* --- 6. SFA --- */}
+        {/* --- 6. 営業 --- */}
         <Card id="section-6">
           <SectionHeader
             number="06"
             icon={Handshake}
-            title="SFA（ディール・プロジェクト・契約）"
+            title="営業（商談・プロジェクト・契約）"
             caption="Sales Force Automation"
           />
 
-          <SubHeading>6.1 ディール（/deals）</SubHeading>
+          <SubHeading>6.1 商談（/deals）</SubHeading>
           <UList
             items={[
               "カンバン / テーブルビューの切替（右上アイコン）",
@@ -813,17 +813,17 @@ export default function ManualPage() {
             ]}
           />
 
-          <SubHeading>作業フロー: ディール直接登録</SubHeading>
+          <SubHeading>作業フロー: 商談直接登録</SubHeading>
           <Paragraph>
             既存 Account
-            に対して新規ディールを直接登録する経路（リード昇格以外の経路）。
+            に対して新規商談を直接登録する経路（リード昇格以外の経路）。
           </Paragraph>
           <Steps
             items={[
               <>
                 <Code>/deals</Code> → <Badge tone="soleil">+ 新規登録</Badge> → <Code>/deals/new</Code>。
               </>,
-              "ディール名（★）/ アカウント（★）/ パイプライン種別（★）/ ステージ（★）を選択。",
+              "商談名（★）/ 取引先（★）/ パイプライン種別（★）/ ステージ（★）を選択。",
               "ステータス、金額、クローズ予定日、社内担当者、メモを任意で入力。",
               <>
                 保存。<Code>deal_code</Code> が自動発番される。
@@ -844,7 +844,7 @@ export default function ManualPage() {
             ]}
           />
 
-          <Callout tone="warning" title="ディールの削除 UI は存在しない">
+          <Callout tone="warning" title="商談の削除 UI は存在しない">
             <Code>deals</Code> テーブルは現状 <Code>is_active</Code>{" "}
             カラム未導入のため、UI
             から削除操作は提供されない。取り消したい場合はクローズ（失注）ステージへ遷移させる。
@@ -852,9 +852,9 @@ export default function ManualPage() {
 
           <SubHeading>6.2 プロジェクト（/projects）</SubHeading>
           <Paragraph>
-            複数ディールを「目的」単位でグルーピング（例:
+            複数商談を「目的」単位でグルーピング（例:
             万博プロジェクト）。パイプラインと直交する軸で、1
-            ディールが複数プロジェクトに属することも可能。
+            商談が複数プロジェクトに属することも可能。
           </Paragraph>
           <Steps
             items={[
@@ -862,16 +862,16 @@ export default function ManualPage() {
                 <Code>/projects</Code> → <Badge tone="soleil">+ 新規登録</Badge>。
               </>,
               "プロジェクト名・ステータス・責任者（1名）・開始日・終了予定日・説明を入力。",
-              "保存後、詳細画面から「ディールを追加」「メンバーを追加」で関連付け。",
+              "保存後、詳細画面から「商談を追加」「メンバーを追加」で関連付け。",
             ]}
           />
           <Callout tone="info">
-            プロジェクトとアカウントは直接リレーションを持たない。必ずディール経由で関連する。
+            プロジェクトと取引先は直接リレーションを持たない。必ず商談経由で関連する。
           </Callout>
 
           <SubHeading>6.3 契約（/contracts）</SubHeading>
           <Paragraph>
-            ディールに紐づく契約情報（紙面／電子／口頭）を管理。
+            商談に紐づく契約情報（紙面／電子／口頭）を管理。
             <Badge tone="warning">manager / admin のみ</Badge>アクセス可能。
           </Paragraph>
           <Steps
@@ -879,18 +879,18 @@ export default function ManualPage() {
               <>
                 <Code>/contracts</Code> → <Badge tone="soleil">+ 新規登録</Badge>。
               </>,
-              "契約対象ディール・契約種別・契約方式（paper/electronic/verbal）を入力。",
+              "契約対象商談・契約種別・契約方式（paper/electronic/verbal）を入力。",
               "契約日・開始日・終了日・金額・メモを入力し保存。",
             ]}
           />
         </Card>
 
-        {/* --- 7. CRM --- */}
+        {/* --- 7. 顧客情報 --- */}
         <Card id="section-7">
           <SectionHeader
             number="07"
             icon={Users}
-            title="CRM（コンタクト・カンパニー・アカウント・タレント）"
+            title="顧客情報（連絡先・会社情報・取引先・タレント）"
             caption="Core CRM"
           />
 
@@ -904,9 +904,9 @@ export default function ManualPage() {
               overflowX: "auto",
             }}
           >
-            <div>カンパニー（法的実体）─ 1:N ─ アカウント（法人）</div>
+            <div>会社情報（法的実体）─ 1:N ─ 取引先（法人）</div>
             <div>              ↘        ↑ account_contacts (N:M)</div>
-            <div>カンパニー ─ 1:N ─ コンタクト（corporate_rep/employee）</div>
+            <div>会社情報 ─ 1:N ─ 連絡先（corporate_rep/employee）</div>
             <div>                                        ↓</div>
             <div>                                   タレント（1:1）</div>
           </div>
@@ -914,13 +914,13 @@ export default function ManualPage() {
             items={[
               <>
                 <Code>contact_type</Code> = <strong>corporate_rep / employee</strong>{" "}
-                → カンパニーに直接紐付く
+                → 会社情報に直接紐付く
               </>,
               <>
                 <Code>contact_type</Code> = <strong>individual</strong> →{" "}
-                <Code>account_contacts</Code> を介してアカウントに紐付く
+                <Code>account_contacts</Code> を介して取引先に紐付く
               </>,
-              "ディールは必ずアカウントに紐付く（直接コンタクト／カンパニーとは紐付かない）",
+              "商談は必ず取引先に紐付く（直接連絡先／会社情報とは紐付かない）",
             ]}
           />
 
@@ -938,7 +938,7 @@ export default function ManualPage() {
                   className="text-base font-bold"
                   style={{ color: "var(--color-text-title)" }}
                 >
-                  カンパニー
+                  会社情報
                 </h3>
               </div>
               <Paragraph>
@@ -948,8 +948,8 @@ export default function ManualPage() {
                 items={[
                   "社名／法人格／法人番号／インボイス登録番号",
                   "取引先担当者（primary_contact_id）",
-                  "代表者名（文字列、コンタクトとは紐付けない）",
-                  "詳細から + アカウント / + 法人コンタクト を作成できる",
+                  "代表者名（文字列、連絡先とは紐付けない）",
+                  "詳細から + 取引先 / + 法人連絡先 を作成できる",
                 ]}
               />
             </div>
@@ -970,18 +970,18 @@ export default function ManualPage() {
                   className="text-base font-bold"
                   style={{ color: "var(--color-text-title)" }}
                 >
-                  アカウント
+                  取引先
                 </h3>
               </div>
               <Paragraph>
-                取引主体。<strong>法人</strong>（カンパニー紐付き）と
-                <strong>個人</strong>（コンタクト直接）の 2 パターン。
+                取引主体。<strong>法人</strong>（会社情報紐付き）と
+                <strong>個人</strong>（連絡先直接）の 2 パターン。
               </Paragraph>
               <UList
                 items={[
-                  "法人: カンパニーを既存から選択",
-                  "個人: individual コンタクトを紐付け",
-                  "ディールは必ずアカウント経由",
+                  "法人: 会社情報を既存から選択",
+                  "個人: individual 連絡先を紐付け",
+                  "商談は必ず取引先経由",
                 ]}
               />
             </div>
@@ -999,7 +999,7 @@ export default function ManualPage() {
                   className="text-base font-bold"
                   style={{ color: "var(--color-text-title)" }}
                 >
-                  コンタクト
+                  連絡先
                 </h3>
               </div>
               <Paragraph>
@@ -1007,9 +1007,9 @@ export default function ManualPage() {
               </Paragraph>
               <UList
                 items={[
-                  "corporate_rep: 法人代表（カンパニー直接）",
-                  "employee: 法人従業員（カンパニー直接）",
-                  "individual: 個人（アカウント経由）",
+                  "corporate_rep: 法人代表（会社情報直接）",
+                  "employee: 法人従業員（会社情報直接）",
+                  "individual: 個人（取引先経由）",
                 ]}
               />
             </div>
@@ -1034,7 +1034,7 @@ export default function ManualPage() {
                 </h3>
               </div>
               <Paragraph>
-                コンタクトと 1:1
+                連絡先と 1:1
                 で紐付く人材特性情報。スキル・経歴・ポテンシャル診断。
               </Paragraph>
               <UList
@@ -1052,12 +1052,12 @@ export default function ManualPage() {
           </div>
         </Card>
 
-        {/* --- 8. マスタ管理 --- */}
+        {/* --- 8. マスタ・取込 --- */}
         <Card id="section-8">
           <SectionHeader
             number="08"
             icon={Settings}
-            title="各種設定（マスタ管理）"
+            title="マスタ・取込（マスタ管理）"
             caption="Admin"
           />
           <Paragraph>
@@ -1076,12 +1076,12 @@ export default function ManualPage() {
               ],
               ["", "契約種別", "contract_types"],
               ["", "サービス", "services"],
-              ["カンパニー", "法人格", "corporate_types"],
-              ["", "カンパニーステータス", "company_statuses"],
-              ["アカウント", "アカウント種別", "account_types（法人/個人）"],
-              ["", "アカウントステータス", "account_statuses"],
-              ["コンタクト", "コンタクトステータス", "contact_statuses"],
-              ["リード・MA", "リードソース", "lead_sources"],
+              ["会社情報", "法人格", "corporate_types"],
+              ["", "会社情報ステータス", "company_statuses"],
+              ["取引先", "取引先種別", "account_types（法人/個人）"],
+              ["", "取引先ステータス", "account_statuses"],
+              ["連絡先", "連絡先ステータス", "contact_statuses"],
+              ["リード・マーケティング", "リードソース", "lead_sources"],
               ["", "リードカテゴリ", "lead_categories"],
               [
                 "",
@@ -1280,14 +1280,14 @@ export default function ManualPage() {
                 "既に生成された Deal を編集する。リード側は参照専用",
               ],
               [
-                "ディール一覧に削除ボタンがない",
+                "商談一覧に削除ボタンがない",
                 <>
                   仕様どおり（<Code>is_active</Code> 未導入）
                 </>,
                 "失注ステージへの遷移で「取り消し」を表現",
               ],
               [
-                "他メンバーのディールが見えない",
+                "他メンバーの商談が見えない",
                 "member 権限のため",
                 "manager へロール変更を依頼",
               ],

@@ -62,13 +62,13 @@ type MasterItem = Record<string, unknown> & { id: string; name: string };
 const TAB_KEYS = [
   // 共通・取引
   "pipeline", "contract_types", "services",
-  // カンパニー
+  // 会社情報
   "corporate_types", "company_statuses",
-  // アカウント
+  // 取引先
   "account_types", "account_statuses",
-  // コンタクト
+  // 連絡先
   "contact_statuses",
-  // リード・MA（lead_statuses は lead_stages タブ内で管理、lead_small_segments は lead_large_segments タブ内で管理）
+  // リード・マーケティング（lead_statuses は lead_stages タブ内で管理、lead_small_segments は lead_large_segments タブ内で管理）
   "lead_sources", "lead_categories", "lead_stages",
   "lead_temperatures", "lead_call_statuses",
   "lead_large_segments", "lead_activity_types",
@@ -86,10 +86,10 @@ const TAB_LABELS: Record<TabKey, string> = {
   contract_types: "契約種別",
   services: "サービス",
   corporate_types: "法人格",
-  company_statuses: "カンパニーステータス",
-  account_types: "アカウント種別",
-  account_statuses: "アカウントステータス",
-  contact_statuses: "コンタクトステータス",
+  company_statuses: "会社情報ステータス",
+  account_types: "取引先種別",
+  account_statuses: "取引先ステータス",
+  contact_statuses: "連絡先ステータス",
   lead_sources: "リードソース",
   lead_categories: "リードカテゴリ",
   lead_stages: "ステージ・ステータス",
@@ -115,22 +115,22 @@ const GROUPS: { key: GroupKey; label: string; tabs: TabKey[] }[] = [
   },
   {
     key: "company",
-    label: "カンパニー",
+    label: "会社情報",
     tabs: ["corporate_types", "company_statuses"],
   },
   {
     key: "account",
-    label: "アカウント",
+    label: "取引先",
     tabs: ["account_types", "account_statuses"],
   },
   {
     key: "contact",
-    label: "コンタクト",
+    label: "連絡先",
     tabs: ["contact_statuses"],
   },
   {
     key: "lead",
-    label: "リード・MA",
+    label: "リード・マーケティング",
     tabs: [
       "lead_sources", "lead_categories",
       "lead_stages",        // ステージ + ステータスを 1 画面で管理
@@ -698,7 +698,7 @@ function PipelineTab() {
   const statusFields: FieldDef[] = [
     { key: "name", label: "名前", type: "text" },
     { key: "definition", label: "定義", type: "textarea" },
-    { key: "deal_stage_id", label: "ディールステージ", type: "select", options: stageOptions },
+    { key: "deal_stage_id", label: "商談ステージ", type: "select", options: stageOptions },
     { key: "sort_order", label: "表示順", type: "number" },
   ];
 
@@ -741,7 +741,7 @@ function PipelineTab() {
           {/* Stages */}
           <div style={{ ...styles.card, padding: "1.25rem" }}>
             <SimpleMasterTab
-              title="ディールステージ"
+              title="商談ステージ"
               items={stages}
               onCreate={(input) => createDealStage({ ...input, pipeline_type_id: selectedPipeline })}
               onUpdate={updateDealStage}
@@ -754,7 +754,7 @@ function PipelineTab() {
           {/* Statuses */}
           <div style={{ ...styles.card, padding: "1.25rem" }}>
             <SimpleMasterTab
-              title="ディールステータス"
+              title="商談ステータス"
               items={statuses}
               onCreate={(input) => createDealStatus({ ...input, pipeline_type_id: selectedPipeline })}
               onUpdate={updateDealStatus}
@@ -1792,7 +1792,7 @@ export function AdminView() {
       case "company_statuses":
         return (
           <SimpleMasterTab
-            title="カンパニーステータス"
+            title="会社情報ステータス"
             items={companyStatuses}
             onCreate={createCompanyStatusAction}
             onUpdate={updateCompanyStatus}
@@ -1905,7 +1905,7 @@ export function AdminView() {
       case "account_types":
         return (
           <SimpleMasterTab
-            title="アカウント種別"
+            title="取引先種別"
             items={accountTypes}
             onCreate={createAccountTypeAction}
             onUpdate={updateAccountType}
@@ -1920,7 +1920,7 @@ export function AdminView() {
       case "account_statuses":
         return (
           <SimpleMasterTab
-            title="アカウントステータス"
+            title="取引先ステータス"
             items={accountStatuses}
             onCreate={createAccountStatusAction}
             onUpdate={updateAccountStatus}
@@ -1935,7 +1935,7 @@ export function AdminView() {
       case "contact_statuses":
         return (
           <SimpleMasterTab
-            title="コンタクトステータス"
+            title="連絡先ステータス"
             items={contactStatuses}
             onCreate={createContactStatusAction}
             onUpdate={updateContactStatus}

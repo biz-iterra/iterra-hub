@@ -259,7 +259,7 @@ export default async function ProjectDetailPage({
         </div>
       </div>
 
-      {/* 下段: 紐づくディール（閲覧のみ、全幅） */}
+      {/* 下段: 紐づく商談（閲覧のみ、全幅） */}
       <div
         style={{
           backgroundColor: "#fff",
@@ -286,7 +286,7 @@ export default async function ProjectDetailPage({
                 margin: 0,
               }}
             >
-              紐づくディール（{deals.length}件）
+              紐づく商談（{deals.length}件）
             </h2>
           </div>
           <span style={{ fontSize: "0.75rem", color: "var(--color-sumi600)" }}>
@@ -298,7 +298,7 @@ export default async function ProjectDetailPage({
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr>
-                  {["コード", "ディール名", "パイプライン", "ステージ", "金額", "アカウント"].map((h) => (
+                  {["コード", "商談名", "パイプライン", "ステージ", "金額", "取引先"].map((h) => (
                     <th
                       key={h}
                       style={{
@@ -360,7 +360,7 @@ export default async function ProjectDetailPage({
           </div>
         ) : (
           <p style={{ color: "var(--color-sumi400)", fontSize: "0.875rem", margin: 0 }}>
-            まだディールが紐づいていません
+            まだ商談が紐づいていません
           </p>
         )}
         <p

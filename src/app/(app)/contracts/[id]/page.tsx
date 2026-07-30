@@ -250,7 +250,7 @@ export default async function ContractDetailPage({
             </div>
           </div>
 
-          {/* ディール情報カード */}
+          {/* 商談情報カード */}
           <div
             style={{
               backgroundColor: "#fff",
@@ -267,7 +267,7 @@ export default async function ContractDetailPage({
                 marginBottom: "1rem",
               }}
             >
-              ディール情報
+              商談情報
             </h2>
             {contract.deal ? (
               <div>
@@ -279,7 +279,7 @@ export default async function ContractDetailPage({
                     marginBottom: "0.25rem",
                   }}
                 >
-                  ディール
+                  商談
                 </div>
                 <Link
                   href={`/deals/${contract.deal.id}`}
@@ -365,7 +365,7 @@ export default async function ContractDetailPage({
                         marginBottom: "0.25rem",
                       }}
                     >
-                      カンパニー
+                      会社情報
                     </div>
                     {contract.counterparty_company ? (
                       <Link
@@ -426,7 +426,7 @@ export default async function ContractDetailPage({
                       marginBottom: "0.25rem",
                     }}
                   >
-                    コンタクト
+                    連絡先
                   </div>
                   {contract.counterparty_contact ? (
                     <Link

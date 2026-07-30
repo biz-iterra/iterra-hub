@@ -202,8 +202,8 @@ export async function updateContact(
   // owner チェック（admin 以外は自分の担当のみ）
   if (role !== "admin") {
     const { data: existing } = await supabase.from("contacts").select("owner_user_id").eq("id", id).single();
-    if (!existing) return { data: null, error: "コンタクトが見つかりません" };
-    if (existing.owner_user_id !== user.id) return { data: null, error: "このコンタクトを編集する権限がありません" };
+    if (!existing) return { data: null, error: "連絡先が見つかりません" };
+    if (existing.owner_user_id !== user.id) return { data: null, error: "この連絡先を編集する権限がありません" };
   }
 
   const parsed = updateContactSchema.safeParse(input);
@@ -266,7 +266,7 @@ export async function updateContact(
 
   const { data, error } = await updateQuery.select().maybeSingle();
   if (error) return { data: null, error: error.message };
-  if (!data) return { data: null, error: conflictErrorMessage("このコンタクト") };
+  if (!data) return { data: null, error: conflictErrorMessage("この連絡先") };
 
   // 変更履歴は entity_change_logs のトリガーが自動記録する（20260728000002）
 

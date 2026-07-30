@@ -234,10 +234,10 @@ export function DealNewForm({ masters }: { masters: Masters }) {
         }}
       >
         <ArrowLeft size={16} />
-        ディール一覧に戻る
+        商談一覧に戻る
       </Link>
       <div style={styles.headerRow}>
-        <h1 style={styles.title}>ディールを新規作成</h1>
+        <h1 style={styles.title}>商談を新規作成</h1>
       </div>
 
       <form onSubmit={handleSubmit}>
@@ -281,7 +281,7 @@ export function DealNewForm({ masters }: { masters: Masters }) {
               />
             </div>
             <div>
-              <label style={styles.label}>アカウント *</label>
+              <label style={styles.label}>取引先 *</label>
               <select
                 style={styles.input}
                 value={values.account_id}

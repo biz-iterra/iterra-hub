@@ -11,10 +11,10 @@ import {
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 const ENTITY_LABELS: Record<DeletedEntity, string> = {
-  companies: "カンパニー",
-  accounts: "アカウント",
-  contacts: "コンタクト",
-  deals: "ディール",
+  companies: "会社情報",
+  accounts: "取引先",
+  contacts: "連絡先",
+  deals: "商談",
   contracts: "契約",
   talents: "タレント",
   leads: "リード",
@@ -134,7 +134,7 @@ function displayName(entity: DeletedEntity, r: RecordItem): string {
       return (r.contract_name as string) ?? "-";
     case "talents": {
       const c = r.contact as { last_name?: string; first_name?: string } | null;
-      if (!c) return "（コンタクト不明）";
+      if (!c) return "（連絡先不明）";
       return `${c.last_name ?? ""} ${c.first_name ?? ""}`.trim() || "-";
     }
     case "leads":

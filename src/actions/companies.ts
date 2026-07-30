@@ -114,8 +114,8 @@ export async function updateCompany(id: string, input: Record<string, unknown>):
   // owner チェック（admin 以外は自分の担当のみ）
   if (role !== "admin") {
     const { data: existing } = await supabase.from("companies").select("owner_user_id").eq("id", id).single();
-    if (!existing) return { data: null, error: "カンパニーが見つかりません" };
-    if (existing.owner_user_id !== user.id) return { data: null, error: "このカンパニーを編集する権限がありません" };
+    if (!existing) return { data: null, error: "会社情報が見つかりません" };
+    if (existing.owner_user_id !== user.id) return { data: null, error: "この会社情報を編集する権限がありません" };
   }
 
   const parsed = updateCompanySchema.safeParse(input);
@@ -148,7 +148,7 @@ export async function updateCompany(id: string, input: Record<string, unknown>):
 
   const { data, error } = await updateQuery.select().maybeSingle();
   if (error) return { data: null, error: error.message };
-  if (!data) return { data: null, error: conflictErrorMessage("このカンパニー") };
+  if (!data) return { data: null, error: conflictErrorMessage("この会社情報") };
 
   // 変更履歴記録
   if (before && data) {
@@ -166,7 +166,7 @@ export async function deleteCompany(id: string): Promise<ActionResult<null>> {
 
   // 配下 accounts チェック（削除されていないもの）
   const { count } = await supabase.from("accounts").select("id", { count: "exact", head: true }).eq("company_id", id).is("deleted_at", null);
-  if (count && count > 0) return { data: null, error: "紐づくアカウントが存在するため削除できません" };
+  if (count && count > 0) return { data: null, error: "紐づく取引先が存在するため削除できません" };
 
   const { error } = await supabase.from("companies").update({
     deleted_at: new Date().toISOString(),

@@ -87,7 +87,7 @@ export default async function AccountDetailPage({
         </p>
         <Link href="/accounts" style={backLinkStyle}>
           <ArrowLeft size={16} />
-          アカウント一覧
+          取引先一覧
         </Link>
       </div>
     );
@@ -100,11 +100,11 @@ export default async function AccountDetailPage({
     return (
       <div style={{ padding: "2rem" }}>
         <p style={{ color: "var(--color-text-body)", marginBottom: "1rem" }}>
-          アカウントが見つかりません
+          取引先が見つかりません
         </p>
         <Link href="/accounts" style={backLinkStyle}>
           <ArrowLeft size={16} />
-          アカウント一覧
+          取引先一覧
         </Link>
       </div>
     );
@@ -126,7 +126,7 @@ export default async function AccountDetailPage({
       <div style={{ marginBottom: "1.5rem" }}>
         <Link href="/accounts" style={{ ...backLinkStyle, marginBottom: "0.75rem" }}>
           <ArrowLeft size={16} />
-          アカウント一覧
+          取引先一覧
         </Link>
         <div
           style={{
@@ -184,10 +184,10 @@ export default async function AccountDetailPage({
                 gap: "1rem",
               }}
             >
-              <InfoField label="アカウント名" value={a.name} />
+              <InfoField label="取引先名" value={a.name} />
               <InfoField label="担当者" value={a.owner?.full_name} />
               <InfoField
-                label="カンパニー"
+                label="会社情報"
                 value={
                   a.company ? (
                     <EntityLink href={`/companies/${a.company.id}`}>
@@ -214,7 +214,7 @@ export default async function AccountDetailPage({
             </div>
           </DetailSection>
 
-          <DetailSection title="ディール一覧" icon={Handshake}>
+          <DetailSection title="商談一覧" icon={Handshake}>
             {deals.length > 0 ? (
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
@@ -258,7 +258,7 @@ export default async function AccountDetailPage({
 
         {/* ======== Right ======== */}
         <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-          <DetailSection title="コンタクト一覧" icon={Users}>
+          <DetailSection title="連絡先一覧" icon={Users}>
             {contacts.length > 0 ? (
               <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
                 {contacts.map((contact) => (

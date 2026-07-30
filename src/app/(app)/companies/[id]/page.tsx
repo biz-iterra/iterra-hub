@@ -55,7 +55,7 @@ export default async function CompanyDetailPage({
         </p>
         <Link href="/companies" style={backLinkStyle}>
           <ArrowLeft size={16} />
-          カンパニー一覧
+          会社情報一覧
         </Link>
       </div>
     );
@@ -67,11 +67,11 @@ export default async function CompanyDetailPage({
     return (
       <div style={{ padding: "2rem" }}>
         <p style={{ color: "var(--color-text-body)", marginBottom: "1rem" }}>
-          カンパニーが見つかりません
+          会社情報が見つかりません
         </p>
         <Link href="/companies" style={backLinkStyle}>
           <ArrowLeft size={16} />
-          カンパニー一覧
+          会社情報一覧
         </Link>
       </div>
     );
@@ -98,7 +98,7 @@ export default async function CompanyDetailPage({
       <div style={{ marginBottom: "1.5rem" }}>
         <Link href="/companies" style={{ ...backLinkStyle, marginBottom: "0.75rem" }}>
           <ArrowLeft size={16} />
-          カンパニー一覧
+          会社情報一覧
         </Link>
         <div
           style={{
@@ -256,7 +256,7 @@ export default async function CompanyDetailPage({
 
         {/* ======== Right ======== */}
         <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-          <DetailSection title="アカウント一覧" icon={Briefcase}>
+          <DetailSection title="取引先一覧" icon={Briefcase}>
             {activeAccounts.length > 0 ? (
               <div
                 style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}
@@ -299,7 +299,7 @@ export default async function CompanyDetailPage({
             )}
           </DetailSection>
 
-          <DetailSection title="コンタクト一覧" icon={Users}>
+          <DetailSection title="連絡先一覧" icon={Users}>
             {activeContacts.length > 0 ? (
               <div
                 style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}

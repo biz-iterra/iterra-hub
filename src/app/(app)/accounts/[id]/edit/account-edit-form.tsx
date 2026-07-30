@@ -233,10 +233,10 @@ export function AccountEditForm({
         }}
       >
         <ArrowLeft size={16} />
-        アカウント詳細に戻る
+        取引先詳細に戻る
       </Link>
       <div style={styles.headerRow}>
-        <h1 style={styles.title}>アカウントを編集</h1>
+        <h1 style={styles.title}>取引先を編集</h1>
       </div>
 
       <form onSubmit={handleSubmit}>
@@ -245,7 +245,7 @@ export function AccountEditForm({
           <h2 style={styles.sectionTitle}>基本情報</h2>
           <div style={styles.grid}>
             <div>
-              <label style={styles.label}>アカウント名 *</label>
+              <label style={styles.label}>取引先名 *</label>
               <input
                 type="text"
                 style={styles.input}
@@ -257,7 +257,7 @@ export function AccountEditForm({
               />
             </div>
             <div>
-              <label style={styles.label}>カンパニー</label>
+              <label style={styles.label}>会社情報</label>
               <select
                 style={styles.input}
                 value={values.company_id}
@@ -391,8 +391,8 @@ export function AccountEditForm({
 
       <ConfirmDialog
         open={confirmDelete}
-        title="アカウントを削除"
-        message={`「${account.name}」を削除します。この操作は取り消せません。アクティブなディールが存在する場合は削除できません。`}
+        title="取引先を削除"
+        message={`「${account.name}」を削除します。この操作は取り消せません。アクティブな商談が存在する場合は削除できません。`}
         confirmLabel="削除する"
         danger
         onConfirm={handleDelete}

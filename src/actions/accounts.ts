@@ -143,8 +143,8 @@ export async function updateAccount(
   // owner チェック（admin 以外は自分の担当のみ）
   if (role !== "admin") {
     const { data: existing } = await supabase.from("accounts").select("owner_user_id").eq("id", id).single();
-    if (!existing) return { data: null, error: "アカウントが見つかりません" };
-    if (existing.owner_user_id !== user.id) return { data: null, error: "このアカウントを編集する権限がありません" };
+    if (!existing) return { data: null, error: "取引先が見つかりません" };
+    if (existing.owner_user_id !== user.id) return { data: null, error: "この取引先を編集する権限がありません" };
   }
 
   const parsed = updateAccountSchema.safeParse(input);
@@ -183,7 +183,7 @@ export async function updateAccount(
 
   const { data, error } = await updateQuery.select().maybeSingle();
   if (error) return { data: null, error: error.message };
-  if (!data) return { data: null, error: conflictErrorMessage("このアカウント") };
+  if (!data) return { data: null, error: conflictErrorMessage("この取引先") };
 
   // 変更履歴は entity_change_logs のトリガーが自動記録する（20260728000002）
 
@@ -200,7 +200,7 @@ export async function deleteAccount(
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
   if (role !== "admin") return { data: null, error: "管理者権限が必要です" };
 
-  // 配下にアクティブなディールが存在するか確認（closed_at IS NULL かつ 未削除）
+  // 配下にアクティブな商談が存在するか確認（closed_at IS NULL かつ 未削除）
   const { count } = await supabase
     .from("deals")
     .select("id", { count: "exact", head: true })
@@ -211,7 +211,7 @@ export async function deleteAccount(
   if (count && count > 0) {
     return {
       data: null,
-      error: "アクティブなディールが存在するため削除できません",
+      error: "アクティブな商談が存在するため削除できません",
     };
   }
 
@@ -229,7 +229,7 @@ export async function deleteAccount(
 }
 
 // ---------------------------------------------------------------------------
-// アカウントコンタクト追加
+// 取引先の連絡先追加
 // ---------------------------------------------------------------------------
 export async function addAccountContact(
   input: unknown
@@ -253,7 +253,7 @@ export async function addAccountContact(
 }
 
 // ---------------------------------------------------------------------------
-// アカウントコンタクト削除
+// 取引先の連絡先削除
 // ---------------------------------------------------------------------------
 export async function removeAccountContact(
   accountId: string,

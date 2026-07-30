@@ -258,10 +258,10 @@ export function ContactNewForm({ masters }: { masters: Masters }) {
         }}
       >
         <ArrowLeft size={16} />
-        コンタクト一覧に戻る
+        連絡先一覧に戻る
       </Link>
       <div style={styles.headerRow}>
-        <h1 style={styles.title}>コンタクトを新規作成</h1>
+        <h1 style={styles.title}>連絡先を新規作成</h1>
       </div>
 
       <form onSubmit={handleSubmit}>
@@ -376,7 +376,7 @@ export function ContactNewForm({ masters }: { masters: Masters }) {
               </select>
             </div>
             <div>
-              <label style={styles.label}>所属カンパニー</label>
+              <label style={styles.label}>所属会社情報</label>
               <select
                 style={styles.input}
                 value={values.company_id}

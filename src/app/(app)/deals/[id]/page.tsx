@@ -83,7 +83,7 @@ export default async function DealDetailPage({
         </p>
         <Link href="/deals" style={backLinkStyle}>
           <ArrowLeft size={16} />
-          ディール一覧
+          商談一覧
         </Link>
       </div>
     );
@@ -95,11 +95,11 @@ export default async function DealDetailPage({
     return (
       <div style={{ padding: "2rem" }}>
         <p style={{ color: "var(--color-text-body)", marginBottom: "1rem" }}>
-          ディールが見つかりません
+          商談が見つかりません
         </p>
         <Link href="/deals" style={backLinkStyle}>
           <ArrowLeft size={16} />
-          ディール一覧
+          商談一覧
         </Link>
       </div>
     );
@@ -118,7 +118,7 @@ export default async function DealDetailPage({
           style={{ ...backLinkStyle, marginBottom: "0.75rem" }}
         >
           <ArrowLeft size={16} />
-          ディール一覧
+          商談一覧
         </Link>
         <div
           style={{
@@ -177,7 +177,7 @@ export default async function DealDetailPage({
               />
               <InfoField label="担当者" value={deal.owner?.full_name} />
               <InfoField
-                label="アカウント"
+                label="取引先"
                 full
                 value={
                   deal.account ? (

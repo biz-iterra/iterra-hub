@@ -323,10 +323,10 @@ export function ContactEditForm({
         }}
       >
         <ArrowLeft size={16} />
-        コンタクト詳細に戻る
+        連絡先詳細に戻る
       </Link>
       <div style={styles.headerRow}>
-        <h1 style={styles.title}>コンタクトを編集</h1>
+        <h1 style={styles.title}>連絡先を編集</h1>
       </div>
 
       {error && (
@@ -459,7 +459,7 @@ export function ContactEditForm({
               </select>
             </div>
             <div>
-              <label style={styles.label}>所属カンパニー</label>
+              <label style={styles.label}>所属会社情報</label>
               <select
                 style={styles.input}
                 value={values.company_id}
@@ -704,8 +704,8 @@ export function ContactEditForm({
 
       <ConfirmDialog
         open={confirmDelete}
-        title="コンタクトを削除"
-        message={`「${displayName || "このコンタクト"}」を削除します。この操作は取り消せません。`}
+        title="連絡先を削除"
+        message={`「${displayName || "この連絡先"}」を削除します。この操作は取り消せません。`}
         confirmLabel="削除する"
         danger
         onConfirm={handleDelete}

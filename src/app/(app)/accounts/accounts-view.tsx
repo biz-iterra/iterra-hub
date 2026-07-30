@@ -108,7 +108,7 @@ export function AccountsView({
           className="text-2xl font-bold"
           style={{ color: "var(--color-text-title)" }}
         >
-          アカウント
+          取引先
         </h1>
         <Link
           href="/accounts/new"
@@ -152,7 +152,7 @@ export function AccountsView({
         />
         <SearchInput
           value={keyword}
-          placeholder="アカウント名で検索..."
+          placeholder="取引先名で検索..."
           onChange={(v) => handleFilter("search", v, setKeyword)}
         />
         <FilterClearButton onClear={handleClear} />
@@ -178,7 +178,7 @@ export function AccountsView({
         >
           <Briefcase size={40} style={{ color: "var(--color-sumi600)" }} />
           <p className="text-sm" style={{ color: "var(--color-sumi600)" }}>
-            アカウントが見つかりません
+            取引先が見つかりません
           </p>
         </div>
       ) : (
@@ -193,7 +193,7 @@ export function AccountsView({
           <table className="w-full text-sm" style={{ tableLayout: "auto" }}>
             <thead>
               <tr style={{ backgroundColor: "var(--color-sumi50)" }}>
-                {["アカウント名", "ステータス", "種別", "カンパニー名", "担当者", "最終更新日"].map(
+                {["取引先名", "ステータス", "種別", "会社名", "担当者", "最終更新日"].map(
                   (label) => (
                     <th
                       key={label}
@@ -220,7 +220,7 @@ export function AccountsView({
                   }
                   onClick={() => (window.location.href = `/accounts/${account.id}`)}
                 >
-                  {/* アカウント名 */}
+                  {/* 取引先名 */}
                   <td className="px-4 py-3">
                     <Link
                       href={`/accounts/${account.id}`}
@@ -245,7 +245,7 @@ export function AccountsView({
                   >
                     {account.account_type?.name ?? "—"}
                   </td>
-                  {/* カンパニー名 */}
+                  {/* 会社名 */}
                   <td
                     className="px-4 py-3"
                     style={{ color: "var(--color-text-list)" }}

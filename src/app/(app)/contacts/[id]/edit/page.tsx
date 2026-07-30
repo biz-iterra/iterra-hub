@@ -59,7 +59,7 @@ export default async function ContactEditPage({
             borderRadius: "var(--radius-sm)",
           }}
         >
-          コンタクト一覧へ戻る
+          連絡先一覧へ戻る
         </Link>
       </div>
     );
@@ -86,7 +86,7 @@ export default async function ContactEditPage({
     return (
       <div style={{ padding: "2rem" }}>
         <p style={{ color: "var(--color-text-body)", marginBottom: "1rem" }}>
-          コンタクトが見つかりません
+          連絡先が見つかりません
         </p>
         <Link
           href="/contacts"
@@ -99,7 +99,7 @@ export default async function ContactEditPage({
             borderRadius: "var(--radius-sm)",
           }}
         >
-          コンタクト一覧へ戻る
+          連絡先一覧へ戻る
         </Link>
       </div>
     );

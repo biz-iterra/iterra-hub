@@ -175,7 +175,7 @@ export function TalentsView({ initialData }: Props) {
             <thead>
               <tr style={{ backgroundColor: "var(--color-sumi50)" }}>
                 {[
-                  "コンタクト名",
+                  "連絡先名",
                   "総合評価",
                   "スキル",
                   "部署・役職",
@@ -207,7 +207,7 @@ export function TalentsView({ initialData }: Props) {
                     }
                     onClick={() => (window.location.href = `/talents/${row.id}`)}
                   >
-                    {/* コンタクト名 */}
+                    {/* 連絡先名 */}
                     <td className="px-4 py-3 whitespace-nowrap">
                       <Link
                         href={`/talents/${row.id}`}

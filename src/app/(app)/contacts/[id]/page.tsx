@@ -83,7 +83,7 @@ export default async function ContactDetailPage({
         </p>
         <Link href="/contacts" style={backLinkStyle}>
           <ArrowLeft size={16} />
-          コンタクト一覧
+          連絡先一覧
         </Link>
       </div>
     );
@@ -96,11 +96,11 @@ export default async function ContactDetailPage({
     return (
       <div style={{ padding: "2rem" }}>
         <p style={{ color: "var(--color-text-body)", marginBottom: "1rem" }}>
-          コンタクトが見つかりません
+          連絡先が見つかりません
         </p>
         <Link href="/contacts" style={backLinkStyle}>
           <ArrowLeft size={16} />
-          コンタクト一覧
+          連絡先一覧
         </Link>
       </div>
     );
@@ -123,7 +123,7 @@ export default async function ContactDetailPage({
       <div style={{ marginBottom: "1.5rem" }}>
         <Link href="/contacts" style={{ ...backLinkStyle, marginBottom: "0.75rem" }}>
           <ArrowLeft size={16} />
-          コンタクト一覧
+          連絡先一覧
         </Link>
         <div
           style={{
@@ -206,7 +206,7 @@ export default async function ContactDetailPage({
                 }
               />
               <InfoField
-                label="所属カンパニー"
+                label="所属会社情報"
                 value={
                   c.company ? (
                     <EntityLink href={`/companies/${c.company.id}`}>
@@ -324,7 +324,7 @@ export default async function ContactDetailPage({
 
         {/* ======== Right ======== */}
         <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-          <DetailSection title="所属アカウント" icon={Briefcase}>
+          <DetailSection title="所属取引先" icon={Briefcase}>
             {accountContacts.length === 0 ? (
               <p
                 style={{

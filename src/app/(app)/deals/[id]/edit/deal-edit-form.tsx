@@ -292,10 +292,10 @@ export function DealEditForm({
         }}
       >
         <ArrowLeft size={16} />
-        ディール詳細に戻る
+        商談詳細に戻る
       </Link>
       <div style={styles.headerRow}>
-        <h1 style={styles.title}>ディールを編集</h1>
+        <h1 style={styles.title}>商談を編集</h1>
       </div>
 
       <form onSubmit={handleSubmit}>
@@ -339,7 +339,7 @@ export function DealEditForm({
               />
             </div>
             <div>
-              <label style={styles.label}>アカウント *</label>
+              <label style={styles.label}>取引先 *</label>
               <select
                 style={styles.input}
                 value={values.account_id}
@@ -513,7 +513,7 @@ export function DealEditForm({
 
       <ConfirmDialog
         open={confirmDelete}
-        title="ディールを削除"
+        title="商談を削除"
         message={`「${deal.name}」を削除します。紐づく契約が存在する場合は削除できません。復元はシステム管理者に依頼してください。`}
         confirmLabel="削除する"
         danger

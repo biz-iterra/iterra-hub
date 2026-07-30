@@ -184,7 +184,7 @@ export function ContractNewForm({ masters }: { masters: Masters }) {
     setError(null);
 
     if (!values.deal_id) {
-      setError("ディールは必須です");
+      setError("商談は必須です");
       setSaving(false);
       return;
     }
@@ -258,7 +258,7 @@ export function ContractNewForm({ masters }: { masters: Masters }) {
           <h2 style={styles.sectionTitle}>基本情報</h2>
           <div style={styles.grid}>
             <div>
-              <label style={styles.label}>ディール *</label>
+              <label style={styles.label}>商談 *</label>
               <select
                 style={styles.input}
                 value={values.deal_id}
@@ -356,7 +356,7 @@ export function ContractNewForm({ masters }: { masters: Masters }) {
               </select>
             </div>
             <div>
-              <label style={styles.label}>相手先カンパニー</label>
+              <label style={styles.label}>相手先の会社情報</label>
               <select
                 style={styles.input}
                 value={values.counterparty_company_id}
@@ -375,7 +375,7 @@ export function ContractNewForm({ masters }: { masters: Masters }) {
               </select>
             </div>
             <div>
-              <label style={styles.label}>相手先コンタクト(個人)</label>
+              <label style={styles.label}>相手先の連絡先(個人)</label>
               <select
                 style={styles.input}
                 value={values.counterparty_contact_id}

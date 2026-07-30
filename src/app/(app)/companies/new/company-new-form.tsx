@@ -237,10 +237,10 @@ export function CompanyNewForm({ masters }: { masters: Masters }) {
         }}
       >
         <ArrowLeft size={16} />
-        カンパニー一覧に戻る
+        会社情報一覧に戻る
       </Link>
       <div style={styles.headerRow}>
-        <h1 style={styles.title}>カンパニーを新規作成</h1>
+        <h1 style={styles.title}>会社情報を新規作成</h1>
       </div>
 
       <form onSubmit={handleSubmit}>

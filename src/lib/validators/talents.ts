@@ -2,7 +2,7 @@ import { z } from "zod";
 import { expectedUpdatedAtSchema, uuidString } from "./common";
 
 export const createTalentSchema = z.object({
-  contact_id: uuidString("コンタクトは必須です"),
+  contact_id: uuidString("連絡先は必須です"),
   personality_memo: z.string().max(5000).nullable().optional(),
   custom_strengths: z.string().max(2000).nullable().optional(),
   custom_weaknesses: z.string().max(2000).nullable().optional(),

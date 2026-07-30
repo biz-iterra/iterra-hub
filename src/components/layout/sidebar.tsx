@@ -41,33 +41,33 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
-    label: "MA",
+    label: "マーケティング",
     items: [
       { label: "リード", href: "/leads", icon: UserSearch },
       { label: "キャンペーン", href: "/campaigns", icon: Megaphone },
     ],
   },
   {
-    label: "SFA",
+    label: "営業",
     items: [
-      { label: "ディール", href: "/deals", icon: Handshake },
-      { label: "プロジェクト", href: "/projects", icon: FolderKanban },
+      { label: "商談", href: "/deals", icon: Handshake },
       { label: "契約", href: "/contracts", icon: FileText, roles: ["manager", "admin"] },
+      { label: "プロジェクト", href: "/projects", icon: FolderKanban },
     ],
   },
   {
-    label: "CRM",
+    label: "顧客情報",
     items: [
-      { label: "コンタクト", href: "/contacts", icon: Users },
-      { label: "カンパニー", href: "/companies", icon: Building2 },
-      { label: "アカウント", href: "/accounts", icon: Briefcase },
+      { label: "取引先", href: "/accounts", icon: Briefcase },
+      { label: "会社情報", href: "/companies", icon: Building2 },
+      { label: "連絡先", href: "/contacts", icon: Users },
       { label: "タレント", href: "/talents", icon: UserCircle },
     ],
   },
   {
     label: "管理",
     items: [
-      { label: "各種設定", href: "/admin", icon: Settings, roles: ["admin"] },
+      { label: "マスタ・取込", href: "/admin", icon: Settings, roles: ["admin"] },
     ],
   },
 ];

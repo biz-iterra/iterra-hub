@@ -1290,11 +1290,11 @@ export function TalentDetailClient({
 
           {/* 右カラム */}
           <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-            {/* コンタクト情報カード */}
+            {/* 連絡先情報カード */}
             <div style={{ ...card, marginBottom: 0 }}>
               <h2 style={cardTitle}>
                 <UserCircle size={18} />
-                コンタクト情報
+                連絡先情報
               </h2>
               <div
                 style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}
@@ -1308,7 +1308,7 @@ export function TalentDetailClient({
                       marginBottom: "0.125rem",
                     }}
                   >
-                    コンタクト名
+                    連絡先名
                   </div>
                   {contact ? (
                     <Link

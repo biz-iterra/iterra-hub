@@ -7,7 +7,7 @@ export const createDealSchema = z.object({
   deal_stage_id: uuidString("ステージは必須です"),
   deal_status_id: uuidString("ステータスは必須です"),
   amount: z.number().int().min(0).nullable().optional(),
-  account_id: uuidString("アカウントは必須です"),
+  account_id: uuidString("取引先は必須です"),
   owner_user_id: uuidString().nullable().optional(),
   contract_name: z.string().max(200).nullable().optional(),
   application_date: z.string().nullable().optional(),

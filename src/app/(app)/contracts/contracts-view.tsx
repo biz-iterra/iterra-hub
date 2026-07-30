@@ -303,7 +303,7 @@ export function ContractsView({ initialData, isManagerOrAbove, contractTypes }: 
                     <th style={{ padding: "0.75rem 1rem" }}>契約書名</th>
                     <th style={{ padding: "0.75rem 1rem" }}>契約方法</th>
                     <th style={{ padding: "0.75rem 1rem" }}>契約種別</th>
-                    <th style={{ padding: "0.75rem 1rem" }}>ディール</th>
+                    <th style={{ padding: "0.75rem 1rem" }}>商談</th>
                     <th style={{ padding: "0.75rem 1rem" }}>契約開始日</th>
                     <th style={{ padding: "0.75rem 1rem" }}>契約終了日</th>
                     <th style={{ padding: "0.75rem 1rem" }}>登録者</th>
@@ -355,7 +355,7 @@ export function ContractsView({ initialData, isManagerOrAbove, contractTypes }: 
                       >
                         {row.contract_type?.name ?? "—"}
                       </td>
-                      {/* ディール */}
+                      {/* 商談 */}
                       <td
                         style={{
                           padding: "0.75rem 1rem",

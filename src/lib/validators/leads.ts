@@ -8,7 +8,7 @@ export const leadCreateSchema = z.object({
     .min(1, "[lead_name] リード名は必須です")
     .max(100, "[lead_name] リード名は100文字以内で入力してください"),
 
-  account_type_id: uuidString("[account_type_id] アカウント種別は必須です"),
+  account_type_id: uuidString("[account_type_id] 取引先種別は必須です"),
 
   stage_id: uuidString("[stage_id] ステージは必須です"),
   // Opportunity ステージは status が存在しないため NULL 許容
@@ -95,7 +95,7 @@ export const leadUpdateSchema = z.object({
     .max(100, "[lead_name] リード名は100文字以内で入力してください")
     .optional(),
 
-  account_type_id: uuidString("[account_type_id] アカウント種別を指定してください").optional(),
+  account_type_id: uuidString("[account_type_id] 取引先種別を指定してください").optional(),
 
   stage_id: uuidString("[stage_id] ステージを指定してください").optional(),
   // Opportunity ステージは status が存在しないため NULL 許容

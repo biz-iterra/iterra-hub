@@ -293,10 +293,10 @@ export function CompanyEditForm({
         }}
       >
         <ArrowLeft size={16} />
-        カンパニー詳細に戻る
+        会社情報詳細に戻る
       </Link>
       <div style={styles.headerRow}>
-        <h1 style={styles.title}>カンパニーを編集</h1>
+        <h1 style={styles.title}>会社情報を編集</h1>
       </div>
 
       <form onSubmit={handleSubmit}>
@@ -412,7 +412,7 @@ export function CompanyEditForm({
               </select>
               {masters.linkedContacts.length === 0 && (
                 <p style={{ color: "var(--color-sumi500)", fontSize: "0.75rem", margin: "0.25rem 0 0 0" }}>
-                  このカンパニーに紐づくコンタクトがまだありません
+                  この会社情報に紐づく連絡先がまだありません
                 </p>
               )}
             </div>
@@ -606,8 +606,8 @@ export function CompanyEditForm({
 
       <ConfirmDialog
         open={confirmDelete}
-        title="カンパニーを削除"
-        message={`「${company.name}」を削除します。この操作は取り消せません。紐づくアカウントが存在する場合は削除できません。`}
+        title="会社情報を削除"
+        message={`「${company.name}」を削除します。この操作は取り消せません。紐づく取引先が存在する場合は削除できません。`}
         confirmLabel="削除する"
         danger
         onConfirm={handleDelete}

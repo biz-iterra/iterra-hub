@@ -2,7 +2,7 @@ import { z } from "zod";
 import { expectedUpdatedAtSchema, uuidString } from "./common";
 
 const contractBaseSchema = z.object({
-  deal_id: uuidString("ディールは必須です"),
+  deal_id: uuidString("商談は必須です"),
   contract_method: z.enum(["paper", "electronic", "verbal"]).nullable().optional(),
   contract_type_id: uuidString().nullable().optional(),
   contract_name: z.string().max(200).nullable().optional(),

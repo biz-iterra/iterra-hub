@@ -390,7 +390,7 @@ export function LeadEditClient({
       updatedLead.promoted_deal_id !== promotedDealId
     ) {
       setPromotedDealId(updatedLead.promoted_deal_id);
-      setPromoteMessage("Deal に昇格しました！");
+      setPromoteMessage("商談に昇格しました！");
     }
 
     // warnings がある場合はページ遷移しない（ユーザーに認識させる）
@@ -574,7 +574,7 @@ export function LeadEditClient({
                 textDecoration: "none",
               }}
             >
-              ディールを見る
+              商談を見る
               <ArrowUpRight size={14} />
             </Link>
           )}
@@ -635,7 +635,7 @@ export function LeadEditClient({
           }}
         >
           <span style={{ flex: 1 }}>
-            <strong>Deal 昇格に問題が発生しました:</strong> {promoteWarning}
+            <strong>商談昇格に問題が発生しました:</strong> {promoteWarning}
           </span>
           <button
             type="button"
@@ -713,7 +713,7 @@ export function LeadEditClient({
               ))}
             </select>
             <p style={styles.helpText}>
-              「Opportunity」ステージに変更して保存すると Deal 昇格が試みられます
+              「Opportunity」ステージに変更して保存すると商談昇格が試みられます
             </p>
           </div>
           <div>
@@ -750,7 +750,7 @@ export function LeadEditClient({
             )}
             {isOpportunityStage && (
               <p style={{ ...styles.helpText, color: "var(--color-terra)" }}>
-                このステージでは Deal が自動生成されます
+                このステージでは商談が自動生成されます
               </p>
             )}
             {!isOpportunityStage && values.stage_id && !values.status_id && (
@@ -809,11 +809,11 @@ export function LeadEditClient({
             />
             {isPromoted ? (
               <p style={{ ...styles.helpText, color: "var(--color-sumi500)" }}>
-                昇格後はカンパニーに紐付けられているため変更できません
+                昇格後は会社情報に紐付けられているため変更できません
               </p>
             ) : (
               <p style={styles.helpText}>
-                Opportunity 昇格時に自動で Company が作成されます
+                Opportunity 昇格時に自動で会社情報が作成されます
               </p>
             )}
           </div>
@@ -1166,7 +1166,7 @@ export function LeadEditClient({
             </select>
             {isPromoted && (
               <p style={{ ...styles.helpText, color: "var(--color-sumi500)" }}>
-                昇格後はカンパニー/コンタクトに紐付けられているため変更できません
+                昇格後は会社情報/連絡先に紐付けられているため変更できません
               </p>
             )}
           </div>
@@ -1376,16 +1376,16 @@ function PromoteConfirmDialog({
           </p>
           {isCorporate ? (
             <ul style={listStyle}>
-              <li>カンパニー</li>
-              <li>コンタクト</li>
-              <li>アカウント</li>
-              <li>ディール</li>
+              <li>会社情報</li>
+              <li>連絡先</li>
+              <li>取引先</li>
+              <li>商談</li>
             </ul>
           ) : (
             <ul style={listStyle}>
-              <li>コンタクト</li>
-              <li>アカウント</li>
-              <li>ディール</li>
+              <li>連絡先</li>
+              <li>取引先</li>
+              <li>商談</li>
             </ul>
           )}
           <p style={{ margin: "0.5rem 0 0 0" }}>

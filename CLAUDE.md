@@ -52,14 +52,14 @@ ITERRA CRM（顧客関係管理）システム。
 ├── src/
 │   ├── app/(auth)/        # 認証不要ページ (login)
 │   ├── app/(app)/         # 認証必須ページ
-│   │   ├── dashboard/     # ダッシュボード（KPI・ファネル・最近のディール）
-│   │   ├── deals/         # ディール（カンバン/テーブル切替）
-│   │   ├── contacts/      # コンタクト（一覧・検索）
-│   │   ├── companies/     # カンパニー（一覧・検索）
-│   │   ├── accounts/      # アカウント（一覧・検索）
+│   │   ├── dashboard/     # ダッシュボード（KPI・ファネル・最近の商談）
+│   │   ├── deals/         # 商談（カンバン/テーブル切替）
+│   │   ├── contacts/      # 連絡先（一覧・検索）
+│   │   ├── companies/     # 会社情報（一覧・検索）
+│   │   ├── accounts/      # 取引先（一覧・検索）
 │   │   ├── contracts/     # 契約（一覧・検索）
 │   │   ├── talents/       # タレント（一覧・検索・系統/グレード/職種の自動判定）
-│   │   ├── leads/         # リード（MA・スコアリング・Deal昇格）
+│   │   ├── leads/         # リード（マーケティング・スコアリング・Deal昇格）
 │   │   ├── campaigns/     # キャンペーン
 │   │   ├── projects/      # プロジェクト
 │   │   ├── manual/        # 操作マニュアル（静的ページ）
@@ -142,6 +142,18 @@ npm run typecheck && npm test && npm run build
 - **従属テーブル（contact_emails 等）:** 親テーブルの `owner_user_id` を参照して制限
 - **financial_info:** SELECT は manager/admin のみ、CUD は admin のみ
 - **履歴テーブル:** INSERT ONLY を原則とする（UPDATE/DELETE 不可）。ただし `lead_activities` は例外で、`caller_user_id` 本人と manager/admin による UPDATE を許可（`last_edited_at` / `last_edited_by_user_id` で監査証跡を保全。マイグレーション: 20260426000001）。admin のみ DELETE 可能（誤記録修正用）
+
+## UI表示名と内部名の対応
+
+画面上のラベルは以下の通り旧用語から刷新済み。コード・DB上の内部名（テーブル名・変数名・URL等）は変更していない。
+
+| UI 表示名 | 内部名（コード・DB） |
+|---|---|
+| 商談 | deal / deals |
+| 取引先 | account / accounts |
+| 会社情報 | company / companies |
+| 連絡先 | contact / contacts |
+| マスタ・取込 | admin |
 
 ## CRMデータモデル概要
 

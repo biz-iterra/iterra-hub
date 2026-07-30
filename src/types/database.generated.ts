@@ -448,6 +448,63 @@ export type Database = {
           },
         ]
       }
+      addresses: {
+        Row: {
+          address_line1: string | null
+          address_line2: string | null
+          city: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          last_updated_by: string | null
+          postal_code: string | null
+          prefecture: string | null
+          raw_text: string | null
+          updated_at: string
+        }
+        Insert: {
+          address_line1?: string | null
+          address_line2?: string | null
+          city?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          last_updated_by?: string | null
+          postal_code?: string | null
+          prefecture?: string | null
+          raw_text?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address_line1?: string | null
+          address_line2?: string | null
+          city?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          last_updated_by?: string | null
+          postal_code?: string | null
+          prefecture?: string | null
+          raw_text?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "addresses_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "crm_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "addresses_last_updated_by_fkey"
+            columns: ["last_updated_by"]
+            isOneToOne: false
+            referencedRelation: "crm_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaigns: {
         Row: {
           created_at: string
@@ -2901,6 +2958,114 @@ export type Database = {
           },
         ]
       }
+      lead_import_batches: {
+        Row: {
+          created_count: number
+          encoding: string
+          error_count: number
+          file_name: string
+          id: string
+          imported_at: string
+          imported_by: string
+          row_count: number
+          skipped_count: number
+          source_slug: string
+          updated_count: number
+        }
+        Insert: {
+          created_count?: number
+          encoding: string
+          error_count?: number
+          file_name: string
+          id?: string
+          imported_at?: string
+          imported_by: string
+          row_count: number
+          skipped_count?: number
+          source_slug: string
+          updated_count?: number
+        }
+        Update: {
+          created_count?: number
+          encoding?: string
+          error_count?: number
+          file_name?: string
+          id?: string
+          imported_at?: string
+          imported_by?: string
+          row_count?: number
+          skipped_count?: number
+          source_slug?: string
+          updated_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_import_batches_imported_by_fkey"
+            columns: ["imported_by"]
+            isOneToOne: false
+            referencedRelation: "crm_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_import_records: {
+        Row: {
+          batch_id: string
+          created_at: string
+          error_reason: string | null
+          external_key: string | null
+          id: string
+          lead_id: string | null
+          outcome: string
+          raw: Json
+          row_number: number
+        }
+        Insert: {
+          batch_id: string
+          created_at?: string
+          error_reason?: string | null
+          external_key?: string | null
+          id?: string
+          lead_id?: string | null
+          outcome: string
+          raw: Json
+          row_number: number
+        }
+        Update: {
+          batch_id?: string
+          created_at?: string
+          error_reason?: string | null
+          external_key?: string | null
+          id?: string
+          lead_id?: string | null
+          outcome?: string
+          raw?: Json
+          row_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_import_records_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "lead_import_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_import_records_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_import_records_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_leads_with_category"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lead_large_segments: {
         Row: {
           code: string
@@ -3465,6 +3630,7 @@ export type Database = {
       leads: {
         Row: {
           account_type_id: string | null
+          address_id: string | null
           capital: number | null
           category_id: string | null
           company_id: string | null
@@ -3503,6 +3669,7 @@ export type Database = {
           representative_name: string | null
           score: number | null
           small_segment_id: string | null
+          source_external_key: string | null
           stage_id: string
           status_id: string | null
           temperature_id: string | null
@@ -3511,6 +3678,7 @@ export type Database = {
         }
         Insert: {
           account_type_id?: string | null
+          address_id?: string | null
           capital?: number | null
           category_id?: string | null
           company_id?: string | null
@@ -3549,6 +3717,7 @@ export type Database = {
           representative_name?: string | null
           score?: number | null
           small_segment_id?: string | null
+          source_external_key?: string | null
           stage_id: string
           status_id?: string | null
           temperature_id?: string | null
@@ -3557,6 +3726,7 @@ export type Database = {
         }
         Update: {
           account_type_id?: string | null
+          address_id?: string | null
           capital?: number | null
           category_id?: string | null
           company_id?: string | null
@@ -3595,6 +3765,7 @@ export type Database = {
           representative_name?: string | null
           score?: number | null
           small_segment_id?: string | null
+          source_external_key?: string | null
           stage_id?: string
           status_id?: string | null
           temperature_id?: string | null
@@ -3607,6 +3778,13 @@ export type Database = {
             columns: ["account_type_id"]
             isOneToOne: false
             referencedRelation: "account_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_address_id_fkey"
+            columns: ["address_id"]
+            isOneToOne: false
+            referencedRelation: "addresses"
             referencedColumns: ["id"]
           },
           {
@@ -5146,6 +5324,10 @@ export type Database = {
     }
     Functions: {
       get_user_role: { Args: never; Returns: string }
+      import_eight_leads: {
+        Args: { p_batch: Json; p_defaults: Json; p_errors: Json; p_leads: Json }
+        Returns: Json
+      }
       is_admin: { Args: never; Returns: boolean }
       is_deal_accessible: { Args: { p_deal_id: string }; Returns: boolean }
       is_lead_accessible: { Args: { p_lead_id: string }; Returns: boolean }

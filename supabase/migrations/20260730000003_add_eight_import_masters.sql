@@ -51,3 +51,26 @@ SELECT 'attribute', 'lead_source', src.id, 10, 'Eight 名刺交換', 99
         AND r.condition_value_id = src.id
         AND r.deleted_at IS NULL
    );
+
+-- ------------------------------------------------------------
+-- M20: 通電状況「名刺交換」
+--
+-- lead_activities.call_status_id は NOT NULL だが、既存の値は架電結果
+-- （NT / 不出 / 担当不在 …）ばかりで名刺交換に該当するものがない。
+-- 対面で接触済みなので hot 相当の色を割り当てる。
+-- ------------------------------------------------------------
+INSERT INTO lead_call_statuses (code, name, color, sort_order)
+VALUES ('card_exchange', '名刺交換', '#F97316', 11)
+ON CONFLICT (code) DO NOTHING;
+
+-- スコアリング: 名刺交換は対面接触なので活動として加点する
+INSERT INTO lead_score_rules (category, condition_type, condition_value_id, score_delta, description, sort_order)
+SELECT 'activity', 'call_status', cs.id, 10, '名刺交換（対面接触）', 100
+  FROM lead_call_statuses cs
+ WHERE cs.code = 'card_exchange'
+   AND NOT EXISTS (
+     SELECT 1 FROM lead_score_rules r
+      WHERE r.condition_type = 'call_status'
+        AND r.condition_value_id = cs.id
+        AND r.deleted_at IS NULL
+   );

@@ -46,6 +46,40 @@ export const EIGHT_COLUMNS = [
 
 export type EightColumn = (typeof EIGHT_COLUMNS)[number];
 
+/**
+ * leads の CHECK 制約に合わせた上限。
+ * 名刺には制約を超える値が入ることがある（実データで役職 134 文字の行が 1 件）。
+ * 行を落とすより切り詰めて取り込む方が有益なので、警告を出して詰める。
+ * 原文は lead_import_records.raw に残るので後から復元できる。
+ *
+ * DB 側の制約（chk_leads_*_length）と対応させること。
+ */
+const MAX_LENGTH = {
+  lead_name: 300,
+  company_name: 200,
+  contact_last_name: 50,
+  contact_first_name: 50,
+  contact_department: 100,
+  contact_job_title: 100,
+  contact_email: 255,
+  url: 500,
+} as const;
+
+/** 上限を超える値を切り詰め、警告を積む */
+function clamp(
+  value: string | null,
+  max: number,
+  label: string,
+  warnings: string[]
+): string | null {
+  if (!value) return null;
+  if (value.length <= max) return value;
+  warnings.push(
+    `${label}が ${max} 文字を超えるため切り詰めました（元は ${value.length} 文字。原文は取込記録に保持）`
+  );
+  return value.slice(0, max);
+}
+
 /** 取込に最低限必要な列。これが欠けていればファイル自体を受け付けない */
 const REQUIRED_COLUMNS: EightColumn[] = ["会社名", "姓", "名", "e-mail", "名刺交換日"];
 
@@ -151,17 +185,27 @@ export function parseEightRow(
     }),
     exchangedOn: normalizeDate(get("名刺交換日")),
     lead: {
-      lead_name: leadName ?? "",
-      company_name: companyName,
-      contact_last_name: lastName,
-      contact_first_name: firstName,
-      contact_department: get("部署名") || null,
-      contact_job_title: get("役職") || null,
-      contact_email: email,
+      lead_name: clamp(leadName ?? "", MAX_LENGTH.lead_name, "リード名", warnings) ?? "",
+      company_name: clamp(companyName, MAX_LENGTH.company_name, "会社名", warnings),
+      contact_last_name: clamp(lastName, MAX_LENGTH.contact_last_name, "姓", warnings),
+      contact_first_name: clamp(firstName, MAX_LENGTH.contact_first_name, "名", warnings),
+      contact_department: clamp(
+        get("部署名") || null,
+        MAX_LENGTH.contact_department,
+        "部署名",
+        warnings
+      ),
+      contact_job_title: clamp(
+        get("役職") || null,
+        MAX_LENGTH.contact_job_title,
+        "役職",
+        warnings
+      ),
+      contact_email: clamp(email, MAX_LENGTH.contact_email, "メールアドレス", warnings),
       // 直通が入っていれば個人の番号として優先する。実データでは両方持つ行は 0 件
       contact_phone: normalizePhone(get("TEL直通")) ?? normalizePhone(get("携帯電話")),
       company_phone: normalizePhone(get("TEL会社")),
-      url: get("URL") || null,
+      url: clamp(get("URL") || null, MAX_LENGTH.url, "URL", warnings),
     },
     address,
     warnings,

@@ -25,6 +25,7 @@ type DealData = {
   contract_name: string | null;
   application_date: string | null;
   review_completed_date: string | null;
+  expected_close_date: string | null;
   closed_at: string | null;
   /** 楽観ロック用。編集開始時点の値をそのまま保存時に送り返す */
   updated_at?: string | null;
@@ -185,6 +186,7 @@ export function DealEditForm({
     contract_name: deal.contract_name ?? "",
     application_date: deal.application_date ?? "",
     review_completed_date: deal.review_completed_date ?? "",
+    expected_close_date: deal.expected_close_date ?? "",
     closed_at: deal.closed_at ? deal.closed_at.slice(0, 10) : "",
   });
   const [saving, setSaving] = useState(false);
@@ -265,6 +267,7 @@ export function DealEditForm({
       contract_name: values.contract_name || null,
       application_date: values.application_date || null,
       review_completed_date: values.review_completed_date || null,
+      expected_close_date: values.expected_close_date || null,
       closed_at: values.closed_at
         ? new Date(values.closed_at).toISOString()
         : null,
@@ -471,6 +474,17 @@ export function DealEditForm({
                 style={styles.input}
                 value={values.review_completed_date}
                 onChange={(e) => set("review_completed_date", e.target.value)}
+                onFocus={onFocus}
+                onBlur={onBlur}
+              />
+            </div>
+            <div>
+              <label style={styles.label}>クローズ予定日</label>
+              <input
+                type="date"
+                style={styles.input}
+                value={values.expected_close_date}
+                onChange={(e) => set("expected_close_date", e.target.value)}
                 onFocus={onFocus}
                 onBlur={onBlur}
               />

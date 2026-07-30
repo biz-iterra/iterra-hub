@@ -34,6 +34,22 @@ function formatCurrency(amount: number | null | undefined): string {
   }).format(amount);
 }
 
+/**
+ * 小さい文字に --color-error（#EF4444）を直接使うと白背景で約 3.8:1 しかなく
+ * WCAG AA（通常文字 4.5:1）に届かない。deals-view.tsx の STAGNANT_SEVERE_TEXT と
+ * 同じ濃色（#B91C1C ≒ 6.4:1）を文字色に使う。
+ */
+const OVERDUE_TEXT = "#B91C1C";
+
+function isOverdue(
+  expectedCloseDate: string | null | undefined,
+  closedAt: string | null | undefined
+): boolean {
+  if (!expectedCloseDate || closedAt) return false;
+  const todayStr = new Date().toISOString().slice(0, 10);
+  return expectedCloseDate < todayStr;
+}
+
 const activityTypeIcon: Record<string, LucideIcon> = {
   call: Phone,
   email: Mail,
@@ -236,6 +252,18 @@ export default async function DealDetailPage({
               <InfoField
                 label="審査完了日"
                 value={formatDate(deal.review_completed_date)}
+              />
+              <InfoField
+                label="クローズ予定日"
+                value={
+                  isOverdue(deal.expected_close_date, deal.closed_at) ? (
+                    <span style={{ color: OVERDUE_TEXT, fontWeight: 600 }}>
+                      {formatDate(deal.expected_close_date)}（期日超過）
+                    </span>
+                  ) : (
+                    formatDate(deal.expected_close_date)
+                  )
+                }
               />
               <InfoField
                 label="ステージ更新日時"

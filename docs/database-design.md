@@ -296,13 +296,19 @@ ITERRAの営業・取引管理CRMシステムを新規構築する。現在ス�
 | 4 | 表示順 | `sort_order` | INTEGER | | | | NN | 0 | >= 0 | |
 | 5 | 有効フラグ | `is_active` | BOOLEAN | | | | NN | TRUE | | |
 | 6 | **識別子** | **`slug`** | **VARCHAR(32)** | | | **UK** | **NN** | | **`^[a-z][a-z0-9_]{0,31}$`** | **拡張テーブル・UI解決キー** |
-| 7 | 作成日時 | `created_at` | TIMESTAMPTZ | | | | NN | NOW() | | 更新不可 |
-| 8 | 更新日時 | `updated_at` | TIMESTAMPTZ | | | | NN | NOW() | | トリガー自動更新 |
+| 7 | **クローズ予定日の既定月数** | **`default_close_months`** | **INTEGER** | | | | | | **NULL または 0〜120** | **NULL は自動設定しない** |
+| 8 | 作成日時 | `created_at` | TIMESTAMPTZ | | | | NN | NOW() | | 更新不可 |
+| 9 | 更新日時 | `updated_at` | TIMESTAMPTZ | | | | NN | NOW() | | トリガー自動更新 |
 
 **slug について:**
 - パイプラインごとのUI拡張コンポーネント（`src/components/deals/pipelines/<slug>/`）および拡張テーブル（`deal_ext_<slug>` 等）を解決するプログラムキー
 - 現在の値: `sales` / `procurement` / `outsourcing`
   （`inside_sales` は Phase D で撤去済み。2026-04-19）
+
+**default_close_months について:**
+- 商談（`deals`）を新規作成したとき、`deals.expected_close_date` を「今日 ＋ N ヶ月」で初期設定するための既定月数（作成後も手動変更可）
+- NULL の場合は自動設定しない（`expected_close_date` は空欄で作成される）
+- 商材によってリードタイムが異なるため、パイプライン種別ごとに admin から調整する
 
 **CRUD:** 管理者のみ作成・更新・論理削除（is_active=FALSE）。物理削除不可（FKで参照される）。
 
@@ -789,9 +795,10 @@ ITERRAの営業・取引管理CRMシステムを新規構築する。現在ス�
 | 12 | 審査完了日 | `review_completed_date` | DATE | | | | | | | application_date以降 |
 | 13 | ステージ更新日時 | `stage_updated_at` | TIMESTAMPTZ | | | | | | | ステージ変更時にアプリ層で更新 |
 | 14 | クローズ日時 | `closed_at` | TIMESTAMPTZ | | | | | | | |
-| 15 | 最終更新者ID | `last_updated_by` | UUID | | FK→T01.id | | | | | |
-| 16 | 作成日時 | `created_at` | TIMESTAMPTZ | | | | NN | NOW() | | 更新不可 |
-| 17 | 更新日時 | `updated_at` | TIMESTAMPTZ | | | | NN | NOW() | | トリガー自動更新 |
+| 15 | **クローズ予定日** | **`expected_close_date`** | **DATE** | | | | | | | **新規作成時に `pipeline_types.default_close_months` から「今日＋N ヶ月」で自動セット（手動変更可）** |
+| 16 | 最終更新者ID | `last_updated_by` | UUID | | FK→T01.id | | | | | |
+| 17 | 作成日時 | `created_at` | TIMESTAMPTZ | | | | NN | NOW() | | 更新不可 |
+| 18 | 更新日時 | `updated_at` | TIMESTAMPTZ | | | | NN | NOW() | | トリガー自動更新 |
 
 **設計変更点:**
 - `account_id` を **必須(NN)** に変更。コンタクトはAccountを介してDealに紐づくため、Dealには必ずAccountが必要
@@ -805,7 +812,7 @@ ITERRAの営業・取引管理CRMシステムを新規構築する。現在ス�
 4. closed_at 設定時はステータスがクローズ系であること
 5. account_id のAccountが存在し、is_active=TRUEであること
 
-**INDEX:** pipeline_type_id, deal_stage_id, deal_status_id, account_id, owner_user_id, created_at DESC
+**INDEX:** pipeline_type_id, deal_stage_id, deal_status_id, account_id, owner_user_id, created_at DESC, expected_close_date（部分INDEX。`WHERE closed_at IS NULL AND deleted_at IS NULL`。期日超過抽出・期日順ソート用）
 **CRUD:**
 - CREATE: member以上。deal_codeはトリガーで自動採番
 - READ: member=自分の担当のみ、manager/admin=全件

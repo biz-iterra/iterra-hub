@@ -12,6 +12,7 @@ export const createDealSchema = z.object({
   contract_name: z.string().max(200).nullable().optional(),
   application_date: z.string().nullable().optional(),
   review_completed_date: z.string().nullable().optional(),
+  expected_close_date: z.string().nullable().optional(),
 }).refine(
   (data) => {
     if (data.application_date && data.review_completed_date) {
@@ -35,6 +36,7 @@ export const updateDealSchema = z.object({
   contract_name: z.string().max(200).nullable().optional(),
   application_date: z.string().nullable().optional(),
   review_completed_date: z.string().nullable().optional(),
+  expected_close_date: z.string().nullable().optional(),
   closed_at: z.string().nullable().optional(),
 });
 

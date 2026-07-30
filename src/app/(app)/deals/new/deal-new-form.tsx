@@ -1,19 +1,21 @@
 "use client";
 
-import { useMemo, useState, type CSSProperties, type FormEvent } from "react";
+import { useMemo, useRef, useState, type CSSProperties, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Save } from "lucide-react";
 import { createDeal } from "@/actions/deals";
 import { useToast } from "@/components/ui/toast";
 import { isFieldValidationError } from "@/lib/errors";
+import { calculateDefaultCloseDate } from "@/lib/deals/expected-close-date";
 
 type SelectOption = { value: string; label: string };
+type PipelineOption = SelectOption & { default_close_months: number | null };
 type StageOption = SelectOption & { pipeline_type_id: string };
 type StatusOption = SelectOption & { pipeline_type_id: string };
 
 type Masters = {
-  pipelineTypes: SelectOption[];
+  pipelineTypes: PipelineOption[];
   dealStages: StageOption[];
   dealStatuses: StatusOption[];
   accounts: SelectOption[];
@@ -111,6 +113,11 @@ const styles = {
     fontSize: "0.875rem",
     margin: "0.75rem 0 0 0",
   } as CSSProperties,
+  helperText: {
+    color: "var(--color-sumi500)",
+    fontSize: "0.75rem",
+    margin: "0.375rem 0 0 0",
+  } as CSSProperties,
   footer: {
     display: "flex",
     alignItems: "center",
@@ -147,9 +154,13 @@ export function DealNewForm({ masters }: { masters: Masters }) {
     contract_name: "",
     application_date: "",
     review_completed_date: "",
+    expected_close_date: "",
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [autoCloseDateNote, setAutoCloseDateNote] = useState<string | null>(null);
+  // クローズ予定日をユーザーが一度でも手で編集したら、以降はパイプライン変更で上書きしない
+  const closeDateTouchedRef = useRef(false);
 
   const set = <K extends keyof typeof values>(
     key: K,
@@ -175,12 +186,40 @@ export function DealNewForm({ masters }: { masters: Masters }) {
   );
 
   const handlePipelineChange = (nextId: string) => {
+    // 一度でも手動編集していれば、クローズ予定日はパイプライン変更で上書きしない
+    if (closeDateTouchedRef.current) {
+      setValues((v) => ({
+        ...v,
+        pipeline_type_id: nextId,
+        deal_stage_id: "",
+        deal_status_id: "",
+      }));
+      return;
+    }
+
+    const pipeline = masters.pipelineTypes.find((p) => p.value === nextId);
+    const months = pipeline?.default_close_months ?? null;
+    const defaultDate = calculateDefaultCloseDate(new Date(), months);
+
     setValues((v) => ({
       ...v,
       pipeline_type_id: nextId,
       deal_stage_id: "",
       deal_status_id: "",
+      expected_close_date: defaultDate ?? "",
     }));
+
+    setAutoCloseDateNote(
+      defaultDate && pipeline
+        ? `${pipeline.label}パイプラインの既定（${months === 0 ? "0ヶ月後 = 今日" : `${months}ヶ月後`}）を設定しました。変更できます`
+        : null
+    );
+  };
+
+  const handleCloseDateChange = (value: string) => {
+    closeDateTouchedRef.current = true;
+    setAutoCloseDateNote(null);
+    set("expected_close_date", value);
   };
 
   const handleSubmit = async (e: FormEvent) => {
@@ -206,6 +245,7 @@ export function DealNewForm({ masters }: { masters: Masters }) {
       contract_name: values.contract_name || null,
       application_date: values.application_date || null,
       review_completed_date: values.review_completed_date || null,
+      expected_close_date: values.expected_close_date || null,
     };
 
     const result = await createDeal(payload);
@@ -415,6 +455,20 @@ export function DealNewForm({ masters }: { masters: Masters }) {
                 onFocus={onFocus}
                 onBlur={onBlur}
               />
+            </div>
+            <div>
+              <label style={styles.label}>クローズ予定日</label>
+              <input
+                type="date"
+                style={styles.input}
+                value={values.expected_close_date}
+                onChange={(e) => handleCloseDateChange(e.target.value)}
+                onFocus={onFocus}
+                onBlur={onBlur}
+              />
+              {autoCloseDateNote && (
+                <p style={styles.helperText}>{autoCloseDateNote}</p>
+              )}
             </div>
           </div>
         </div>

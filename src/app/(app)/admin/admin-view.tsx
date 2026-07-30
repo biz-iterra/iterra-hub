@@ -40,7 +40,23 @@ type LeadScoreThreshold = Row<"lead_score_thresholds">;
 
 // ===== Types =====
 
-type FieldDef = { key: string; label: string; type?: "text" | "textarea" | "number" | "select"; options?: { value: string; label: string }[]; colorSwatch?: boolean; min?: number; width?: string };
+type FieldDef = {
+  key: string;
+  label: string;
+  type?: "text" | "textarea" | "number" | "select";
+  options?: { value: string; label: string }[];
+  colorSwatch?: boolean;
+  min?: number;
+  width?: string;
+  /** number 型で NULL を許容するか（空欄=NULL）。未指定の number は従来どおり空欄不可・既定値 0 */
+  nullable?: boolean;
+  /** 入力欄の下に表示する補足説明（number/text 系で使用） */
+  helpText?: string;
+  /** 一覧テーブルで値が NULL のときの表示文言（未指定なら "-"） */
+  emptyDisplay?: string;
+  /** 一覧テーブルで値がある場合に末尾へ付与する単位表記（例: "ヶ月後"） */
+  unit?: string;
+};
 
 // 一覧テーブルのカラム幅をフィールド内容に応じて算出
 function resolveFieldWidth(f: FieldDef): string {
@@ -289,6 +305,11 @@ function FormModal({
               <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 600, color: "var(--color-sumi700)", marginBottom: "0.25rem" }}>
                 {field.label}
               </label>
+              {field.helpText && (
+                <p style={{ fontSize: "0.75rem", color: "var(--color-sumi500)", marginTop: 0, marginBottom: "0.375rem" }}>
+                  {field.helpText}
+                </p>
+              )}
               {field.type === "textarea" ? (
                 <textarea
                   style={{ ...styles.input, minHeight: 80, resize: "vertical" }}
@@ -326,9 +347,21 @@ function FormModal({
                 <input
                   type="number"
                   style={styles.input}
-                  value={(values[field.key] as number) ?? 0}
+                  value={
+                    field.nullable
+                      ? values[field.key] == null ? "" : (values[field.key] as number)
+                      : (values[field.key] as number) ?? 0
+                  }
+                  placeholder={field.nullable ? "空欄=自動設定しない" : undefined}
                   min={field.min}
-                  onChange={(e) => setValues((v) => ({ ...v, [field.key]: parseInt(e.target.value) || 0 }))}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    if (field.nullable) {
+                      setValues((v) => ({ ...v, [field.key]: raw === "" ? null : (parseInt(raw) || 0) }));
+                    } else {
+                      setValues((v) => ({ ...v, [field.key]: parseInt(raw) || 0 }));
+                    }
+                  }}
                   onFocus={(e) => {
                     e.currentTarget.style.borderColor = "var(--color-border-focus)";
                     e.currentTarget.style.boxShadow = "0 0 0 3px var(--color-focus-ring)";
@@ -434,7 +467,7 @@ function SimpleMasterTab({
 
   const defaultValues: Record<string, unknown> = {};
   for (const f of fields) {
-    defaultValues[f.key] = f.type === "number" ? 0 : "";
+    defaultValues[f.key] = f.type === "number" ? (f.nullable ? null : 0) : "";
   }
 
   return (
@@ -501,11 +534,15 @@ function SimpleMasterTab({
                       );
                     }
                     let display: string;
+                    let isEmptyOverride = false;
                     if (raw == null || raw === "") {
-                      display = "-";
+                      display = f.emptyDisplay ?? "-";
+                      isEmptyOverride = f.emptyDisplay != null;
                     } else if (f.type === "select" && f.options) {
                       const opt = f.options.find((o) => o.value === raw);
                       display = opt?.label ?? String(raw);
+                    } else if (f.unit) {
+                      display = `${String(raw)}${f.unit}`;
                     } else {
                       display = String(raw);
                     }
@@ -522,7 +559,11 @@ function SimpleMasterTab({
                         }}
                         title={f.type !== "textarea" && display !== "-" ? display : undefined}
                       >
-                        {display}
+                        {isEmptyOverride ? (
+                          <span style={{ color: "var(--color-sumi400)", fontStyle: "italic" }}>{display}</span>
+                        ) : (
+                          display
+                        )}
                       </td>
                     );
                   })}
@@ -648,6 +689,18 @@ function PipelineTab() {
   const pipelineFields: FieldDef[] = [
     { key: "name", label: "名前", type: "text" },
     { key: "definition", label: "定義", type: "textarea" },
+    {
+      key: "default_close_months",
+      label: "クローズ予定日の既定（ヶ月後）",
+      type: "number",
+      min: 0,
+      width: "180px",
+      nullable: true,
+      helpText:
+        "商談を新規作成したとき、クローズ予定日を今日から何ヶ月後に初期設定するか（作成後も手動で変更可）。空欄なら自動設定しない",
+      emptyDisplay: "自動設定しない",
+      unit: "ヶ月後",
+    },
     { key: "sort_order", label: "表示順", type: "number" },
   ];
 

@@ -22,14 +22,22 @@ export default async function DealNewPage() {
     getCrmUsers(),
   ]);
 
-  type MasterItem = { id: string; name: string };
+  type PipelineItem = {
+    id: string;
+    name: string;
+    default_close_months: number | null;
+  };
   type StageItem = { id: string; name: string; pipeline_type_id: string };
   type StatusItem = { id: string; name: string; pipeline_type_id: string };
   type AccountItem = { id: string; account_code: string | null; name: string };
 
   const masters = {
-    pipelineTypes: ((pipelineTypesResult.data ?? []) as MasterItem[]).map(
-      (p) => ({ value: p.id, label: p.name })
+    pipelineTypes: ((pipelineTypesResult.data ?? []) as PipelineItem[]).map(
+      (p) => ({
+        value: p.id,
+        label: p.name,
+        default_close_months: p.default_close_months,
+      })
     ),
     dealStages: ((dealStagesResult.data ?? []) as StageItem[]).map((s) => ({
       value: s.id,

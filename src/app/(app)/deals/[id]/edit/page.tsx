@@ -134,6 +134,7 @@ export default async function DealEditPage({
           contract_name: deal.contract_name,
           application_date: deal.application_date,
           review_completed_date: deal.review_completed_date,
+          expected_close_date: deal.expected_close_date,
           closed_at: deal.closed_at,
           updated_at: deal.updated_at,
         }}

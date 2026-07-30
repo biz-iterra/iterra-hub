@@ -2,10 +2,23 @@ import { z } from "zod";
 import { uuidString } from "./common";
 
 // --- M01: pipeline_types ---
+// クローズ予定日の既定月数（空文字は「自動設定しない」を意味する NULL に正規化する）
+const defaultCloseMonthsSchema = z.preprocess(
+  (v) => (v === "" ? null : v),
+  z
+    .number({ error: "[default_close_months] 数値で入力してください" })
+    .int({ message: "[default_close_months] クローズ予定日の既定は整数（月）で入力してください" })
+    .min(0, { message: "[default_close_months] クローズ予定日の既定は0以上120以下で入力してください" })
+    .max(120, { message: "[default_close_months] クローズ予定日の既定は0以上120以下で入力してください" })
+    .nullable()
+    .optional()
+);
+
 export const createPipelineTypeSchema = z.object({
   name: z.string().min(1).max(100),
   definition: z.string().max(1000).nullable().optional(),
   sort_order: z.number().int().min(0).default(0),
+  default_close_months: defaultCloseMonthsSchema,
 });
 export const updatePipelineTypeSchema = createPipelineTypeSchema.partial();
 

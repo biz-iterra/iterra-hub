@@ -96,6 +96,67 @@ function getStagnation(deal: DealWithRelations): StagnationInfo | null {
   };
 }
 
+// ---------- クローズ予定日（期日）ヘルパー ----------
+const DUE_SOON_DAYS = 7;
+
+/**
+ * 7日以内の期日は --color-warning（#F59E0B）系で強調する。
+ * 白背景に直接使うと AA 未達のため、COLOR_SCALE の warning 分類と同じ濃色
+ *（#B45309 ≒ 4.5:1 以上）を文字色に使う。
+ */
+const DUE_SOON_TEXT = "#B45309";
+
+function todayDateString(): string {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+/** DATE 型（YYYY-MM-DD）の日数差。タイムゾーン変換を避けるため文字列を分解して UTC 起点で計算する */
+function daysBetween(fromStr: string, toStr: string): number {
+  const [fy, fm, fd] = fromStr.split("-").map(Number);
+  const [ty, tm, td] = toStr.split("-").map(Number);
+  const fromUTC = Date.UTC(fy, fm - 1, fd);
+  const toUTC = Date.UTC(ty, tm - 1, td);
+  return Math.round((toUTC - fromUTC) / MS_PER_DAY);
+}
+
+type DueInfo = { label: string; color: string; severe: boolean; soon: boolean };
+
+/**
+ * クローズ予定日の表示情報。クローズ済み・未設定の商談は対象外。
+ * 期日超過 → error 系、7日以内 → warning 系、それ以外 → 通常色。
+ */
+function getDueInfo(deal: DealWithRelations): DueInfo | null {
+  if (!deal.expected_close_date || deal.closed_at) return null;
+  const due = deal.expected_close_date;
+  const daysUntil = daysBetween(todayDateString(), due);
+  if (daysUntil < 0) {
+    return {
+      label: `期日超過 ${formatShortDate(due)}`,
+      color: STAGNANT_SEVERE_TEXT,
+      severe: true,
+      soon: false,
+    };
+  }
+  if (daysUntil <= DUE_SOON_DAYS) {
+    return {
+      label: `予定 ${formatShortDate(due)}`,
+      color: DUE_SOON_TEXT,
+      severe: false,
+      soon: true,
+    };
+  }
+  return {
+    label: `予定 ${formatShortDate(due)}`,
+    color: "var(--color-sumi600)",
+    severe: false,
+    soon: false,
+  };
+}
+
 // カラースケール（sort_order のインデックスで循環）
 const COLOR_SCALE: { solid: string; bg: string; text: string }[] = [
   { solid: "#D7775D", bg: "rgba(215, 119, 93, 0.12)", text: "#A34E35" }, // soleil
@@ -918,8 +979,12 @@ function KanbanView({
                   </p>
                   {(() => {
                     const stagnation = getStagnation(deal);
+                    const due = getDueInfo(deal);
                     const applicationDate = deal.application_date;
-                    if (!stagnation && !applicationDate) return null;
+                    // 期日の方が判断に効くため、期日がある場合は申込日を出さない（情報過多の回避）
+                    const showDue = !!due;
+                    const showApplication = !showDue && !!applicationDate;
+                    if (!stagnation && !showDue && !showApplication) return null;
                     return (
                       <div
                         style={{
@@ -929,7 +994,25 @@ function KanbanView({
                           gap: "0.5rem",
                         }}
                       >
-                        {applicationDate ? (
+                        {showDue && due ? (
+                          <span
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "0.25rem",
+                              fontSize: "0.75rem",
+                              color: due.color,
+                              fontWeight: due.severe ? 600 : 400,
+                            }}
+                          >
+                            {due.severe ? (
+                              <AlertTriangle size={12} aria-hidden="true" />
+                            ) : (
+                              <CalendarDays size={12} aria-hidden="true" />
+                            )}
+                            {due.label}
+                          </span>
+                        ) : showApplication ? (
                           <span
                             style={{
                               display: "inline-flex",
@@ -940,7 +1023,7 @@ function KanbanView({
                             }}
                           >
                             <CalendarDays size={12} aria-hidden="true" />
-                            申込 {formatShortDate(applicationDate)}
+                            申込 {formatShortDate(applicationDate as string)}
                           </span>
                         ) : (
                           <span />
@@ -1051,6 +1134,7 @@ function TableView({ data }: { data: ListData }) {
           <col style={{ width: "130px" }} />
           <col style={{ width: "130px" }} />
           <col style={{ width: "120px" }} />
+          <col style={{ width: "120px" }} />
           <col style={{ minWidth: "180px" }} />
           <col style={{ width: "120px" }} />
           <col style={{ width: "150px" }} />
@@ -1061,6 +1145,7 @@ function TableView({ data }: { data: ListData }) {
               "取引名",
               "ステージ",
               "ステータス",
+              "クローズ予定日",
               "金額",
               "取引先",
               "担当者",
@@ -1069,7 +1154,7 @@ function TableView({ data }: { data: ListData }) {
               <th
                 key={label}
                 className={`px-4 py-3 font-semibold text-xs whitespace-nowrap ${
-                  i === 3 ? "text-right" : "text-left"
+                  i === 4 ? "text-right" : "text-left"
                 }`}
                 style={{ color: "var(--color-sumi600)" }}
               >
@@ -1116,6 +1201,24 @@ function TableView({ data }: { data: ListData }) {
                   sortOrder={deal.deal_status?.sort_order}
                 />
               </td>
+              {(() => {
+                const due = getDueInfo(deal);
+                return (
+                  <td
+                    className="px-4 py-3 whitespace-nowrap"
+                    style={{
+                      color: due ? due.color : "var(--color-text-list)",
+                      fontWeight: due?.severe ? 600 : 400,
+                    }}
+                  >
+                    {deal.expected_close_date
+                      ? new Date(deal.expected_close_date).toLocaleDateString(
+                          "ja-JP"
+                        )
+                      : "—"}
+                  </td>
+                );
+              })()}
               <td
                 className="px-4 py-3 text-right font-mono whitespace-nowrap"
                 style={{ color: "var(--color-text-list)" }}

@@ -2177,6 +2177,7 @@ export type Database = {
           deleted_at: string | null
           deleted_by: string | null
           deletion_reason: string | null
+          expected_close_date: string | null
           id: string
           last_updated_by: string | null
           name: string
@@ -2200,6 +2201,7 @@ export type Database = {
           deleted_at?: string | null
           deleted_by?: string | null
           deletion_reason?: string | null
+          expected_close_date?: string | null
           id?: string
           last_updated_by?: string | null
           name: string
@@ -2223,6 +2225,7 @@ export type Database = {
           deleted_at?: string | null
           deleted_by?: string | null
           deletion_reason?: string | null
+          expected_close_date?: string | null
           id?: string
           last_updated_by?: string | null
           name?: string
@@ -4114,6 +4117,7 @@ export type Database = {
         Row: {
           created_at: string
           created_by: string
+          default_close_months: number | null
           definition: string | null
           deleted_at: string | null
           deleted_by: string | null
@@ -4128,6 +4132,7 @@ export type Database = {
         Insert: {
           created_at?: string
           created_by?: string
+          default_close_months?: number | null
           definition?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
@@ -4142,6 +4147,7 @@ export type Database = {
         Update: {
           created_at?: string
           created_by?: string
+          default_close_months?: number | null
           definition?: string | null
           deleted_at?: string | null
           deleted_by?: string | null

@@ -14,7 +14,7 @@ import {
 import { DetailSection } from "@/components/ui/DetailSection";
 import { InfoField } from "@/components/ui/InfoField";
 import { EntityLink } from "@/components/ui/EntityLink";
-import { detailContainerStyle } from "@/lib/layout";
+import { detailContainerStyle, detailGridStyle, fieldGridStyle } from "@/lib/layout";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -149,22 +149,13 @@ export default async function CompanyDetailPage({
 
       {/* ---- 8:2 Grid ---- */}
       <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "8fr 2fr",
-          gap: "1.5rem",
-          alignItems: "start",
-        }}
+        style={detailGridStyle}
       >
         {/* ======== Left ======== */}
         <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
           <DetailSection title="基本情報" icon={Building2}>
             <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: "1rem",
-              }}
+              style={fieldGridStyle}
             >
               <InfoField label="会社名" value={company.name} />
               <InfoField label="フリガナ" value={company.name_kana} />
@@ -187,11 +178,7 @@ export default async function CompanyDetailPage({
 
           <DetailSection title="属性情報" icon={Layers}>
             <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: "1rem",
-              }}
+              style={fieldGridStyle}
             >
               <InfoField label="法人格" value={company.corporate_types?.name} />
               <InfoField label="業種" value={industryLabel} />
@@ -241,11 +228,7 @@ export default async function CompanyDetailPage({
 
           <DetailSection title="連絡先" icon={Mail}>
             <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: "1rem",
-              }}
+              style={fieldGridStyle}
             >
               <InfoField label="郵便番号" value={company.postal_code} />
               <InfoField label="都道府県" value={company.prefecture} />
@@ -315,11 +298,7 @@ export default async function CompanyDetailPage({
 
           <DetailSection title="インボイス" icon={FileText}>
             <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: "1rem",
-              }}
+              style={fieldGridStyle}
             >
               <InfoField
                 label="登録有無"

@@ -15,17 +15,20 @@ import {
   Pencil,
   Plus,
   Trash2,
+  ClipboardList,
+  FileText,
 } from "lucide-react";
 import { SystemTagBadge, GradeBadge, LabelBadge } from "@/components/ui/badges";
 import { useToast } from "@/components/ui/toast";
 import { DetailSection } from "@/components/ui/DetailSection";
+import { InfoField } from "@/components/ui/InfoField";
 import { addTalentAchievement, removeTalentAchievement } from "@/actions/talent-classification";
 import type { TalentProfileResult } from "@/lib/talent-classification";
 import type {
   TalentAchievementMaster,
   TalentAchievementWithMaster,
 } from "@/lib/validators/talent-classification";
-import { detailContainerStyle } from "@/lib/layout";
+import { detailContainerStyle, detailGridStyle, fieldGridStyle } from "@/lib/layout";
 
 type Tab = "basic" | "skills" | "job_type" | "career";
 
@@ -104,83 +107,26 @@ export type TalentDetail = {
 
 // ---- ヘルパーコンポーネント ----
 
-function DiagnosisBlock({
-  label,
-  value,
-  span2 = false,
-}: {
-  label: string;
-  value: string;
-  span2?: boolean;
-}) {
+/**
+ * ポテンシャルタイプだけは診断の主役なのでバッジで強調する。
+ * ほかの項目はすべて InfoField（共通のラベル + 値）で表示する。
+ */
+function PotentialTypeBadge({ value }: { value: string }) {
   return (
-    <div style={{ gridColumn: span2 ? "1 / -1" : undefined }}>
-      <div
-        style={{
-          color: "var(--color-sumi600)",
-          fontSize: "0.75rem",
-          fontWeight: 600,
-          marginBottom: "0.25rem",
-        }}
-      >
-        {label}
-      </div>
-      <div
-        style={{
-          color: "var(--color-text-body)",
-          fontSize: "0.875rem",
-          whiteSpace: "pre-wrap",
-          lineHeight: 1.5,
-        }}
-      >
-        {value}
-      </div>
-    </div>
-  );
-}
-
-function InfoRow({
-  label,
-  value,
-  emphasis = false,
-}: {
-  label: string;
-  value: string;
-  emphasis?: boolean;
-}) {
-  return (
-    <div>
-      <div
-        style={{
-          color: "var(--color-sumi600)",
-          fontSize: "0.75rem",
-          fontWeight: 600,
-          marginBottom: "0.125rem",
-        }}
-      >
-        {label}
-      </div>
-      {emphasis ? (
-        <span
-          style={{
-            display: "inline-block",
-            backgroundColor: "var(--color-terra)",
-            color: "#fff",
-            borderRadius: "var(--radius-badge)",
-            padding: "0.125rem 0.5rem",
-            fontSize: "0.75rem",
-            fontWeight: 600,
-            letterSpacing: "0.02em",
-          }}
-        >
-          {value}
-        </span>
-      ) : (
-        <div style={{ color: "var(--color-text-body)", fontSize: "0.875rem" }}>
-          {value}
-        </div>
-      )}
-    </div>
+    <span
+      style={{
+        display: "inline-block",
+        backgroundColor: "var(--color-terra)",
+        color: "#fff",
+        borderRadius: "var(--radius-badge)",
+        padding: "0.125rem 0.5rem",
+        fontSize: "0.75rem",
+        fontWeight: 600,
+        letterSpacing: "0.02em",
+      }}
+    >
+      {value}
+    </span>
   );
 }
 
@@ -908,12 +854,7 @@ export function TalentDetailClient({
       {/* ===== 基本性質タブ ===== */}
       {activeTab === "basic" && (
         <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "2fr 1fr",
-            gap: "1.5rem",
-            alignItems: "start",
-          }}
+          style={detailGridStyle}
         >
           {/* 左カラム */}
           <div>
@@ -986,21 +927,15 @@ export function TalentDetailClient({
                       )}
                     </div>
                     <div
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: "1fr 1fr",
-                        gap: "1rem",
-                      }}
+                      style={fieldGridStyle}
                     >
                       {numberDiagnosis?.strengths && (
-                        <DiagnosisBlock
-                          label="強み"
+                        <InfoField label="強み"
                           value={numberDiagnosis.strengths}
                         />
                       )}
                       {numberDiagnosis?.weaknesses && (
-                        <DiagnosisBlock
-                          label="弱み"
+                        <InfoField label="弱み"
                           value={numberDiagnosis.weaknesses}
                         />
                       )}
@@ -1040,47 +975,35 @@ export function TalentDetailClient({
                       )}
                     </div>
                     <div
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: "1fr 1fr",
-                        gap: "1rem",
-                      }}
+                      style={fieldGridStyle}
                     >
                       {constellation?.characteristics && (
-                        <DiagnosisBlock
-                          label="特徴"
+                        <InfoField label="特徴"
                           value={constellation.characteristics}
-                          span2
-                        />
+                          full />
                       )}
                       {constellation?.keywords && (
-                        <DiagnosisBlock
-                          label="キーワード"
+                        <InfoField label="キーワード"
                           value={constellation.keywords}
-                          span2
-                        />
+                          full />
                       )}
                       {constellation?.element_description && (
-                        <DiagnosisBlock
-                          label="エレメント特性"
+                        <InfoField label="エレメント特性"
                           value={constellation.element_description}
                         />
                       )}
                       {constellation?.nature_description && (
-                        <DiagnosisBlock
-                          label="性質特性"
+                        <InfoField label="性質特性"
                           value={constellation.nature_description}
                         />
                       )}
                       {constellation?.strengths && (
-                        <DiagnosisBlock
-                          label="強み"
+                        <InfoField label="強み"
                           value={constellation.strengths}
                         />
                       )}
                       {constellation?.weaknesses && (
-                        <DiagnosisBlock
-                          label="弱み"
+                        <InfoField label="弱み"
                           value={constellation.weaknesses}
                         />
                       )}
@@ -1182,7 +1105,7 @@ export function TalentDetailClient({
 
             {/* 適性メモカード */}
             {talent.aptitude_notes && (
-              <DetailSection title="適性メモ">
+              <DetailSection title="適性メモ" icon={ClipboardList}>
                 <div
                   style={{
                     color: "var(--color-text-body)",
@@ -1198,7 +1121,7 @@ export function TalentDetailClient({
 
             {/* 総合評価カード */}
             {talent.overall_assessment && (
-              <DetailSection title="総合評価">
+              <DetailSection title="総合評価" icon={FileText}>
                 <div
                   style={{
                     color: "var(--color-text-body)",
@@ -1328,53 +1251,52 @@ export function TalentDetailClient({
                   }}
                 >
                   {numberDiagnosis?.type && (
-                    <InfoRow
+                    <InfoField
                       label="ポテンシャルタイプ"
-                      value={numberDiagnosis.type}
-                      emphasis
+                      value={<PotentialTypeBadge value={numberDiagnosis.type} />}
                     />
                   )}
                   {numberDiagnosis?.dominant_brain && (
-                    <InfoRow
+                    <InfoField
                       label="優位脳"
                       value={numberDiagnosis.dominant_brain}
                     />
                   )}
                   {numberDiagnosis?.brain_characteristics && (
-                    <InfoRow
+                    <InfoField
                       label="脳特徴"
                       value={numberDiagnosis.brain_characteristics}
                     />
                   )}
                   {numberDiagnosis?.animal && (
-                    <InfoRow label="動物占い" value={numberDiagnosis.animal} />
+                    <InfoField label="動物占い" value={numberDiagnosis.animal} />
                   )}
                   {numberDiagnosis?.character && (
-                    <InfoRow
+                    <InfoField
                       label="キャラクター"
                       value={numberDiagnosis.character}
                     />
                   )}
                   {numberDiagnosis?.rhythm && (
-                    <InfoRow label="リズム" value={numberDiagnosis.rhythm} />
+                    <InfoField label="リズム" value={numberDiagnosis.rhythm} />
                   )}
                   {numberDiagnosis?.three_classification && (
-                    <InfoRow
+                    <InfoField
                       label="3分類"
                       value={numberDiagnosis.three_classification}
                     />
                   )}
                   {constellation?.constellation && (
-                    <InfoRow label="星座" value={constellation.constellation} />
+                    <InfoField label="星座" value={constellation.constellation} />
                   )}
                   {constellation?.element && (
-                    <InfoRow
+                    <InfoField
                       label="エレメント"
                       value={constellation.element}
                     />
                   )}
                   {constellation?.nature && (
-                    <InfoRow label="性質" value={constellation.nature} />
+                    <InfoField label="性質" value={constellation.nature} />
                   )}
                 </div>
               </DetailSection>

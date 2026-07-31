@@ -16,7 +16,7 @@ import { DetailSection } from "@/components/ui/DetailSection";
 import { InfoField } from "@/components/ui/InfoField";
 import { LabelBadge } from "@/components/ui/badges";
 import { EntityLink } from "@/components/ui/EntityLink";
-import { detailContainerStyle } from "@/lib/layout";
+import { detailContainerStyle, detailGridStyle, fieldGridStyle } from "@/lib/layout";
 
 function formatDate(date: string | null | undefined): string {
   if (!date) return "—";
@@ -166,22 +166,13 @@ export default async function ContactDetailPage({
 
       {/* ---- 8:2 Grid ---- */}
       <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "8fr 2fr",
-          gap: "1.5rem",
-          alignItems: "start",
-        }}
+        style={detailGridStyle}
       >
         {/* ======== Left ======== */}
         <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
           <DetailSection title="基本情報" icon={User}>
             <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: "1rem",
-              }}
+              style={fieldGridStyle}
             >
               <InfoField label="姓" value={c.last_name} />
               <InfoField label="名" value={c.first_name} />
@@ -196,11 +187,7 @@ export default async function ContactDetailPage({
 
           <DetailSection title="属性情報" icon={Layers}>
             <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr 1fr",
-                gap: "1rem",
-              }}
+              style={fieldGridStyle}
             >
               <InfoField label="ステータス" value={c.contact_status?.name} />
               <InfoField
@@ -249,11 +236,7 @@ export default async function ContactDetailPage({
 
           <DetailSection title="プロファイル" icon={Sparkles}>
             <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr 1fr 1fr",
-                gap: "1rem",
-              }}
+              style={fieldGridStyle}
             >
               <InfoField label="生年月日" value={formatDate(c.birth_date)} />
               <InfoField
@@ -315,7 +298,7 @@ export default async function ContactDetailPage({
                   )
                 }
               />
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+              <div style={fieldGridStyle}>
                 <InfoField
                   label="郵便番号"
                   value={c.postal_code ? `〒${c.postal_code}` : null}
@@ -327,11 +310,7 @@ export default async function ContactDetailPage({
 
           <DetailSection title="インボイス" icon={FileText}>
             <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: "1rem",
-              }}
+              style={fieldGridStyle}
             >
               <InfoField
                 label="登録有無"

@@ -17,6 +17,7 @@ import {
   Plus,
   Building2,
   Users,
+  Layers,
 } from "lucide-react";
 import { createLeadActivity, deleteLeadActivity, updateLeadActivity } from "@/actions/lead-activities";
 import {
@@ -36,7 +37,7 @@ import type {
   LeadActivityWithRelations,
   LeadDetail,
 } from "@/types/relations";
-import { detailContainerStyle } from "@/lib/layout";
+import { detailContainerStyle, detailGridStyle, fieldGridStyle } from "@/lib/layout";
 
 /** lead.customer_activities の要素（LEAD_SELECT の customer_activities に対応） */
 type LeadCustomerActivity = LeadDetail["customer_activities"][number];
@@ -106,8 +107,8 @@ const styles = {
     color: "var(--color-sumi500)",
     marginTop: "0.25rem",
   } as CSSProperties,
-  grid2: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" } as CSSProperties,
-  grid3: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "1rem" } as CSSProperties,
+  grid2: fieldGridStyle,
+  grid3: fieldGridStyle,
   btnPrimary: {
     display: "inline-flex",
     alignItems: "center",
@@ -1067,7 +1068,7 @@ export function LeadDetailClient({
       {activeTab === "basic" && (
         <div>
           {/* ① 企業情報セクション */}
-          <DetailSection title="企業情報">
+          <DetailSection title="企業情報" icon={Building2}>
             <div style={{ ...styles.grid2, marginBottom: "1rem" }}>
               <Field label="会社名" value={lead.company_name} />
               <Field label="フリガナ" value={lead.company_name_kana} />
@@ -1112,7 +1113,7 @@ export function LeadDetailClient({
           </DetailSection>
 
           {/* ② 担当者情報セクション */}
-          <DetailSection title="担当者情報">
+          <DetailSection title="担当者情報" icon={Users}>
             <div style={{ ...styles.grid3, marginBottom: "1rem" }}>
               <Field label="姓" value={lead.contact_last_name} />
               <Field label="ミドルネーム" value={lead.contact_middle_name} />
@@ -1134,7 +1135,7 @@ export function LeadDetailClient({
           </DetailSection>
 
           {/* ③ リード属性セクション */}
-          <DetailSection title="リード属性">
+          <DetailSection title="リード属性" icon={Layers}>
             <div style={{ ...styles.grid3, marginBottom: "1rem" }}>
               <Field
                 label="大分類セグメント"
@@ -1190,7 +1191,7 @@ export function LeadDetailClient({
       {activeTab === "score" && (
         <div>
           {/* スコアサマリ */}
-          <DetailSection title="スコアサマリ">
+          <DetailSection title="スコアサマリ" icon={BarChart2}>
             <div style={{ display: "flex", alignItems: "flex-end", gap: "2rem", flexWrap: "wrap" }}>
               {/* 大きいスコア数字 */}
               <div style={{ textAlign: "center" }}>
@@ -1279,6 +1280,7 @@ export function LeadDetailClient({
           {/* スコア内訳リスト */}
           <DetailSection
             title="スコア内訳"
+            icon={ClipboardList}
             action={
               scoreBreakdowns.length > 0 ? (
                 <span
@@ -1576,12 +1578,7 @@ export function LeadDetailClient({
       {/* === 社内対応アクティビティタブ === */}
       {activeTab === "activities" && (
         <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "minmax(0, 7fr) minmax(260px, 3fr)",
-            gap: "1.5rem",
-            alignItems: "start",
-          }}
+          style={detailGridStyle}
           className="activities-layout"
         >
           {/* 左カラム: アクティビティ一覧（アコーディオン） */}
@@ -1656,7 +1653,7 @@ export function LeadDetailClient({
               top: "1rem",
             }}
           >
-            <DetailSection title="社内対応を追加">
+            <DetailSection title="社内対応を追加" icon={Plus}>
 
               <div style={{ display: "flex", flexDirection: "column", gap: "0.875rem" }}>
                 {/* 対応日 */}
@@ -1808,6 +1805,7 @@ export function LeadDetailClient({
             </div>
           ) : (
             <DetailSection
+              icon={Megaphone}
               title={`紐付きキャンペーン（${attachedCampaigns.length} 件）`}
             >
               <div

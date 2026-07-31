@@ -32,3 +32,31 @@ export const formContainerStyle: CSSProperties = {
   maxWidth: FORM_MAX_WIDTH,
   margin: "0 auto",
 };
+
+/**
+ * 詳細ページ本文の 2 カラム。右カラムには関連エンティティの一覧が入る。
+ *
+ * 比率は 8:2。右に最小幅を与えているのは、法人名や氏名が長いときに
+ * 関連リストが潰れて読めなくなるのを防ぐため。
+ * 左に minmax(0, …) を指定しないと、中の表がはみ出したときに
+ * グリッドが押し広げられて右カラムが消える。
+ */
+export const detailGridStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "minmax(0, 8fr) minmax(280px, 2fr)",
+  gap: "1.5rem",
+  alignItems: "start",
+};
+
+/**
+ * セクション内の項目グリッド。
+ *
+ * 全セクションを 2 列で揃える。ページをまたいでラベルの位置が合い、
+ * 値が長いときも折り返しが起きにくい。
+ * メモ・URL・説明のような長い値は InfoField の full で全幅にする。
+ */
+export const fieldGridStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "1fr 1fr",
+  gap: "1rem",
+};

@@ -12,7 +12,7 @@ import { DetailSection } from "@/components/ui/DetailSection";
 import { InfoField } from "@/components/ui/InfoField";
 import { EntityLink } from "@/components/ui/EntityLink";
 import { LabelBadge } from "@/components/ui/badges";
-import { detailContainerStyle } from "@/lib/layout";
+import { detailContainerStyle, detailGridStyle, fieldGridStyle } from "@/lib/layout";
 
 /** ステータス更新日の表示。時刻までは要らないので日付だけ出す */
 function formatDate(value: string | null | undefined): string {
@@ -178,22 +178,13 @@ export default async function AccountDetailPage({
 
       {/* ---- 8:2 Grid ---- */}
       <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "8fr 2fr",
-          gap: "1.5rem",
-          alignItems: "start",
-        }}
+        style={detailGridStyle}
       >
         {/* ======== Left ======== */}
         <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
           <DetailSection title="基本情報" icon={Briefcase}>
             <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: "1rem",
-              }}
+              style={fieldGridStyle}
             >
               <InfoField label="取引先名" value={a.name} />
               <InfoField label="担当者" value={a.owner?.full_name} />
@@ -213,11 +204,7 @@ export default async function AccountDetailPage({
 
           <DetailSection title="属性情報" icon={Layers}>
             <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr 1fr",
-                gap: "1rem",
-              }}
+              style={fieldGridStyle}
             >
               <InfoField label="種別" value={a.account_type?.name} />
               <InfoField label="ステータス" value={a.account_status?.name} />

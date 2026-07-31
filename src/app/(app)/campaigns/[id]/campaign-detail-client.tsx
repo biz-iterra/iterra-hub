@@ -32,7 +32,7 @@ import type {
   Row,
   UnassignedLeadRow,
 } from "@/types/relations";
-import { detailContainerStyle } from "@/lib/layout";
+import { detailContainerStyle, fieldGridStyle } from "@/lib/layout";
 
 type Tab = "basic" | "leads";
 
@@ -63,7 +63,7 @@ const styles = {
     lineHeight: 1.5,
     margin: 0,
   } as CSSProperties,
-  grid2: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" } as CSSProperties,
+  grid2: fieldGridStyle,
   btnPrimary: {
     display: "inline-flex",
     alignItems: "center",

@@ -21,7 +21,7 @@ import { InfoField } from "@/components/ui/InfoField";
 import { EntityLink } from "@/components/ui/EntityLink";
 import { getDealCounterparty } from "@/lib/deal-counterparty";
 import { LabelBadge, ContractMethodBadge, PipelineBadge, StageBadge, StatusBadge } from "@/components/ui/badges";
-import { detailContainerStyle } from "@/lib/layout";
+import { detailContainerStyle, detailGridStyle, fieldGridStyle } from "@/lib/layout";
 
 function formatDate(date: string | null | undefined): string {
   if (!date) return "—";
@@ -171,22 +171,13 @@ export default async function DealDetailPage({
 
       {/* ---- 8:2 Grid ---- */}
       <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "8fr 2fr",
-          gap: "1.5rem",
-          alignItems: "start",
-        }}
+        style={detailGridStyle}
       >
         {/* ======== Left ======== */}
         <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
           <DetailSection title="基本情報" icon={FileText}>
             <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: "1rem",
-              }}
+              style={fieldGridStyle}
             >
               <InfoField label="取引名" value={deal.name} full />
               <InfoField
@@ -229,11 +220,7 @@ export default async function DealDetailPage({
 
           <DetailSection title="属性情報" icon={Layers}>
             <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr 1fr",
-                gap: "1rem",
-              }}
+              style={fieldGridStyle}
             >
               <InfoField
                 label="パイプライン"
@@ -264,11 +251,7 @@ export default async function DealDetailPage({
 
           <DetailSection title="日程" icon={Calendar}>
             <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: "1rem",
-              }}
+              style={fieldGridStyle}
             >
               <InfoField label="申請日" value={formatDate(deal.application_date)} />
               <InfoField

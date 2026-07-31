@@ -2874,3 +2874,74 @@ member が他人のリードの対応履歴まで見えてしまう。** 付け�
 | ファイル | 内容 |
 |---|---|
 | `20260731000014_create_activity_feed.sql` | `activity_feed` ビュー・`lead_customer_activity_types.color` |
+
+---
+
+## 20. Gmail 連携（2026-07-31）
+
+### 20.1 目的
+
+連絡先とのメール送受信を CRM 側で時系列に追えるようにする。
+名刺交換をしていない相手とのやり取りも拾い、連絡先として登録できるようにする。
+
+### 20.2 方針
+
+**本文と添付は保存しない。** 件名・相手・日時だけを持ち、中身を見るときは Gmail へ遷移する。
+OAuth スコープも `gmail.metadata` だけを要求し、本文を取得できる権限自体を持たない。
+契約書や個人情報を CRM に複製しないため。
+
+**未登録アドレスは候補として溜め、担当者が承認したら連絡先にする。**
+自動作成にすると配信メールやメーリングリストで連絡先が汚れる。
+
+### 20.3 テーブル
+
+| 物理名 | 内容 |
+|---|---|
+| `gmail_connections` | 連携アカウント。1 ユーザーが複数繋げる。リフレッシュトークンは pgcrypto で暗号化（鍵は DB に置かず `GMAIL_TOKEN_ENCRYPTION_KEY`） |
+| `email_messages` | 同期したメールのメタデータ。`(connection_id, gmail_message_id)` が一意で再同期しても重複しない |
+| `email_message_contacts` | メール × 連絡先の N:M。1 通に複数の連絡先が絡むため |
+| `email_contact_candidates` | 連絡先に紐づかなかったアドレス。承認すると連絡先を作り、過去のメールを遡って紐づける |
+
+書き込みは DB 関数に集約する（`record_email_message` / `approve_email_contact_candidate`）。
+1 通ごとに複数テーブルへ書くため、途中で切れて中途半端に残らないようにする。
+
+`approve_email_contact_candidate` は画面（authenticated）から呼ぶが
+`email_message_contacts` に authenticated 向けの INSERT ポリシーが無いため
+`SECURITY DEFINER` にしてある。RLS の代わりに関数内で manager 以上を確認する。
+
+### 20.4 OAuth の前提（2026-07-31 決定）
+
+**連携できるのは Google Workspace のアカウントのみとする。** OAuth 同意画面は「内部」で構成する。
+
+個人 Gmail（`@gmail.com`）を繋ごうとすると同意画面が「外部」になり、次のいずれかになる。
+
+- **テスト状態のまま**: 外部アプリのリフレッシュトークンが 7 日で失効する。週次で全員が再連携になり実運用に耐えない
+- **本番公開**: `gmail.metadata` は制限付きスコープのため CASA セキュリティ監査（Google 認定ラボ・年次更新）が必要
+
+個人アドレス宛のやり取りを取り込みたい場合は、Gmail 側の転送または
+「他のアカウントのメールを確認」で Workspace の受信箱に集約する。
+送信も Workspace から「他のメールアドレスとして送信」で行えば SENT に残るため、
+CRM 側の実装は変わらない。
+
+### 20.5 過去メールの扱い
+
+**同期は連携以降のやり取りを対象とする。** 過去分は別途データ化してインポートする運用。
+
+`gmail.metadata` スコープでは `users.messages.list` の `q`（検索クエリ）が使えず、
+期間を指定して遡ることが API 側でできない。ラベル（INBOX / SENT）での絞り込みのみ可能。
+新しい順にページングして遡ることは可能だが、初回に大量取得する設計は取らない。
+
+### 20.6 マイグレーション
+
+| ファイル | 内容 |
+|---|---|
+| `20260731000011_create_gmail_sync.sql` | 4 テーブルと RLS |
+| `20260731000012_email_contact_resolution.sql` | `find_contact_by_email` / `record_email_message` / `approve_email_contact_candidate` |
+| `20260731000013_fix_email_function_privileges.sql` | 承認関数を `SECURITY DEFINER` 化、`record_email_message` を service_role 限定に |
+
+### 20.7 未実装
+
+- OAuth フロー（`/api/gmail/auth`・`/api/gmail/callback`）とトークンの暗号化保存
+- Gmail API クライアント（`messages.list` / `messages.get` / `history.list`）
+- 差分同期のジョブ（`historyId` は数日で失効するため、失効時は全件走査に戻す）
+- プロフィール画面の連携管理 UI

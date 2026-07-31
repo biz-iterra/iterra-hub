@@ -95,10 +95,13 @@ Environment に無いときへ静かにフォールバックし、分離でき�
 （共通方針セクション 2 の「ローカル `.env` は転記先」に対する明示的な例外。
 本番値をローカル `.env.local` に入れる運用に変えるなら、その時点で登録対象にする）
 
-### ローカル `.env`（NAS 用の作業コピー）
+### ローカル `.env`（NAS 用の作業コピー / STG 実行）
 
-`docker-compose.yml` を手元で扱うための作業コピーで、キー構成は NAS の `.env` と同一。
+`docker-compose.yml` を手元で扱うためのファイルで、キー構成は NAS の `.env` と同一。
 **正本は Bitwarden の `nas/iterra-hub:production/*`。** 値の再確認は必ず Bitwarden を起点にする。
+
+このファイルは削除しないこと。開発機から SSH で NAS の docker を操作するほか、
+**STG をこのマシンの docker compose で動かしている**ため実行時に読まれる。
 
 ### 同値グループ（ローテーション時にまとめて更新するもの）
 

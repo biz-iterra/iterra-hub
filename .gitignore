@@ -40,7 +40,10 @@ next-env.d.ts
 supabase/.temp/
 
 # local / ephemeral
-.claude/
+# settings.json だけは共有する（.env の読み取り禁止など、環境によらず効かせたいルール）。
+# ディレクトリごと除外すると中の否定パターンが効かないため .claude/* にしている
+.claude/*
+!.claude/settings.json
 screenshots/
 test_*.py
 scripts/test-*.py

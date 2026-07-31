@@ -130,7 +130,11 @@ npm run typecheck && npm test && npm run build
   Environment に無い Secret はリポジトリレベルへ静かにフォールバックするため重複を残さない。
   **同じ値でも環境ごとに別エントリで登録する**（片方だけ更新して食い違う事故を防ぐ）
 - **シークレットはコードに書かない。** 実行時に `process.env` / `os.environ` から読む
-- `.env` など実値を含むファイルは読まない。必要なのは常にキー名で、`.env.example` と台帳で足りる
+- `.env` など実値を含むファイルは読まない。必要なのは常にキー名で、`.env.example` と台帳で足りる。
+  `.claude/settings.json` の `permissions.deny` で Read / Bash / PowerShell の各経路を実際に塞いである
+  （この設定だけは `.gitignore` の例外にしてリポジトリで共有する。`*.example` は対象外で読める）
+- **シークレットの生成コマンドをエージェント経由で実行しない。** 出力が会話履歴に残る。
+  自分のターミナルで実行し、値は Bitwarden へ直接登録する
 - `NEXT_PUBLIC_*` に秘密値を入れない（クライアントバンドルへ焼き込まれる）。
   RLS をバイパスする `SUPABASE_SERVICE_ROLE_KEY` は必ずサーバー側の変数名のまま扱う
 - シークレットを 1 つ増やすときは「Bitwarden へ登録 → 転記先へ登録 → 参照側の実装を確認 → 台帳に追記」の順

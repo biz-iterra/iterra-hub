@@ -8,6 +8,9 @@ import { globalSearch, type SearchResult, type SearchResultType } from "@/action
 const DEBOUNCE_MS = 300;
 const MIN_QUERY_LENGTH = 2;
 
+// 文字数が足りないときに返す空配列。参照を固定して不要な再計算・再描画を避ける
+const EMPTY_RESULTS: SearchResult[] = [];
+
 // 表示順（globalSearch の push 順と一致させ、キーボード選択のインデックスをそのまま流用する）
 const GROUP_ORDER: SearchResultType[] = [
   "lead",
@@ -121,8 +124,10 @@ export function GlobalSearch() {
 
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
+  // results がどの検索語の結果かを保持する。読み込み中かどうかはこれと現在の検索語の
+  // 差から導出する（loading を state に持つとエフェクト内 setState が必要になるため）
+  const [resultsFor, setResultsFor] = useState("");
   const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
 
   // Ctrl/Cmd+K でフォーカス
@@ -149,40 +154,51 @@ export function GlobalSearch() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // デバウンス付き検索実行
-  useEffect(() => {
-    const trimmed = query.trim();
-    if (debounceRef.current) clearTimeout(debounceRef.current);
+  const trimmedQuery = query.trim();
+  const isSearchable = trimmedQuery.length >= MIN_QUERY_LENGTH;
 
-    if (trimmed.length < MIN_QUERY_LENGTH) {
-      setResults([]);
-      setLoading(false);
+  // デバウンス付き検索実行。
+  // 文字数が足りない間は state を消さずに何もしない（表示側で導出する）。
+  // エフェクト内で同期的に setState するとカスケードレンダーになるため。
+  useEffect(() => {
+    if (!isSearchable) {
+      // 実行中のリクエストの結果を捨てる（seq をずらすだけ。state は触らない）
+      requestSeqRef.current++;
       return;
     }
 
-    setLoading(true);
     const seq = ++requestSeqRef.current;
     debounceRef.current = setTimeout(async () => {
-      const data = await globalSearch(trimmed);
+      const data = await globalSearch(trimmedQuery);
       if (seq === requestSeqRef.current) {
         setResults(data);
-        setLoading(false);
+        setResultsFor(trimmedQuery);
       }
     }, DEBOUNCE_MS);
 
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [query]);
+  }, [trimmedQuery, isSearchable]);
 
-  useEffect(() => {
+  // 文字数が足りない間は保持している結果を見せない（state を消す代わりに導出する）
+  const visibleResults = isSearchable ? results : EMPTY_RESULTS;
+  // 現在の検索語に対する結果がまだ無ければ読み込み中
+  const showLoading = isSearchable && resultsFor !== trimmedQuery;
+
+  // 表示結果が変わったら選択位置を戻す。
+  // エフェクトではなくレンダー中に調整する（React 推奨。再描画が 1 回で済む）
+  const [prevResults, setPrevResults] = useState(visibleResults);
+  if (prevResults !== visibleResults) {
+    setPrevResults(visibleResults);
     setActiveIndex(-1);
-  }, [results]);
+  }
 
   const handleSelect = (item: SearchResult) => {
     setOpen(false);
     setQuery("");
     setResults([]);
+    setResultsFor("");
     router.push(item.href);
   };
 
@@ -192,36 +208,36 @@ export function GlobalSearch() {
       inputRef.current?.blur();
       return;
     }
-    if (!open || results.length === 0) return;
+    if (!open || visibleResults.length === 0) return;
 
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      setActiveIndex((i) => Math.min(i + 1, results.length - 1));
+      setActiveIndex((i) => Math.min(i + 1, visibleResults.length - 1));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       setActiveIndex((i) => Math.max(i - 1, 0));
     } else if (e.key === "Enter") {
-      if (activeIndex >= 0 && results[activeIndex]) {
+      if (activeIndex >= 0 && visibleResults[activeIndex]) {
         e.preventDefault();
-        handleSelect(results[activeIndex]);
+        handleSelect(visibleResults[activeIndex]);
       }
     }
   };
 
-  const showDropdown = open && query.trim().length >= MIN_QUERY_LENGTH;
+  const showDropdown = open && isSearchable;
   const grouped = GROUP_ORDER.map((type) => ({
     type,
-    items: results.filter((r) => r.type === type),
+    items: visibleResults.filter((r) => r.type === type),
   })).filter((g) => g.items.length > 0);
 
   const listboxId = "global-search-listbox";
   const getOptionId = (item: SearchResult) => `global-search-option-${item.type}-${item.id}`;
-  const activeItem = activeIndex >= 0 ? results[activeIndex] : undefined;
+  const activeItem = activeIndex >= 0 ? visibleResults[activeIndex] : undefined;
   const resultCountMessage =
-    showDropdown && !loading
+    showDropdown && !showLoading
       ? grouped.length === 0
         ? "該当なし"
-        : `${results.length} 件の候補`
+        : `${visibleResults.length} 件の候補`
       : "";
 
   return (
@@ -255,7 +271,7 @@ export function GlobalSearch() {
             e.currentTarget.style.backgroundColor = "var(--color-bg-alt)";
           }}
         />
-        {loading ? (
+        {showLoading ? (
           <Loader2
             size={14}
             className="animate-spin"
@@ -274,15 +290,15 @@ export function GlobalSearch() {
 
       {showDropdown && (
         <div id={listboxId} style={styles.dropdown} role="listbox" aria-label="検索結果">
-          {loading && results.length === 0 && <p style={styles.empty}>検索中...</p>}
-          {!loading && grouped.length === 0 && <p style={styles.empty}>該当なし</p>}
+          {showLoading && visibleResults.length === 0 && <p style={styles.empty}>検索中...</p>}
+          {!showLoading && grouped.length === 0 && <p style={styles.empty}>該当なし</p>}
           {grouped.map((group) => (
             <div key={group.type} role="group" aria-label={group.items[0].typeLabel}>
               <p style={styles.groupLabel} role="presentation">
                 {group.items[0].typeLabel}
               </p>
               {group.items.map((item) => {
-                const index = results.indexOf(item);
+                const index = visibleResults.indexOf(item);
                 const isActive = index === activeIndex;
                 return (
                   <button

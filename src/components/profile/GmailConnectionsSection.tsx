@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Mail, RefreshCw, Unlink, Plus, AlertTriangle } from "lucide-react";
 import { disconnectGmail, syncMyGmailConnection } from "@/actions/email-sync";
 import { useToast } from "@/components/ui/toast";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import type { GmailConnectionSummary } from "@/types/relations";
 
 /**
@@ -28,6 +29,9 @@ export function GmailConnectionsSection({
   const router = useRouter();
   const { showToast } = useToast();
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState<{ id: string; email: string } | null>(
+    null
+  );
 
   // 連携の結果は API ルートからのリダイレクトで返るため、
   // クエリを読んでトーストに変換する。URL からは消して再表示を防ぐ
@@ -68,24 +72,19 @@ export function GmailConnectionsSection({
     router.refresh();
   }
 
-  async function handleDisconnect(id: string, email: string) {
-    if (
-      !window.confirm(
-        `${email} の連携を解除します。取り込み済みのやり取りは履歴として残ります。`
-      )
-    ) {
-      return;
-    }
-    setBusyId(id);
-    const { error } = await disconnectGmail(id);
-    setBusyId(null);
+  async function handleDisconnect() {
+    if (!confirming) return { error: null };
 
+    const { error } = await disconnectGmail(confirming.id);
     if (error) {
       showToast({ type: "error", message: error });
-      return;
+      return { error };
     }
+
+    setConfirming(null);
     showToast({ type: "success", message: "連携を解除しました" });
     router.refresh();
+    return { error: null };
   }
 
   return (
@@ -142,7 +141,9 @@ export function GmailConnectionsSection({
                     </button>
                     <button
                       style={styles.btnGhost}
-                      onClick={() => handleDisconnect(c.id, c.email_address)}
+                      onClick={() =>
+                        setConfirming({ id: c.id, email: c.email_address })
+                      }
                       disabled={busyId === c.id}
                     >
                       <Unlink size={13} />
@@ -161,6 +162,16 @@ export function GmailConnectionsSection({
           </a>
         </>
       )}
+
+      <ConfirmDialog
+        open={confirming !== null}
+        title="連携を解除しますか"
+        message={`${confirming?.email ?? ""} の連携を解除します。取り込み済みのやり取りは履歴として残ります。`}
+        confirmLabel="解除する"
+        danger
+        onConfirm={handleDisconnect}
+        onClose={() => setConfirming(null)}
+      />
     </div>
   );
 }

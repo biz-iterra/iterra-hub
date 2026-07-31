@@ -46,6 +46,8 @@ export async function getMyGmailConnections(): Promise<
       "id, email_address, granted_scope, last_synced_at, last_error, is_active, created_at"
     )
     .eq("crm_user_id", user.id)
+    // 解除済みは出さない。行は履歴として残すが、繋がっているように見せない
+    .eq("is_active", true)
     .order("created_at");
 
   if (error) return { data: null, error: error.message };
@@ -98,12 +100,20 @@ export async function disconnectGmail(id: string): Promise<ActionResult<null>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
-  const { error } = await supabase
+  // 他人の連携を解除できないよう所有者を条件に含める。
+  // RLS でも弾かれるが、0 行更新はエラーにならないので成否を件数で確かめる
+  const { data, error } = await supabase
     .from("gmail_connections")
     .update({ is_active: false })
-    .eq("id", id);
+    .eq("id", id)
+    .eq("crm_user_id", user.id)
+    .select("id");
 
   if (error) return { data: null, error: error.message };
+  if (!data || data.length === 0) {
+    return { data: null, error: "連携が見つかりませんでした" };
+  }
+
   revalidatePath("/profile");
   return { data: null, error: null };
 }

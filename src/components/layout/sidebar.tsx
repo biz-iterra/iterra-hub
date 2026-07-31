@@ -16,6 +16,7 @@ import {
   FolderKanban,
   UserSearch,
   Megaphone,
+  Activity,
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -56,6 +57,12 @@ const navGroups: NavGroup[] = [
     label: "ダッシュボード",
     items: [
       { label: "ダッシュボード", href: "/dashboard", icon: LayoutDashboard },
+      {
+        label: "アクティビティ",
+        href: "/activities",
+        icon: Activity,
+        description: "社内対応・顧客行動・メールの時系列",
+      },
     ],
   },
   {

@@ -9,10 +9,12 @@ import { GlobalSearch } from "./global-search";
 
 const pathLabels: Record<string, string> = {
   "/dashboard": "ダッシュボード",
+  "/activities": "アクティビティ",
   "/leads": "リード",
   "/campaigns": "キャンペーン",
   "/deals": "商談",
   "/contacts": "連絡先",
+  "/contacts/candidates": "連絡先の候補",
   "/companies": "法人情報",
   "/accounts": "取引先",
   "/contracts": "契約",

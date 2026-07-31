@@ -2821,3 +2821,56 @@ API 照合の結果がずれるため、`match.test.ts` で規則を固定して
 |---|---|
 | `20260731000009_contact_status_semantics.sql` | 連絡先ステータスから「見込み」を除去（§M08 参照） |
 | `20260731000010_company_existence_verification.sql` | 法人ステータスの実在性化・確認記録・履歴テーブル |
+---
+
+## 19. アクティビティ横断フィード（2026-07-31）
+
+### 19.1 背景
+
+活動の記録先はテーブルごとに分かれている。
+
+| テーブル | 何の記録か | 時刻の持ち方 | 紐づく先 |
+|---|---|---|---|
+| `lead_activities` | 社内対応（架電・名刺交換など、こちらから動いた記録） | `called_on` + `called_at_time`（分割） | lead |
+| `lead_customer_activities` | 顧客行動（イベント参加・資料DL など、相手が動いた記録） | `occurred_at` | lead |
+| `email_messages` × `email_message_contacts` | メールのやり取り（Gmail 同期） | `sent_at` | contact |
+
+「いつ・誰と・何があったか」を時系列で追うには 3 テーブルを突き合わせる必要があり、
+画面ごとに書くと条件がずれる。読み取り専用のビューに集約した。
+
+### 19.2 `activity_feed`（ビュー）
+
+`security_invoker = true` で作る。**これを付けないとビュー所有者の権限で読まれ、
+member が他人のリードの対応履歴まで見えてしまう。** 付けることで元テーブルの RLS が
+そのまま効く（`is_lead_accessible` / 連絡先の owner 判定）。
+
+| 列 | 内容 |
+|---|---|
+| `source_kind` | `lead_activity` / `lead_customer_activity` / `email` |
+| `id` | 記録元テーブルの行 ID。テーブルをまたぐと衝突しうるので、キーは `source_kind` と組で扱う |
+| `occurred_at` | `timestamptz` に統一。`lead_activities` は JST として組み立ててから変換 |
+| `has_time` | 時刻を持つか。`false` の行で `0:00` を表示しないための区別 |
+| `activity_name` / `activity_color` | 種別バッジ。色はマスタの `color` |
+| `outcome_name` / `outcome_color` | 架電結果など。種別と同じ文字列になる場合は `NULL`（「名刺交換／名刺交換」の重複を避ける） |
+| `detail` | 備考。メールは件名 |
+| `actor_name` | 社内の実行者。顧客行動と受信メールは `NULL`（社内の行動ではないため） |
+| `entity_type` / `entity_id` / `entity_label` | 相手先。`lead` または `contact` |
+| `owner_user_id` | 担当者フィルタ用 |
+
+1 通のメールが同じ連絡先に From と Cc の両方で紐づくことがあるため、
+`email_message_contacts` の代表 1 行に絞ってから UNION している。
+
+**未収録:** `deal_activities` と `activity_logs` は書き込む画面がまだ無く常に空になるため
+入れていない。使い始めるときに UNION ALL を足す。
+
+### 19.3 `lead_customer_activity_types.color`
+
+バッジ色はマスタの `color` を正本にする規約に対し、このマスタだけ列が欠けていたため追加。
+既定色は顧客の意思表示の強さで割り当てる（問合せ = 進行・提案、参加/DL = 接触・育成、
+閲覧/開封 = 開始・新規）。
+
+### 19.4 マイグレーション
+
+| ファイル | 内容 |
+|---|---|
+| `20260731000014_create_activity_feed.sql` | `activity_feed` ビュー・`lead_customer_activity_types.color` |

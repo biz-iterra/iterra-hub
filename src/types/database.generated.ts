@@ -3421,6 +3421,7 @@ export type Database = {
       lead_customer_activity_types: {
         Row: {
           code: string
+          color: string | null
           created_at: string
           deleted_at: string | null
           deleted_by: string | null
@@ -3432,6 +3433,7 @@ export type Database = {
         }
         Insert: {
           code: string
+          color?: string | null
           created_at?: string
           deleted_at?: string | null
           deleted_by?: string | null
@@ -3443,6 +3445,7 @@ export type Database = {
         }
         Update: {
           code?: string
+          color?: string | null
           created_at?: string
           deleted_at?: string | null
           deleted_by?: string | null
@@ -5642,6 +5645,25 @@ export type Database = {
       }
     }
     Views: {
+      activity_feed: {
+        Row: {
+          activity_color: string | null
+          activity_name: string | null
+          actor_name: string | null
+          detail: string | null
+          entity_id: string | null
+          entity_label: string | null
+          entity_type: string | null
+          has_time: boolean | null
+          id: string | null
+          occurred_at: string | null
+          outcome_color: string | null
+          outcome_name: string | null
+          owner_user_id: string | null
+          source_kind: string | null
+        }
+        Relationships: []
+      }
       v_leads_with_category: {
         Row: {
           account_type_id: string | null

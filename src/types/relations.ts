@@ -575,3 +575,28 @@ export type EmailMessageWithContacts = Ref<
   | "from_email"
   | "from_name"
 > & { role: string };
+// ============================================================
+// アクティビティ横断フィード
+// ============================================================
+
+/** 記録元。ビューの UNION と 1:1 で対応する */
+export type ActivityFeedSourceKind =
+  | "lead_activity"
+  | "lead_customer_activity"
+  | "email";
+
+/**
+ * activity_feed ビューの行。
+ * ビューは列が NULL 許容として生成されるため、画面で使う形に絞って上書きする
+ * （source_kind / occurred_at / entity_type は UNION の各枝でリテラルを置いており必ず入る）。
+ */
+export type ActivityFeedRow = Omit<
+  ViewRow<"activity_feed">,
+  "source_kind" | "occurred_at" | "entity_type" | "entity_id" | "id"
+> & {
+  id: string;
+  source_kind: ActivityFeedSourceKind;
+  occurred_at: string;
+  entity_type: "lead" | "contact";
+  entity_id: string;
+};

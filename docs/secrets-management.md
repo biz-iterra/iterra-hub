@@ -64,7 +64,7 @@ Environment に無いときへ静かにフォールバックし、分離でき�
 `environment: staging` のジョブを回すと、リポジトリレベルに残った**本番の値**へ静かに
 フォールバックし、STG のつもりで本番 DB を触ってしまう。
 
-### NAS — `/volume1/docker/iterra-hub/.env`（6 件）
+### NAS — `/volume1/docker/iterra-hub/.env`（7 件）
 
 `docker-compose.yml` がコンテナ実行時に読む。ファイルは `chmod 600`。
 
@@ -76,6 +76,7 @@ Environment に無いときへ静かにフォールバックし、分離でき�
 | `nas/iterra-hub:production/GOOGLE_OAUTH_CLIENT_ID` | Gmail 連携の OAuth クライアント | Google Cloud → APIs & Services → 認証情報 → OAuth 2.0 クライアント ID（ウェブアプリケーション） | 秘密値ではない（同意画面で利用者に見える）が、シークレットと組で管理するため同じ場所に置く |
 | `nas/iterra-hub:production/GOOGLE_OAUTH_CLIENT_SECRET` | 同上 | 同上 | 再発行すると既存の連携が切れる |
 | `nas/iterra-hub:production/GMAIL_TOKEN_ENCRYPTION_KEY` | リフレッシュトークンの暗号化鍵（pgcrypto） | 自分のターミナルで生成（PowerShell: `[System.Security.Cryptography.RandomNumberGenerator]::Fill($b)` → `[Convert]::ToBase64String($b)`）。値をチャットやログに残さないこと | **変更・紛失すると保存済みトークンを復号できず全員が再連携になる**。ローテーション時は再連携の案内とセットで |
+| `nas/iterra-hub:production/GMAIL_SYNC_CRON_SECRET` | 定期同期エンドポイント（`/api/gmail/sync`）の Bearer トークン | 自分のターミナルで生成。暗号鍵とは別の値にする | 未設定ならエンドポイントは 503 で無効。**開発機には置かない**（手動同期で足りる） |
 
 `IMAGE_TAG` は切り戻し時のみ使う運用値で、秘密値ではないため登録対象外。
 

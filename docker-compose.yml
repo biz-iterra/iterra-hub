@@ -20,6 +20,18 @@ services:
     environment:
       # サーバー側でのみ使用（RLS をバイパスするため外部に出さない）
       SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:?SUPABASE_SERVICE_ROLE_KEY is required}
+
+      # Gmail 連携。未設定でも起動は通り、連携メニューに「未設定」と出るだけ。
+      # 連携を使わない環境で起動を止めないため :? は付けない
+      GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:-}
+      GOOGLE_OAUTH_CLIENT_SECRET: ${GOOGLE_OAUTH_CLIENT_SECRET:-}
+      GMAIL_TOKEN_ENCRYPTION_KEY: ${GMAIL_TOKEN_ENCRYPTION_KEY:-}
+      # 未設定なら /api/gmail/sync は 503 で無効
+      GMAIL_SYNC_CRON_SECRET: ${GMAIL_SYNC_CRON_SECRET:-}
+
+      # 法人情報の実在確認（国税庁 法人番号 Web-API）
+      HOUJIN_BANGOU_APP_ID: ${HOUJIN_BANGOU_APP_ID:-}
+
       TZ: Asia/Tokyo
 
     healthcheck:

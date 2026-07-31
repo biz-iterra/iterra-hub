@@ -34,6 +34,18 @@ export function isGmailConfigured(): boolean {
 }
 
 /**
+ * 定期同期エンドポイントの合言葉。
+ *
+ * Cookie 認証はマシンからの実行に使えないため Bearer で照合する。
+ * 未設定ならエンドポイント自体を無効にする（開発機では設定不要。
+ * 手動の「同期」ボタンで足りる）。
+ */
+export function getSyncCronSecret(): string | null {
+  const secret = process.env.GMAIL_SYNC_CRON_SECRET?.trim();
+  return secret ? secret : null;
+}
+
+/**
  * コールバック URL。
  *
  * 環境ごとに固定値を持たず、リクエストの origin から組み立てる。

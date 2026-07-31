@@ -589,9 +589,19 @@ mkdir -p /volume1/docker/iterra-hub
 cd /volume1/docker/iterra-hub
 # リポジトリの docker-compose.yml と .env.example を配置し、.env を作成する
 cp .env.example .env
-vi .env   # SUPABASE_SERVICE_ROLE_KEY と CLOUDFLARE_TUNNEL_TOKEN を設定
+vi .env   # Bitwarden の nas/iterra-hub:production/* を転記する
 chmod 600 .env
 ```
+
+設定するキー:
+
+| キー | 未設定だとどうなるか |
+|---|---|
+| `SUPABASE_SERVICE_ROLE_KEY` | **起動しない**（compose が `:?` で止める） |
+| `CLOUDFLARE_TUNNEL_TOKEN` | **公開されない**（トンネルが繋がらない） |
+| `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` / `GMAIL_TOKEN_ENCRYPTION_KEY` | 起動はする。Gmail 連携が「未設定」表示になる |
+| `GMAIL_SYNC_CRON_SECRET` | 起動はする。`/api/gmail/sync` が 503 で無効（定期同期が動かない） |
+| `HOUJIN_BANGOU_APP_ID` | 起動はする。法人の実在確認が「未設定」表示になる |
 
 貼り付け事故の検証（山括弧が残っていないか。値は表示されない）:
 
@@ -836,6 +846,46 @@ Account / Deal が**増えない**。増えていたら二重発火の防止が�
 - `middleware` は全リクエストで Supabase の `auth.getUser()` を呼ぶため、
   NAS ↔ Supabase(Tokyo) 間のレイテンシが全ページに乗る。体感が遅い場合はここを最初に疑う
 - ログは 10MB × 3 世代でローテーションする設定（`docker-compose.yml`）
+
+### 8.0 Gmail の定期同期
+
+連携した Gmail は放っておくと取り込まれない。NAS のタスクスケジューラから
+`/api/gmail/sync` を叩いて差分を取り込む。
+
+**アプリのコンテナはポートを公開していない**ので、外から到達する経路は無い。
+`docker exec` でコンテナの中から叩く。
+
+| 項目 | 値 |
+|---|---|
+| 種類 | ユーザー定義スクリプト |
+| 実行ユーザー | root（`docker` コマンドの実行に必要） |
+| スケジュール | 15 分ごと |
+
+登録するコマンド（`$GMAIL_SYNC_CRON_SECRET` は `.env` から読ませ、
+スクリプトに値を直書きしない）:
+
+```bash
+cd /volume1/docker/iterra-hub
+set -a; . ./.env; set +a
+docker exec iterra-hub-app wget -qO- --post-data=''   --header="Authorization: Bearer $GMAIL_SYNC_CRON_SECRET"   http://127.0.0.1:3000/api/gmail/sync
+```
+
+**間隔を 15 分にする理由。** Gmail の `historyId`（差分同期の起点）は数日で失効する。
+15 分ならまず当たらない。API の消費も 1 回あたり数リクエストで、割り当てに対して
+桁違いに余裕がある。
+
+**戻り値の読み方。** 正常時は取り込み件数の JSON が返る。タスクの実行ログに残るので
+「動いているが 0 件」と「落ちている」を区別できる。
+
+| 応答 | 意味 | 対処 |
+|---|---|---|
+| `{"connections":n,"recorded":n,...}` | 正常 | — |
+| `{"skipped":true,...}`（409） | 前回の同期が実行中 | 次の実行に任せる。頻発するなら間隔を延ばす |
+| `{"error":"認証に失敗しました"}`（401） | 合言葉が違う | `.env` の値と Bitwarden を突き合わせる |
+| `{"error":"定期同期は無効です..."}`（503） | `GMAIL_SYNC_CRON_SECRET` 未設定 | `.env` に設定してコンテナを再起動 |
+| `results[].error` に文言 | その連携だけ失敗 | プロフィール画面の連携欄にも同じ理由が出る。「連携の承認が失効」なら再連携 |
+
+1 つの連携が失敗しても他は続行する。全体は止まらない。
 
 ### 8.1 死活監視
 

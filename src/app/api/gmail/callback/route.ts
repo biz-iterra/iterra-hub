@@ -5,13 +5,13 @@
  * 暗号化はアプリ側で済ませ、DB へはバイト列だけを渡す（鍵を DB に送らない）。
  */
 
-import { timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getGmailConfig, gmailRedirectUri, GMAIL_SCOPE } from "@/lib/gmail/config";
 import { exchangeCode, getProfile } from "@/lib/gmail/client";
 import { encryptToken, toByteaLiteral } from "@/lib/gmail/crypto";
+import { safeEqual } from "@/lib/gmail/secret";
 import { OAUTH_STATE_COOKIE } from "../auth/route";
 
 export async function GET(request: NextRequest) {
@@ -125,12 +125,4 @@ export async function GET(request: NextRequest) {
   } catch (e) {
     return back(e instanceof Error ? e.message : "連携に失敗しました");
   }
-}
-
-/** state の比較。長さが違うと timingSafeEqual が例外を投げるので先に見る */
-function safeEqual(a: string, b: string): boolean {
-  const bufA = Buffer.from(a);
-  const bufB = Buffer.from(b);
-  if (bufA.length !== bufB.length) return false;
-  return timingSafeEqual(bufA, bufB);
 }

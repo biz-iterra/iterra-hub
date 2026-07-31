@@ -938,7 +938,27 @@ bash scripts/setup-staging.sh
 
 スクリプトは「STG へリンク → `db push` → seed 投入 → **本番リンクへ復帰**」を行う。
 途中で失敗しても `trap` で本番リンクへ戻すため、STG を向いたまま本番へ `db push` する事故は起きない。
-最後に件数を表示するので、**`leads=0`**（実業務データが入っていないこと）を必ず確認する。
+
+投入順は依存関係で決まっている。**入れ替えないこと。**
+
+| 順 | seed | 再実行 | 備考 |
+|---|---|---|---|
+| 1 | `seeds/01-masters.sql` | **不可** | `ON CONFLICT` が無く重複キーで失敗する |
+| 2 | `seed-talent-classification.sql` | 可 | スキル体系。**3 より先に入れる必要がある** |
+| 3 | `seeds/02-dev-users.sql` | 可 | `ON CONFLICT` あり |
+| 4 | `seeds/03-dev-samples.sql` | **不可** | `talent_skills` が `skills` を `skill_code` で引くため 2 に依存 |
+
+途中で失敗した分だけ流し直す場合はファイル名を引数で渡す。
+
+```bash
+bash scripts/setup-staging.sh seed-talent-classification.sql 03-dev-samples.sql
+```
+
+最後に件数が出るので次を確認する。
+
+- **`leads=0`** — 実業務データが入っていないこと
+- **`skills>0`** — 0 だと 4 が `talent_skills` で必ず失敗する
+- **`deals>0` / `talent_skills>0`** — サンプルデータが入ったこと
 
 ### 10.3 GitHub Environment `staging` の更新
 

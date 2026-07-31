@@ -63,7 +63,7 @@ Environment に無いときへ静かにフォールバックし、分離でき�
 `environment: staging` のジョブを回すと、リポジトリレベルに残った**本番の値**へ静かに
 フォールバックし、STG のつもりで本番 DB を触ってしまう。
 
-### NAS — `/volume1/docker/iterra-hub/.env`（2 件）
+### NAS — `/volume1/docker/iterra-hub/.env`（6 件）
 
 `docker-compose.yml` がコンテナ実行時に読む。ファイルは `chmod 600`。
 
@@ -71,6 +71,10 @@ Environment に無いときへ静かにフォールバックし、分離でき�
 |---|---|---|---|
 | `nas/iterra-hub:production/SUPABASE_SERVICE_ROLE_KEY` | `createAdminClient()` 経由の RLS バイパス処理（リードのバルク更新・スコア再計算） | Supabase → Settings → API Keys → Secret keys | **GitHub Secrets には登録しない**（ビルドに不要。漏洩面を増やさない） |
 | `nas/iterra-hub:production/CLOUDFLARE_TUNNEL_TOKEN` | `cloudflared` の Tunnel 接続 | Cloudflare Zero Trust → Networks → Tunnels の `--token` の値 | コマンド全体ではなくトークン部分のみ。プレースホルダの山括弧混入で `not valid` になる事故あり |
+| `nas/iterra-hub:production/HOUJIN_BANGOU_APP_ID` | 法人情報の実在確認（国税庁 法人番号 Web-API） | https://www.houjin-bangou.nta.go.jp/webapi/ の利用申請 | 無償。未設定でも起動は通り、画面に「未設定」と出るだけ |
+| `nas/iterra-hub:production/GOOGLE_OAUTH_CLIENT_ID` | Gmail 連携の OAuth クライアント | Google Cloud → APIs & Services → 認証情報 → OAuth 2.0 クライアント ID（ウェブアプリケーション） | 秘密値ではない（同意画面で利用者に見える）が、シークレットと組で管理するため同じ場所に置く |
+| `nas/iterra-hub:production/GOOGLE_OAUTH_CLIENT_SECRET` | 同上 | 同上 | 再発行すると既存の連携が切れる |
+| `nas/iterra-hub:production/GMAIL_TOKEN_ENCRYPTION_KEY` | リフレッシュトークンの暗号化鍵（pgcrypto） | `openssl rand -base64 48` で自分で生成 | **変更・紛失すると保存済みトークンを復号できず全員が再連携になる**。ローテーション時は再連携の案内とセットで |
 
 `IMAGE_TAG` は切り戻し時のみ使う運用値で、秘密値ではないため登録対象外。
 

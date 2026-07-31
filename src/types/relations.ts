@@ -156,6 +156,8 @@ export type CompanyDetail = Row<"companies"> & {
     "id" | "major_name" | "middle_name" | "minor_name"
   > | null;
   crm_users: UserRef | null;
+  /** 実在確認を行った担当者（verified_by） */
+  verifier: UserRef | null;
   primary_contact: Ref<
     "contacts",
     "id" | "contact_code" | "last_name" | "first_name"

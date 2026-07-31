@@ -78,6 +78,7 @@ export async function getCompany(id: string): Promise<ActionResult<CompanyDetail
       company_status:company_statuses(id, name, color),
       industry_classifications(id, major_name, middle_name, minor_name),
       crm_users!companies_owner_user_id_fkey(id, full_name),
+      verifier:crm_users!companies_verified_by_fkey(id, full_name),
       primary_contact:contacts!companies_primary_contact_id_fkey(id, contact_code, last_name, first_name),
       accounts(id, account_code, name, deleted_at),
       contacts!contacts_company_id_fkey(id, contact_code, last_name, first_name, department, job_title, deleted_at),

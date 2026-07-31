@@ -209,7 +209,32 @@ export default async function CompanyDetailPage({
                     : "未確認"
                 }
               />
+              <InfoField label="確認者" value={company.verifier?.full_name} />
+              <InfoField
+                label="ステータス更新日"
+                value={formatDate(company.status_updated_at)}
+              />
               <InfoField label="確認メモ" value={company.verification_note} full />
+              <InfoField
+                label="登記事項証明書URL"
+                full
+                value={
+                  company.registration_certificate_url ? (
+                    <a
+                      href={company.registration_certificate_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        color: "var(--color-terra)",
+                        textDecoration: "underline",
+                        wordBreak: "break-all",
+                      }}
+                    >
+                      {company.registration_certificate_url}
+                    </a>
+                  ) : null
+                }
+              />
             </div>
           </DetailSection>
 

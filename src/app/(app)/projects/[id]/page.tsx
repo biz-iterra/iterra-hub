@@ -156,6 +156,16 @@ export default async function ProjectDetailPage({
                 label="作成日"
                 value={project.created_at ? new Date(project.created_at).toLocaleDateString("ja-JP") : null}
               />
+              {/* いつからこの状態かが分からないと、保留・中止の判断が追えない */}
+              <InfoItem
+                label="ステータス更新日"
+                value={
+                  project.status_updated_at
+                    ? new Date(project.status_updated_at).toLocaleDateString("ja-JP")
+                    : null
+                }
+              />
+              <InfoItem label="有効" value={project.is_active ? "有効" : "無効"} />
               {project.description && (
                 <div style={{ gridColumn: "1 / -1" }}>
                   <span

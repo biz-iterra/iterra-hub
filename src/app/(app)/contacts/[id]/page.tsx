@@ -153,7 +153,8 @@ export default async function ContactDetailPage({
               margin: 0,
             }}
           >
-            {c.last_name} {c.first_name ?? ""}
+            {/* ミドルネームを落とすと外国人名が別人の表記になる */}
+            {[c.last_name, c.middle_name, c.first_name].filter(Boolean).join(" ")}
           </h1>
           <Link href={`/contacts/${c.id}/edit`} style={editButtonStyle}>
             <Pencil size={14} />
@@ -183,6 +184,8 @@ export default async function ContactDetailPage({
             >
               <InfoField label="姓" value={c.last_name} />
               <InfoField label="名" value={c.first_name} />
+              <InfoField label="ミドルネーム" value={c.middle_name} />
+              <InfoField label="フリガナ（ミドル）" value={c.middle_name_kana} />
               <InfoField label="フリガナ（姓）" value={c.last_name_kana} />
               <InfoField label="フリガナ（名）" value={c.first_name_kana} />
               <InfoField label="部署" value={c.department} />
@@ -212,6 +215,31 @@ export default async function ContactDetailPage({
                     <EntityLink href={`/companies/${c.company.id}`}>
                       {c.company.name}
                     </EntityLink>
+                  ) : null
+                }
+              />
+              {/* いつからこの状態かが分からないと、休眠・退職の判断が追えない */}
+              <InfoField
+                label="ステータス更新日"
+                value={formatDate(c.status_updated_at)}
+              />
+              <InfoField
+                label="個人サイトURL"
+                full
+                value={
+                  c.website_url ? (
+                    <a
+                      href={c.website_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        color: "var(--color-terra)",
+                        textDecoration: "underline",
+                        wordBreak: "break-all",
+                      }}
+                    >
+                      {c.website_url}
+                    </a>
                   ) : null
                 }
               />

@@ -13,6 +13,15 @@ import { InfoField } from "@/components/ui/InfoField";
 import { EntityLink } from "@/components/ui/EntityLink";
 import { LabelBadge } from "@/components/ui/badges";
 
+/** ステータス更新日の表示。時刻までは要らないので日付だけ出す */
+function formatDate(value: string | null | undefined): string {
+  if (!value) return "—";
+  const d = new Date(value);
+  return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, "0")}/${String(
+    d.getDate()
+  ).padStart(2, "0")}`;
+}
+
 const formatCurrency = (amount: number | null | undefined) => {
   if (amount == null) return "—";
   return new Intl.NumberFormat("ja-JP", {
@@ -212,6 +221,11 @@ export default async function AccountDetailPage({
               <InfoField label="種別" value={a.account_type?.name} />
               <InfoField label="ステータス" value={a.account_status?.name} />
               <InfoField label="リードソース" value={a.lead_source?.name} />
+              {/* いつからこの状態かが分からないと、休眠・解約の判断が追えない */}
+              <InfoField
+                label="ステータス更新日"
+                value={formatDate(a.status_updated_at)}
+              />
               <InfoField
                 label="区分"
                 full

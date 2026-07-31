@@ -5,7 +5,8 @@
 import { createClient } from "@supabase/supabase-js";
 
 const URL = "http://127.0.0.1:54331";
-const ANON = process.env.SUPABASE_ANON_KEY || "";
+// 変数名は .env.local.example と揃える（どこにも定義の無いキー名を増やさない）
+const ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 if (!KEY || !ANON) { console.error("KEYS missing"); process.exit(1); }
 

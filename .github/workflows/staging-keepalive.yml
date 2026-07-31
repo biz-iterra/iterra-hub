@@ -1,0 +1,62 @@
+name: Staging Keepalive
+
+# Supabase Free プランは 1 週間アクセスが無いプロジェクトを自動で一時停止する。
+# 本番は db-backup.yml の日次実行が結果的に keepalive になっているが、
+# STG は使用頻度が低く放置すると必ず停止するため、週 2 回だけ疎通させる。
+#
+# 停止すると「使いたい時に必ず止まっている」状態になり、復帰に数分かかる。
+# 1 回あたり十数秒なので Actions の無料枠への影響は無視できる。
+
+on:
+  schedule:
+    # UTC 21:00 = JST 翌 06:00。月・木（7 日の閾値に対して余裕を持たせる）
+    - cron: "0 21 * * 1,4"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    # Secret は Environment に集約する。台帳: docs/secrets-management.md
+    environment: staging
+
+    steps:
+      - name: STG Supabase へ疎通
+        env:
+          SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "::error::Environment 'staging' の Secret が未設定です"
+            exit 1
+          fi
+
+          # PostgREST のルートは OpenAPI スキーマを DB から生成して返すため、
+          # 単なる HTTP 疎通ではなく DB へのアクセスとして記録される。
+          for i in 1 2 3; do
+            CODE=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 30 \
+              -H "apikey: $SUPABASE_ANON_KEY" "$SUPABASE_URL/rest/v1/" || echo 000)
+
+            if [ "$CODE" = "200" ]; then
+              echo "✅ STG 稼働中 (HTTP $CODE)"
+              echo "### STG keepalive 成功" >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+
+            echo "試行 $i 失敗 (HTTP $CODE)"
+            [ "$i" -lt 3 ] && sleep 20
+          done
+
+          {
+            echo "### STG keepalive 失敗"
+            echo ""
+            echo "| HTTP | 意味 | 対処 |"
+            echo "|---|---|---|"
+            echo "| 000 | 到達不可 | プロジェクトが一時停止している可能性。ダッシュボードから再開 |"
+            echo "| 401 | キー不一致 | Environment \`staging\` の ANON_KEY を確認 |"
+            echo "| 404 | URL 誤り | Environment \`staging\` の SUPABASE_URL を確認 |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          echo "::error::STG への疎通が 3 回連続で失敗しました（HTTP $CODE）"
+          exit 1

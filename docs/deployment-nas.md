@@ -271,19 +271,37 @@ node scripts/remap-lead-owners.mjs --out ./04-leads-prod.sql --map <旧UUID>=<�
 
 | 登録先 | 用途 | 件数 |
 |---|---|---|
-| GitHub リポジトリの Secrets | CI（イメージビルド・日次バックアップ） | 3 |
+| GitHub Environment `production` の Secrets | CI（イメージビルド・日次バックアップ） | 3 |
 | NAS の `.env` | コンテナ実行時 | 2 |
 | NAS の `docker login` | GHCR からの pull | 1（保存しない） |
 
-### 1.1 GitHub Secrets
+**値の正本は Bitwarden Secrets Manager（プロジェクト `iterra-hub`）。**
+ここに挙げた登録先はすべて転記先で、値の再確認・ローテーションは Bitwarden を起点に行う。
+キー名と転記先の対応表は `docs/secrets-management.md`（台帳）、
+全プロジェクト共通の原則は `~/.claude/docs/secrets-policy.md` を参照。
 
-登録場所: GitHub → `biz-iterra/iterra-hub` → **Settings → Secrets and variables → Actions → New repository secret**
+### 1.1 GitHub Secrets（Environment: production）
+
+登録場所: GitHub → `biz-iterra/iterra-hub` → **Settings → Environments → `production` → Add environment secret**
+
+Environment は `production` と `staging` の 2 つ。**同じ値でも両方に登録する**
+（片方だけ更新して食い違う事故を防ぐため。共通方針④）。
+
+**リポジトリレベル（Settings → Secrets and variables → Actions）には登録しない。**
+Environment に無い Secret はリポジトリレベルへ静かにフォールバックするため、
+両方に置くと「分離できているつもりで実は古い値で動いていた」という事故になる。
+`staging` が未登録のままリポジトリレベルに本番の値が残っていると、
+**STG のつもりで本番 DB を触る**ことになるので特に危険。
+参照側のジョブには `environment: production` を指定済み（`docker-publish.yml` / `db-backup.yml`）。
 
 | Secret 名 | 発行元 | 備考 |
 |---|---|---|
-| `NEXT_PUBLIC_SUPABASE_URL` | Supabase → Settings → **API** → Project URL | `https://<ref>.supabase.co`。ローカルの `.env.local` にある値と同じ |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase → Settings → **API Keys** → Publishable key<br>（旧方式なら Legacy API Keys タブの `anon public`） | ブラウザに配布される公開値。`.env.local` の値と同じ |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase → Settings → **API** → Project URL | `https://<ref>.supabase.co`。**公開値** |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase → Settings → **API Keys** → Publishable key<br>（旧方式なら Legacy API Keys タブの `anon public`） | ブラウザに配布される**公開値**（RLS 前提の設計）。Secret key と取り違えないこと |
 | `SUPABASE_DB_PASSWORD` | Database → Settings → Reset database password | **パスワードのみ**を登録する（接続文字列ではない） |
+
+いずれも本番 Supabase の値。ローカル `.env.local` はローカル Supabase の別プロジェクトを指すため、
+値は一致しない（`npx supabase status` から転記する）。
 
 > **接続文字列を Secret にしないこと。** パスワードに `@ & # / : ?` が含まれると
 > URL のパースが崩れ、`could not translate host name "pZ...@aws-0-..."` のように
@@ -303,15 +321,31 @@ node scripts/remap-lead-owners.mjs --out ./04-leads-prod.sql --map <旧UUID>=<�
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase → Settings → **API Keys** → Secret keys<br>（旧方式なら Legacy API Keys タブの `service_role`） | **RLS をバイパスする。GitHub Secrets には登録しない**（ビルドに不要かつ漏洩面を増やさないため） |
 | `CLOUDFLARE_TUNNEL_TOKEN` | Cloudflare Zero Trust → Networks → Tunnels → 作成時に表示される `--token` の値 | `eyJ...` で始まる長い文字列。**新規に発行が必要** |
 
-### 1.3 GHCR へのログイン用トークン（ファイルに保存しない）
+この 2 件も Bitwarden に `nas/iterra-hub:production/<キー名>` として登録する（正本）。
+手元に NAS 用 `.env` の複製を増やさないこと。NAS へ再投入する値は Bitwarden から取り直す。
+
+### 1.3 GHCR へのログイン用トークン（`.env` には書かない）
 
 リポジトリが private のためイメージも private。NAS から pull するのに必要。
 
 | 項目 | 内容 |
 |---|---|
-| 発行元 | GitHub → Settings → Developer settings → **Personal access tokens → Tokens (classic)** → Generate new token |
-| 必要スコープ | `read:packages` のみ |
+| 発行元 | GitHub → Settings → Developer settings → **Personal access tokens → Tokens (classic)** → Generate new token (classic) |
+| 種別 | **classic 必須。** fine-grained PAT は ghcr.io に対応していない |
+| トークン名（Note） | `iterra-hub nas:production GHCR pull`（使用場所がそのまま分かる名前） |
+| Expiration | **1 年**。無期限にしない（期限切れが棚卸しの契機になる） |
+| 必要スコープ | **`read:packages` のみ。** GHCR はパッケージ側で権限を持つため private リポジトリでも `repo` は不要 |
 | 使い方 | NAS 上で `docker login`（§5.2）。`.env` には書かない |
+| Bitwarden | `nas/iterra-hub:production/GHCR_PULL_TOKEN`。メモ欄にトークン名・スコープ・**有効期限**を記録する（失効すると `docker compose pull` が 401 で落ちる） |
+
+期限を後から確認するコマンド（値は表示されない）:
+
+```bash
+read -rsp 'GHCR PAT: ' GHCR_PAT; echo
+curl -sSI -H "Authorization: token $GHCR_PAT" https://api.github.com/user \
+  | grep -i 'github-authentication-token-expiration'
+unset GHCR_PAT
+```
 
 ### 1.4 イメージの配布
 
@@ -351,9 +385,11 @@ awk -F'=' '/^(NEXT_PUBLIC_SUPABASE_ANON_KEY|SUPABASE_SERVICE_ROLE_KEY)=/{v=subst
 
 | 場所 | 対象 |
 |---|---|
-| ローカル `.env.local` | 両方 |
-| GitHub Secrets | `NEXT_PUBLIC_SUPABASE_ANON_KEY`（**差し替え後はイメージの再ビルドが必要**） |
+| ローカル `.env.local` | 両方（`npx supabase status` から転記。ローカル Supabase の値） |
+| GitHub Environment `production` | `NEXT_PUBLIC_SUPABASE_ANON_KEY`（**差し替え後はイメージの再ビルドが必要**） |
 | NAS の `.env` | `SUPABASE_SERVICE_ROLE_KEY` → `docker compose up -d --force-recreate` |
+
+差し替えたら **Bitwarden 側も同時に更新する**（正本が古いままだと次のローテーションで迷子になる）。
 
 `NEXT_PUBLIC_*` はビルド時にクライアントバンドルへ焼き込まれるため、
 Secrets を変えただけでは反映されない点に注意。
@@ -482,7 +518,71 @@ Authentication → **URL Configuration**
 
 ## 5. NAS への配置
 
+### 5.0 NAS への SSH 接続
+
+以降の作業はすべて NAS（UGREEN DXP4800 GT / `192.168.10.200`）上で実行する。
+
+#### 有効化
+
+UGOS Pro の管理画面 → **コントロールパネル → ターミナル**（環境により「端末と SNMP」）で
+**SSH を有効化**する。ポートは既定の 22 のままでよい。
+
+**SSH をインターネットへ公開しないこと。** 本構成は Cloudflare Tunnel の outbound 接続だけで
+成立しており、ルーターのポート開放は一切不要（§構成）。SSH は LAN 内からのみ使う。
+
+#### 鍵認証にする（推奨）
+
+作業 PC（Windows）側で鍵を作り、公開鍵を NAS に登録する。
+
+```powershell
+ssh-keygen -t ed25519 -C "iterra-hub nas"      # パスフレーズを設定する
+```
+
+```powershell
+# NAS_USER に NAS の管理者ユーザー名を入れる
+$NAS_USER = ""
+Get-Content "$env:USERPROFILE\.ssh\id_ed25519.pub" |
+  ssh "$NAS_USER@192.168.10.200" "mkdir -p ~/.ssh && chmod 700 ~/.ssh && cat >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
+```
+
+鍵でログインできることを確認してから、管理画面でパスワード認証を無効化する。
+
+#### 接続
+
+```powershell
+ssh nas-user@192.168.10.200      # nas-user は実際のユーザー名に置き換える
+```
+
+`~/.ssh/config` に登録しておくと `ssh iterra-nas` で繋がる。
+
+```
+Host iterra-nas
+  HostName 192.168.10.200
+  User nas-user
+  IdentityFile ~/.ssh/id_ed25519
+```
+
+#### 接続後の確認
+
+```bash
+docker version                   # 権限エラーなら sudo docker で実行する
+ls -ld /volume1/docker           # 作業先の存在確認
+```
+
+`permission denied` が出る場合は各コマンドを `sudo` 付きで実行する
+（以降の `docker` / `docker compose` も同様）。
+
+#### 作業時の注意（シークレット）
+
+- **シークレットを引数やヒアドキュメントで直接渡さない。** シェル履歴（`~/.bash_history`）に残る。
+  値の入力は `vi` か `read -rs` を使う（§5.1・§5.2）
+- **`.env` を作業 PC から scp しない。** 値の正本は Bitwarden。NAS 上で直接作成する
+- 作業後に履歴を確認する: `grep -c 'sb_secret\|eyJ' ~/.bash_history`（0 であること）
+
 ### 5.1 ディレクトリと設定ファイル
+
+`docker-compose.yml` はリポジトリからコピーする。`.env` は**転記せず NAS 上で作成し**、
+値は Bitwarden（`nas/iterra-hub:production/*`）から入力する。
 
 ```bash
 mkdir -p /volume1/docker/iterra-hub
@@ -493,12 +593,36 @@ vi .env   # SUPABASE_SERVICE_ROLE_KEY と CLOUDFLARE_TUNNEL_TOKEN を設定
 chmod 600 .env
 ```
 
-### 5.2 GHCR へのログイン
-
-GitHub で `read:packages` 権限の Personal Access Token を発行し、NAS 上で:
+貼り付け事故の検証（山括弧が残っていないか。値は表示されない）:
 
 ```bash
-echo "<PAT>" | docker login ghcr.io -u <GitHubユーザー名> --password-stdin
+grep -c '[<>]' .env              # 0 であること
+awk -F= '{print $1": "length($2)"文字"}' .env    # キーごとの桁数だけ確認
+```
+
+### 5.2 GHCR へのログイン
+
+トークンの発行手順は §1.3。NAS 上で次を実行する。
+**トークンをコマンドラインに直接書かない**（シェル履歴に残るため `read -rs` で受け取る）。
+
+```bash
+GH_USER=biz-iterra
+read -rsp 'GHCR PAT: ' GHCR_PAT; echo
+echo "$GHCR_PAT" | docker login ghcr.io -u "$GH_USER" --password-stdin
+unset GHCR_PAT
+```
+
+検証:
+
+```bash
+docker pull ghcr.io/biz-iterra/iterra-hub:latest
+```
+
+`docker login` は認証情報を `~/.docker/config.json` に **base64 で保存する（暗号化ではない）**。
+`.env` に書かないだけで、ファイルには残る点に注意する。
+
+```bash
+chmod 600 ~/.docker/config.json
 ```
 
 ### 5.3 起動
@@ -527,8 +651,14 @@ docker image prune -f      # 古いイメージの掃除
 
 GHCR のタグ一覧から戻したいコミット SHA を確認し、`.env` に指定する。
 
+山括弧のプレースホルダを `.env` に書き込まないこと
+（`CLOUDFLARE_TUNNEL_TOKEN` に `<>` が残って Tunnel が起動しなかった事故がある。§0 のトラブル一覧）。
+変数に入れてから追記し、書けた内容を必ず読み返す。
+
 ```bash
-echo "IMAGE_TAG=sha-<コミットSHA>" >> .env
+SHA=                                  # 戻したいコミット SHA を入れる
+echo "IMAGE_TAG=sha-$SHA" >> .env
+grep '^IMAGE_TAG=' .env               # 検証: 山括弧が無く SHA が入っていること
 docker compose up -d
 ```
 
@@ -755,3 +885,89 @@ Cloudflare の Health Checks は Pro プラン以上の機能なので、無料�
 | ヘルスチェックが Access のログイン画面を返す | Access の Bypass ポリシー（§3-4） |
 | `docker compose pull` が 401 | GHCR のログイン（§5.2）。PAT の有効期限も確認 |
 | コンテナが unhealthy を繰り返す | `docker compose logs app`。環境変数の未設定が多い |
+
+---
+
+## 10. STG 環境（Supabase）
+
+本番と同じスキーマで検証するための staging 環境。**アプリの実行環境は無く、Supabase のみ**
+（NAS 上に STG コンテナは置かない。必要になった時点で別途検討する）。
+
+| 項目 | 内容 |
+|---|---|
+| 組織 | `iterra`（`zvirytyjijykmekbrwvd`） |
+| リージョン | `ap-northeast-1`（本番と同じ Tokyo） |
+| プロジェクト名 | `iterra-hub-stg` |
+| 投入データ | `01-masters` + `02-dev-users` + `03-dev-samples`。**実業務データ（`04-leads.sql`）は入れない** |
+| Secrets | GitHub Environment `staging`（台帳: `docs/secrets-management.md`） |
+
+### 10.1 プロジェクトの作成（ユーザー作業）
+
+DB パスワードを扱うため手作業で行う。**先に Bitwarden でパスワードを生成**し、
+`gh/env:staging/SUPABASE_DB_PASSWORD` を新しい値に更新してから作成する
+（正本を先に作る。共通方針セクション 9）。
+
+```bash
+# STG_DB_PASSWORD は Bitwarden で生成した値。履歴に残さないため read -rs で受け取る
+read -rsp 'STG DB パスワード: ' STG_DB_PASSWORD; echo
+npx supabase projects create iterra-hub-stg \
+  --org-id zvirytyjijykmekbrwvd \
+  --region ap-northeast-1 \
+  --db-password "$STG_DB_PASSWORD"
+unset STG_DB_PASSWORD
+```
+
+作成後、ref を控える（秘密値ではない）。
+
+```bash
+npx supabase projects list | tr ',' '\n' | grep -A1 iterra-hub-stg
+```
+
+**Free プランはアクティブ 2 プロジェクトまで。** 現在 `iterra-hub`（ACTIVE）と
+`subscription-management-app`（INACTIVE）があり、STG を足すとアクティブ 2 でちょうど上限になる。
+3 つ目をアクティブにしたくなったら、いずれかを一時停止するか有料プランを検討する。
+
+### 10.2 マイグレーションと seed（スクリプト）
+
+ローカル Supabase を起動した状態で実行する（psql をコンテナ経由で使うため）。
+
+```bash
+npx supabase start
+bash scripts/setup-staging.sh
+```
+
+スクリプトは「STG へリンク → `db push` → seed 投入 → **本番リンクへ復帰**」を行う。
+途中で失敗しても `trap` で本番リンクへ戻すため、STG を向いたまま本番へ `db push` する事故は起きない。
+最後に件数を表示するので、**`leads=0`**（実業務データが入っていないこと）を必ず確認する。
+
+### 10.3 GitHub Environment `staging` の更新
+
+プロジェクト作成後、STG 実物の値へ差し替える。Bitwarden を先に更新してから GitHub へ転記する。
+
+| キー | 値の取得元 |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | STG プロジェクト → Settings → API → Project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | STG プロジェクト → Settings → API Keys → Publishable key |
+| `SUPABASE_DB_PASSWORD` | 10.1 で生成した値 |
+
+差し替えが済むと台帳の「同値グループ」は解消される（production と STG で値が別になるため）。
+
+### 10.4 自動一時停止への対策
+
+Free プランは 1 週間アクセスが無いと一時停止する。
+`.github/workflows/staging-keepalive.yml` が **月・木の JST 06:00** に PostgREST へ疎通して防ぐ。
+
+- 手動実行: `gh workflow run staging-keepalive.yml`
+- 失敗したら STG が停止している可能性が高い。ダッシュボードから再開する
+
+### 10.5 STG のテストユーザーについて
+
+`02-dev-users.sql` は共通パスワード `password123` のユーザーを作る。
+**STG の Supabase はインターネットから到達可能**なため、以下を前提に運用する。
+
+- STG に実顧客データを置かない（`04-leads.sql` を投入しない理由）
+- 本番と同じパスワードを使わない
+- 検証以外の用途で STG に情報を入れない
+
+より強い分離が必要になったら、STG のユーザーだけパスワードを変更する
+（`02-dev-users.sql` は開発環境用のため、STG 用の派生 seed を別途用意する）。

@@ -15,6 +15,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
+    # Secret は Environment に集約する。台帳: docs/secrets-management.md
+    environment: production
+
     steps:
       # Supabase は PostgreSQL 17。runner 既定の client ではバージョン差で失敗するため明示導入する
       - name: PostgreSQL 17 クライアントを導入

@@ -118,6 +118,23 @@ npm run typecheck && npm test && npm run build
 `npm run lint` は既存負債（`no-explicit-any` 等 216 件）が残っているため CI では失敗させていない。
 新規コードでは増やさないこと。
 
+### シークレット管理（必須遵守）
+
+方針の正本は `~/.claude/docs/secrets-policy.md`（全プロジェクト共通）、
+本リポジトリのキー名と転記先の対応は `docs/secrets-management.md`（台帳）。
+シークレットを追加・確認・移行する作業の前に必ず両方を参照する。要点:
+
+- **値の正本は Bitwarden Secrets Manager**（プロジェクト名 `iterra-hub`）。
+  GitHub Environment / NAS の `.env` / ローカル `.env.local` はすべて転記先
+- **GitHub Secrets は Environment（`production` / `staging`）に置く。リポジトリレベルは 0 件。**
+  Environment に無い Secret はリポジトリレベルへ静かにフォールバックするため重複を残さない。
+  **同じ値でも環境ごとに別エントリで登録する**（片方だけ更新して食い違う事故を防ぐ）
+- **シークレットはコードに書かない。** 実行時に `process.env` / `os.environ` から読む
+- `.env` など実値を含むファイルは読まない。必要なのは常にキー名で、`.env.example` と台帳で足りる
+- `NEXT_PUBLIC_*` に秘密値を入れない（クライアントバンドルへ焼き込まれる）。
+  RLS をバイパスする `SUPABASE_SERVICE_ROLE_KEY` は必ずサーバー側の変数名のまま扱う
+- シークレットを 1 つ増やすときは「Bitwarden へ登録 → 転記先へ登録 → 参照側の実装を確認 → 台帳に追記」の順
+
 ## アクセス制御ルール（必須遵守）
 
 ### 多層防御の原則

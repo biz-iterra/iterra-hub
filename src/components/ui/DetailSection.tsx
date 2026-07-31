@@ -22,7 +22,12 @@ const headingRowStyle: CSSProperties = {
   margin: "0 0.25rem 0.5rem",
 };
 
-const headingStyle: CSSProperties = {
+/**
+ * セクション見出しのスタイル。
+ * カードを持たない見出し（一覧やタブ直下など、children が単一カードにならない箇所）でも
+ * 字送りを揃えられるよう公開する。DetailSection が使える場所ではそちらを優先すること。
+ */
+export const detailHeadingStyle: CSSProperties = {
   display: "flex",
   alignItems: "center",
   gap: "0.5rem",
@@ -32,6 +37,8 @@ const headingStyle: CSSProperties = {
   fontWeight: 700,
   letterSpacing: "0.02em",
 };
+
+const headingStyle = detailHeadingStyle;
 
 const defaultCardStyle: CSSProperties = {
   backgroundColor: "var(--color-bg-surface)",

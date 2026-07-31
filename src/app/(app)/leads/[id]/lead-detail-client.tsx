@@ -31,7 +31,7 @@ import {
   ActivityTypeBadge,
 } from "@/components/ui/badges";
 import { useToast } from "@/components/ui/toast";
-import { DetailSection } from "@/components/ui/DetailSection";
+import { DetailSection, detailHeadingStyle } from "@/components/ui/DetailSection";
 import type {
   LeadActivityWithRelations,
   LeadDetail,
@@ -1383,14 +1383,8 @@ export function LeadDetailClient({
       {activeTab === "customer_activities" && (
         <div>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
-            <h2
-              style={{
-                color: "var(--color-text-title)",
-                fontSize: "1rem",
-                fontWeight: 600,
-                margin: 0,
-              }}
-            >
+            {/* children が単一カードにならないため DetailSection は使わず、見出しの体裁だけ揃える */}
+            <h2 style={detailHeadingStyle}>
               顧客行動ログ
               {customerActivities.length > 0 && (
                 <span
@@ -1591,14 +1585,8 @@ export function LeadDetailClient({
         >
           {/* 左カラム: アクティビティ一覧（アコーディオン） */}
           <div>
-            <h2
-              style={{
-                color: "var(--color-text-title)",
-                fontSize: "1rem",
-                fontWeight: 600,
-                margin: "0 0 0.75rem 0",
-              }}
-            >
+            {/* 同上。アコーディオン一覧が続くのでカードで囲まない */}
+            <h2 style={{ ...detailHeadingStyle, marginBottom: "0.75rem" }}>
               社内対応履歴
               {activities.length > 0 && (
                 <span

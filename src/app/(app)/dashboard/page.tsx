@@ -8,6 +8,9 @@ import {
   User,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { ActivityTypeBadge } from "@/components/ui/badges";
+import { EntityLink } from "@/components/ui/EntityLink";
+import { activityEntityHref, formatOccurredAt } from "@/lib/activity";
 
 function KpiCard({
   label,
@@ -57,14 +60,6 @@ const jpyCurrency = new Intl.NumberFormat("ja-JP", {
   style: "currency",
   currency: "JPY",
 });
-
-const ACTIVITY_TYPE_LABELS: Record<string, string> = {
-  email: "メール",
-  call: "電話",
-  meeting: "打合せ",
-  visit: "訪問",
-  other: "その他",
-};
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -164,15 +159,14 @@ export default async function DashboardPage() {
     .limit(5);
 
   // ---------- 最近のアクティビティ ----------
+  // 社内対応・顧客行動・メールを横断する activity_feed から最新 5 件。
+  // ビューは security_invoker なので、見える範囲は各自が担当する分に限られる
   const { data: recentActivities, error: recentActivitiesError } = await supabase
-    .from("deal_activities")
+    .from("activity_feed")
     .select(
-      `
-      id, activity_type, subject, activity_at,
-      performer:crm_users!deal_activities_performed_by_fkey(full_name)
-    `
+      "id, source_kind, occurred_at, has_time, activity_name, activity_color, entity_type, entity_id, entity_label, actor_name"
     )
-    .order("activity_at", { ascending: false })
+    .order("occurred_at", { ascending: false })
     .limit(5);
 
   // ---------- 担当者別ディール数 ----------
@@ -442,12 +436,17 @@ export default async function DashboardPage() {
             boxShadow: "var(--elevation-low)",
           }}
         >
-          <h2
-            className="text-base font-bold mb-4"
-            style={{ color: "var(--color-text-title)" }}
-          >
-            最近のアクティビティ
-          </h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2
+              className="text-base font-bold"
+              style={{ color: "var(--color-text-title)" }}
+            >
+              最近のアクティビティ
+            </h2>
+            <EntityLink href="/activities" compact>
+              すべて見る
+            </EntityLink>
+          </div>
           {recentActivitiesError ? (
             <p className="text-sm" style={{ color: "var(--color-sumi600)" }}>
               データを取得できませんでした
@@ -471,13 +470,13 @@ export default async function DashboardPage() {
                       className="text-left px-3 py-2 font-semibold text-xs"
                       style={{ color: "var(--color-sumi600)" }}
                     >
-                      件名
+                      相手先
                     </th>
                     <th
                       className="text-left px-3 py-2 font-semibold text-xs"
                       style={{ color: "var(--color-sumi600)" }}
                     >
-                      対応者
+                      担当者
                     </th>
                     <th
                       className="text-left px-3 py-2 font-semibold text-xs"
@@ -490,43 +489,35 @@ export default async function DashboardPage() {
                 <tbody>
                   {recentActivities.map((act) => (
                     <tr
-                      key={act.id}
+                      // id は記録元テーブルの ID。テーブルをまたぐと衝突しうる
+                      key={`${act.source_kind}:${act.id}`}
                       style={{
                         borderBottom: "1px solid var(--color-border-default)",
                       }}
                     >
-                      <td className="px-3 py-2">
-                        <span
-                          className="inline-block px-2 py-0.5 rounded text-xs font-medium"
-                          style={{
-                            backgroundColor: "var(--color-sumi50)",
-                            color: "var(--color-terra)",
-                          }}
-                        >
-                          {ACTIVITY_TYPE_LABELS[act.activity_type] ??
-                            act.activity_type}
-                        </span>
+                      <td className="px-3 py-2 whitespace-nowrap">
+                        <ActivityTypeBadge
+                          name={act.activity_name}
+                          color={act.activity_color}
+                        />
                       </td>
-                      <td
-                        className="px-3 py-2"
-                        style={{ color: "var(--color-text-title)" }}
-                      >
-                        {act.subject ?? "—"}
+                      <td className="px-3 py-2">
+                        <EntityLink
+                          href={activityEntityHref(act.entity_type, act.entity_id)}
+                          compact
+                        >
+                          {act.entity_label}
+                        </EntityLink>
                       </td>
                       <td className="px-3 py-2" style={{ color: "var(--color-sumi600)" }}>
-                        {act.performer?.full_name ?? "—"}
+                        {act.actor_name ?? "—"}
                       </td>
                       <td
-                        className="px-3 py-2 text-xs"
+                        className="px-3 py-2 text-xs whitespace-nowrap"
                         style={{ color: "var(--color-sumi600)" }}
                       >
-                        {act.activity_at
-                          ? new Date(act.activity_at).toLocaleString("ja-JP", {
-                              month: "short",
-                              day: "numeric",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })
+                        {act.occurred_at
+                          ? formatOccurredAt(act.occurred_at, act.has_time)
                           : "—"}
                       </td>
                     </tr>

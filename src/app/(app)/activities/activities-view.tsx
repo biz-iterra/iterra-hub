@@ -10,41 +10,20 @@ import { FilterSelect } from "@/components/ui/FilterSelect";
 import { FilterGroup, FilterClearButton } from "@/components/ui/FilterGroup";
 import { Pagination } from "@/components/ui/Pagination";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants/pagination";
+import {
+  ACTIVITY_SOURCE_LABELS,
+  activityEntityHref,
+  formatOccurredAt,
+} from "@/lib/activity";
 import type {
   ActivityFeedRow,
   ActivityFeedSourceKind,
   UserRef,
 } from "@/types/relations";
 
-/** 記録元の表示名。ビューの source_kind と 1:1 */
-const SOURCE_LABELS: Record<ActivityFeedSourceKind, string> = {
-  lead_activity: "社内対応",
-  lead_customer_activity: "顧客行動",
-  email: "メール",
-};
-
 const SOURCE_OPTIONS = (
-  Object.keys(SOURCE_LABELS) as ActivityFeedSourceKind[]
-).map((k) => ({ value: k, label: SOURCE_LABELS[k] }));
-
-/** 時刻を持たない記録（架電日だけの入力など）は 0:00 を出さず日付で止める */
-function formatOccurredAt(value: string, hasTime: boolean | null): string {
-  const d = new Date(value);
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  const date = `${yyyy}/${mm}/${dd}`;
-  if (hasTime === false) return date;
-  const hh = String(d.getHours()).padStart(2, "0");
-  const mi = String(d.getMinutes()).padStart(2, "0");
-  return `${date} ${hh}:${mi}`;
-}
-
-function entityHref(row: ActivityFeedRow): string {
-  return row.entity_type === "lead"
-    ? `/leads/${row.entity_id}`
-    : `/contacts/${row.entity_id}`;
-}
+  Object.keys(ACTIVITY_SOURCE_LABELS) as ActivityFeedSourceKind[]
+).map((k) => ({ value: k, label: ACTIVITY_SOURCE_LABELS[k] }));
 
 type Filters = {
   sourceKind: string;
@@ -249,7 +228,10 @@ export function ActivitiesView({
                     {row.detail || "—"}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
-                    <EntityLink href={entityHref(row)} compact>
+                    <EntityLink
+                      href={activityEntityHref(row.entity_type, row.entity_id)}
+                      compact
+                    >
                       {row.entity_label}
                     </EntityLink>
                   </td>

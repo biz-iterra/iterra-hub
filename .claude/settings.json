@@ -22,7 +22,17 @@
       "PowerShell(Get-Content .env*)",
       "PowerShell(cat .env*)",
       "PowerShell(type .env*)",
-      "PowerShell(gc .env*)"
+      "PowerShell(gc .env*)",
+      "Write(./.env)",
+      "Write(./.env.local)",
+      "Write(./.env.production)",
+      "Write(./.env.staging)",
+      "Write(./.env.nas)",
+      "Edit(./.env)",
+      "Edit(./.env.local)",
+      "Edit(./.env.production)",
+      "Edit(./.env.staging)",
+      "Edit(./.env.nas)"
     ]
   }
 }

@@ -14,6 +14,7 @@
 | `gh/env:production/` | GitHub Environment secrets（`production`） |
 | `gh/env:staging/` | GitHub Environment secrets（`staging`） |
 | `nas/iterra-hub:production/` | 自社 NAS 上の実行時シークレット（`/volume1/docker/iterra-hub/.env` と `docker login`） |
+| `local/iterra-hub:development/` | 開発機の `.env.local`。**再取得できない値のみ**（Gmail 連携など）。ローカル Supabase の値は対象外 |
 
 **同じ値でも転記先ごとに 1 エントリ**（共通方針④）。片方だけ更新して食い違う事故を防ぐため。
 同値のものが生じたらセクション 2 の「同値グループ」に記載し、まとめて更新する
@@ -84,25 +85,32 @@ Environment に無いときへ静かにフォールバックし、分離でき�
 |---|---|---|---|
 | `nas/iterra-hub:production/GHCR_PULL_TOKEN` | private な GHCR イメージの pull | GitHub → Developer settings → PAT (classic)、スコープ `read:packages` のみ | **有効期限をメモ欄に必ず記録**。失効すると NAS で `docker compose pull` が落ちる |
 
-### ローカル `.env.local`（登録対象外）
+### ローカル `.env.local`（一部のみ登録）
 
 | キー | 値の出どころ |
 |---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` / `SUPABASE_SERVICE_ROLE_KEY` | `npx supabase status` の出力 |
-| `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` | Google Cloud に**開発用として別に作った**クライアント。本番のものを手元に持ってこない |
-| `GMAIL_TOKEN_ENCRYPTION_KEY` | 自分で生成した**開発専用**の鍵。本番と同じ値にしない |
-| `HOUJIN_BANGOU_APP_ID` | 本番と同じ値でよい（読み取り専用の公開 API。無償・レート制限のみ） |
+| `local/iterra-hub:development/GOOGLE_OAUTH_CLIENT_ID` | Google Cloud に**開発用として別に作った**クライアント。本番のものを手元に持ってこない |
+| `local/iterra-hub:development/GOOGLE_OAUTH_CLIENT_SECRET` | 同上 |
+| `local/iterra-hub:development/GMAIL_TOKEN_ENCRYPTION_KEY` | 自分で生成した**開発専用**の鍵。本番と同じ値にしない |
+| `HOUJIN_BANGOU_APP_ID` | 本番と同じ値でよい（読み取り専用の公開 API。無償・レート制限のみ）。登録は本番分のみ |
+
+上 3 件は Bitwarden に登録する。`supabase status` のように再取得できる値ではなく、
+**失うと復元できない**ため（暗号鍵を失うと開発機に保存済みのトークンが読めなくなる）。
+Supabase のローカル値は引き続き登録しない。
 
 **Gmail の暗号鍵を本番と共通にしないこと。** 本番 DB をローカルへコピーしたとき、
 鍵が同じだと保存済みのリフレッシュトークンを復号でき、開発機から本番のメールを読めてしまう。
 別鍵にしておけば、コピーした時点でトークンが復号不能になり無害化される。
 
-ローカル Supabase が起動時に生成するローカル専用値で、**本番の値を一切含まない**。
-`npx supabase status` でいつでも再取得できる＝正本が別にあるため Bitwarden には登録しない。
-（共通方針セクション 2 の「ローカル `.env` は転記先」に対する明示的な例外。
-本番値をローカル `.env.local` に入れる運用に変えるなら、その時点で登録対象にする）
+Supabase の 3 つはローカル Supabase が起動時に生成する専用値で、**本番の値を一切含まない**。
+`npx supabase status` でいつでも再取得できる＝正本が別にあるため Bitwarden には登録しない
+（共通方針セクション 2 の「ローカル `.env` は転記先」に対する明示的な例外）。
 
-### ローカル `.env`（NAS 用の作業コピー / STG 実行）
+**本番の値をローカル `.env.local` に入れないこと。** 開発機は本番より守りが薄く、
+入れた時点で漏洩面が広がる。ローカルで必要なものは開発用に別途発行する。
+
+### ローカル `.env`（NAS 用の作業コピー）
 
 `docker-compose.yml` を手元で扱うためのファイルで、キー構成は NAS の `.env` と同一。
 **正本は Bitwarden の `nas/iterra-hub:production/*`。** 値の再確認は必ず Bitwarden を起点にする。

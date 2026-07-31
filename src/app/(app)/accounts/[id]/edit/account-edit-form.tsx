@@ -13,6 +13,7 @@ import {
   type AssignedRole,
 } from "./account-roles-section";
 import { isFieldValidationError } from "@/lib/errors";
+import { formContainerStyle } from "@/lib/layout";
 
 type SelectOption = { value: string; label: string };
 
@@ -38,11 +39,7 @@ type Masters = {
 };
 
 const styles = {
-  container: {
-    padding: "1.5rem",
-    maxWidth: 960,
-    margin: "0 auto",
-  } as CSSProperties,
+  container: formContainerStyle,
   backLink: {
     display: "inline-flex",
     alignItems: "center",

@@ -8,6 +8,7 @@ import { createDeal } from "@/actions/deals";
 import { useToast } from "@/components/ui/toast";
 import { isFieldValidationError } from "@/lib/errors";
 import { calculateDefaultCloseDate } from "@/lib/deals/expected-close-date";
+import { formContainerStyle } from "@/lib/layout";
 
 type SelectOption = { value: string; label: string };
 type PipelineOption = SelectOption & { default_close_months: number | null };
@@ -23,11 +24,7 @@ type Masters = {
 };
 
 const styles = {
-  container: {
-    padding: "1.5rem",
-    maxWidth: 960,
-    margin: "0 auto",
-  } as CSSProperties,
+  container: formContainerStyle,
   backLink: {
     display: "inline-flex",
     alignItems: "center",

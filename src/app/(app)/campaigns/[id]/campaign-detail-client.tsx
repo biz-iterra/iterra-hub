@@ -32,6 +32,7 @@ import type {
   Row,
   UnassignedLeadRow,
 } from "@/types/relations";
+import { detailContainerStyle } from "@/lib/layout";
 
 type Tab = "basic" | "leads";
 
@@ -437,7 +438,7 @@ export function CampaignDetailClient({
   };
 
   return (
-    <div style={{ padding: "1.5rem", maxWidth: 960, margin: "0 auto" }}>
+    <div style={detailContainerStyle}>
       {/* モーダル */}
       {showModal && (
         <AttachLeadsModal

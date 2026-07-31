@@ -7,11 +7,12 @@ import { ArrowLeft, Save } from "lucide-react";
 import { createProject } from "@/actions/projects";
 import { useToast } from "@/components/ui/toast";
 import { isFieldValidationError } from "@/lib/errors";
+import { formContainerStyle } from "@/lib/layout";
 
 type SelectOption = { value: string; label: string };
 
 const styles = {
-  container: { padding: "1.5rem", maxWidth: 960, margin: "0 auto" } as CSSProperties,
+  container: formContainerStyle,
   backLink: {
     display: "inline-flex",
     alignItems: "center",

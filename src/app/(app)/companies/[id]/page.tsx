@@ -14,6 +14,7 @@ import {
 import { DetailSection } from "@/components/ui/DetailSection";
 import { InfoField } from "@/components/ui/InfoField";
 import { EntityLink } from "@/components/ui/EntityLink";
+import { detailContainerStyle } from "@/lib/layout";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -102,7 +103,7 @@ export default async function CompanyDetailPage({
     : null;
 
   return (
-    <div style={{ padding: "1.5rem", maxWidth: "1280px", margin: "0 auto" }}>
+    <div style={detailContainerStyle}>
       {/* ---- Header ---- */}
       <div style={{ marginBottom: "1.5rem" }}>
         <Link href="/companies" style={{ ...backLinkStyle, marginBottom: "0.75rem" }}>

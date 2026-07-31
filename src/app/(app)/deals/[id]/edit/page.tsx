@@ -9,6 +9,7 @@ import { getAccounts } from "@/actions/accounts";
 import { getCrmUsers, getCurrentUser } from "@/actions/users";
 import { DealEditForm } from "./deal-edit-form";
 import { DealProjectsSection } from "./deal-projects-section";
+import { formContainerStyle } from "@/lib/layout";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -141,7 +142,7 @@ export default async function DealEditPage({
         masters={masters}
         isAdmin={isAdmin}
       />
-      <div style={{ padding: "0 1.5rem 1.5rem", maxWidth: 960, margin: "0 auto" }}>
+      <div style={formContainerStyle}>
         <DealProjectsSection dealId={deal.id} initialProjects={deal.deal_projects ?? []} />
       </div>
     </>

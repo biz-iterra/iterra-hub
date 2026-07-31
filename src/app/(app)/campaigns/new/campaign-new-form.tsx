@@ -7,9 +7,10 @@ import { ArrowLeft, Save } from "lucide-react";
 import { createCampaign } from "@/actions/campaigns";
 import { useToast } from "@/components/ui/toast";
 import { isFieldValidationError } from "@/lib/errors";
+import { formContainerStyle } from "@/lib/layout";
 
 const styles = {
-  container: { padding: "1.5rem", maxWidth: 800, margin: "0 auto" } as CSSProperties,
+  container: formContainerStyle,
   backLink: {
     display: "inline-flex",
     alignItems: "center",

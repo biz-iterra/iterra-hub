@@ -14,6 +14,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import { isFieldValidationError } from "@/lib/errors";
 import type { LeadDetail } from "@/types/relations";
+import { formContainerStyle } from "@/lib/layout";
 
 type SelectOption = { value: string; label: string };
 type StatusOption = SelectOption & { stage_id: string };
@@ -456,7 +457,7 @@ export function LeadEditClient({
   };
 
   return (
-    <div style={{ padding: "1.5rem", maxWidth: 960, margin: "0 auto" }}>
+    <div style={formContainerStyle}>
       {/* 削除確認ダイアログ */}
       <ConfirmDialog
         open={deleteOpen}

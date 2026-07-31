@@ -36,6 +36,7 @@ import type {
   LeadActivityWithRelations,
   LeadDetail,
 } from "@/types/relations";
+import { detailContainerStyle } from "@/lib/layout";
 
 /** lead.customer_activities の要素（LEAD_SELECT の customer_activities に対応） */
 type LeadCustomerActivity = LeadDetail["customer_activities"][number];
@@ -880,7 +881,7 @@ export function LeadDetailClient({
   const sumDelta = scoreBreakdowns.reduce((acc, b) => acc + (b.score_delta ?? 0), 0);
 
   return (
-    <div style={{ padding: "1.5rem", maxWidth: 960, margin: "0 auto" }}>
+    <div style={detailContainerStyle}>
       {/* Back */}
       <Link
         href="/leads"

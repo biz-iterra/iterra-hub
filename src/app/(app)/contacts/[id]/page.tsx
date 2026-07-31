@@ -16,6 +16,7 @@ import { DetailSection } from "@/components/ui/DetailSection";
 import { InfoField } from "@/components/ui/InfoField";
 import { LabelBadge } from "@/components/ui/badges";
 import { EntityLink } from "@/components/ui/EntityLink";
+import { detailContainerStyle } from "@/lib/layout";
 
 function formatDate(date: string | null | undefined): string {
   if (!date) return "—";
@@ -118,7 +119,7 @@ export default async function ContactDetailPage({
     .join(" ");
 
   return (
-    <div style={{ padding: "1.5rem", maxWidth: "1280px", margin: "0 auto" }}>
+    <div style={detailContainerStyle}>
       {/* ---- Header ---- */}
       <div style={{ marginBottom: "1.5rem" }}>
         <Link href="/contacts" style={{ ...backLinkStyle, marginBottom: "0.75rem" }}>

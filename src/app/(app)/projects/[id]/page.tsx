@@ -4,6 +4,7 @@ import { ArrowLeft, ArrowUpRight, FolderKanban, Users, Handshake, Pencil, Sticky
 import { ProjectStatusBadge, PipelineBadge, StageBadge } from "@/components/ui/badges";
 import { DetailSection } from "@/components/ui/DetailSection";
 import { InfoField } from "@/components/ui/InfoField";
+import { detailContainerStyle } from "@/lib/layout";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -74,7 +75,7 @@ export default async function ProjectDetailPage({
   const totalAmount = deals.reduce((sum, d) => sum + (d.amount ?? 0), 0);
 
   return (
-    <div style={{ padding: "1.5rem", maxWidth: "1200px", margin: "0 auto" }}>
+    <div style={detailContainerStyle}>
       <div style={{ marginBottom: "1.5rem" }}>
         <Link
           href="/projects"

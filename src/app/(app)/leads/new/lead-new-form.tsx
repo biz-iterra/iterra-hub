@@ -7,6 +7,7 @@ import { ArrowLeft, Save } from "lucide-react";
 import { createLead } from "@/actions/leads";
 import { useToast } from "@/components/ui/toast";
 import { isFieldValidationError } from "@/lib/errors";
+import { formContainerStyle } from "@/lib/layout";
 
 type SelectOption = { value: string; label: string };
 type StatusOption = SelectOption & { stage_id: string };
@@ -29,7 +30,7 @@ type Masters = {
 type CurrentUser = { id: string; full_name: string; role: string };
 
 const styles = {
-  container: { padding: "1.5rem", maxWidth: 960, margin: "0 auto" } as CSSProperties,
+  container: formContainerStyle,
   backLink: {
     display: "inline-flex",
     alignItems: "center",

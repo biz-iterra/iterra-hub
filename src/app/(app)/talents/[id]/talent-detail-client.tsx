@@ -25,6 +25,7 @@ import type {
   TalentAchievementMaster,
   TalentAchievementWithMaster,
 } from "@/lib/validators/talent-classification";
+import { detailContainerStyle } from "@/lib/layout";
 
 type Tab = "basic" | "skills" | "job_type" | "career";
 
@@ -788,7 +789,7 @@ export function TalentDetailClient({
   };
 
   return (
-    <div style={{ padding: "1.5rem", maxWidth: "1200px", margin: "0 auto" }}>
+    <div style={detailContainerStyle}>
       {/* ヘッダー */}
       <div style={{ marginBottom: "1.5rem" }}>
         <Link

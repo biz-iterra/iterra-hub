@@ -15,6 +15,7 @@ import { ContractMethodBadge } from "@/components/ui/badges";
 import { DetailSection } from "@/components/ui/DetailSection";
 import { InfoField } from "@/components/ui/InfoField";
 import { EntityLink } from "@/components/ui/EntityLink";
+import { detailContainerStyle } from "@/lib/layout";
 
 function formatDate(value: string | null | undefined): string {
   if (!value) return "—";
@@ -84,7 +85,7 @@ export default async function ContractDetailPage({
   }
 
   return (
-    <div style={{ padding: "1.5rem", maxWidth: "1200px", margin: "0 auto" }}>
+    <div style={detailContainerStyle}>
       {/* ヘッダー */}
       <div style={{ marginBottom: "1.5rem" }}>
         <Link

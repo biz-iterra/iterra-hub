@@ -9,6 +9,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import { isFieldValidationError } from "@/lib/errors";
 import type { Row } from "@/types/relations";
+import { formContainerStyle } from "@/lib/layout";
 
 const styles = {
   card: {
@@ -158,7 +159,7 @@ export function CampaignEditClient({
   };
 
   return (
-    <div style={{ padding: "1.5rem", maxWidth: 960, margin: "0 auto" }}>
+    <div style={formContainerStyle}>
       {/* 削除確認ダイアログ */}
       <ConfirmDialog
         open={deleteOpen}

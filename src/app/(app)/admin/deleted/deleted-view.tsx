@@ -10,6 +10,7 @@ import {
 } from "@/actions/deleted";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
+import { detailContainerStyle } from "@/lib/layout";
 
 const ENTITY_LABELS: Record<DeletedEntity, string> = {
   companies: "法人情報",
@@ -34,7 +35,7 @@ const ENTITIES: DeletedEntity[] = [
 const PER_PAGE = 20;
 
 const styles = {
-  container: { padding: "1.5rem", maxWidth: 1200, margin: "0 auto" } as CSSProperties,
+  container: detailContainerStyle,
   backLink: {
     display: "inline-flex",
     alignItems: "center",

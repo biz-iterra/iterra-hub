@@ -8,6 +8,7 @@ import { updateProject, deleteProject } from "@/actions/projects";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import { isFieldValidationError } from "@/lib/errors";
+import { formContainerStyle } from "@/lib/layout";
 
 type SelectOption = { value: string; label: string };
 
@@ -25,7 +26,7 @@ type ProjectData = {
 };
 
 const styles = {
-  container: { padding: "1.5rem", maxWidth: 960, margin: "0 auto" } as CSSProperties,
+  container: formContainerStyle,
   backLink: {
     display: "inline-flex",
     alignItems: "center",

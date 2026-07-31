@@ -9,6 +9,7 @@ import { InfoField } from "@/components/ui/InfoField";
 import { LabelBadge } from "@/components/ui/badges";
 import { useToast } from "@/components/ui/toast";
 import type { CrmUserRole } from "@/types/enums";
+import { formContainerStyle } from "@/lib/layout";
 
 type CurrentUser = {
   id: string;
@@ -25,11 +26,7 @@ const ROLE_LABELS: Record<CrmUserRole, string> = {
 };
 
 const styles = {
-  container: {
-    padding: "1.5rem",
-    maxWidth: 960,
-    margin: "0 auto",
-  } as CSSProperties,
+  container: formContainerStyle,
   title: {
     color: "var(--color-text-title)",
     fontSize: "1.5rem",

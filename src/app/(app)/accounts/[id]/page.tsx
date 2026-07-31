@@ -12,6 +12,7 @@ import { DetailSection } from "@/components/ui/DetailSection";
 import { InfoField } from "@/components/ui/InfoField";
 import { EntityLink } from "@/components/ui/EntityLink";
 import { LabelBadge } from "@/components/ui/badges";
+import { detailContainerStyle } from "@/lib/layout";
 
 /** ステータス更新日の表示。時刻までは要らないので日付だけ出す */
 function formatDate(value: string | null | undefined): string {
@@ -131,7 +132,7 @@ export default async function AccountDetailPage({
   const deals = a.deals ?? [];
 
   return (
-    <div style={{ padding: "1.5rem", maxWidth: "1280px", margin: "0 auto" }}>
+    <div style={detailContainerStyle}>
       {/* ---- Header ---- */}
       <div style={{ marginBottom: "1.5rem" }}>
         <Link href="/accounts" style={{ ...backLinkStyle, marginBottom: "0.75rem" }}>

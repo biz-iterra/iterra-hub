@@ -21,6 +21,7 @@ import { InfoField } from "@/components/ui/InfoField";
 import { EntityLink } from "@/components/ui/EntityLink";
 import { getDealCounterparty } from "@/lib/deal-counterparty";
 import { LabelBadge, ContractMethodBadge, PipelineBadge, StageBadge, StatusBadge } from "@/components/ui/badges";
+import { detailContainerStyle } from "@/lib/layout";
 
 function formatDate(date: string | null | undefined): string {
   if (!date) return "—";
@@ -127,7 +128,7 @@ export default async function DealDetailPage({
   const activities = deal.deal_activities ?? [];
 
   return (
-    <div style={{ padding: "1.5rem", maxWidth: "1280px", margin: "0 auto" }}>
+    <div style={detailContainerStyle}>
       {/* ---- Header ---- */}
       <div style={{ marginBottom: "1.5rem" }}>
         <Link

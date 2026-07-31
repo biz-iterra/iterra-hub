@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser, getCrmUsers } from "@/actions/users";
 import { getImportBatches } from "@/actions/leads/eight-import";
 import { EightImportView } from "./eight-import-view";
+import { detailContainerStyle } from "@/lib/layout";
 
 /**
  * Eight 名刺 CSV の取込画面。
@@ -19,7 +20,7 @@ export default async function EightImportPage() {
   }
 
   return (
-    <div style={{ padding: "1.5rem", maxWidth: "1280px", margin: "0 auto" }}>
+    <div style={detailContainerStyle}>
       <EightImportView
         currentUserId={meResult.data.id}
         users={usersResult.data ?? []}

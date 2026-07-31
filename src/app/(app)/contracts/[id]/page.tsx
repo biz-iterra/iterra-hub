@@ -1,8 +1,20 @@
 import { getContract } from "@/actions/contracts";
 import { getCurrentUser } from "@/actions/users";
 import Link from "next/link";
-import { ArrowLeft, ArrowUpRight, FileText, Calendar, Building2, Pencil } from "lucide-react";
+import {
+  ArrowLeft,
+  FileText,
+  Calendar,
+  Building2,
+  Pencil,
+  Handshake,
+  Paperclip,
+  Layers,
+} from "lucide-react";
 import { ContractMethodBadge } from "@/components/ui/badges";
+import { DetailSection } from "@/components/ui/DetailSection";
+import { InfoField } from "@/components/ui/InfoField";
+import { EntityLink } from "@/components/ui/EntityLink";
 
 function formatDate(value: string | null | undefined): string {
   if (!value) return "—";
@@ -154,28 +166,7 @@ export default async function ContractDetailPage({
         {/* 左カラム */}
         <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
           {/* 基本情報カード */}
-          <div
-            style={{
-              backgroundColor: "#fff",
-              borderRadius: "var(--radius-card)",
-              boxShadow: "var(--elevation-low)",
-              padding: "1.5rem",
-            }}
-          >
-            <h2
-              style={{
-                color: "var(--color-text-title)",
-                fontSize: "1rem",
-                fontWeight: 600,
-                marginBottom: "1rem",
-                display: "flex",
-                alignItems: "center",
-                gap: "0.5rem",
-              }}
-            >
-              <FileText size={18} />
-              基本情報
-            </h2>
+          <DetailSection title="基本情報" icon={FileText}>
             <div
               style={{
                 display: "grid",
@@ -183,154 +174,32 @@ export default async function ContractDetailPage({
                 gap: "1rem",
               }}
             >
-              <div>
-                <div
-                  style={{
-                    color: "var(--color-sumi600)",
-                    fontSize: "0.75rem",
-                    fontWeight: 600,
-                    marginBottom: "0.25rem",
-                  }}
-                >
-                  契約書名
-                </div>
-                <div style={{ color: "var(--color-text-body)", fontSize: "0.875rem" }}>
-                  {contract.contract_name}
-                </div>
-              </div>
-              <div>
-                <div
-                  style={{
-                    color: "var(--color-sumi600)",
-                    fontSize: "0.75rem",
-                    fontWeight: 600,
-                    marginBottom: "0.25rem",
-                  }}
-                >
-                  契約方法
-                </div>
-                <ContractMethodBadge method={contract.contract_method} />
-              </div>
-              <div>
-                <div
-                  style={{
-                    color: "var(--color-sumi600)",
-                    fontSize: "0.75rem",
-                    fontWeight: 600,
-                    marginBottom: "0.25rem",
-                  }}
-                >
-                  契約種別
-                </div>
-                <div style={{ color: "var(--color-text-body)", fontSize: "0.875rem" }}>
-                  {contract.contract_type?.name ?? "—"}
-                </div>
-              </div>
-              <div style={{ gridColumn: "1 / -1" }}>
-                <div
-                  style={{
-                    color: "var(--color-sumi600)",
-                    fontSize: "0.75rem",
-                    fontWeight: 600,
-                    marginBottom: "0.25rem",
-                  }}
-                >
-                  契約内容
-                </div>
-                <div
-                  style={{
-                    color: "var(--color-text-body)",
-                    fontSize: "0.875rem",
-                    whiteSpace: "pre-wrap",
-                  }}
-                >
-                  {contract.contract_content ?? "—"}
-                </div>
-              </div>
+              <InfoField label="契約書名" value={contract.contract_name} />
+              <InfoField
+                label="契約方法"
+                value={<ContractMethodBadge method={contract.contract_method} />}
+              />
+              <InfoField label="契約種別" value={contract.contract_type?.name} />
+              <InfoField label="契約内容" value={contract.contract_content} full />
             </div>
-          </div>
+          </DetailSection>
 
           {/* 商談情報カード */}
-          <div
-            style={{
-              backgroundColor: "#fff",
-              borderRadius: "var(--radius-card)",
-              boxShadow: "var(--elevation-low)",
-              padding: "1.5rem",
-            }}
-          >
-            <h2
-              style={{
-                color: "var(--color-text-title)",
-                fontSize: "1rem",
-                fontWeight: 600,
-                marginBottom: "1rem",
-              }}
-            >
-              商談情報
-            </h2>
-            {contract.deal ? (
-              <div>
-                <div
-                  style={{
-                    color: "var(--color-sumi600)",
-                    fontSize: "0.75rem",
-                    fontWeight: 600,
-                    marginBottom: "0.25rem",
-                  }}
-                >
-                  商談
-                </div>
-                <Link
-                  href={`/deals/${contract.deal.id}`}
-                  className="hover:bg-[var(--color-bg-hover)]"
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "0.25rem",
-                    color: "var(--color-terra)",
-                    textDecoration: "none",
-                    padding: "0.125rem 0.375rem",
-                    margin: "-0.125rem -0.375rem",
-                    borderRadius: "var(--radius-sm)",
-                    transition: "background-color 0.15s",
-                    fontSize: "0.875rem",
-                  }}
-                >
-                  {contract.deal.deal_code} {contract.deal.name}
-                  <ArrowUpRight size={14} />
-                </Link>
-              </div>
-            ) : (
-              <div style={{ color: "var(--color-text-body)", fontSize: "0.875rem" }}>
-                —
-              </div>
-            )}
-          </div>
+          <DetailSection title="商談情報" icon={Handshake}>
+            <InfoField
+              label="商談"
+              value={
+                contract.deal ? (
+                  <EntityLink href={`/deals/${contract.deal.id}`}>
+                    {contract.deal.deal_code} {contract.deal.name}
+                  </EntityLink>
+                ) : null
+              }
+            />
+          </DetailSection>
 
           {/* 契約相手先カード */}
-          <div
-            style={{
-              backgroundColor: "#fff",
-              borderRadius: "var(--radius-card)",
-              boxShadow: "var(--elevation-low)",
-              padding: "1.5rem",
-            }}
-          >
-            <h2
-              style={{
-                color: "var(--color-text-title)",
-                fontSize: "1rem",
-                fontWeight: 600,
-                marginBottom: "1rem",
-                display: "flex",
-                alignItems: "center",
-                gap: "0.5rem",
-              }}
-            >
-              <Building2 size={18} />
-              契約相手先
-            </h2>
+          <DetailSection title="契約相手先" icon={Building2}>
             <div
               style={{
                 display: "grid",
@@ -338,236 +207,101 @@ export default async function ContractDetailPage({
                 gap: "1rem",
               }}
             >
-              <div>
-                <div
-                  style={{
-                    color: "var(--color-sumi600)",
-                    fontSize: "0.75rem",
-                    fontWeight: 600,
-                    marginBottom: "0.25rem",
-                  }}
-                >
-                  契約相手先区分
-                </div>
-                <div style={{ color: "var(--color-text-body)", fontSize: "0.875rem" }}>
-                  {contract.counterparty_type === "corporate" ? "法人" : "個人"}
-                </div>
-              </div>
+              <InfoField
+                label="契約相手先区分"
+                value={contract.counterparty_type === "corporate" ? "法人" : "個人"}
+              />
 
               {contract.counterparty_type === "corporate" ? (
                 <>
-                  <div>
-                    <div
-                      style={{
-                        color: "var(--color-sumi600)",
-                        fontSize: "0.75rem",
-                        fontWeight: 600,
-                        marginBottom: "0.25rem",
-                      }}
-                    >
-                      法人情報
-                    </div>
-                    {contract.counterparty_company ? (
-                      <Link
-                        href={`/companies/${contract.counterparty_company.id}`}
-                        className="hover:bg-[var(--color-bg-hover)]"
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: "0.25rem",
-                          color: "var(--color-terra)",
-                          textDecoration: "none",
-                          padding: "0.125rem 0.375rem",
-                          margin: "-0.125rem -0.375rem",
-                          borderRadius: "var(--radius-sm)",
-                          transition: "background-color 0.15s",
-                          fontSize: "0.875rem",
-                        }}
-                      >
-                        {contract.counterparty_company.name}
-                        <ArrowUpRight size={14} />
-                      </Link>
-                    ) : (
-                      <div style={{ color: "var(--color-text-body)", fontSize: "0.875rem" }}>
-                        —
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <div
-                      style={{
-                        color: "var(--color-sumi600)",
-                        fontSize: "0.75rem",
-                        fontWeight: 600,
-                        marginBottom: "0.25rem",
-                      }}
-                    >
-                      契約担当者
-                    </div>
-                    {contract.counterparty_manager ? (
-                      <div style={{ color: "var(--color-text-body)", fontSize: "0.875rem" }}>
-                        {contract.counterparty_manager.last_name}{" "}
-                        {contract.counterparty_manager.first_name}
-                      </div>
-                    ) : (
-                      <div style={{ color: "var(--color-text-body)", fontSize: "0.875rem" }}>
-                        —
-                      </div>
-                    )}
-                  </div>
+                  <InfoField
+                    label="法人情報"
+                    value={
+                      contract.counterparty_company ? (
+                        <EntityLink
+                          href={`/companies/${contract.counterparty_company.id}`}
+                        >
+                          {contract.counterparty_company.name}
+                        </EntityLink>
+                      ) : null
+                    }
+                  />
+                  <InfoField
+                    label="契約担当者"
+                    value={
+                      contract.counterparty_manager
+                        ? `${contract.counterparty_manager.last_name} ${contract.counterparty_manager.first_name}`
+                        : null
+                    }
+                  />
                 </>
               ) : (
-                <div>
-                  <div
-                    style={{
-                      color: "var(--color-sumi600)",
-                      fontSize: "0.75rem",
-                      fontWeight: 600,
-                      marginBottom: "0.25rem",
-                    }}
-                  >
-                    連絡先
-                  </div>
-                  {contract.counterparty_contact ? (
-                    <Link
-                      href={`/contacts/${contract.counterparty_contact.id}`}
-                      className="hover:bg-[var(--color-bg-hover)]"
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: "0.25rem",
-                        color: "var(--color-terra)",
-                        textDecoration: "none",
-                        padding: "0.125rem 0.375rem",
-                        margin: "-0.125rem -0.375rem",
-                        borderRadius: "var(--radius-sm)",
-                        transition: "background-color 0.15s",
-                        fontSize: "0.875rem",
-                      }}
-                    >
-                      {contract.counterparty_contact.last_name}{" "}
-                      {contract.counterparty_contact.first_name}
-                      <ArrowUpRight size={14} />
-                    </Link>
-                  ) : (
-                    <div style={{ color: "var(--color-text-body)", fontSize: "0.875rem" }}>
-                      —
-                    </div>
-                  )}
-                </div>
+                <InfoField
+                  label="連絡先"
+                  value={
+                    contract.counterparty_contact ? (
+                      <EntityLink
+                        href={`/contacts/${contract.counterparty_contact.id}`}
+                      >
+                        {contract.counterparty_contact.last_name}{" "}
+                        {contract.counterparty_contact.first_name}
+                      </EntityLink>
+                    ) : null
+                  }
+                />
               )}
             </div>
-          </div>
+          </DetailSection>
 
           {/* 契約書URL カード */}
-          <div
-            style={{
-              backgroundColor: "#fff",
-              borderRadius: "var(--radius-card)",
-              boxShadow: "var(--elevation-low)",
-              padding: "1.5rem",
-            }}
-          >
-            <h2
-              style={{
-                color: "var(--color-text-title)",
-                fontSize: "1rem",
-                fontWeight: 600,
-                marginBottom: "1rem",
-              }}
-            >
-              契約書URL
-            </h2>
+          <DetailSection title="契約書URL" icon={Paperclip}>
             <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-              <div>
-                <div
-                  style={{
-                    color: "var(--color-sumi600)",
-                    fontSize: "0.75rem",
-                    fontWeight: 600,
-                    marginBottom: "0.25rem",
-                  }}
-                >
-                  原本URL
-                </div>
-                {contract.original_document_url ? (
-                  <a
-                    href={contract.original_document_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      color: "var(--color-terra)",
-                      fontSize: "0.875rem",
-                      textDecoration: "none",
-                    }}
-                  >
-                    {contract.original_document_url}
-                  </a>
-                ) : (
-                  <div style={{ color: "var(--color-text-body)", fontSize: "0.875rem" }}>
-                    —
-                  </div>
-                )}
-              </div>
-              <div>
-                <div
-                  style={{
-                    color: "var(--color-sumi600)",
-                    fontSize: "0.75rem",
-                    fontWeight: 600,
-                    marginBottom: "0.25rem",
-                  }}
-                >
-                  契約書URL
-                </div>
-                {contract.contract_url ? (
-                  <a
-                    href={contract.contract_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      color: "var(--color-terra)",
-                      fontSize: "0.875rem",
-                      textDecoration: "none",
-                    }}
-                  >
-                    {contract.contract_url}
-                  </a>
-                ) : (
-                  <div style={{ color: "var(--color-text-body)", fontSize: "0.875rem" }}>
-                    —
-                  </div>
-                )}
-              </div>
+              <InfoField
+                label="原本URL"
+                value={
+                  contract.original_document_url ? (
+                    <a
+                      href={contract.original_document_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        color: "var(--color-terra)",
+                        textDecoration: "underline",
+                        wordBreak: "break-all",
+                      }}
+                    >
+                      {contract.original_document_url}
+                    </a>
+                  ) : null
+                }
+              />
+              <InfoField
+                label="契約書URL"
+                value={
+                  contract.contract_url ? (
+                    <a
+                      href={contract.contract_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        color: "var(--color-terra)",
+                        textDecoration: "underline",
+                        wordBreak: "break-all",
+                      }}
+                    >
+                      {contract.contract_url}
+                    </a>
+                  ) : null
+                }
+              />
             </div>
-          </div>
+          </DetailSection>
         </div>
 
         {/* 右カラム */}
         <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
           {/* 日程カード */}
-          <div
-            style={{
-              backgroundColor: "#fff",
-              borderRadius: "var(--radius-card)",
-              boxShadow: "var(--elevation-low)",
-              padding: "1.5rem",
-            }}
-          >
-            <h2
-              style={{
-                color: "var(--color-text-title)",
-                fontSize: "1rem",
-                fontWeight: 600,
-                marginBottom: "1rem",
-                display: "flex",
-                alignItems: "center",
-                gap: "0.5rem",
-              }}
-            >
-              <Calendar size={18} />
-              日程
-            </h2>
+          <DetailSection title="日程" icon={Calendar}>
             <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
               {[
                 { label: "契約送付日", value: contract.sent_date },
@@ -577,77 +311,28 @@ export default async function ContractDetailPage({
                 { label: "契約終了日", value: contract.end_date },
                 { label: "解約日", value: contract.cancellation_date },
               ].map((item) => (
-                <div key={item.label}>
-                  <div
-                    style={{
-                      color: "var(--color-sumi600)",
-                      fontSize: "0.75rem",
-                      fontWeight: 600,
-                      marginBottom: "0.125rem",
-                    }}
-                  >
-                    {item.label}
-                  </div>
-                  <div style={{ color: "var(--color-text-body)", fontSize: "0.875rem" }}>
-                    {formatDate(item.value)}
-                  </div>
-                </div>
+                <InfoField
+                  key={item.label}
+                  label={item.label}
+                  value={formatDate(item.value)}
+                />
               ))}
             </div>
-          </div>
+          </DetailSection>
 
           {/* ステータスカード */}
-          <div
-            style={{
-              backgroundColor: "#fff",
-              borderRadius: "var(--radius-card)",
-              boxShadow: "var(--elevation-low)",
-              padding: "1.5rem",
-            }}
-          >
-            <h2
-              style={{
-                color: "var(--color-text-title)",
-                fontSize: "1rem",
-                fontWeight: 600,
-                marginBottom: "1rem",
-              }}
-            >
-              ステータス
-            </h2>
+          <DetailSection title="ステータス" icon={Layers}>
             <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-              <div>
-                <div
-                  style={{
-                    color: "var(--color-sumi600)",
-                    fontSize: "0.75rem",
-                    fontWeight: 600,
-                    marginBottom: "0.125rem",
-                  }}
-                >
-                  自動更新
-                </div>
-                <div style={{ color: "var(--color-text-body)", fontSize: "0.875rem" }}>
-                  {contract.auto_renewal ? "あり" : "なし"}
-                </div>
-              </div>
-              <div>
-                <div
-                  style={{
-                    color: "var(--color-sumi600)",
-                    fontSize: "0.75rem",
-                    fontWeight: 600,
-                    marginBottom: "0.125rem",
-                  }}
-                >
-                  登録者
-                </div>
-                <div style={{ color: "var(--color-text-body)", fontSize: "0.875rem" }}>
-                  {contract.registered_user?.full_name ?? "—"}
-                </div>
-              </div>
+              <InfoField
+                label="自動更新"
+                value={contract.auto_renewal ? "あり" : "なし"}
+              />
+              <InfoField
+                label="登録者"
+                value={contract.registered_user?.full_name}
+              />
             </div>
-          </div>
+          </DetailSection>
         </div>
       </div>
     </div>

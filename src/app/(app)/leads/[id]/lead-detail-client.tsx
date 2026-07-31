@@ -31,6 +31,7 @@ import {
   ActivityTypeBadge,
 } from "@/components/ui/badges";
 import { useToast } from "@/components/ui/toast";
+import { DetailSection } from "@/components/ui/DetailSection";
 import type {
   LeadActivityWithRelations,
   LeadDetail,
@@ -1065,17 +1066,7 @@ export function LeadDetailClient({
       {activeTab === "basic" && (
         <div>
           {/* ① 企業情報セクション */}
-          <div style={styles.card}>
-            <h2
-              style={{
-                color: "var(--color-text-title)",
-                fontSize: "1rem",
-                fontWeight: 600,
-                margin: "0 0 1rem 0",
-              }}
-            >
-              企業情報
-            </h2>
+          <DetailSection title="企業情報">
             <div style={{ ...styles.grid2, marginBottom: "1rem" }}>
               <Field label="会社名" value={lead.company_name} />
               <Field label="フリガナ" value={lead.company_name_kana} />
@@ -1117,20 +1108,10 @@ export function LeadDetailClient({
                 )}
               </div>
             </div>
-          </div>
+          </DetailSection>
 
           {/* ② 担当者情報セクション */}
-          <div style={styles.card}>
-            <h2
-              style={{
-                color: "var(--color-text-title)",
-                fontSize: "1rem",
-                fontWeight: 600,
-                margin: "0 0 1rem 0",
-              }}
-            >
-              担当者情報
-            </h2>
+          <DetailSection title="担当者情報">
             <div style={{ ...styles.grid3, marginBottom: "1rem" }}>
               <Field label="姓" value={lead.contact_last_name} />
               <Field label="ミドルネーム" value={lead.contact_middle_name} />
@@ -1149,20 +1130,10 @@ export function LeadDetailClient({
               <Field label="メール" value={lead.contact_email} />
               <Field label="担当者電話" value={lead.contact_phone} />
             </div>
-          </div>
+          </DetailSection>
 
           {/* ③ リード属性セクション */}
-          <div style={styles.card}>
-            <h2
-              style={{
-                color: "var(--color-text-title)",
-                fontSize: "1rem",
-                fontWeight: 600,
-                margin: "0 0 1rem 0",
-              }}
-            >
-              リード属性
-            </h2>
+          <DetailSection title="リード属性">
             <div style={{ ...styles.grid3, marginBottom: "1rem" }}>
               <Field
                 label="大分類セグメント"
@@ -1210,7 +1181,7 @@ export function LeadDetailClient({
                 </div>
               </div>
             )}
-          </div>
+          </DetailSection>
         </div>
       )}
 
@@ -1218,17 +1189,7 @@ export function LeadDetailClient({
       {activeTab === "score" && (
         <div>
           {/* スコアサマリ */}
-          <div style={styles.card}>
-            <h2
-              style={{
-                color: "var(--color-text-title)",
-                fontSize: "1rem",
-                fontWeight: 600,
-                margin: "0 0 1.25rem 0",
-              }}
-            >
-              スコアサマリ
-            </h2>
+          <DetailSection title="スコアサマリ">
             <div style={{ display: "flex", alignItems: "flex-end", gap: "2rem", flexWrap: "wrap" }}>
               {/* 大きいスコア数字 */}
               <div style={{ textAlign: "center" }}>
@@ -1312,25 +1273,25 @@ export function LeadDetailClient({
                 </div>
               )}
             </div>
-          </div>
+          </DetailSection>
 
           {/* スコア内訳リスト */}
-          <div style={styles.card}>
-            <h2
-              style={{
-                color: "var(--color-text-title)",
-                fontSize: "1rem",
-                fontWeight: 600,
-                margin: "0 0 1rem 0",
-              }}
-            >
-              スコア内訳
-              {scoreBreakdowns.length > 0 && (
-                <span style={{ fontWeight: 400, color: "var(--color-sumi500)", fontSize: "0.8125rem", marginLeft: "0.5rem" }}>
-                  （{scoreBreakdowns.length} 件）
+          <DetailSection
+            title="スコア内訳"
+            action={
+              scoreBreakdowns.length > 0 ? (
+                <span
+                  style={{
+                    fontWeight: 400,
+                    color: "var(--color-sumi500)",
+                    fontSize: "0.8125rem",
+                  }}
+                >
+                  {scoreBreakdowns.length} 件
                 </span>
-              )}
-            </h2>
+              ) : null
+            }
+          >
             {scoreBreakdowns.length === 0 ? (
               <p style={{ margin: 0, ...styles.valueEmpty, textAlign: "center", padding: "1.5rem 0" }}>
                 スコア内訳がありません（スコア再計算後に表示されます）
@@ -1414,7 +1375,7 @@ export function LeadDetailClient({
                 </div>
               </div>
             )}
-          </div>
+          </DetailSection>
         </div>
       )}
 
@@ -1706,17 +1667,7 @@ export function LeadDetailClient({
               top: "1rem",
             }}
           >
-            <div style={styles.card}>
-              <h2
-                style={{
-                  color: "var(--color-text-title)",
-                  fontSize: "1rem",
-                  fontWeight: 600,
-                  margin: "0 0 1rem 0",
-                }}
-              >
-                社内対応を追加
-              </h2>
+            <DetailSection title="社内対応を追加">
 
               <div style={{ display: "flex", flexDirection: "column", gap: "0.875rem" }}>
                 {/* 対応日 */}
@@ -1832,7 +1783,7 @@ export function LeadDetailClient({
                 <ClipboardList size={14} />
                 {actSaving ? "追加中..." : "追加する"}
               </button>
-            </div>
+            </DetailSection>
           </div>
         </div>
       )}
@@ -1867,17 +1818,9 @@ export function LeadDetailClient({
               </p>
             </div>
           ) : (
-            <div style={styles.card}>
-              <h2
-                style={{
-                  color: "var(--color-text-title)",
-                  fontSize: "1rem",
-                  fontWeight: 600,
-                  margin: "0 0 1rem 0",
-                }}
-              >
-                紐付きキャンペーン（{attachedCampaigns.length} 件）
-              </h2>
+            <DetailSection
+              title={`紐付きキャンペーン（${attachedCampaigns.length} 件）`}
+            >
               <div
                 style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}
               >
@@ -1906,7 +1849,7 @@ export function LeadDetailClient({
                   </div>
                 ))}
               </div>
-            </div>
+            </DetailSection>
           )}
         </div>
       )}

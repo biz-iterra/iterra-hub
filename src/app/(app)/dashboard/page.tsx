@@ -259,7 +259,7 @@ export default async function DashboardPage() {
             icon={Contact}
           />
           <KpiCard
-            label="会社情報数"
+            label="法人情報数"
             value={String(activeCompaniesCount)}
             sub="アクティブのみ"
             icon={Building2}

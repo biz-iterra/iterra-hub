@@ -55,7 +55,7 @@ ITERRA CRM（顧客関係管理）システム。
 │   │   ├── dashboard/     # ダッシュボード（KPI・ファネル・最近の商談）
 │   │   ├── deals/         # 商談（カンバン/テーブル切替）
 │   │   ├── contacts/      # 連絡先（一覧・検索）
-│   │   ├── companies/     # 会社情報（一覧・検索）
+│   │   ├── companies/     # 法人情報（一覧・検索）
 │   │   ├── accounts/      # 取引先（一覧・検索）
 │   │   ├── contracts/     # 契約（一覧・検索）
 │   │   ├── talents/       # タレント（一覧・検索・系統/グレード/職種の自動判定）
@@ -171,7 +171,7 @@ npm run typecheck && npm test && npm run build
 |---|---|
 | 商談 | deal / deals |
 | 取引先 | account / accounts |
-| 会社情報 | company / companies |
+| 法人情報 | company / companies |
 | 連絡先 | contact / contacts |
 | マスタ・取込 | admin |
 
@@ -186,5 +186,24 @@ npm run typecheck && npm test && npm run build
 
 ### 重要な関係性
 - コンタクトの紐づけはcontact_typeで制御: corporate_rep/employee → Company直接紐づけ、individual → Account紐づけ（account_contacts経由）
-- ディール登録時にはAccountの紐づけが必須（account_id必須）
 - 法人所属コンタクトもディールに関与する場合はaccount_contactsでAccountに紐づける
+
+### 取引先（Account）が作られるタイミング
+
+**Account は契約主体なので、契約が成立するまで作らない**（2026-07-31 変更、`docs/database-design.md § 16`）。
+
+```
+Lead ─取込→ Company + Contact          名刺はリードであると同時に連絡先
+     ─昇格→ Deal（account_id = NULL、company_id / contact_id で相手を示す）
+     ─契約→ Account 作成 + Deal に紐付け（contracts の AFTER INSERT トリガー）
+```
+
+- `deals.account_id` は **任意**。ただし account / company / contact のいずれか 1 つは必須（CHECK 制約）
+- 商談の相手先表示は `src/lib/deal-counterparty.ts` を使う。取引先 → 法人情報 → 連絡先の順にフォールバックする。画面ごとに分岐を書かない
+- 名刺取込の法人名寄せは **メールドメイン（`company_domains`）が一次キー**、次に正規化した会社名。判定は DB 関数 `resolve_or_create_company` / `resolve_or_create_contact` に集約されており、取込と遡及処理が同じ関数を通る
+
+### バッジ色
+
+ステータス／ステージ系マスタは `color`（`#RRGGBB`）を持ち、表示側は DB の値をそのまま使う。
+画面ごとに sort_order から算出すると同じ値が別の色になるため、**バッジを出す箇所は必ず `color` まで SELECT する**。
+既定色は意味カテゴリで横断統一している（「アクティブ」は取引先でも法人でも同じ色）。

@@ -11,6 +11,7 @@ import {
   createLeadSourceSchema, updateLeadSourceSchema,
   createAccountTypeSchema, updateAccountTypeSchema,
   createAccountStatusSchema, updateAccountStatusSchema,
+  createAccountRoleTypeSchema, updateAccountRoleTypeSchema,
   createContactStatusSchema, updateContactStatusSchema,
   createCompanyStatusSchema, updateCompanyStatusSchema,
   createSkillCategorySchema, updateSkillCategorySchema,
@@ -744,4 +745,18 @@ export async function getLeadScoreRulesWithBrokenRefs(): Promise<ActionResult<{
 
   const brokenCount = rulesWithRef.filter((r) => r._refBroken).length;
   return { data: { rules: rulesWithRef, brokenCount }, error: null };
+}
+
+// --- account_role_types（取引先区分）---
+export async function getAccountRoleTypesMaster() {
+  return getMasterList("account_role_types", { useSortOrder: true });
+}
+export async function createAccountRoleType(input: Record<string, unknown>) {
+  return createMasterRecord("account_role_types", input, createAccountRoleTypeSchema);
+}
+export async function updateAccountRoleType(id: string, input: Record<string, unknown>) {
+  return updateMasterRecord("account_role_types", id, input, updateAccountRoleTypeSchema);
+}
+export async function deleteAccountRoleType(id: string) {
+  return deleteMasterRecord("account_role_types", id);
 }

@@ -18,8 +18,8 @@ type LinkedDeal = {
     amount: number | null;
     account: { id: string; name: string; account_code: string | null } | null;
     pipeline_type: { id: string; name: string } | null;
-    deal_stage: { id: string; name: string; sort_order?: number } | null;
-    deal_status: { id: string; name: string; sort_order?: number } | null;
+    deal_stage: { id: string; name: string; sort_order?: number; color: string | null } | null;
+    deal_status: { id: string; name: string; sort_order?: number; color: string | null } | null;
   } | null;
 };
 
@@ -269,7 +269,7 @@ export function ProjectDealsSection({
                       fontSize: "0.875rem",
                     }}
                   >
-                    <StageBadge name={l.deal.deal_stage?.name} sortOrder={l.deal.deal_stage?.sort_order} />
+                    <StageBadge name={l.deal.deal_stage?.name} color={l.deal.deal_stage?.color} sortOrder={l.deal.deal_stage?.sort_order} />
                   </td>
                   <td
                     style={{

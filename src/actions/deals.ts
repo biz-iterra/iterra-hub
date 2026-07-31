@@ -36,9 +36,11 @@ async function getAuthenticatedUser() {
 const DEAL_SELECT = `
   *,
   pipeline_type:pipeline_types(id, name),
-  deal_stage:deal_stages(id, name, sort_order),
-  deal_status:deal_statuses(id, name, sort_order),
+  deal_stage:deal_stages(id, name, sort_order, color),
+  deal_status:deal_statuses(id, name, sort_order, color),
   account:accounts(id, account_code, name, company:companies(id, name)),
+  company:companies!deals_company_id_fkey(id, name),
+  contact:contacts!deals_contact_id_fkey(id, last_name, first_name),
   owner:crm_users!deals_owner_user_id_fkey(id, full_name),
   deal_services(service:services(id, name))
 ` as const;
@@ -172,7 +174,7 @@ export async function getDeal(id: string): Promise<ActionResult<DealDetail>> {
       ${DEAL_SELECT},
       contracts(id, contract_code, contract_name, contract_method, start_date, end_date, deleted_at),
       deal_activities(id, activity_type, activity_at, subject, performed_by, crm_users!deal_activities_performed_by_fkey(full_name)),
-      deal_projects(id, project:projects(id, project_code, name, project_status:project_statuses(id, name), deleted_at))
+      deal_projects(id, project:projects(id, project_code, name, project_status:project_statuses(id, name, color), deleted_at))
     `
     )
     .eq("id", id)

@@ -100,11 +100,14 @@ function hashPaletteIndex(seed: string | null | undefined): number {
 // ──────────────────────────────────────────────────────────────────────────────
 export function StageBadge({
   name,
+  color,
   sortOrder,
   total,
   seed,
 }: {
   name: string | null | undefined;
+  /** マスタに設定された色（#RRGGBB）。指定があれば最優先で使う */
+  color?: string | null;
   sortOrder?: number | null;
   total?: number | null;
   /** sortOrder が無い場合に色を安定化するためのキー（id 等） */
@@ -117,8 +120,8 @@ export function StageBadge({
     <span
       style={{
         display: "inline-block",
-        backgroundColor: palette.solidBg,
-        color: palette.solidFg,
+        backgroundColor: color ?? palette.solidBg,
+        color: color ? "#fff" : palette.solidFg,
         borderRadius: "var(--radius-full)",
         padding: "0.125rem 0.75rem",
         fontSize: "0.75rem",
@@ -138,11 +141,14 @@ export function StageBadge({
 // ──────────────────────────────────────────────────────────────────────────────
 export function StatusBadge({
   name,
+  color,
   sortOrder,
   total,
   seed,
 }: {
   name: string | null | undefined;
+  /** マスタに設定された色（#RRGGBB）。指定があれば最優先で使う */
+  color?: string | null;
   sortOrder?: number | null;
   total?: number | null;
   /** sortOrder が無い場合に色を安定化するためのキー（id 等） */
@@ -159,7 +165,7 @@ export function StatusBadge({
         gap: "0.375rem",
         fontSize: "0.75rem",
         fontWeight: 500,
-        color: palette.fg,
+        color: color ?? palette.fg,
         whiteSpace: "nowrap",
       }}
     >
@@ -168,7 +174,7 @@ export function StatusBadge({
           width: 7,
           height: 7,
           borderRadius: "var(--radius-full)",
-          backgroundColor: palette.accent,
+          backgroundColor: color ?? palette.accent,
           flexShrink: 0,
         }}
       />
@@ -378,16 +384,26 @@ export function ContractMethodBadge({ method }: { method: string | null | undefi
 // ──────────────────────────────────────────────────────────────────────────────
 export function ProjectStatusBadge({
   name,
+  color,
   sortOrder,
   total,
   seed,
 }: {
   name: string | null | undefined;
+  color?: string | null;
   sortOrder?: number | null;
   total?: number | null;
   seed?: string | null;
 }) {
-  return <StatusBadge name={name} sortOrder={sortOrder} total={total} seed={seed} />;
+  return (
+    <StatusBadge
+      name={name}
+      color={color}
+      sortOrder={sortOrder}
+      total={total}
+      seed={seed}
+    />
+  );
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -419,6 +435,37 @@ export function ContactTypeBadge({ type }: { type: string | null | undefined }) 
       {CONTACT_TYPE_LABELS[type] ?? type}
     </span>
   );
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// アカウント種別バッジ (corporate / sole_proprietor / government)
+// 取引先が「法人」「個人事業主」「官公庁」のどれかを一目で判別させる。
+// 取引先名の直後に並べるため、名前の可読性を落とさないソフト塗りに統一する。
+// ──────────────────────────────────────────────────────────────────────────────
+const ACCOUNT_TYPE_COLORS: Record<string, React.CSSProperties> = {
+  corporate:       { backgroundColor: "rgba(59, 130, 246, 0.14)",  color: "#1E40AF" },
+  sole_proprietor: { backgroundColor: "rgba(122, 165, 146, 0.14)", color: "#4D7A65" },
+  government:      { backgroundColor: "var(--color-sumi100)",      color: "var(--color-sumi700)" },
+};
+
+/**
+ * 表示名はマスタの name をそのまま使う（マスタ側で改名されても追従させるため）。
+ * 色の割り当てだけを slug で決め、未知の slug / slug 無しは中立色にフォールバックする。
+ */
+export function AccountTypeBadge({
+  name,
+  slug,
+}: {
+  name: string | null | undefined;
+  slug?: string | null;
+}) {
+  if (!name) return <EmptyDash />;
+  const colorStyle =
+    (slug ? ACCOUNT_TYPE_COLORS[slug] : undefined) ?? {
+      backgroundColor: "var(--color-sumi100)",
+      color: "var(--color-sumi700)",
+    };
+  return <span style={{ ...BASE, ...colorStyle }}>{name}</span>;
 }
 
 // ──────────────────────────────────────────────────────────────────────────────

@@ -49,7 +49,7 @@ export async function getProjects(params?: {
   let query = supabase
     .from("projects")
     .select(
-      "*, project_status:project_statuses(id, name, sort_order), owner:crm_users!projects_owner_user_id_fkey(id, full_name)",
+      "*, project_status:project_statuses(id, name, sort_order, color), owner:crm_users!projects_owner_user_id_fkey(id, full_name)",
       { count: "exact" }
     )
     .is("deleted_at", null)
@@ -82,7 +82,7 @@ export async function getProject(id: string): Promise<ActionResult<ProjectDetail
     .from("projects")
     .select(`
       *,
-      project_status:project_statuses(id, name, sort_order),
+      project_status:project_statuses(id, name, sort_order, color),
       owner:crm_users!projects_owner_user_id_fkey(id, full_name),
       project_members(
         id, user_id, created_at,
@@ -94,8 +94,8 @@ export async function getProject(id: string): Promise<ActionResult<ProjectDetail
           id, deal_code, name, amount, closed_at, deleted_at,
           account:accounts(id, name, account_code),
           pipeline_type:pipeline_types(id, name),
-          deal_stage:deal_stages(id, name, sort_order),
-          deal_status:deal_statuses(id, name, sort_order)
+          deal_stage:deal_stages(id, name, sort_order, color),
+          deal_status:deal_statuses(id, name, sort_order, color)
         )
       )
     `)

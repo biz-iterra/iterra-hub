@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { conflictErrorMessage } from "@/lib/validators/common";
 import { createCompanySchema, updateCompanySchema } from "@/lib/validators";
+import { createCompanyDomainSchema } from "@/lib/validators/companies";
 import type {
   CompanyDetail,
   CompanyWithRelations,
@@ -40,7 +41,7 @@ export async function getCompanies(params?: {
 
   let query = supabase
     .from("companies")
-    .select("*, corporate_types(id, name), lead_sources(name), company_status:company_statuses(id, name), crm_users!companies_owner_user_id_fkey(id, full_name)", { count: "exact" })
+    .select("*, corporate_types(id, name), lead_sources(name), company_status:company_statuses(id, name, color), crm_users!companies_owner_user_id_fkey(id, full_name)", { count: "exact" })
     .is("deleted_at", null)
     .order("created_at", { ascending: false })
     .range(from, to);
@@ -74,12 +75,13 @@ export async function getCompany(id: string): Promise<ActionResult<CompanyDetail
       *,
       corporate_types(id, name),
       lead_sources(id, name),
-      company_status:company_statuses(id, name),
+      company_status:company_statuses(id, name, color),
       industry_classifications(id, major_name, middle_name, minor_name),
       crm_users!companies_owner_user_id_fkey(id, full_name),
       primary_contact:contacts!companies_primary_contact_id_fkey(id, contact_code, last_name, first_name),
       accounts(id, account_code, name, deleted_at),
-      contacts!contacts_company_id_fkey(id, contact_code, last_name, first_name, department, job_title, deleted_at)
+      contacts!contacts_company_id_fkey(id, contact_code, last_name, first_name, department, job_title, deleted_at),
+      company_domains(id, domain, is_primary)
     `)
     .eq("id", id)
     .single();
@@ -114,8 +116,8 @@ export async function updateCompany(id: string, input: Record<string, unknown>):
   // owner チェック（admin 以外は自分の担当のみ）
   if (role !== "admin") {
     const { data: existing } = await supabase.from("companies").select("owner_user_id").eq("id", id).single();
-    if (!existing) return { data: null, error: "会社情報が見つかりません" };
-    if (existing.owner_user_id !== user.id) return { data: null, error: "この会社情報を編集する権限がありません" };
+    if (!existing) return { data: null, error: "法人情報が見つかりません" };
+    if (existing.owner_user_id !== user.id) return { data: null, error: "この法人情報を編集する権限がありません" };
   }
 
   const parsed = updateCompanySchema.safeParse(input);
@@ -148,7 +150,7 @@ export async function updateCompany(id: string, input: Record<string, unknown>):
 
   const { data, error } = await updateQuery.select().maybeSingle();
   if (error) return { data: null, error: error.message };
-  if (!data) return { data: null, error: conflictErrorMessage("この会社情報") };
+  if (!data) return { data: null, error: conflictErrorMessage("この法人情報") };
 
   // 変更履歴記録
   if (before && data) {
@@ -173,6 +175,54 @@ export async function deleteCompany(id: string): Promise<ActionResult<null>> {
     deleted_by: user.id,
     last_updated_by: user.id,
   }).eq("id", id);
+  if (error) return { data: null, error: error.message };
+  return { data: null, error: null };
+}
+
+// ---------------------------------------------------------------------------
+// 法人ドメイン
+//
+// 正規化・フリーメール判定・重複チェック・代表フラグの付け替えはすべて
+// DB 関数 upsert_company_domain が行う。ここは入力の受け渡しに徹する
+// （値の整形は TS、複数テーブル/複数文の書き込みは DB 側という分担）。
+// ---------------------------------------------------------------------------
+export async function addCompanyDomain(
+  input: unknown
+): Promise<ActionResult<Row<"company_domains">>> {
+  const { supabase, user } = await getAuthenticatedUser();
+  if (!supabase || !user) return { data: null, error: "認証が必要です" };
+
+  const parsed = createCompanyDomainSchema.safeParse(input);
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    const field = issue.path.join(".") || "input";
+    return { data: null, error: `[${field}] ${issue.message}` };
+  }
+
+  const { data, error } = await supabase.rpc("upsert_company_domain", {
+    p_company_id: parsed.data.company_id,
+    p_input: parsed.data.domain,
+    p_is_primary: parsed.data.is_primary ?? false,
+  });
+
+  if (error) return { data: null, error: error.message };
+  return { data: data as Row<"company_domains">, error: null };
+}
+
+/** 代表ドメインの切り替え。登録と同じ関数を通すことで付け替えを原子的に行う */
+export async function setPrimaryCompanyDomain(
+  companyId: string,
+  domain: string
+): Promise<ActionResult<Row<"company_domains">>> {
+  return addCompanyDomain({ company_id: companyId, domain, is_primary: true });
+}
+
+export async function deleteCompanyDomain(id: string): Promise<ActionResult<null>> {
+  const { supabase, user } = await getAuthenticatedUser();
+  if (!supabase || !user) return { data: null, error: "認証が必要です" };
+
+  // 削除可否は RLS（親 companies の owner / admin）が判定する
+  const { error } = await supabase.from("company_domains").delete().eq("id", id);
   if (error) return { data: null, error: error.message };
   return { data: null, error: null };
 }

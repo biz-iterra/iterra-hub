@@ -12,7 +12,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 
 const ENTITY_LABELS: Record<DeletedEntity, string> = {
-  companies: "会社情報",
+  companies: "法人情報",
   accounts: "取引先",
   contacts: "連絡先",
   deals: "商談",

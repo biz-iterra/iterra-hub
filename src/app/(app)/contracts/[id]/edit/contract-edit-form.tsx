@@ -420,7 +420,7 @@ export function ContractEditForm({
               </select>
             </div>
             <div>
-              <label style={styles.label}>相手先の会社情報</label>
+              <label style={styles.label}>相手先の法人情報</label>
               <select
                 style={styles.input}
                 value={values.counterparty_company_id}

@@ -30,6 +30,14 @@ export type NamedRef = { id: string; name: string };
 export type SortedRef = { id: string; name: string; sort_order: number };
 export type UserRef = { id: string; full_name: string };
 
+/**
+ * バッジ色をマスタに持つ参照（ステータス／ステージ系）。
+ * 色は DB の値をそのまま使う。画面ごとに算出すると同じ値が別の色になるため、
+ * バッジを出す箇所は必ず color まで取得すること。
+ */
+export type ColoredRef = NamedRef & { color: string | null };
+export type SortedColoredRef = SortedRef & { color: string | null };
+
 // ============================================================
 // Deal
 // ============================================================
@@ -37,13 +45,17 @@ export type UserRef = { id: string; full_name: string };
 /** deals.ts の DEAL_SELECT に対応 */
 export type DealWithRelations = Row<"deals"> & {
   pipeline_type: NamedRef | null;
-  deal_stage: SortedRef | null;
-  deal_status: SortedRef | null;
+  deal_stage: SortedColoredRef | null;
+  deal_status: SortedColoredRef | null;
+  /** 取引先は契約成立時に作られるため、契約前の商談では null */
   account:
     | (Ref<"accounts", "id" | "account_code" | "name"> & {
         company: NamedRef | null;
       })
     | null;
+  /** 取引先が未作成の間の相手先 */
+  company: NamedRef | null;
+  contact: Ref<"contacts", "id" | "last_name" | "first_name"> | null;
   owner: UserRef | null;
   deal_services: { service: NamedRef | null }[];
 };
@@ -70,7 +82,7 @@ export type DealDetail = DealWithRelations & {
     id: string;
     project:
       | (Ref<"projects", "id" | "project_code" | "name" | "deleted_at"> & {
-          project_status: NamedRef | null;
+          project_status: ColoredRef | null;
         })
       | null;
   }[];
@@ -84,13 +96,25 @@ export type DealDetail = DealWithRelations & {
 type ContactEmailRef = Ref<"contact_emails", "id" | "email" | "label" | "is_primary">;
 type ContactPhoneRef = Ref<"contact_phones", "id" | "phone" | "label" | "is_primary">;
 
+/** 所属先としてのアカウント参照（account_contacts 経由） */
+type AccountContactRef = {
+  id: string;
+  role: string | null;
+  account: Ref<"accounts", "id" | "account_code" | "name"> | null;
+};
+
 /** contacts.ts の getContacts に対応 */
 export type ContactWithRelations = Row<"contacts"> & {
-  contact_status: NamedRef | null;
+  contact_status: ColoredRef | null;
   company: NamedRef | null;
   owner: UserRef | null;
   contact_emails: ContactEmailRef[];
   contact_phones: ContactPhoneRef[];
+  /**
+   * 所属取引先。法人所属コンタクトは company_id、個人コンタクトはこの経路が
+   * 所属の出所になるため、一覧でも両方を取得して 1 列に統合表示する。
+   */
+  account_contacts: AccountContactRef[];
 };
 
 /** contacts.ts の getContact に対応（タレント・診断・所属アカウントを含む） */
@@ -105,11 +129,6 @@ export type ContactDetail = ContactWithRelations & {
     | null;
   number_diagnosis: Row<"number_diagnosis"> | null;
   constellation_fortune_telling: Row<"constellation_fortune_telling"> | null;
-  account_contacts: {
-    id: string;
-    role: string | null;
-    account: Ref<"accounts", "id" | "account_code" | "name"> | null;
-  }[];
 };
 
 // ============================================================
@@ -123,7 +142,7 @@ export type ContactDetail = ContactWithRelations & {
 export type CompanyWithRelations = Row<"companies"> & {
   corporate_types: NamedRef | null;
   lead_sources: { name: string } | null;
-  company_status: NamedRef | null;
+  company_status: ColoredRef | null;
   crm_users: UserRef | null;
 };
 
@@ -131,7 +150,7 @@ export type CompanyWithRelations = Row<"companies"> & {
 export type CompanyDetail = Row<"companies"> & {
   corporate_types: NamedRef | null;
   lead_sources: NamedRef | null;
-  company_status: NamedRef | null;
+  company_status: ColoredRef | null;
   industry_classifications: Ref<
     "industry_classifications",
     "id" | "major_name" | "middle_name" | "minor_name"
@@ -152,18 +171,41 @@ export type CompanyDetail = Row<"companies"> & {
     | "job_title"
     | "deleted_at"
   >[];
+  /** 名刺取込の法人名寄せに使うメールドメイン */
+  company_domains: Ref<"company_domains", "id" | "domain" | "is_primary">[];
 };
 
 // ============================================================
 // Account
 // ============================================================
 
+/**
+ * 取引先が持つ区分（顧客・仕入れ先など）。
+ * 事業体の形態を表す account_type とは軸が違い、1 社が複数持ちうる。
+ */
+export type AccountRoleRef = {
+  id: string;
+  /** 契約成立で自動付与されたか。手動付与と区別する */
+  assigned_by_contract: boolean;
+  role_type: (ColoredRef & Ref<"account_role_types", "code" | "sort_order">) | null;
+};
+
+/**
+ * accounts.ts の getAccountRoleTypes に対応。
+ * pipeline_type は「この区分が契約成立時に自動付与されるパイプライン」。
+ */
+export type AccountRoleTypeWithPipeline = Row<"account_role_types"> & {
+  pipeline_type: NamedRef | null;
+};
+
 /** accounts.ts の getAccounts に対応 */
 export type AccountWithRelations = Row<"accounts"> & {
   company: NamedRef | null;
-  account_type: NamedRef | null;
-  account_status: NamedRef | null;
+  /** slug は AccountTypeBadge の色分けに使う */
+  account_type: (NamedRef & Ref<"account_types", "slug">) | null;
+  account_status: ColoredRef | null;
   owner: UserRef | null;
+  account_roles: AccountRoleRef[];
 };
 
 /** accounts.ts の getAccount に対応（所属コンタクト・紐づくディールを含む） */
@@ -220,13 +262,13 @@ export type ContractDetail = ContractWithRelations & {
 
 /** projects.ts の getProjects に対応 */
 export type ProjectWithRelations = Row<"projects"> & {
-  project_status: SortedRef | null;
+  project_status: SortedColoredRef | null;
   owner: UserRef | null;
 };
 
 /** projects.ts の getProject に対応（メンバー・紐づくディールを含む） */
 export type ProjectDetail = Row<"projects"> & {
-  project_status: SortedRef | null;
+  project_status: SortedColoredRef | null;
   owner: UserRef | null;
   project_members: {
     id: string;
@@ -245,8 +287,8 @@ export type ProjectDetail = Row<"projects"> & {
         > & {
           account: Ref<"accounts", "id" | "name" | "account_code"> | null;
           pipeline_type: NamedRef | null;
-          deal_stage: SortedRef | null;
-          deal_status: SortedRef | null;
+          deal_stage: SortedColoredRef | null;
+          deal_status: SortedColoredRef | null;
         })
       | null;
   }[];
@@ -262,10 +304,10 @@ export type CodeNameRef = { id: string; code: string; name: string };
 /** 一覧・詳細の双方で JOIN しているマスタ群（LEAD_SELECT と共通） */
 type LeadCommonRelations = {
   stage:
-    | (SortedRef &
+    | (SortedColoredRef &
         Ref<"lead_stages", "slug" | "is_terminal" | "auto_promote_to_deal">)
     | null;
-  status: (SortedRef & Ref<"lead_statuses", "code">) | null;
+  status: (SortedColoredRef & Ref<"lead_statuses", "code">) | null;
   category: CodedRef | null;
   temperature: CodedRef | null;
   account_type: (NamedRef & Ref<"account_types", "slug">) | null;
@@ -313,6 +355,15 @@ export type LeadWithRelations = Row<"leads"> &
       activity_type: CodeNameRef | null;
     })[];
     sub_owners: { user_id: string; user: UserRef | null }[];
+    /**
+     * 取込時に名寄せ／作成した法人・連絡先。
+     * 名刺は「リードであると同時に連絡先でもある」ため、昇格を待たずに紐付く。
+     */
+    linked_company: Ref<"companies", "id" | "company_code" | "name"> | null;
+    linked_contact: Ref<
+      "contacts",
+      "id" | "contact_code" | "last_name" | "first_name"
+    > | null;
   };
 
 /**
@@ -428,8 +479,8 @@ export type CampaignLeadRow = {
         | "temperature_id"
         | "owner_user_id"
       > & {
-        stage: (SortedRef & Ref<"lead_stages", "slug">) | null;
-        status: (SortedRef & Ref<"lead_statuses", "code">) | null;
+        stage: (SortedColoredRef & Ref<"lead_stages", "slug">) | null;
+        status: (SortedColoredRef & Ref<"lead_statuses", "code">) | null;
         temperature: CodedRef | null;
         owner: UserRef | null;
       })

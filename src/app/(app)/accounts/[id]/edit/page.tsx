@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { getAccount } from "@/actions/accounts";
+import { getAccount, getAccountRoleTypes } from "@/actions/accounts";
+import { buildCompanyOptions } from "@/lib/company-options";
 import {
   getAccountTypes,
   getAccountStatuses,
@@ -49,6 +50,7 @@ export default async function AccountEditPage({
     companiesResult,
     usersResult,
     meResult,
+    roleTypesResult,
   ] = await Promise.all([
     getAccount(id),
     getAccountTypes(),
@@ -57,6 +59,7 @@ export default async function AccountEditPage({
     getCompanies({ perPage: 1000 }),
     getCrmUsers(),
     getCurrentUser(),
+    getAccountRoleTypes(),
   ]);
 
   const account = accountResult.data as {
@@ -69,6 +72,21 @@ export default async function AccountEditPage({
     owner_user_id: string | null;
     description: string | null;
   } | null;
+
+  // 区分は中間テーブル経由なので、フォームの値とは別に渡す
+  const assignedRoles = (accountResult.data?.account_roles ?? []).map((r) => ({
+    id: r.id,
+    role_type_id: r.role_type?.id ?? "",
+    assigned_by_contract: r.assigned_by_contract,
+  }));
+
+  const roleTypes = (roleTypesResult.data ?? []).map((t) => ({
+    id: t.id,
+    name: t.name,
+    definition: t.definition,
+    color: t.color,
+    pipeline_name: t.pipeline_type?.name ?? null,
+  }));
 
   if (!account) {
     return (
@@ -106,8 +124,9 @@ export default async function AccountEditPage({
       value: l.id,
       label: l.name,
     })),
-    companies: ((companiesResult.data?.rows ?? []) as { id: string; name: string }[]).map(
-      (c) => ({ value: c.id, label: c.name })
+    companies: buildCompanyOptions(
+      companiesResult.data?.rows ?? [],
+      accountResult.data?.company ?? null
     ),
     owners: (usersResult.data ?? []).map((u) => ({
       value: u.id,
@@ -118,6 +137,12 @@ export default async function AccountEditPage({
   const isAdmin = meResult.data?.role === "admin";
 
   return (
-    <AccountEditForm account={account} masters={masters} isAdmin={isAdmin} />
+    <AccountEditForm
+      account={account}
+      masters={masters}
+      isAdmin={isAdmin}
+      roleTypes={roleTypes}
+      assignedRoles={assignedRoles}
+    />
   );
 }

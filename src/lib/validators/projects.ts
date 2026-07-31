@@ -46,6 +46,12 @@ export const createProjectStatusSchema = z.object({
   name: z.string().min(1, "ステータス名は必須です").max(50),
   definition: z.string().max(1000).nullable().optional(),
   sort_order: z.number().int().min(0).default(0),
+  // バッジ色。他のステータス系マスタと同じ #RRGGBB 形式で揃える
+  color: z
+    .string()
+    .regex(/^#[0-9A-Fa-f]{6}$/, "colorは #RRGGBB 形式で指定")
+    .nullable()
+    .optional(),
 });
 
 export const updateProjectStatusSchema = createProjectStatusSchema.partial();

@@ -1,6 +1,16 @@
 import { z } from "zod";
 import { uuidString } from "./common";
 
+/**
+ * バッジ色。ステータス／ステージ系マスタで共通に使う。
+ * 表示側は受け取った値をそのまま style に入れるため、形式を厳密に縛る。
+ */
+const badgeColorSchema = z
+  .string()
+  .regex(/^#[0-9A-Fa-f]{6}$/, "colorは #RRGGBB 形式で指定")
+  .nullable()
+  .optional();
+
 // --- M01: pipeline_types ---
 // クローズ予定日の既定月数（空文字は「自動設定しない」を意味する NULL に正規化する）
 const defaultCloseMonthsSchema = z.preprocess(
@@ -61,6 +71,7 @@ export const updateAccountTypeSchema = createAccountTypeSchema.partial();
 export const createAccountStatusSchema = z.object({
   name: z.string().min(1).max(50),
   definition: z.string().max(1000).nullable().optional(),
+  color: badgeColorSchema,
 });
 export const updateAccountStatusSchema = createAccountStatusSchema.partial();
 
@@ -68,6 +79,7 @@ export const updateAccountStatusSchema = createAccountStatusSchema.partial();
 export const createContactStatusSchema = z.object({
   name: z.string().min(1).max(50),
   definition: z.string().max(1000).nullable().optional(),
+  color: badgeColorSchema,
 });
 export const updateContactStatusSchema = createContactStatusSchema.partial();
 
@@ -75,6 +87,7 @@ export const updateContactStatusSchema = createContactStatusSchema.partial();
 export const createCompanyStatusSchema = z.object({
   name: z.string().min(1).max(50),
   definition: z.string().max(1000).nullable().optional(),
+  color: badgeColorSchema,
 });
 export const updateCompanyStatusSchema = createCompanyStatusSchema.partial();
 
@@ -125,6 +138,7 @@ export const createDealStageSchema = z.object({
   customer_situation: z.string().max(500).nullable().optional(),
   transition_condition: z.string().max(500).nullable().optional(),
   sort_order: z.number().int().min(0).default(0),
+  color: badgeColorSchema,
 });
 export const updateDealStageSchema = createDealStageSchema.partial();
 
@@ -135,6 +149,7 @@ export const createDealStatusSchema = z.object({
   pipeline_type_id: uuidString(),
   deal_stage_id: uuidString().nullable().optional(),
   sort_order: z.number().int().min(0).default(0),
+  color: badgeColorSchema,
 });
 export const updateDealStatusSchema = createDealStatusSchema.partial();
 
@@ -143,6 +158,7 @@ export const leadStageCreateSchema = z.object({
   name: z.string().min(1).max(100),
   definition: z.string().max(1000).nullable().optional(),
   sort_order: z.number().int().min(0).default(0),
+  color: badgeColorSchema,
 });
 export const leadStageUpdateSchema = leadStageCreateSchema.partial();
 
@@ -152,6 +168,7 @@ export const leadStatusCreateSchema = z.object({
   definition: z.string().max(1000).nullable().optional(),
   stage_id: uuidString().nullable().optional(),
   sort_order: z.number().int().min(0).default(0),
+  color: badgeColorSchema,
 });
 export const leadStatusUpdateSchema = leadStatusCreateSchema.partial();
 
@@ -325,3 +342,16 @@ export const leadScoreRuleSchema = z.object({
     .default(0),
 });
 export const leadScoreRuleUpdateSchema = leadScoreRuleSchema.partial();
+
+// --- account_role_types（取引先区分）---
+// 取引上の役割（顧客・仕入れ先など）。事業体の形態を表す account_types とは別軸。
+// pipeline_type_id を持つ区分は、そのパイプラインで契約が成立したときに自動付与される。
+export const createAccountRoleTypeSchema = z.object({
+  code: z.string().min(1).max(32).regex(/^[a-z][a-z0-9_]{0,31}$/, "codeは小文字英字始まり、英数字とアンダースコアのみ使用可"),
+  name: z.string().min(1).max(50),
+  definition: z.string().max(1000).nullable().optional(),
+  color: badgeColorSchema,
+  sort_order: z.number().int().min(0).default(0),
+  pipeline_type_id: uuidString().nullable().optional(),
+});
+export const updateAccountRoleTypeSchema = createAccountRoleTypeSchema.partial();

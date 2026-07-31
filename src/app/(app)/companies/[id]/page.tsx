@@ -17,6 +17,15 @@ import { EntityLink } from "@/components/ui/EntityLink";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/** 実在確認の日付表示。時刻までは要らないので日付だけ出す */
+function formatDate(value: string | null | undefined): string {
+  if (!value) return "—";
+  const d = new Date(value);
+  return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, "0")}/${String(
+    d.getDate()
+  ).padStart(2, "0")}`;
+}
+
 const backLinkStyle = {
   display: "inline-flex" as const,
   alignItems: "center" as const,
@@ -55,7 +64,7 @@ export default async function CompanyDetailPage({
         </p>
         <Link href="/companies" style={backLinkStyle}>
           <ArrowLeft size={16} />
-          会社情報一覧
+          法人情報一覧
         </Link>
       </div>
     );
@@ -67,11 +76,11 @@ export default async function CompanyDetailPage({
     return (
       <div style={{ padding: "2rem" }}>
         <p style={{ color: "var(--color-text-body)", marginBottom: "1rem" }}>
-          会社情報が見つかりません
+          法人情報が見つかりません
         </p>
         <Link href="/companies" style={backLinkStyle}>
           <ArrowLeft size={16} />
-          会社情報一覧
+          法人情報一覧
         </Link>
       </div>
     );
@@ -98,7 +107,7 @@ export default async function CompanyDetailPage({
       <div style={{ marginBottom: "1.5rem" }}>
         <Link href="/companies" style={{ ...backLinkStyle, marginBottom: "0.75rem" }}>
           <ArrowLeft size={16} />
-          会社情報一覧
+          法人情報一覧
         </Link>
         <div
           style={{
@@ -187,6 +196,20 @@ export default async function CompanyDetailPage({
               <InfoField label="業種" value={industryLabel} />
               <InfoField label="ステータス" value={company.company_status?.name} />
               <InfoField label="リードソース" value={company.lead_sources?.name} />
+              {/* 実在確認の記録。ステータスがどの確認に基づくかを示す */}
+              <InfoField
+                label="最終確認"
+                value={
+                  company.verified_at
+                    ? `${formatDate(company.verified_at)}（${
+                        company.verification_source === "houjin_bangou_api"
+                          ? "法人番号API"
+                          : "手動"
+                      }）`
+                    : "未確認"
+                }
+              />
+              <InfoField label="確認メモ" value={company.verification_note} full />
             </div>
           </DetailSection>
 
@@ -222,6 +245,42 @@ export default async function CompanyDetailPage({
                     >
                       {company.website_url}
                     </a>
+                  ) : null
+                }
+              />
+              <InfoField
+                label="メールドメイン"
+                full
+                value={
+                  company.company_domains && company.company_domains.length > 0 ? (
+                    <span
+                      style={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: "0.375rem",
+                      }}
+                    >
+                      {[...company.company_domains]
+                        .sort((a, b) => Number(b.is_primary) - Number(a.is_primary))
+                        .map((d) => (
+                          <span
+                            key={d.id}
+                            title={d.is_primary ? "代表ドメイン" : undefined}
+                            style={{
+                              fontFamily: "monospace",
+                              fontSize: "0.8125rem",
+                              borderRadius: "var(--radius-badge)",
+                              padding: "0.125rem 0.5rem",
+                              backgroundColor: d.is_primary
+                                ? "rgba(122, 165, 146, 0.14)"
+                                : "var(--color-sumi100)",
+                              color: d.is_primary ? "#4D7A65" : "var(--color-sumi700)",
+                            }}
+                          >
+                            {d.domain}
+                          </span>
+                        ))}
+                    </span>
                   ) : null
                 }
               />

@@ -30,7 +30,7 @@ export default async function CompanyEditPage({
             borderRadius: "var(--radius-sm)",
           }}
         >
-          会社情報一覧へ戻る
+          法人情報一覧へ戻る
         </Link>
       </div>
     );
@@ -51,7 +51,7 @@ export default async function CompanyEditPage({
     return (
       <div style={{ padding: "2rem" }}>
         <p style={{ color: "var(--color-text-body)", marginBottom: "1rem" }}>
-          会社情報が見つかりません
+          法人情報が見つかりません
         </p>
         <Link
           href="/companies"
@@ -64,7 +64,7 @@ export default async function CompanyEditPage({
             borderRadius: "var(--radius-sm)",
           }}
         >
-          会社情報一覧へ戻る
+          法人情報一覧へ戻る
         </Link>
       </div>
     );
@@ -110,6 +110,7 @@ export default async function CompanyEditPage({
       company={company}
       masters={masters}
       isAdmin={isAdmin}
+      domains={company.company_domains ?? []}
     />
   );
 }

@@ -4,6 +4,7 @@ import { getContractTypes } from "@/actions/masters";
 import { getDeals } from "@/actions/deals";
 import { getCompanies } from "@/actions/companies";
 import { getContacts } from "@/actions/contacts";
+import { buildCompanyOptions } from "@/lib/company-options";
 import { getCrmUsers, getCurrentUser } from "@/actions/users";
 import { ArrowLeft } from "lucide-react";
 import { ContractEditForm } from "./contract-edit-form";
@@ -135,8 +136,9 @@ export default async function ContractEditPage({
     value: d.id,
     label: `${d.deal_code} ${d.name}`,
   }));
-  const companies = ((companiesResult.data?.rows ?? []) as CompanyItem[]).map(
-    (c) => ({ value: c.id, label: c.name })
+  const companies = buildCompanyOptions(
+    (companiesResult.data?.rows ?? []) as CompanyItem[],
+    contractResult.data?.counterparty_company ?? null
   );
   const contacts = ((contactsResult.data?.rows ?? []) as ContactItem[]).map(
     (c) => ({

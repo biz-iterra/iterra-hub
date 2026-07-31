@@ -224,6 +224,7 @@ export function ProjectsView({
                       <td className="px-4 py-3 whitespace-nowrap">
                         <ProjectStatusBadge
                           name={p.project_status?.name}
+                          color={p.project_status?.color}
                           sortOrder={p.project_status?.sort_order}
                           seed={p.project_status?.id}
                         />

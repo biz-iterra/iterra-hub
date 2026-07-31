@@ -365,7 +365,7 @@ export default async function ContractDetailPage({
                         marginBottom: "0.25rem",
                       }}
                     >
-                      会社情報
+                      法人情報
                     </div>
                     {contract.counterparty_company ? (
                       <Link

@@ -13,7 +13,7 @@ type LinkedProject = {
     id: string;
     project_code: string;
     name: string;
-    project_status: { id: string; name: string } | null;
+    project_status: { id: string; name: string; color: string | null } | null;
     deleted_at: string | null;
   } | null;
 };
@@ -199,7 +199,7 @@ export function DealProjectsSection({
                   </span>
                   {p.project.name}
                   {p.project.project_status && (
-                    <ProjectStatusBadge name={p.project.project_status.name} seed={p.project.project_status.id} />
+                    <ProjectStatusBadge name={p.project.project_status.name} color={p.project.project_status.color} seed={p.project.project_status.id} />
                   )}
                   <ArrowUpRight size={14} />
                 </Link>

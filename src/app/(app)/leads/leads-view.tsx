@@ -324,6 +324,7 @@ export function LeadsView({
                     <td className="px-4 py-3 whitespace-nowrap">
                       <StageBadge
                         name={lead.stage?.name}
+                        color={lead.stage?.color}
                         sortOrder={lead.stage?.sort_order}
                         total={stages.length}
                       />
@@ -332,6 +333,7 @@ export function LeadsView({
                     <td className="px-4 py-3 whitespace-nowrap">
                       <StatusBadge
                         name={lead.status?.name}
+                        color={lead.status?.color}
                         sortOrder={lead.status?.sort_order}
                         total={statuses.length}
                       />

@@ -8,6 +8,10 @@ import { updateCompany, deleteCompany } from "@/actions/companies";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import { isFieldValidationError } from "@/lib/errors";
+import {
+  CompanyDomainsSection,
+  type CompanyDomainRow,
+} from "./company-domains-section";
 
 type SelectOption = { value: string; label: string };
 
@@ -185,10 +189,12 @@ export function CompanyEditForm({
   company,
   masters,
   isAdmin,
+  domains,
 }: {
   company: CompanyData;
   masters: Masters;
   isAdmin: boolean;
+  domains: CompanyDomainRow[];
 }) {
   const router = useRouter();
   const { showToast } = useToast();
@@ -282,7 +288,7 @@ export function CompanyEditForm({
     if (result.error) {
       return { error: result.error };
     }
-    showToast({ type: "success", message: "会社情報を削除しました" });
+    showToast({ type: "success", message: "法人情報を削除しました" });
     router.push("/companies");
     router.refresh();
     return { error: null };
@@ -302,10 +308,10 @@ export function CompanyEditForm({
         }}
       >
         <ArrowLeft size={16} />
-        会社情報詳細に戻る
+        法人情報詳細に戻る
       </Link>
       <div style={styles.headerRow}>
-        <h1 style={styles.title}>会社情報を編集</h1>
+        <h1 style={styles.title}>法人情報を編集</h1>
       </div>
 
       <form onSubmit={handleSubmit}>
@@ -421,7 +427,7 @@ export function CompanyEditForm({
               </select>
               {masters.linkedContacts.length === 0 && (
                 <p style={{ color: "var(--color-sumi500)", fontSize: "0.75rem", margin: "0.25rem 0 0 0" }}>
-                  この会社情報に紐づく連絡先がまだありません
+                  この法人情報に紐づく連絡先がまだありません
                 </p>
               )}
             </div>
@@ -550,6 +556,9 @@ export function CompanyEditForm({
           </div>
         </div>
 
+        {/* メールドメイン（保存ボタンとは独立して即時反映する） */}
+        <CompanyDomainsSection companyId={company.id} initialDomains={domains} />
+
         {/* インボイス */}
         <div style={styles.card}>
           <h2 style={styles.sectionTitle}>インボイス</h2>
@@ -615,7 +624,7 @@ export function CompanyEditForm({
 
       <ConfirmDialog
         open={confirmDelete}
-        title="会社情報を削除"
+        title="法人情報を削除"
         message={`「${company.name}」を削除します。この操作は取り消せません。紐づく取引先が存在する場合は削除できません。`}
         confirmLabel="削除する"
         danger

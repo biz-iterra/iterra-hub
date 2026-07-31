@@ -97,7 +97,7 @@ export default async function ProjectDetailPage({
             {project.name}
           </h1>
           {project.project_status?.name && (
-            <ProjectStatusBadge name={project.project_status.name} sortOrder={project.project_status.sort_order} seed={project.project_status.id} />
+            <ProjectStatusBadge name={project.project_status.name} color={project.project_status.color} sortOrder={project.project_status.sort_order} seed={project.project_status.id} />
           )}
           <Link
             href={`/projects/${project.id}/edit`}
@@ -345,7 +345,7 @@ export default async function ProjectDetailPage({
                       <PipelineBadge name={d.pipeline_type?.name} />
                     </td>
                     <td style={{ borderBottom: "1px solid var(--color-border-default)", padding: "0.5rem", fontSize: "0.875rem" }}>
-                      <StageBadge name={d.deal_stage?.name} sortOrder={d.deal_stage?.sort_order} />
+                      <StageBadge name={d.deal_stage?.name} color={d.deal_stage?.color} sortOrder={d.deal_stage?.sort_order} />
                     </td>
                     <td style={{ borderBottom: "1px solid var(--color-border-default)", padding: "0.5rem", fontSize: "0.875rem" }}>
                       {d.amount != null ? `¥${d.amount.toLocaleString()}` : "-"}

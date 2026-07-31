@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, type FormEvent } from "react";
 import { ArrowUpRight } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
+import { CompanyVerificationPanel } from "./company-verification-panel";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   getPipelineTypes, createPipelineType, updatePipelineType, deletePipelineType,
@@ -13,6 +14,7 @@ import {
   getServices, createService, updateService, deleteService,
   getLeadSources, createLeadSource, updateLeadSource, deleteLeadSource,
   getAccountTypes, createAccountTypeAction, updateAccountType, deleteAccountType,
+  getAccountRoleTypesMaster, createAccountRoleType, updateAccountRoleType, deleteAccountRoleType,
   getAccountStatuses, createAccountStatusAction, updateAccountStatus, deleteAccountStatus,
   getContactStatuses, createContactStatusAction, updateContactStatus, deleteContactStatus,
   getCompanyStatuses, createCompanyStatusAction, updateCompanyStatus, deleteCompanyStatus,
@@ -80,10 +82,10 @@ type MasterItem = Record<string, unknown> & { id: string; name: string };
 const TAB_KEYS = [
   // 共通・取引
   "pipeline", "contract_types", "services",
-  // 会社情報
-  "corporate_types", "company_statuses",
-  // 取引先
-  "account_types", "account_statuses",
+  // 法人情報
+  "corporate_types", "company_statuses", "company_verification",
+  // 取引先（種別 = 事業体の形態、区分 = 取引上の役割。軸が違うので別マスタ）
+  "account_types", "account_role_types", "account_statuses",
   // 連絡先
   "contact_statuses",
   // リード・マーケティング（lead_statuses は lead_stages タブ内で管理、lead_small_segments は lead_large_segments タブ内で管理）
@@ -104,8 +106,10 @@ const TAB_LABELS: Record<TabKey, string> = {
   contract_types: "契約種別",
   services: "サービス",
   corporate_types: "法人格",
-  company_statuses: "会社情報ステータス",
+  company_statuses: "法人情報ステータス",
+  company_verification: "実在確認",
   account_types: "取引先種別",
+  account_role_types: "取引先区分",
   account_statuses: "取引先ステータス",
   contact_statuses: "連絡先ステータス",
   lead_sources: "リードソース",
@@ -133,13 +137,13 @@ const GROUPS: { key: GroupKey; label: string; tabs: TabKey[] }[] = [
   },
   {
     key: "company",
-    label: "会社情報",
-    tabs: ["corporate_types", "company_statuses"],
+    label: "法人情報",
+    tabs: ["corporate_types", "company_statuses", "company_verification"],
   },
   {
     key: "account",
     label: "取引先",
-    tabs: ["account_types", "account_statuses"],
+    tabs: ["account_types", "account_role_types", "account_statuses"],
   },
   {
     key: "contact",
@@ -709,6 +713,7 @@ function PipelineTab() {
     { key: "definition", label: "定義", type: "textarea" },
     { key: "current_situation", label: "現在の状況", type: "textarea" },
     { key: "sort_order", label: "表示順", type: "number" },
+    { key: "color", label: "バッジ色 (#RRGGBB)", type: "text", colorSwatch: true },
   ];
 
   const stageOptions = stages.map((s) => ({ value: s.id, label: s.name }));
@@ -717,6 +722,7 @@ function PipelineTab() {
     { key: "definition", label: "定義", type: "textarea" },
     { key: "deal_stage_id", label: "商談ステージ", type: "select", options: stageOptions },
     { key: "sort_order", label: "表示順", type: "number" },
+    { key: "color", label: "バッジ色 (#RRGGBB)", type: "text", colorSwatch: true },
   ];
 
   if (loadingData) {
@@ -913,6 +919,7 @@ function LeadStagesTab() {
     { key: "name", label: "名前", type: "text" },
     { key: "definition", label: "定義", type: "textarea" },
     { key: "sort_order", label: "表示順", type: "number" },
+    { key: "color", label: "バッジ色 (#RRGGBB)", type: "text", colorSwatch: true },
   ];
 
   const stageOptions = [
@@ -924,6 +931,7 @@ function LeadStagesTab() {
     { key: "definition", label: "定義", type: "textarea" },
     { key: "stage_id", label: "リードステージ", type: "select", options: stageOptions },
     { key: "sort_order", label: "表示順", type: "number" },
+    { key: "color", label: "バッジ色 (#RRGGBB)", type: "text", colorSwatch: true },
   ];
 
   if (loadingData) {
@@ -1605,6 +1613,9 @@ export function AdminView() {
   const [leadTemperatures, setLeadTemperatures] = useState<MasterItem[]>([]);
   const [leadCallStatuses, setLeadCallStatuses] = useState<MasterItem[]>([]);
   const [accountTypes, setAccountTypes] = useState<MasterItem[]>([]);
+  const [accountRoleTypes, setAccountRoleTypes] = useState<MasterItem[]>([]);
+  // 取引先区分の「自動付与するパイプライン」選択肢に使う
+  const [pipelineTypes, setPipelineTypes] = useState<MasterItem[]>([]);
   const [accountStatuses, setAccountStatuses] = useState<MasterItem[]>([]);
   const [contactStatuses, setContactStatuses] = useState<MasterItem[]>([]);
   const [companyStatuses, setCompanyStatuses] = useState<MasterItem[]>([]);
@@ -1657,17 +1668,22 @@ export function AdminView() {
     setProjectStatuses((ps.data as MasterItem[]) ?? []);
     setLeadCompanySizes((lcsizes.data as MasterItem[]) ?? []);
     setLeadCustomerActivityTypes((lcatypes.data as MasterItem[]) ?? []);
-    // スコアルール名前解決用に大・小セグメント・ステージ・ステータスも並行ロード
-    const [llargeSegs, lsmallSegs, lstages, lstatuses] = await Promise.all([
+    // スコアルール名前解決用に大・小セグメント・ステージ・ステータスも並行ロード。
+    // パイプラインは取引先区分の「自動付与するパイプライン」選択肢に使う
+    const [llargeSegs, lsmallSegs, lstages, lstatuses, artypes, pts] = await Promise.all([
       getLeadLargeSegments(),
       getLeadSmallSegments(undefined),
       getLeadStages(),
       getLeadStatuses(undefined),
+      getAccountRoleTypesMaster(),
+      getPipelineTypes(),
     ]);
     setAllLeadLargeSegments((llargeSegs.data as MasterItem[]) ?? []);
     setAllLeadSmallSegments((lsmallSegs.data as MasterItem[]) ?? []);
     setAllLeadStages((lstages.data as MasterItem[]) ?? []);
     setAllLeadStatuses((lstatuses.data as MasterItem[]) ?? []);
+    setAccountRoleTypes((artypes.data as MasterItem[]) ?? []);
+    setPipelineTypes((pts.data as MasterItem[]) ?? []);
     setLoadingData(false);
   }, []);
 
@@ -1717,6 +1733,10 @@ export function AdminView() {
   const refreshAccountTypes = async () => {
     const r = await getAccountTypes();
     setAccountTypes((r.data as MasterItem[]) ?? []);
+  };
+  const refreshAccountRoleTypes = async () => {
+    const r = await getAccountRoleTypesMaster();
+    setAccountRoleTypes((r.data as MasterItem[]) ?? []);
   };
   const refreshAccountStatuses = async () => {
     const r = await getAccountStatuses();
@@ -1801,7 +1821,7 @@ export function AdminView() {
       case "company_statuses":
         return (
           <SimpleMasterTab
-            title="会社情報ステータス"
+            title="法人情報ステータス"
             items={companyStatuses}
             onCreate={createCompanyStatusAction}
             onUpdate={updateCompanyStatus}
@@ -1810,6 +1830,7 @@ export function AdminView() {
             fields={[
               { key: "name", label: "名前", type: "text" },
               { key: "definition", label: "定義", type: "textarea" },
+              { key: "color", label: "バッジ色 (#RRGGBB)", type: "text", colorSwatch: true },
             ]}
           />
         );
@@ -1926,6 +1947,36 @@ export function AdminView() {
             ]}
           />
         );
+      case "company_verification":
+        return <CompanyVerificationPanel />;
+      case "account_role_types":
+        return (
+          <SimpleMasterTab
+            title="取引先区分"
+            items={accountRoleTypes}
+            onCreate={createAccountRoleType}
+            onUpdate={updateAccountRoleType}
+            onDelete={deleteAccountRoleType}
+            onRefresh={refreshAccountRoleTypes}
+            fields={[
+              { key: "code", label: "コード (例: customer)", type: "text" },
+              { key: "name", label: "名前", type: "text" },
+              { key: "definition", label: "定義", type: "textarea" },
+              { key: "color", label: "バッジ色 (#RRGGBB)", type: "text", colorSwatch: true },
+              { key: "sort_order", label: "表示順", type: "number", min: 0 },
+              {
+                // このパイプラインで契約が成立すると、取引先へ自動で付与される
+                key: "pipeline_type_id",
+                label: "自動付与するパイプライン",
+                type: "select",
+                options: [
+                  { value: "", label: "（手動付与のみ）" },
+                  ...pipelineTypes.map((p) => ({ value: p.id, label: p.name })),
+                ],
+              },
+            ]}
+          />
+        );
       case "account_statuses":
         return (
           <SimpleMasterTab
@@ -1938,6 +1989,7 @@ export function AdminView() {
             fields={[
               { key: "name", label: "名前", type: "text" },
               { key: "definition", label: "定義", type: "textarea" },
+              { key: "color", label: "バッジ色 (#RRGGBB)", type: "text", colorSwatch: true },
             ]}
           />
         );
@@ -1953,6 +2005,7 @@ export function AdminView() {
             fields={[
               { key: "name", label: "名前", type: "text" },
               { key: "definition", label: "定義", type: "textarea" },
+              { key: "color", label: "バッジ色 (#RRGGBB)", type: "text", colorSwatch: true },
             ]}
           />
         );
@@ -2008,6 +2061,7 @@ export function AdminView() {
               { key: "name", label: "名前", type: "text" },
               { key: "definition", label: "定義", type: "textarea" },
               { key: "sort_order", label: "表示順", type: "number" },
+              { key: "color", label: "バッジ色 (#RRGGBB)", type: "text", colorSwatch: true },
             ]}
           />
         );

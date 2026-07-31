@@ -3,54 +3,40 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, Mail, Phone } from "lucide-react";
+import { Plus, Mail, Phone, Building2, Briefcase } from "lucide-react";
 import { getContacts } from "@/actions/contacts";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { FilterSelect } from "@/components/ui/FilterSelect";
 import { FilterGroup, FilterClearButton } from "@/components/ui/FilterGroup";
 import { Pagination } from "@/components/ui/Pagination";
+import { EntityLink } from "@/components/ui/EntityLink";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants/pagination";
 import { ContactTypeBadge, StatusBadge } from "@/components/ui/badges";
+import type { ContactWithRelations, Paged } from "@/types/relations";
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
-interface ContactEmail {
-  id: string;
-  email: string;
-  label: string | null;
-  is_primary: boolean;
-}
-
-interface ContactPhone {
-  id: string;
-  phone: string;
-  label: string | null;
-  is_primary: boolean;
-}
-
-interface ContactRow {
-  id: string;
-  contact_code: string;
-  last_name: string;
-  first_name: string;
-  contact_type: string;
-  updated_at: string | null;
-  company: { id: string; name: string } | null;
-  contact_status: { id: string; name: string } | null;
-  owner: { id: string; full_name: string } | null;
-  contact_emails: ContactEmail[];
-  contact_phones: ContactPhone[];
-}
+type ContactEmail = ContactWithRelations["contact_emails"][number];
+type ContactPhone = ContactWithRelations["contact_phones"][number];
 
 type ContactStatus = { id: string; name: string };
 type CrmUser = { id: string; full_name: string; role: string };
 
 interface Props {
-  initialData: { rows: unknown[]; total: number } | null;
+  initialData: Paged<ContactWithRelations> | null;
   statuses: ContactStatus[];
   users: CrmUser[];
 }
+
+/**
+ * 所属の表示元。
+ * 法人所属コンタクトは contacts.company_id、個人コンタクトは account_contacts が
+ * 所属の出所になるため、画面では 1 列に統合したうえでアイコンで出所を区別する。
+ */
+type Affiliation =
+  | { kind: "company"; id: string; name: string }
+  | { kind: "account"; id: string; name: string };
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -76,6 +62,80 @@ function getPrimaryPhone(phones: ContactPhone[]): string {
   if (!phones || phones.length === 0) return "—";
   const primary = phones.find((p) => p.is_primary);
   return (primary ?? phones[0]).phone;
+}
+
+/**
+ * 会社紐付けを優先し、無ければ取引先を所属として採る。
+ * 取引先が複数ある場合は主担当ロールを優先し、残数は「他N件」で示す。
+ */
+function resolveAffiliation(row: ContactWithRelations): {
+  affiliation: Affiliation | null;
+  extraCount: number;
+} {
+  const links = (row.account_contacts ?? []).filter((l) => l.account);
+
+  if (row.company) {
+    return {
+      affiliation: { kind: "company", id: row.company.id, name: row.company.name },
+      extraCount: links.length,
+    };
+  }
+
+  const primary = links.find((l) => l.role === "primary") ?? links[0];
+  if (primary?.account) {
+    return {
+      affiliation: {
+        kind: "account",
+        id: primary.account.id,
+        name: primary.account.name,
+      },
+      extraCount: links.length - 1,
+    };
+  }
+
+  return { affiliation: null, extraCount: 0 };
+}
+
+/**
+ * 所属セル。出所（法人情報 / 取引先）をアイコンで区別し、遷移先もそれに合わせる。
+ * 行全体が詳細ページへの遷移になっているため、リンククリックは伝播を止める。
+ */
+function AffiliationCell({ row }: { row: ContactWithRelations }) {
+  const { affiliation, extraCount } = resolveAffiliation(row);
+
+  if (!affiliation) {
+    return (
+      <span style={{ fontSize: "0.8125rem", color: "var(--color-sumi400)" }}>
+        — 未紐付け
+      </span>
+    );
+  }
+
+  const isCompany = affiliation.kind === "company";
+  const Icon = isCompany ? Building2 : Briefcase;
+  const href = isCompany
+    ? `/companies/${affiliation.id}`
+    : `/accounts/${affiliation.id}`;
+
+  return (
+    <span
+      className="inline-flex items-center gap-1.5"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <EntityLink href={href} compact>
+        <Icon size={13} style={{ flexShrink: 0 }} />
+        {affiliation.name}
+      </EntityLink>
+      {extraCount > 0 && (
+        <span
+          style={{ fontSize: "0.75rem", color: "var(--color-sumi500)" }}
+          title={`ほかに取引先 ${extraCount} 件に紐付いています`}
+        >
+          他{extraCount}件
+        </span>
+      )}
+    </span>
+  );
 }
 
 const CONTACT_TYPE_OPTIONS = [
@@ -147,7 +207,7 @@ export function ContactsView({ initialData, statuses, users }: Props) {
     });
   }
 
-  const items = (data?.rows ?? []) as ContactRow[];
+  const items = data?.rows ?? [];
   const totalCount = data?.total ?? 0;
 
   return (
@@ -290,6 +350,7 @@ export function ContactsView({ initialData, statuses, users }: Props) {
                   <td className="px-4 py-3 whitespace-nowrap">
                     <StatusBadge
                       name={row.contact_status?.name}
+                      color={row.contact_status?.color}
                       seed={row.contact_status?.id}
                     />
                   </td>
@@ -297,12 +358,9 @@ export function ContactsView({ initialData, statuses, users }: Props) {
                   <td className="px-4 py-3 whitespace-nowrap">
                     <ContactTypeBadge type={row.contact_type} />
                   </td>
-                  {/* 所属 */}
-                  <td
-                    className="px-4 py-3 whitespace-nowrap"
-                    style={{ color: "var(--color-text-list)" }}
-                  >
-                    {row.company?.name ?? "—"}
+                  {/* 所属（法人情報 / 取引先を 1 列に統合） */}
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <AffiliationCell row={row} />
                   </td>
                   {/* メール */}
                   <td className="px-4 py-3 whitespace-nowrap">

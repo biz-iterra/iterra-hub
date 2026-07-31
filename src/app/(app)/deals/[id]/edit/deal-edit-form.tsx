@@ -20,7 +20,8 @@ type DealData = {
   deal_stage_id: string;
   deal_status_id: string;
   amount: number | null;
-  account_id: string;
+  /** 契約成立時に作られるため、契約前は null */
+  account_id: string | null;
   owner_user_id: string | null;
   contract_name: string | null;
   application_date: string | null;
@@ -262,7 +263,8 @@ export function DealEditForm({
       deal_stage_id: values.deal_stage_id,
       deal_status_id: values.deal_status_id,
       amount: amountNum,
-      account_id: values.account_id,
+      // 未設定のまま送ると uuid バリデーションに掛かる。取引先なしの商談は送らない
+      account_id: values.account_id || undefined,
       owner_user_id: values.owner_user_id || null,
       contract_name: values.contract_name || null,
       application_date: values.application_date || null,
@@ -351,22 +353,45 @@ export function DealEditForm({
               />
             </div>
             <div>
-              <label style={styles.label}>取引先 *</label>
-              <select
-                style={styles.input}
-                value={values.account_id}
-                onChange={(e) => set("account_id", e.target.value)}
-                required
-                onFocus={onFocus}
-                onBlur={onBlur}
-              >
-                <option value="">-- 選択 --</option>
-                {masters.accounts.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
+              {/*
+                取引先は契約成立時に作られる。まだ無い商談で選択させると
+                契約前に取引先が増えてしまうため、その場合は案内だけ出す。
+                既に紐付いている商談では従来どおり必須で編集できる。
+              */}
+              {deal.account_id ? (
+                <>
+                  <label style={styles.label}>取引先 *</label>
+                  <select
+                    style={styles.input}
+                    value={values.account_id}
+                    onChange={(e) => set("account_id", e.target.value)}
+                    required
+                    onFocus={onFocus}
+                    onBlur={onBlur}
+                  >
+                    <option value="">-- 選択 --</option>
+                    {masters.accounts.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                </>
+              ) : (
+                <>
+                  <label style={styles.label}>取引先</label>
+                  <p
+                    style={{
+                      color: "var(--color-sumi500)",
+                      fontSize: "0.75rem",
+                      margin: "0.5rem 0 0 0",
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    未作成です。契約を登録すると取引先が作成され、この商談に紐付きます。
+                  </p>
+                </>
+              )}
             </div>
             <div>
               <label style={styles.label}>担当者</label>

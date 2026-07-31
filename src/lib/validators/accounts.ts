@@ -21,3 +21,14 @@ export const createAccountContactSchema = z.object({
   contact_id: uuidString(),
   role: z.enum(["primary", "billing", "technical", "other"]).nullable().optional(),
 });
+
+// ---------------------------------------------------------------------------
+// 取引先区分（account_roles）
+//
+// 顧客／仕入れ先などの取引上の役割。1 社が複数持ちうるため中間テーブルで扱う。
+// 事業体の形態を表す account_type_id とは別軸。
+// ---------------------------------------------------------------------------
+export const createAccountRoleSchema = z.object({
+  account_id: uuidString(),
+  role_type_id: uuidString(),
+});

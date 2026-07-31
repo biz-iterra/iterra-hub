@@ -19,6 +19,7 @@ import type { LucideIcon } from "lucide-react";
 import { DetailSection } from "@/components/ui/DetailSection";
 import { InfoField } from "@/components/ui/InfoField";
 import { EntityLink } from "@/components/ui/EntityLink";
+import { getDealCounterparty } from "@/lib/deal-counterparty";
 import { LabelBadge, ContractMethodBadge, PipelineBadge, StageBadge, StatusBadge } from "@/components/ui/badges";
 
 function formatDate(date: string | null | undefined): string {
@@ -201,7 +202,25 @@ export default async function DealDetailPage({
                       {deal.account.name}
                       {deal.account.company && ` (${deal.account.company.name})`}
                     </EntityLink>
-                  ) : null
+                  ) : (
+                    // 契約前は取引先が無い。相手先は法人情報 / 連絡先で示す
+                    (() => {
+                      const cp = getDealCounterparty(deal);
+                      if (!cp) return null;
+                      return (
+                        <span
+                          style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}
+                        >
+                          <EntityLink href={cp.href}>{cp.label}</EntityLink>
+                          <span
+                            style={{ fontSize: "0.75rem", color: "var(--color-sumi500)" }}
+                          >
+                            取引先は契約時に作成
+                          </span>
+                        </span>
+                      );
+                    })()
+                  )
                 }
               />
             </div>
@@ -224,6 +243,7 @@ export default async function DealDetailPage({
                 value={
                   <StageBadge
                     name={deal.deal_stage?.name}
+                    color={deal.deal_stage?.color}
                     sortOrder={deal.deal_stage?.sort_order}
                   />
                 }
@@ -233,6 +253,7 @@ export default async function DealDetailPage({
                 value={
                   <StatusBadge
                     name={deal.deal_status?.name}
+                    color={deal.deal_status?.color}
                     sortOrder={deal.deal_status?.sort_order}
                   />
                 }

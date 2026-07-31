@@ -15,6 +15,8 @@ import {
   BarChart2,
   Activity,
   Plus,
+  Building2,
+  Users,
 } from "lucide-react";
 import { createLeadActivity, deleteLeadActivity, updateLeadActivity } from "@/actions/lead-activities";
 import {
@@ -136,6 +138,17 @@ const styles = {
   } as CSSProperties,
 };
 
+/** 取込で紐付いた法人情報・連絡先へのリンク（タイトル下のバッジ列に並べる） */
+const linkedEntityStyle: CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: "0.25rem",
+  color: "var(--color-terra)",
+  fontSize: "0.75rem",
+  fontWeight: 500,
+  textDecoration: "none",
+};
+
 function onFocus(
   e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
 ) {
@@ -247,7 +260,7 @@ function ActivityAccordionItem({
           )}
 
           {act.call_status?.name && (
-            <StatusBadge name={act.call_status.name} />
+            <StatusBadge name={act.call_status.name} color={act.call_status.color} />
           )}
 
           {act.caller?.full_name && (
@@ -920,6 +933,7 @@ export function LeadDetailClient({
             {lead.stage?.name && (
               <StageBadge
                 name={lead.stage.name}
+                color={lead.stage.color}
                 sortOrder={lead.stage.sort_order}
                 total={masters.stages.length}
               />
@@ -927,9 +941,34 @@ export function LeadDetailClient({
             {lead.status?.name && (
               <StatusBadge
                 name={lead.status.name}
+                color={lead.status.color}
                 sortOrder={lead.status.sort_order}
                 total={masters.statuses.length}
               />
+            )}
+            {/*
+              名刺はリードであると同時に連絡先でもあるため、取込時点で
+              法人情報・連絡先に紐付いている。昇格を待たずにそちらへ辿れるようにする。
+            */}
+            {lead.linked_company && (
+              <Link
+                href={`/companies/${lead.linked_company.id}`}
+                style={linkedEntityStyle}
+              >
+                <Building2 size={12} />
+                {lead.linked_company.name}
+                <ArrowUpRight size={12} />
+              </Link>
+            )}
+            {lead.linked_contact && (
+              <Link
+                href={`/contacts/${lead.linked_contact.id}`}
+                style={linkedEntityStyle}
+              >
+                <Users size={12} />
+                {`${lead.linked_contact.last_name ?? ""} ${lead.linked_contact.first_name ?? ""}`.trim()}
+                <ArrowUpRight size={12} />
+              </Link>
             )}
             {promotedDealId && (
               <Link

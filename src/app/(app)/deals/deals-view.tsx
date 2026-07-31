@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { getDealsForKanban, getDeals, moveDealCard } from "@/actions/deals";
 import { StageBadge, StatusBadge } from "@/components/ui/badges";
+import { getDealCounterpartyLabel } from "@/lib/deal-counterparty";
 import { FilterGroup, FilterClearButton } from "@/components/ui/FilterGroup";
 import { FilterSelect } from "@/components/ui/FilterSelect";
 import { SearchInput } from "@/components/ui/SearchInput";
@@ -770,7 +771,7 @@ function KanbanView({
         ...c,
         deals: c.deals.filter((d) => {
           const name = String(d.name ?? "").toLowerCase();
-          const accountName = String(d.account?.name ?? "").toLowerCase();
+          const accountName = getDealCounterpartyLabel(d).toLowerCase();
           return name.includes(q) || accountName.includes(q);
         }),
       }))
@@ -961,6 +962,7 @@ function KanbanView({
                       <span style={{ flexShrink: 0 }}>
                         <StatusBadge
                           name={deal.deal_status.name}
+                          color={deal.deal_status.color}
                           sortOrder={deal.deal_status.sort_order}
                           total={statusesList.length}
                         />
@@ -1075,7 +1077,7 @@ function KanbanView({
                         maxWidth: 140,
                       }}
                     >
-                      {deal.account?.name ?? "—"}
+                      {getDealCounterpartyLabel(deal) || "—"}
                     </span>
                     <span
                       style={{
@@ -1192,12 +1194,14 @@ function TableView({ data }: { data: ListData }) {
               <td className="px-4 py-3 whitespace-nowrap">
                 <StageBadge
                   name={deal.deal_stage?.name}
+                  color={deal.deal_stage?.color}
                   sortOrder={deal.deal_stage?.sort_order}
                 />
               </td>
               <td className="px-4 py-3 whitespace-nowrap">
                 <StatusBadge
                   name={deal.deal_status?.name}
+                  color={deal.deal_status?.color}
                   sortOrder={deal.deal_status?.sort_order}
                 />
               </td>
@@ -1228,9 +1232,9 @@ function TableView({ data }: { data: ListData }) {
               <td
                 className="px-4 py-3 truncate"
                 style={{ color: "var(--color-text-list)", maxWidth: "220px" }}
-                title={deal.account?.name ?? ""}
+                title={getDealCounterpartyLabel(deal)}
               >
-                {deal.account?.name ?? "—"}
+                {getDealCounterpartyLabel(deal) || "—"}
               </td>
               <td
                 className="px-4 py-3 whitespace-nowrap"

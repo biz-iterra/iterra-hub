@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus, Briefcase } from "lucide-react";
 import { getAccounts } from "@/actions/accounts";
-import { StatusBadge } from "@/components/ui/badges";
+import { AccountTypeBadge, LabelBadge, StatusBadge } from "@/components/ui/badges";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { FilterSelect } from "@/components/ui/FilterSelect";
 import { FilterGroup, FilterClearButton } from "@/components/ui/FilterGroup";
@@ -195,7 +195,11 @@ export function AccountsView({
           <table className="w-full text-sm" style={{ tableLayout: "auto" }}>
             <thead>
               <tr style={{ backgroundColor: "var(--color-sumi50)" }}>
-                {["取引先名", "ステータス", "種別", "会社名", "担当者", "最終更新日"].map(
+                {/*
+                  種別（法人／個人事業主）は取引先名セル内のバッジで示す。
+                  区分（顧客／仕入れ先など）は複数付くため独立した列にする。
+                */}
+                {["取引先名", "ステータス", "区分", "会社名", "担当者", "最終更新日"].map(
                   (label) => (
                     <th
                       key={label}
@@ -222,30 +226,56 @@ export function AccountsView({
                   }
                   onClick={() => router.push(`/accounts/${account.id}`)}
                 >
-                  {/* 取引先名 */}
+                  {/* 取引先名（+ 種別バッジ） */}
                   <td className="px-4 py-3">
-                    <Link
-                      href={`/accounts/${account.id}`}
-                      className="font-medium"
-                      style={{ color: "var(--color-text-list)" }}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {account.name}
-                    </Link>
+                    <span className="inline-flex items-center gap-2">
+                      <Link
+                        href={`/accounts/${account.id}`}
+                        className="font-medium"
+                        style={{ color: "var(--color-text-list)" }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {account.name}
+                      </Link>
+                      {/* 種別未設定の行にダッシュを出さないよう、値がある時だけ描画する */}
+                      {account.account_type && (
+                        <AccountTypeBadge
+                          name={account.account_type.name}
+                          slug={account.account_type.slug}
+                        />
+                      )}
+                    </span>
                   </td>
                   {/* ステータス */}
                   <td className="px-4 py-3 whitespace-nowrap">
                     <StatusBadge
                       name={account.account_status?.name}
+                      color={account.account_status?.color}
                       seed={account.account_status?.id}
                     />
                   </td>
-                  {/* 種別 */}
-                  <td
-                    className="px-4 py-3 whitespace-nowrap"
-                    style={{ color: "var(--color-text-list)" }}
-                  >
-                    {account.account_type?.name ?? "—"}
+                  {/* 区分（複数） */}
+                  <td className="px-4 py-3">
+                    {account.account_roles && account.account_roles.length > 0 ? (
+                      <span className="inline-flex flex-wrap items-center gap-1">
+                        {[...account.account_roles]
+                          .sort(
+                            (a, b) =>
+                              (a.role_type?.sort_order ?? 0) - (b.role_type?.sort_order ?? 0)
+                          )
+                          .map((r) =>
+                            r.role_type ? (
+                              <LabelBadge
+                                key={r.id}
+                                name={r.role_type.name}
+                                color={r.role_type.color}
+                              />
+                            ) : null
+                          )}
+                      </span>
+                    ) : (
+                      <span style={{ color: "var(--color-sumi400)" }}>—</span>
+                    )}
                   </td>
                   {/* 会社名 */}
                   <td

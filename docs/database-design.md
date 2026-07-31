@@ -399,6 +399,7 @@ ITERRAの営業・取引管理CRMシステムを新規構築する。現在ス�
 | 4 | 有効フラグ | `is_active` | BOOLEAN | | | | NN | TRUE | | |
 | 5 | 作成日時 | `created_at` | TIMESTAMPTZ | | | | NN | NOW() | | 更新不可 |
 | 6 | 更新日時 | `updated_at` | TIMESTAMPTZ | | | | NN | NOW() | | トリガー自動更新 |
+| 7 | バッジ色 | `color` | TEXT | | | | | NULL | `^#[0-9A-Fa-f]{6}$` | §11 参照 |
 
 **既存バックフィル:** `active` / `inactive` / `churned` / `prospect`（インサイドセールスの見込みリードは `prospect` を使用）
 
@@ -415,6 +416,14 @@ ITERRAの営業・取引管理CRMシステムを新規構築する。現在ス�
 | 3 | 有効フラグ | `is_active` | BOOLEAN | | | | NN | TRUE | | |
 | 4 | 作成日時 | `created_at` | TIMESTAMPTZ | | | | NN | NOW() | | 更新不可 |
 | 5 | 更新日時 | `updated_at` | TIMESTAMPTZ | | | | NN | NOW() | | トリガー自動更新 |
+| 6 | バッジ色 | `color` | TEXT | | | | | NULL | `^#[0-9A-Fa-f]{6}$` | §11 参照 |
+
+**初期値:** アクティブ / 休眠 / 退職
+
+**「見込み」を持たない理由（2026-07-31）:** 連絡先ステータスは「連絡先として今も有効か」だけを表す。
+「見込み」は営業上の進度であり、リード側（`lead_statuses`）が持つ。同じ語彙を両方に置くと
+同一人物について 2 か所に進度が書かれ、どちらが正かが決まらない。
+マイグレーション `20260731000009` で論理削除済み（既存の該当連絡先は「アクティブ」へ移行）。
 
 **CRUD:** M01と同じパターン。
 
@@ -431,6 +440,7 @@ ITERRAの営業・取引管理CRMシステムを新規構築する。現在ス�
 | 5 | 削除理由 | `deletion_reason` | TEXT | | | | | | | |
 | 6 | 作成日時 | `created_at` | TIMESTAMPTZ | | | | NN | NOW() | | 更新不可 |
 | 7 | 更新日時 | `updated_at` | TIMESTAMPTZ | | | | NN | NOW() | | トリガー自動更新 |
+| 8 | バッジ色 | `color` | TEXT | | | | | NULL | `^#[0-9A-Fa-f]{6}$` | §11 参照 |
 
 **CRUD:** M01と同じパターン（SELECT は認証済み全員、INSERT/UPDATE/DELETE は admin のみ）。
 **初期値:** アクティブ / 休眠 / 取引停止 / 見込み
@@ -788,7 +798,9 @@ ITERRAの営業・取引管理CRMシステムを新規構築する。現在ス�
 | 5 | ディールステージID | `deal_stage_id` | UUID | | FK→S01.id | | NN | | | pipeline_type_idとの整合性（アプリ層） |
 | 6 | ディールステータスID | `deal_status_id` | UUID | | FK→S02.id | | NN | | | pipeline+stageとの整合性（アプリ層） |
 | 7 | 金額 | `amount` | BIGINT | | | | | | >= 0 | |
-| 8 | アカウントID | `account_id` | UUID | | FK→T03.id | | NN | | | ディールは必ずAccountに紐づく |
+| 8 | アカウントID | `account_id` | UUID | | FK→T03.id | | | | | **契約成立時に作られるため、契約前は NULL**（20260731000006） |
+| 8a | カンパニーID | `company_id` | UUID | | FK→T02.id | | | | | 取引先が未作成の間の相手法人 |
+| 8b | コンタクトID | `contact_id` | UUID | | FK→T04.id | | | | | 取引先が未作成の間の相手担当者 |
 | 9 | 取引担当者ID | `owner_user_id` | UUID | | FK→T01.id | | | | | |
 | 10 | 契約書名 | `contract_name` | TEXT | | | | | | | max 200文字 |
 | 11 | 申請日 | `application_date` | DATE | | | | | | | |
@@ -800,8 +812,21 @@ ITERRAの営業・取引管理CRMシステムを新規構築する。現在ス�
 | 17 | 作成日時 | `created_at` | TIMESTAMPTZ | | | | NN | NOW() | | 更新不可 |
 | 18 | 更新日時 | `updated_at` | TIMESTAMPTZ | | | | NN | NOW() | | トリガー自動更新 |
 
+**CHECK:** `account_id IS NOT NULL OR company_id IS NOT NULL OR contact_id IS NOT NULL`（相手が特定できない商談は作れない）
+
+**取引先の作られ方（2026-07-31 変更）:**
+取引先は契約主体なので、契約が成立するまで作らない。
+
+```
+Lead ─取込→ Company + Contact          （名刺はリードであると同時に連絡先）
+     ─昇格→ Deal（account_id = NULL、company_id / contact_id で相手を示す）
+     ─契約→ Account 作成 + Deal に紐付け（contracts の AFTER INSERT トリガー）
+```
+
+表示側は取引先 → 法人情報 → 連絡先の順でフォールバックする（`src/lib/deal-counterparty.ts`）。
+
 **設計変更点:**
-- `account_id` を **必須(NN)** に変更。コンタクトはAccountを介してDealに紐づくため、Dealには必ずAccountが必要
+- `account_id` は当初 **必須(NN)** だったが、上記の運用変更に伴い任意へ戻した
 - `primary_contact_id` を **削除**。コンタクトとDealの関係はAccount経由（account_contacts）で表現される
 - `contractor_company_name` / `contractor_representative` を **削除**。Account→Companyから取得可能であり、非正規化による整合性リスクを排除。表示時はJOINで取得する
 
@@ -2522,3 +2547,277 @@ CREATE POLICY lead_activities_update ON lead_activities
 | `src/lib/talent-classification/*` | 判定ロジック（純粋関数） |
 | `src/app/(app)/talents/[id]/page.tsx` | プロファイル・実績・ロールを取得してクライアントへ渡す |
 | `src/app/(app)/talents/[id]/talent-detail-client.tsx` | 基本性質 / スキル / 職種 / 経歴の 4 タブ |
+
+
+---
+
+## 16. 名刺データの連絡先化・取引先の契約後作成・ステータス色（2026-07-31）
+
+### 16.1 背景
+
+3 点の運用変更をまとめて反映した。
+
+1. **バッジ色が画面ごとに違う** — 色の決め方が「sort_order からの進行度」と「id のハッシュ」の 2 系統に分かれていた。前者は画面が渡す総件数で色が変わり、後者はマスタ間で対応が取れない
+2. **名刺データが連絡先に出てこない** — Deal 昇格まで `contacts` を作っていなかったため、取り込んだ人物を連絡先一覧から探せなかった
+3. **契約前から取引先が増える** — 取引先は契約主体なので、契約成立まで作らない
+
+### 16.2 ステータス色（color）
+
+対象マスタに `color`（`^#[0-9A-Fa-f]{6}$`）を追加し、表示側は DB の値をそのまま使う。
+
+| テーブル | マイグレーション |
+|---|---|
+| `account_statuses` / `contact_statuses` / `company_statuses` | 20260731000001 |
+| `deal_stages` / `deal_statuses` | 同上 |
+| `lead_stages` / `lead_statuses` | 同上 |
+| `project_statuses` | 同上 |
+
+既定色は `apply_default_status_colors()` に集約し、マイグレーションと `seeds/01-masters.sql` の双方から呼ぶ（色定義の二重管理を避けるため）。色が入っている行は上書きしない。
+
+**意味カテゴリで横断統一する。** マスタが違っても同じ意味の値は同じ色になる。
+
+| 意味 | 色 | 例 |
+|---|---|---|
+| 開始・新規・見込み | `#2563EB` | 見込み / 新規 / 計画中 / 獲得 |
+| 接触・育成 | `#0E7490` | コンタクト済み / 架電試行中 / 育成 |
+| 進行・提案 | `#0F766E` | 進行中 / 提案中 / 選定 |
+| 交渉・見積 | `#B88A2E` | 見積り提出 / アポ獲得 |
+| 成功・完了 | `#4D7A65` | アクティブ / 受注 / 成約 / Customer |
+| 失敗・終了 | `#B03A2E` | 解約 / 失注 / 中止 / Dead |
+| 停止・保留 | `#6B7280` | 休眠 / 保留 |
+
+Admin のマスタ管理から色を編集できる（`colorSwatch` フィールド）。`color` が NULL の行は表示側が従来のフォールバック配色を使う。
+
+### 16.3 D06: company_domains（法人ドメイン）
+
+名刺取込で所属法人を判定する一次キー。会社名は表記ゆれが大きいため、ゆれの無いメールドメインを先に見る。
+
+| # | 論理名 | 物理名 | 型 | PK | FK | UK | NN | デフォルト | 区分値/CHECK |
+|---|--------|--------|-----|----|----|----|----|----------|-------------|
+| 1 | ID | `id` | UUID | PK | | | NN | gen_random_uuid() | |
+| 2 | カンパニーID | `company_id` | UUID | | FK→T02.id (CASCADE) | | NN | | |
+| 3 | ドメイン | `domain` | TEXT | | | UK | NN | | 小文字・ラベル形式のみ／フリーメール禁止 |
+| 4 | 代表フラグ | `is_primary` | BOOLEAN | | | | NN | FALSE | 法人ごとに 1 件（部分 UNIQUE） |
+| 5 | 作成日時 | `created_at` | TIMESTAMPTZ | | | | NN | now() | |
+| 6 | 作成者 | `created_by` | UUID | | FK→T01.id | | | | |
+| 7 | 更新日時 | `updated_at` | TIMESTAMPTZ | | | | NN | now() | トリガー自動更新 |
+| 8 | 最終更新者 | `last_updated_by` | UUID | | FK→T01.id | | | | |
+
+- **`domain` は全体で UNIQUE。** 法人を一意に決めるキーとして使うため、同じドメインを 2 社に登録できない（名寄せ結果が呼び出し順で変わるのを防ぐ）
+- **RLS:** 親 `companies` の可視性・編集権限をそのまま引き継ぐ（従属テーブルの規約どおり）
+- **UI:** 法人情報の編集ページで追加・削除・代表切替。保存ボタンとは独立して即時反映する
+
+### 16.4 名寄せ関数
+
+| 関数 | 役割 |
+|---|---|
+| `is_free_email_domain(TEXT)` | フリーメール判定。IMMUTABLE。`company_domains` の CHECK からも使う |
+| `normalize_domain(TEXT)` | メール／URL／裸のドメインを保存形式（小文字・www 無し）へ |
+| `normalize_company_name(TEXT)` | 法人格表記・全角半角・区切り記号を落とした名寄せキー。`companies` に関数インデックス |
+| `resolve_or_create_company(...)` | ドメイン一致 → 会社名一致 → 新規作成。ドメインも同時に登録 |
+| `resolve_or_create_contact(...)` | メール一致 → 会社×姓名一致 → 新規作成。メール・電話は空欄補完のみ |
+
+取込（`import_eight_leads`）と既存リードの遡及作成が同じ関数を通る。片方だけ判定が変わる事故を防ぐため。
+
+### 16.5 leads の新カラム
+
+| 物理名 | 型 | 説明 |
+|---|---|---|
+| `company_id` | UUID FK→T02.id | 取込時に名寄せ／作成した法人 |
+| `contact_id` | UUID FK→T04.id | 取込時に作成した連絡先 |
+
+`promoted_company_id` / `promoted_contact_id` は「Deal 昇格で確定したもの」を指す既存カラムで、意味が違うため別に持つ。昇格時は `company_id` / `contact_id` の値をそのまま `promoted_*` へ引き継ぎ、作り直さない。
+
+姓が取れない行（企業リスト由来など）は連絡先を作らない。会社名が無い行は法人も作らない。
+
+### 16.6 取引先の作成タイミング
+
+`contracts` の AFTER INSERT トリガー `ensure_account_on_contract()` が、取引先未作成の商談に取引先を作って紐付ける。
+
+- 契約と同一トランザクションで完結する（「契約はあるが取引先が無い」状態を作らない）
+- 取引先名は法人名を優先し、個人取引なら担当者名を使う
+- 種別は法人紐付きなら「法人」、無ければ「個人事業主」
+- 商談の相手担当者を `account_contacts` に `primary` で登録する
+- 昇格元リードの `promoted_account_id` も更新する
+- **SECURITY DEFINER。** 契約を登録する manager が商談の担当者とは限らず、`deals` の UPDATE ポリシー（owner / admin）では紐付けが 0 行更新で静かに失敗するため
+
+### 16.7 マイグレーション
+
+| ファイル | 内容 |
+|---|---|
+| `20260731000001_add_status_colors.sql` | ステータス／ステージ 8 マスタに `color` + 既定色関数 |
+| `20260731000002_create_company_domains.sql` | `company_domains` + ドメイン正規化・登録関数 |
+| `20260731000003_lead_company_contact_resolution.sql` | 会社名正規化・`leads.company_id/contact_id`・名寄せ関数 |
+| `20260731000004_import_eight_leads_with_contacts.sql` | 取込で法人・連絡先も作る |
+| `20260731000005_backfill_lead_companies_contacts.sql` | 既存リードの遡及作成（3,812 件処理） |
+| `20260731000006_deals_optional_account.sql` | `deals.account_id` 任意化・`company_id/contact_id` 追加・昇格関数から Account 作成を除去 |
+| `20260731000007_create_account_on_contract.sql` | 契約時の取引先自動作成トリガー |
+
+---
+
+## 17. 取引先区分（2026-07-31）
+
+### 17.1 軸の分離
+
+既存の `account_types`（法人 / 個人事業主 / 官公庁・自治体）は**事業体の形態**を表す軸。
+「顧客か仕入れ先か」は**取引上の役割**で軸が違うため、同じマスタに混ぜない。
+
+混ぜた場合の問題:
+- 「法人かつ顧客」が 1 レコードで表せない
+- 契約時の種別自動判定（`slug = 'corporate' / 'sole_proprietor'`）が壊れる
+
+1 社が顧客でも仕入れ先でもあることは実務で起きるため N:M で持つ。
+
+| | account_types（種別） | account_role_types（区分） |
+|---|---|---|
+| 軸 | 事業体の形態 | 取引上の役割 |
+| 値 | 法人 / 個人事業主 / 官公庁・自治体 | 顧客 / 販売パートナー / 技術パートナー / 仕入れ先 / 外注先 |
+| 個数 | 1 つ（`accounts.account_type_id`） | 複数（`account_roles` 経由） |
+| 表示 | 取引先名の直後にバッジ | 一覧の独立列・詳細の「区分」 |
+
+### 17.2 M: account_role_types（取引先区分マスタ）
+
+| # | 論理名 | 物理名 | 型 | PK | FK | UK | NN | デフォルト | 区分値/CHECK |
+|---|--------|--------|-----|----|----|----|----|----------|-------------|
+| 1 | ID | `id` | UUID | PK | | | NN | gen_random_uuid() | |
+| 2 | コード | `code` | VARCHAR(32) | | | UK | NN | | `^[a-z][a-z0-9_]{0,31}$` |
+| 3 | 名前 | `name` | TEXT | | | | NN | | |
+| 4 | 定義 | `definition` | TEXT | | | | | | |
+| 5 | バッジ色 | `color` | TEXT | | | | | NULL | `^#[0-9A-Fa-f]{6}$` |
+| 6 | 表示順 | `sort_order` | INTEGER | | | | NN | 0 | |
+| 7 | 自動付与パイプライン | `pipeline_type_id` | UUID | | FK→M01.id | | | NULL | 部分 UNIQUE（1 パイプライン 1 区分） |
+| 8-13 | 監査・論理削除カラム | | | | | | | | |
+
+`pipeline_type_id` が NULL の区分は手動付与のみ。1 パイプラインに複数の区分を割り当てられないよう部分 UNIQUE インデックスを張る（複数あると契約時にどれを付けるかが呼び出し順で変わる）。
+
+**初期値:**
+
+| code | 名前 | 自動付与パイプライン | 色 |
+|---|---|---|---|
+| `customer` | 顧客 | 営業 | `#4D7A65` |
+| `sales_partner` | 販売パートナー | （手動） | `#0F766E` |
+| `tech_partner` | 技術パートナー | （手動） | `#0E7490` |
+| `supplier` | 仕入れ先 | 仕入れ | `#B88A2E` |
+| `subcontractor` | 外注先 | 業務委託 | `#C2703A` |
+
+### 17.3 J: account_roles（取引先 × 区分）
+
+| # | 論理名 | 物理名 | 型 | PK | FK | UK | NN | デフォルト |
+|---|--------|--------|-----|----|----|----|----|----------|
+| 1 | ID | `id` | UUID | PK | | | NN | gen_random_uuid() |
+| 2 | 取引先ID | `account_id` | UUID | | FK→T03.id (CASCADE) | | NN | |
+| 3 | 区分ID | `role_type_id` | UUID | | FK→account_role_types.id | | NN | |
+| 4 | 契約による自動付与 | `assigned_by_contract` | BOOLEAN | | | | NN | FALSE |
+| 5 | 作成日時 | `created_at` | TIMESTAMPTZ | | | | NN | now() |
+| 6 | 作成者 | `created_by` | UUID | | FK→T01.id | | | |
+
+**UK:** (account_id, role_type_id)
+**RLS:** 親 `accounts` の可視性・編集権限を引き継ぐ
+
+### 17.4 契約成立時の自動付与
+
+`ensure_account_on_contract()`（§16.6）を拡張し、取引先を作る／作らないに関わらず
+**契約した商談のパイプラインに対応する区分を必ず付与する**。
+
+```
+営業パイプラインで契約     → 顧客
+仕入れパイプラインで契約   → 仕入れ先
+業務委託パイプラインで契約 → 外注先
+```
+
+既に顧客として登録済みの相手と仕入れ契約を結べば「顧客 + 仕入れ先」になる。
+手動で付けた区分と区別するため `assigned_by_contract` を立てる。
+
+### 17.5 マイグレーション
+
+| ファイル | 内容 |
+|---|---|
+| `20260731000008_create_account_roles.sql` | `account_role_types` / `account_roles` + 初期値 + トリガー拡張 |
+
+---
+
+## 18. 法人の実在確認（2026-07-31）
+
+### 18.1 ステータスの意味づけを変更
+
+`company_statuses` は アクティブ / 休眠 / 取引停止 / 見込み だった。これは取引状態の語彙で、
+取引先区分（§17）や商談と役割が重なる。名刺取込で作られた 3,597 件が一律「見込み」になり
+意味を持たなくなっていたため、**実在性ベース**に置き換えた。
+
+| code | 名前 | 意味 | 色 |
+|---|---|---|---|
+| `unverified` | 未確認 | 実在確認をまだ行っていない | `#6B7280` |
+| `verified` | 実在確認済 | 法人番号システム等で存在を確認できた | `#4D7A65` |
+| `needs_review` | 要確認 | 商号・所在地の変更を検知した、または照合できなかった | `#B88A2E` |
+| `closed` | 閉鎖・解散 | 登記が閉鎖されている | `#B03A2E` |
+
+旧ステータスは論理削除し、既存法人は全件「未確認」へ移行した（実在性は誰も確認していないため）。
+**取引しているかどうかは取引先（Account）側が持つ。**
+
+`company_statuses.code` を追加し、プログラムから状態を引けるようにした（`account_statuses` にならう）。
+
+### 18.2 確認の記録
+
+`companies` に確認結果を持たせる。
+
+| 物理名 | 型 | 説明 |
+|---|---|---|
+| `verified_at` | TIMESTAMPTZ | 最後に実在確認を行った日時 |
+| `verified_by` | UUID FK→T01 | 確認者 |
+| `verification_source` | TEXT | `houjin_bangou_api` / `manual` |
+| `verification_note` | TEXT | 検知した差分や照合できなかった理由 |
+
+未確認・古い確認から処理するため `companies (verified_at NULLS FIRST)` に索引を張る。
+
+### 18.3 company_verification_logs（確認履歴）
+
+`companies` のカラムは最新 1 回分しか持てない。「定期的に回す」運用では
+いつ何件処理し何が変わったかを追える必要があるため履歴を別に持つ。**INSERT ONLY**。
+
+| 物理名 | 型 | 説明 |
+|---|---|---|
+| `company_id` | UUID FK→T02 (CASCADE) | |
+| `checked_at` | TIMESTAMPTZ | |
+| `source` | TEXT | `houjin_bangou_api` / `manual` |
+| `result` | TEXT | `verified` / `changed` / `not_found` / `closed` / `error` |
+| `corporate_number` | VARCHAR(13) | 照合で引き当てた法人番号 |
+| `detail` | JSONB | 差分内容・候補一覧・エラー理由 |
+| `checked_by` | UUID FK→T01 | |
+
+### 18.4 照合ロジック
+
+国税庁 法人番号 Web-API（Ver.4）を CSV/Unicode（`type=02`）で叩く。
+XML だとパーサ依存が増えるため、既存の CSV パーサ（`parseCsv`）を使える形式を選んだ。
+
+| ファイル | 役割 |
+|---|---|
+| `src/lib/houjin-bangou/parse.ts` | CSV（30 列・ヘッダ無し）→ レコード。列位置は仕様で固定 |
+| `src/lib/houjin-bangou/match.ts` | 正規化名で照合、台帳との差分検出 |
+| `src/lib/houjin-bangou/client.ts` | API 呼び出し。アプリケーションID は `HOUJIN_BANGOU_APP_ID` |
+| `src/actions/company-verification.ts` | 1 社照合・一括照合・API 設定状態の取得 |
+
+**判定方針:**
+
+- 法人番号を持っていれば番号（`/num`）で、無ければ商号（`/name`、前方一致）で引く
+- **最新履歴（`isLatest`）のみを対象**にする。過去の商号で引っかかった行を拾うと、現在は別名の法人を一致と判定してしまう
+- **正規化名の完全一致が 1 件のときだけ採用**する。複数該当・該当なしは「要確認」にして人に回す。自動で決め打つと誤った法人番号が台帳に入り、以降の確認がその法人を追い続ける
+- 表記ゆれ（`(株)` と `株式会社` 等）は差分としない。台帳に住所が無い場合も差分としない（未入力であって変更ではない）
+- 通信エラーはステータスを動かさない（法人の状態ではないため）
+
+正規化規則は DB 関数 `normalize_company_name` と**同一**。片方だけ変えると取込時の名寄せと
+API 照合の結果がずれるため、`match.test.ts` で規則を固定している。
+
+**運用上の配慮:** 1 件ずつ 1 秒間隔で叩き、1 回の実行件数に上限（既定 20 / 最大 100）を設ける。
+全件を一度に処理すると数時間かかり実行が途中で切れる。
+
+### 18.5 未実装
+
+- **定期実行**: 現在は Admin（法人情報 → 実在確認）からの手動実行のみ。cron 化は後続
+- アプリケーションID は未設定でもビルド・起動は通り、画面に未設定の案内が出る
+
+### 18.6 マイグレーション
+
+| ファイル | 内容 |
+|---|---|
+| `20260731000009_contact_status_semantics.sql` | 連絡先ステータスから「見込み」を除去（§M08 参照） |
+| `20260731000010_company_existence_verification.sql` | 法人ステータスの実在性化・確認記録・履歴テーブル |

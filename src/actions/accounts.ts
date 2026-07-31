@@ -6,9 +6,11 @@ import {
   createAccountSchema,
   updateAccountSchema,
   createAccountContactSchema,
+  createAccountRoleSchema,
 } from "@/lib/validators/accounts";
 import type {
   AccountDetail,
+  AccountRoleTypeWithPipeline,
   AccountWithRelations,
   Paged,
   Row,
@@ -54,7 +56,7 @@ export async function getAccounts(
   let query = supabase
     .from("accounts")
     .select(
-      `*, company:companies(id, name), account_type:account_types(id, name), account_status:account_statuses(id, name), owner:crm_users!accounts_owner_user_id_fkey(id, full_name)`,
+      `*, company:companies(id, name), account_type:account_types(id, name, slug), account_status:account_statuses(id, name, color), account_roles(id, assigned_by_contract, role_type:account_role_types(id, code, name, color, sort_order)), owner:crm_users!accounts_owner_user_id_fkey(id, full_name)`,
       { count: "exact" }
     )
     .is("deleted_at", null)
@@ -91,7 +93,7 @@ export async function getAccount(id: string): Promise<ActionResult<AccountDetail
   const { data, error } = await supabase
     .from("accounts")
     .select(
-      `*, company:companies(id, name), account_type:account_types(id, name), account_status:account_statuses(id, name), lead_source:lead_sources(id, name), owner:crm_users!accounts_owner_user_id_fkey(id, full_name), contacts:account_contacts(id, role, contact:contacts(id, contact_code, last_name, first_name, department, job_title, deleted_at, company:companies!contacts_company_id_fkey(id, name))), deals(id, deal_code, name, amount, deal_stage:deal_stages(name), deal_status:deal_statuses(name))`
+      `*, company:companies(id, name), account_type:account_types(id, name, slug), account_status:account_statuses(id, name, color), account_roles(id, assigned_by_contract, role_type:account_role_types(id, code, name, color, sort_order)), lead_source:lead_sources(id, name), owner:crm_users!accounts_owner_user_id_fkey(id, full_name), contacts:account_contacts(id, role, contact:contacts(id, contact_code, last_name, first_name, department, job_title, deleted_at, company:companies!contacts_company_id_fkey(id, name))), deals(id, deal_code, name, amount, deal_stage:deal_stages(name), deal_status:deal_statuses(name))`
     )
     .eq("id", id)
     .single();
@@ -268,6 +270,64 @@ export async function removeAccountContact(
     .eq("account_id", accountId)
     .eq("contact_id", contactId);
 
+  if (error) return { data: null, error: error.message };
+  return { data: null, error: null };
+}
+
+// ---------------------------------------------------------------------------
+// 取引先区分（顧客・仕入れ先など）
+//
+// 契約成立時にはトリガーが自動で付与する（パイプライン連動）。
+// ここは担当者が手で付け外しする経路。
+// ---------------------------------------------------------------------------
+export async function getAccountRoleTypes(): Promise<
+  ActionResult<AccountRoleTypeWithPipeline[]>
+> {
+  const { supabase, user } = await getAuthenticatedUser();
+  if (!supabase || !user) return { data: null, error: "認証が必要です" };
+
+  const { data, error } = await supabase
+    .from("account_role_types")
+    .select("*, pipeline_type:pipeline_types(id, name)")
+    .is("deleted_at", null)
+    .order("sort_order");
+
+  if (error) return { data: null, error: error.message };
+  return { data: data ?? [], error: null };
+}
+
+export async function addAccountRole(
+  input: unknown
+): Promise<ActionResult<Row<"account_roles">>> {
+  const { supabase, user } = await getAuthenticatedUser();
+  if (!supabase || !user) return { data: null, error: "認証が必要です" };
+
+  const parsed = createAccountRoleSchema.safeParse(input);
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    return { data: null, error: `[${issue.path.join(".") || "input"}] ${issue.message}` };
+  }
+
+  // 付与可否は RLS（親 accounts の owner / admin）が判定する
+  const { data, error } = await supabase
+    .from("account_roles")
+    .insert({
+      account_id: parsed.data.account_id,
+      role_type_id: parsed.data.role_type_id,
+      created_by: user.id,
+    })
+    .select()
+    .single();
+
+  if (error) return { data: null, error: error.message };
+  return { data, error: null };
+}
+
+export async function removeAccountRole(id: string): Promise<ActionResult<null>> {
+  const { supabase, user } = await getAuthenticatedUser();
+  if (!supabase || !user) return { data: null, error: "認証が必要です" };
+
+  const { error } = await supabase.from("account_roles").delete().eq("id", id);
   if (error) return { data: null, error: error.message };
   return { data: null, error: null };
 }

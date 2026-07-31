@@ -651,10 +651,10 @@ export function CampaignDetailClient({
                             </Link>
                           </td>
                           <td className="px-4 py-2 whitespace-nowrap">
-                            <StageBadge name={lead.stage?.name} sortOrder={lead.stage?.sort_order} />
+                            <StageBadge name={lead.stage?.name} color={lead.stage?.color} sortOrder={lead.stage?.sort_order} />
                           </td>
                           <td className="px-4 py-2 whitespace-nowrap">
-                            <StatusBadge name={lead.status?.name} sortOrder={lead.status?.sort_order} />
+                            <StatusBadge name={lead.status?.name} color={lead.status?.color} sortOrder={lead.status?.sort_order} />
                           </td>
                           <td className="px-4 py-2 whitespace-nowrap">
                             {lead.temperature

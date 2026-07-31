@@ -26,12 +26,30 @@ type NavItem = {
   href: string;
   icon: React.ComponentType<{ size?: number }>;
   roles?: CrmUserRole[];
+  /** 直前の項目に従属することを字下げで示す */
+  nested?: boolean;
+  /** ホバー時に出す補足。項目の役割が名前だけでは伝わらないものに付ける */
+  description?: string;
 };
 
 type NavGroup = {
   label: string;
   items: NavItem[];
 };
+
+/**
+ * 連続する nested 項目を 1 つの塊にまとめる。
+ * 塊単位で左ガイド線を引くことで、項目間の余白で線が途切れるのを防ぐ。
+ */
+function chunkByNesting(items: NavItem[]): { nested: boolean; items: NavItem[] }[] {
+  return items.reduce<{ nested: boolean; items: NavItem[] }[]>((acc, item) => {
+    const nested = item.nested === true;
+    const last = acc[acc.length - 1];
+    if (last && last.nested === nested) last.items.push(item);
+    else acc.push({ nested, items: [item] });
+    return acc;
+  }, []);
+}
 
 const navGroups: NavGroup[] = [
   {
@@ -57,11 +75,35 @@ const navGroups: NavGroup[] = [
   },
   {
     label: "顧客情報",
+    // 取引先を主役に置き、そこに従属する 3 つを字下げして包含関係を示す
     items: [
-      { label: "取引先", href: "/accounts", icon: Briefcase },
-      { label: "会社情報", href: "/companies", icon: Building2 },
-      { label: "連絡先", href: "/contacts", icon: Users },
-      { label: "タレント", href: "/talents", icon: UserCircle },
+      {
+        label: "取引先",
+        href: "/accounts",
+        icon: Briefcase,
+        description: "契約・商談の主体",
+      },
+      {
+        label: "法人情報",
+        href: "/companies",
+        icon: Building2,
+        nested: true,
+        description: "取引先の法的情報（登記・インボイス）",
+      },
+      {
+        label: "連絡先",
+        href: "/contacts",
+        icon: Users,
+        nested: true,
+        description: "取引先に属する個人",
+      },
+      {
+        label: "タレント",
+        href: "/talents",
+        icon: UserCircle,
+        nested: true,
+        description: "連絡先の人材特性",
+      },
     ],
   },
   {
@@ -120,37 +162,54 @@ export function Sidebar({ userRole = "admin" }: { userRole?: CrmUserRole }) {
               )}
 
               <div className="space-y-0.5">
-                {visibleItems.map((item) => {
-                  const active = isActive(item.href);
+                {chunkByNesting(visibleItems).map((chunk, chunkIndex) => {
+                  // 折りたたみ時はアイコンのみの表示になるため、字下げ・ガイド線は出さない
+                  const indented = chunk.nested && !collapsed;
                   return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className={cn(
-                        "flex items-center gap-3 mx-2 px-3 py-2.5 text-sm transition-colors",
-                        collapsed && "justify-center px-0"
-                      )}
-                      style={{
-                        color: active ? "#fff" : "rgba(255,255,255,0.7)",
-                        backgroundColor: active
-                          ? "var(--color-terra-dark)"
-                          : "transparent",
-                        borderRadius: "var(--radius-md)",
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!active)
-                          e.currentTarget.style.backgroundColor =
-                            "var(--color-terra-dark)";
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!active)
-                          e.currentTarget.style.backgroundColor = "transparent";
-                      }}
-                      title={collapsed ? item.label : undefined}
+                    <div
+                      key={chunkIndex}
+                      className={cn("space-y-0.5", indented && "ml-5 pl-1")}
+                      style={
+                        indented
+                          ? { borderLeft: "1px solid rgba(255,255,255,0.2)" }
+                          : undefined
+                      }
                     >
-                      <item.icon size={20} />
-                      {!collapsed && <span>{item.label}</span>}
-                    </Link>
+                      {chunk.items.map((item) => {
+                        const active = isActive(item.href);
+                        return (
+                          <Link
+                            key={item.href}
+                            href={item.href}
+                            className={cn(
+                              "flex items-center gap-3 px-3 py-2.5 text-sm transition-colors",
+                              indented ? "mr-2" : "mx-2",
+                              collapsed && "justify-center px-0 mx-2"
+                            )}
+                            style={{
+                              color: active ? "#fff" : "rgba(255,255,255,0.7)",
+                              backgroundColor: active
+                                ? "var(--color-terra-dark)"
+                                : "transparent",
+                              borderRadius: "var(--radius-md)",
+                            }}
+                            onMouseEnter={(e) => {
+                              if (!active)
+                                e.currentTarget.style.backgroundColor =
+                                  "var(--color-terra-dark)";
+                            }}
+                            onMouseLeave={(e) => {
+                              if (!active)
+                                e.currentTarget.style.backgroundColor = "transparent";
+                            }}
+                            title={collapsed ? item.label : item.description}
+                          >
+                            <item.icon size={indented ? 18 : 20} />
+                            {!collapsed && <span>{item.label}</span>}
+                          </Link>
+                        );
+                      })}
+                    </div>
                   );
                 })}
               </div>

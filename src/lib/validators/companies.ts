@@ -34,3 +34,16 @@ export const createCompanySchema = companyBaseSchema.refine(
 export const updateCompanySchema = companyBaseSchema
   .partial()
   .extend({ expected_updated_at: expectedUpdatedAtSchema });
+
+// ---------------------------------------------------------------------------
+// 法人ドメイン（company_domains）
+//
+// 正規化（小文字化・www 除去・メール/URL からの抽出）は DB の normalize_domain
+// が行うため、ここでは「何か入力されているか」だけを見る。
+// メールアドレスや URL を貼り付けてもそのまま受け付ける。
+// ---------------------------------------------------------------------------
+export const createCompanyDomainSchema = z.object({
+  company_id: uuidString(),
+  domain: z.string().min(1, "ドメインを入力してください").max(253),
+  is_primary: z.boolean().optional(),
+});

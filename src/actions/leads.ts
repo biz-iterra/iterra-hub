@@ -55,8 +55,8 @@ async function getAuthenticatedUser() {
 
 const LEAD_SELECT = `
   *,
-  stage:lead_stages(id, slug, name, sort_order, is_terminal, auto_promote_to_deal),
-  status:lead_statuses(id, code, name, sort_order),
+  stage:lead_stages(id, slug, name, sort_order, is_terminal, auto_promote_to_deal, color),
+  status:lead_statuses(id, code, name, sort_order, color),
   category:lead_categories(id, code, name, color),
   temperature:lead_temperatures(id, code, name, color),
   account_type:account_types(id, name, slug),
@@ -68,7 +68,9 @@ const LEAD_SELECT = `
   score_breakdowns:lead_score_breakdowns(id, score_delta, applied_at, rule:lead_score_rules(id, category, condition_type, description)),
   customer_activities:lead_customer_activities(id, occurred_at, detail, source, created_at, activity_type:lead_customer_activity_types(id, code, name)),
   lead_campaigns(campaign_id),
-  sub_owners:lead_owners(user_id, user:crm_users!lead_owners_user_id_fkey(id, full_name))
+  sub_owners:lead_owners(user_id, user:crm_users!lead_owners_user_id_fkey(id, full_name)),
+  linked_company:companies!leads_company_id_fkey(id, company_code, name),
+  linked_contact:contacts!leads_contact_id_fkey(id, contact_code, last_name, first_name)
 ` as const;
 
 // ---------- 一覧取得（v_leads_with_category View を使用）----------
@@ -93,8 +95,8 @@ export async function getLeads(
     .select(
       `
       *,
-      stage:lead_stages(id, slug, name, sort_order, is_terminal, auto_promote_to_deal),
-      status:lead_statuses(id, code, name, sort_order),
+      stage:lead_stages(id, slug, name, sort_order, is_terminal, auto_promote_to_deal, color),
+      status:lead_statuses(id, code, name, sort_order, color),
       category:lead_categories(id, code, name, color),
       temperature:lead_temperatures(id, code, name, color),
       account_type:account_types(id, name, slug),

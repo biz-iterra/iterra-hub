@@ -128,9 +128,139 @@ export type Database = {
           },
         ]
       }
+      account_role_types: {
+        Row: {
+          code: string
+          color: string | null
+          created_at: string
+          created_by: string | null
+          definition: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          deletion_reason: string | null
+          id: string
+          last_updated_by: string | null
+          name: string
+          pipeline_type_id: string | null
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          color?: string | null
+          created_at?: string
+          created_by?: string | null
+          definition?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          deletion_reason?: string | null
+          id?: string
+          last_updated_by?: string | null
+          name: string
+          pipeline_type_id?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          color?: string | null
+          created_at?: string
+          created_by?: string | null
+          definition?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          deletion_reason?: string | null
+          id?: string
+          last_updated_by?: string | null
+          name?: string
+          pipeline_type_id?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_role_types_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "crm_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "account_role_types_deleted_by_fkey"
+            columns: ["deleted_by"]
+            isOneToOne: false
+            referencedRelation: "crm_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "account_role_types_last_updated_by_fkey"
+            columns: ["last_updated_by"]
+            isOneToOne: false
+            referencedRelation: "crm_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "account_role_types_pipeline_type_id_fkey"
+            columns: ["pipeline_type_id"]
+            isOneToOne: false
+            referencedRelation: "pipeline_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      account_roles: {
+        Row: {
+          account_id: string
+          assigned_by_contract: boolean
+          created_at: string
+          created_by: string | null
+          id: string
+          role_type_id: string
+        }
+        Insert: {
+          account_id: string
+          assigned_by_contract?: boolean
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          role_type_id: string
+        }
+        Update: {
+          account_id?: string
+          assigned_by_contract?: boolean
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          role_type_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_roles_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "account_roles_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "crm_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "account_roles_role_type_id_fkey"
+            columns: ["role_type_id"]
+            isOneToOne: false
+            referencedRelation: "account_role_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       account_statuses: {
         Row: {
           code: string
+          color: string | null
           created_at: string
           created_by: string
           definition: string | null
@@ -144,6 +274,7 @@ export type Database = {
         }
         Insert: {
           code: string
+          color?: string | null
           created_at?: string
           created_by?: string
           definition?: string | null
@@ -157,6 +288,7 @@ export type Database = {
         }
         Update: {
           code?: string
+          color?: string | null
           created_at?: string
           created_by?: string
           definition?: string | null
@@ -611,6 +743,10 @@ export type Database = {
           representative_name: string | null
           status_updated_at: string | null
           updated_at: string
+          verification_note: string | null
+          verification_source: string | null
+          verified_at: string | null
+          verified_by: string | null
           website_url: string | null
         }
         Insert: {
@@ -645,6 +781,10 @@ export type Database = {
           representative_name?: string | null
           status_updated_at?: string | null
           updated_at?: string
+          verification_note?: string | null
+          verification_source?: string | null
+          verified_at?: string | null
+          verified_by?: string | null
           website_url?: string | null
         }
         Update: {
@@ -679,6 +819,10 @@ export type Database = {
           representative_name?: string | null
           status_updated_at?: string | null
           updated_at?: string
+          verification_note?: string | null
+          verification_source?: string | null
+          verified_at?: string | null
+          verified_by?: string | null
           website_url?: string | null
         }
         Relationships: [
@@ -745,6 +889,13 @@ export type Database = {
             referencedRelation: "contacts"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "companies_verified_by_fkey"
+            columns: ["verified_by"]
+            isOneToOne: false
+            referencedRelation: "crm_users"
+            referencedColumns: ["id"]
+          },
         ]
       }
       company_change_histories: {
@@ -792,8 +943,65 @@ export type Database = {
           },
         ]
       }
+      company_domains: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          domain: string
+          id: string
+          is_primary: boolean
+          last_updated_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          domain: string
+          id?: string
+          is_primary?: boolean
+          last_updated_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          domain?: string
+          id?: string
+          is_primary?: boolean
+          last_updated_by?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_domains_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_domains_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "crm_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_domains_last_updated_by_fkey"
+            columns: ["last_updated_by"]
+            isOneToOne: false
+            referencedRelation: "crm_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company_statuses: {
         Row: {
+          code: string | null
+          color: string | null
           created_at: string
           created_by: string
           definition: string | null
@@ -806,6 +1014,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          code?: string | null
+          color?: string | null
           created_at?: string
           created_by?: string
           definition?: string | null
@@ -818,6 +1028,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          code?: string | null
+          color?: string | null
           created_at?: string
           created_by?: string
           definition?: string | null
@@ -849,6 +1061,54 @@ export type Database = {
             columns: ["last_updated_by"]
             isOneToOne: false
             referencedRelation: "crm_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_verification_logs: {
+        Row: {
+          checked_at: string
+          checked_by: string | null
+          company_id: string
+          corporate_number: string | null
+          detail: Json | null
+          id: string
+          result: string
+          source: string
+        }
+        Insert: {
+          checked_at?: string
+          checked_by?: string | null
+          company_id: string
+          corporate_number?: string | null
+          detail?: Json | null
+          id?: string
+          result: string
+          source: string
+        }
+        Update: {
+          checked_at?: string
+          checked_by?: string | null
+          company_id?: string
+          corporate_number?: string | null
+          detail?: Json | null
+          id?: string
+          result?: string
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_verification_logs_checked_by_fkey"
+            columns: ["checked_by"]
+            isOneToOne: false
+            referencedRelation: "crm_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_verification_logs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
@@ -1064,6 +1324,7 @@ export type Database = {
       }
       contact_statuses: {
         Row: {
+          color: string | null
           created_at: string
           created_by: string
           definition: string | null
@@ -1076,6 +1337,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          color?: string | null
           created_at?: string
           created_by?: string
           definition?: string | null
@@ -1088,6 +1350,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          color?: string | null
           created_at?: string
           created_by?: string
           definition?: string | null
@@ -1925,6 +2188,7 @@ export type Database = {
       }
       deal_stages: {
         Row: {
+          color: string | null
           created_at: string
           created_by: string
           current_situation: string | null
@@ -1943,6 +2207,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          color?: string | null
           created_at?: string
           created_by?: string
           current_situation?: string | null
@@ -1961,6 +2226,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          color?: string | null
           created_at?: string
           created_by?: string
           current_situation?: string | null
@@ -2080,6 +2346,7 @@ export type Database = {
       }
       deal_statuses: {
         Row: {
+          color: string | null
           created_at: string
           created_by: string
           deal_stage_id: string | null
@@ -2095,6 +2362,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          color?: string | null
           created_at?: string
           created_by?: string
           deal_stage_id?: string | null
@@ -2110,6 +2378,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          color?: string | null
           created_at?: string
           created_by?: string
           deal_stage_id?: string | null
@@ -2164,10 +2433,12 @@ export type Database = {
       }
       deals: {
         Row: {
-          account_id: string
+          account_id: string | null
           amount: number | null
           application_date: string | null
           closed_at: string | null
+          company_id: string | null
+          contact_id: string | null
           contract_name: string | null
           created_at: string
           created_by: string
@@ -2188,10 +2459,12 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          account_id: string
+          account_id?: string | null
           amount?: number | null
           application_date?: string | null
           closed_at?: string | null
+          company_id?: string | null
+          contact_id?: string | null
           contract_name?: string | null
           created_at?: string
           created_by?: string
@@ -2212,10 +2485,12 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          account_id?: string
+          account_id?: string | null
           amount?: number | null
           application_date?: string | null
           closed_at?: string | null
+          company_id?: string | null
+          contact_id?: string | null
           contract_name?: string | null
           created_at?: string
           created_by?: string
@@ -2241,6 +2516,20 @@ export type Database = {
             columns: ["account_id"]
             isOneToOne: false
             referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
             referencedColumns: ["id"]
           },
           {
@@ -3473,6 +3762,7 @@ export type Database = {
       lead_stages: {
         Row: {
           auto_promote_to_deal: boolean
+          color: string | null
           created_at: string
           definition: string | null
           deleted_at: string | null
@@ -3487,6 +3777,7 @@ export type Database = {
         }
         Insert: {
           auto_promote_to_deal?: boolean
+          color?: string | null
           created_at?: string
           definition?: string | null
           deleted_at?: string | null
@@ -3501,6 +3792,7 @@ export type Database = {
         }
         Update: {
           auto_promote_to_deal?: boolean
+          color?: string | null
           created_at?: string
           definition?: string | null
           deleted_at?: string | null
@@ -3526,6 +3818,7 @@ export type Database = {
       lead_statuses: {
         Row: {
           code: string
+          color: string | null
           created_at: string
           definition: string | null
           deleted_at: string | null
@@ -3539,6 +3832,7 @@ export type Database = {
         }
         Insert: {
           code: string
+          color?: string | null
           created_at?: string
           definition?: string | null
           deleted_at?: string | null
@@ -3552,6 +3846,7 @@ export type Database = {
         }
         Update: {
           code?: string
+          color?: string | null
           created_at?: string
           definition?: string | null
           deleted_at?: string | null
@@ -4276,6 +4571,7 @@ export type Database = {
       }
       project_statuses: {
         Row: {
+          color: string | null
           created_at: string
           created_by: string
           definition: string | null
@@ -4289,6 +4585,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          color?: string | null
           created_at?: string
           created_by?: string
           definition?: string | null
@@ -4302,6 +4599,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          color?: string | null
           created_at?: string
           created_by?: string
           definition?: string | null
@@ -5329,6 +5627,7 @@ export type Database = {
       }
     }
     Functions: {
+      apply_default_status_colors: { Args: never; Returns: undefined }
       get_user_role: { Args: never; Returns: string }
       import_eight_leads: {
         Args: { p_batch: Json; p_defaults: Json; p_errors: Json; p_leads: Json }
@@ -5336,8 +5635,11 @@ export type Database = {
       }
       is_admin: { Args: never; Returns: boolean }
       is_deal_accessible: { Args: { p_deal_id: string }; Returns: boolean }
+      is_free_email_domain: { Args: { p_domain: string }; Returns: boolean }
       is_lead_accessible: { Args: { p_lead_id: string }; Returns: boolean }
       is_manager_or_above: { Args: never; Returns: boolean }
+      normalize_company_name: { Args: { p_name: string }; Returns: string }
+      normalize_domain: { Args: { p_input: string }; Returns: string }
       promote_lead_to_deal: {
         Args: {
           p_account: Json
@@ -5356,6 +5658,52 @@ export type Database = {
       resolve_lead_company_size: {
         Args: { p_capital: number; p_employee_count: number }
         Returns: string
+      }
+      resolve_or_create_company: {
+        Args: {
+          p_actor: string
+          p_company_name: string
+          p_email: string
+          p_lead_source_id: string
+          p_owner_user_id: string
+          p_phone: string
+          p_url: string
+        }
+        Returns: string
+      }
+      resolve_or_create_contact: {
+        Args: {
+          p_actor: string
+          p_company_id: string
+          p_department: string
+          p_email: string
+          p_first_name: string
+          p_job_title: string
+          p_last_name: string
+          p_lead_source_id: string
+          p_owner_user_id: string
+          p_phone: string
+        }
+        Returns: string
+      }
+      upsert_company_domain: {
+        Args: { p_company_id: string; p_input: string; p_is_primary?: boolean }
+        Returns: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          domain: string
+          id: string
+          is_primary: boolean
+          last_updated_by: string | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "company_domains"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
     }
     Enums: {

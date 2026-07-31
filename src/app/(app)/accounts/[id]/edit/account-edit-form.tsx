@@ -7,6 +7,11 @@ import { ArrowLeft, Save, Trash2 } from "lucide-react";
 import { updateAccount, deleteAccount } from "@/actions/accounts";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
+import {
+  AccountRolesSection,
+  type AccountRoleTypeOption,
+  type AssignedRole,
+} from "./account-roles-section";
 import { isFieldValidationError } from "@/lib/errors";
 
 type SelectOption = { value: string; label: string };
@@ -161,10 +166,14 @@ export function AccountEditForm({
   account,
   masters,
   isAdmin,
+  roleTypes,
+  assignedRoles,
 }: {
   account: AccountData;
   masters: Masters;
   isAdmin: boolean;
+  roleTypes: AccountRoleTypeOption[];
+  assignedRoles: AssignedRole[];
 }) {
   const router = useRouter();
   const { showToast } = useToast();
@@ -266,7 +275,7 @@ export function AccountEditForm({
               />
             </div>
             <div>
-              <label style={styles.label}>会社情報</label>
+              <label style={styles.label}>法人情報</label>
               <select
                 style={styles.input}
                 value={values.company_id}
@@ -353,6 +362,13 @@ export function AccountEditForm({
             </div>
           </div>
         </div>
+
+        {/* 区分（保存ボタンとは独立して即時反映する） */}
+        <AccountRolesSection
+          accountId={account.id}
+          roleTypes={roleTypes}
+          initialRoles={assignedRoles}
+        />
 
         {/* 説明 */}
         <div style={styles.card}>

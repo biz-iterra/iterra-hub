@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getContact } from "@/actions/contacts";
 import { getContactStatuses, getLeadSources } from "@/actions/masters";
 import { getCompanies } from "@/actions/companies";
+import { buildCompanyOptions } from "@/lib/company-options";
 import { getCrmUsers, getCurrentUser } from "@/actions/users";
 import { ContactEditForm } from "./contact-edit-form";
 
@@ -117,10 +118,10 @@ export default async function ContactEditPage({
       value: l.id,
       label: l.name,
     })),
-    companies: ((companiesResult.data?.rows ?? []) as CompanyItem[]).map((c) => ({
-      value: c.id,
-      label: c.name,
-    })),
+    companies: buildCompanyOptions(
+      (companiesResult.data?.rows ?? []) as CompanyItem[],
+      contactResult.data?.company ?? null
+    ),
     owners: (usersResult.data ?? []).map((u) => ({ value: u.id, label: u.full_name })),
   };
 

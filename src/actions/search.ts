@@ -27,7 +27,7 @@ const TYPE_LABELS: Record<SearchResultType, string> = {
   lead: "リード",
   deal: "商談",
   account: "取引先",
-  company: "会社情報",
+  company: "法人情報",
   contact: "連絡先",
   contract: "契約",
   project: "プロジェクト",

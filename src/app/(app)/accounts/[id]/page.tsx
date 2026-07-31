@@ -11,6 +11,7 @@ import {
 import { DetailSection } from "@/components/ui/DetailSection";
 import { InfoField } from "@/components/ui/InfoField";
 import { EntityLink } from "@/components/ui/EntityLink";
+import { LabelBadge } from "@/components/ui/badges";
 
 const formatCurrency = (amount: number | null | undefined) => {
   if (amount == null) return "—";
@@ -187,7 +188,7 @@ export default async function AccountDetailPage({
               <InfoField label="取引先名" value={a.name} />
               <InfoField label="担当者" value={a.owner?.full_name} />
               <InfoField
-                label="会社情報"
+                label="法人情報"
                 value={
                   a.company ? (
                     <EntityLink href={`/companies/${a.company.id}`}>
@@ -211,6 +212,32 @@ export default async function AccountDetailPage({
               <InfoField label="種別" value={a.account_type?.name} />
               <InfoField label="ステータス" value={a.account_status?.name} />
               <InfoField label="リードソース" value={a.lead_source?.name} />
+              <InfoField
+                label="区分"
+                full
+                value={
+                  a.account_roles && a.account_roles.length > 0 ? (
+                    <span
+                      style={{ display: "flex", flexWrap: "wrap", gap: "0.375rem" }}
+                    >
+                      {[...a.account_roles]
+                        .sort(
+                          (x, y) =>
+                            (x.role_type?.sort_order ?? 0) - (y.role_type?.sort_order ?? 0)
+                        )
+                        .map((r) =>
+                          r.role_type ? (
+                            <LabelBadge
+                              key={r.id}
+                              name={r.role_type.name}
+                              color={r.role_type.color}
+                            />
+                          ) : null
+                        )}
+                    </span>
+                  ) : null
+                }
+              />
             </div>
           </DetailSection>
 

@@ -13,7 +13,7 @@ const pathLabels: Record<string, string> = {
   "/campaigns": "キャンペーン",
   "/deals": "商談",
   "/contacts": "連絡先",
-  "/companies": "会社情報",
+  "/companies": "法人情報",
   "/accounts": "取引先",
   "/contracts": "契約",
   "/talents": "タレント",

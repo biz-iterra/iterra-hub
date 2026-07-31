@@ -21,7 +21,7 @@ import { InfoField } from "@/components/ui/InfoField";
 import { EntityLink } from "@/components/ui/EntityLink";
 import { getDealCounterparty } from "@/lib/deal-counterparty";
 import { LabelBadge, ContractMethodBadge, PipelineBadge, StageBadge, StatusBadge } from "@/components/ui/badges";
-import { detailContainerStyle, detailGridStyle, fieldGridStyle } from "@/lib/layout";
+import { detailContainerStyle, detailGridStyle, fieldGridStyle, sectionStackStyle } from "@/lib/layout";
 
 function formatDate(date: string | null | undefined): string {
   if (!date) return "—";
@@ -174,7 +174,7 @@ export default async function DealDetailPage({
         style={detailGridStyle}
       >
         {/* ======== Left ======== */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+        <div style={sectionStackStyle}>
           <DetailSection title="基本情報" icon={FileText}>
             <div
               style={fieldGridStyle}
@@ -352,7 +352,7 @@ export default async function DealDetailPage({
         </div>
 
         {/* ======== Right ======== */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+        <div style={sectionStackStyle}>
           <DetailSection title="対応履歴" icon={Clock}>
             {activities.length === 0 ? (
               <p

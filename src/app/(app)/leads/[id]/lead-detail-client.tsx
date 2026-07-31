@@ -37,7 +37,12 @@ import type {
   LeadActivityWithRelations,
   LeadDetail,
 } from "@/types/relations";
-import { detailContainerStyle, detailGridStyle, fieldGridStyle } from "@/lib/layout";
+import {
+  detailContainerStyle,
+  detailGridStyle,
+  fieldGridStyle,
+  sectionStackStyle,
+} from "@/lib/layout";
 
 /** lead.customer_activities の要素（LEAD_SELECT の customer_activities に対応） */
 type LeadCustomerActivity = LeadDetail["customer_activities"][number];
@@ -1066,7 +1071,7 @@ export function LeadDetailClient({
 
       {/* === 基本情報タブ（閲覧専用）=== */}
       {activeTab === "basic" && (
-        <div>
+        <div style={sectionStackStyle}>
           {/* ① 企業情報セクション */}
           <DetailSection title="企業情報" icon={Building2}>
             <div style={{ ...styles.grid2, marginBottom: "1rem" }}>
@@ -1189,7 +1194,7 @@ export function LeadDetailClient({
 
       {/* === スコアタブ === */}
       {activeTab === "score" && (
-        <div>
+        <div style={sectionStackStyle}>
           {/* スコアサマリ */}
           <DetailSection title="スコアサマリ" icon={BarChart2}>
             <div style={{ display: "flex", alignItems: "flex-end", gap: "2rem", flexWrap: "wrap" }}>

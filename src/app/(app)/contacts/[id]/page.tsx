@@ -16,7 +16,7 @@ import { DetailSection } from "@/components/ui/DetailSection";
 import { InfoField } from "@/components/ui/InfoField";
 import { LabelBadge } from "@/components/ui/badges";
 import { EntityLink } from "@/components/ui/EntityLink";
-import { detailContainerStyle, detailGridStyle, fieldGridStyle } from "@/lib/layout";
+import { detailContainerStyle, detailGridStyle, fieldGridStyle, sectionStackStyle } from "@/lib/layout";
 
 function formatDate(date: string | null | undefined): string {
   if (!date) return "—";
@@ -169,7 +169,7 @@ export default async function ContactDetailPage({
         style={detailGridStyle}
       >
         {/* ======== Left ======== */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+        <div style={sectionStackStyle}>
           <DetailSection title="基本情報" icon={User}>
             <div
               style={fieldGridStyle}
@@ -331,7 +331,7 @@ export default async function ContactDetailPage({
         </div>
 
         {/* ======== Right ======== */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+        <div style={sectionStackStyle}>
           <DetailSection title="所属取引先" icon={Briefcase}>
             {accountContacts.length === 0 ? (
               <p

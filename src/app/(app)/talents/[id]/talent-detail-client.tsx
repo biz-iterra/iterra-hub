@@ -28,7 +28,12 @@ import type {
   TalentAchievementMaster,
   TalentAchievementWithMaster,
 } from "@/lib/validators/talent-classification";
-import { detailContainerStyle, detailGridStyle, fieldGridStyle } from "@/lib/layout";
+import {
+  detailContainerStyle,
+  detailGridStyle,
+  fieldGridStyle,
+  sectionStackStyle,
+} from "@/lib/layout";
 
 type Tab = "basic" | "skills" | "job_type" | "career";
 
@@ -262,7 +267,7 @@ function JobTypeTabContent({
   const matchedSystems = profile.systems.filter((s) => s.matched);
 
   return (
-    <div>
+    <div style={sectionStackStyle}>
       {/* ── 系統サマリ ── */}
       <DetailSection title="系統（System）" icon={Award}>
 
@@ -857,7 +862,7 @@ export function TalentDetailClient({
           style={detailGridStyle}
         >
           {/* 左カラム */}
-          <div>
+          <div style={sectionStackStyle}>
             {/* 診断結果（自動）カード */}
             {(numberDiagnosis?.strengths ||
               numberDiagnosis?.weaknesses ||
@@ -1137,7 +1142,7 @@ export function TalentDetailClient({
           </div>
 
           {/* 右カラム */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+          <div style={sectionStackStyle}>
             {/* 連絡先情報カード */}
             <DetailSection
               title="連絡先情報"
@@ -1307,7 +1312,7 @@ export function TalentDetailClient({
 
       {/* ===== スキルタブ ===== */}
       {activeTab === "skills" && (
-        <div>
+        <div style={sectionStackStyle}>
           {sortedSkills.length === 0 ? (
             <div
               style={{
@@ -1406,7 +1411,7 @@ export function TalentDetailClient({
 
       {/* ===== 経歴タブ ===== */}
       {activeTab === "career" && (
-        <div>
+        <div style={sectionStackStyle}>
           {careers.length === 0 ? (
             <div
               style={{

@@ -15,7 +15,7 @@ import { ContractMethodBadge } from "@/components/ui/badges";
 import { DetailSection } from "@/components/ui/DetailSection";
 import { InfoField } from "@/components/ui/InfoField";
 import { EntityLink } from "@/components/ui/EntityLink";
-import { detailContainerStyle, detailGridStyle, fieldGridStyle } from "@/lib/layout";
+import { detailContainerStyle, detailGridStyle, fieldGridStyle, sectionStackStyle } from "@/lib/layout";
 
 function formatDate(value: string | null | undefined): string {
   if (!value) return "—";
@@ -160,7 +160,7 @@ export default async function ContractDetailPage({
         style={detailGridStyle}
       >
         {/* 左カラム */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+        <div style={sectionStackStyle}>
           {/* 基本情報カード */}
           <DetailSection title="基本情報" icon={FileText}>
             <div
@@ -287,7 +287,7 @@ export default async function ContractDetailPage({
         </div>
 
         {/* 右カラム */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+        <div style={sectionStackStyle}>
           {/* 日程カード */}
           <DetailSection title="日程" icon={Calendar}>
             <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>

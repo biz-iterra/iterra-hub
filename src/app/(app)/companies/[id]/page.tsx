@@ -14,7 +14,7 @@ import {
 import { DetailSection } from "@/components/ui/DetailSection";
 import { InfoField } from "@/components/ui/InfoField";
 import { EntityLink } from "@/components/ui/EntityLink";
-import { detailContainerStyle, detailGridStyle, fieldGridStyle } from "@/lib/layout";
+import { detailContainerStyle, detailGridStyle, fieldGridStyle, sectionStackStyle } from "@/lib/layout";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -152,7 +152,7 @@ export default async function CompanyDetailPage({
         style={detailGridStyle}
       >
         {/* ======== Left ======== */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+        <div style={sectionStackStyle}>
           <DetailSection title="基本情報" icon={Building2}>
             <div
               style={fieldGridStyle}
@@ -319,7 +319,7 @@ export default async function CompanyDetailPage({
         </div>
 
         {/* ======== Right ======== */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+        <div style={sectionStackStyle}>
           <DetailSection title="取引先一覧" icon={Briefcase}>
             {activeAccounts.length > 0 ? (
               <div

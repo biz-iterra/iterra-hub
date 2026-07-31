@@ -4,7 +4,7 @@ import { ArrowLeft, ArrowUpRight, FolderKanban, Users, Handshake, Pencil, Sticky
 import { ProjectStatusBadge, PipelineBadge, StageBadge } from "@/components/ui/badges";
 import { DetailSection } from "@/components/ui/DetailSection";
 import { InfoField } from "@/components/ui/InfoField";
-import { detailContainerStyle, detailGridStyle, fieldGridStyle } from "@/lib/layout";
+import { detailContainerStyle, detailGridStyle, fieldGridStyle, sectionStackStyle } from "@/lib/layout";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -126,7 +126,7 @@ export default async function ProjectDetailPage({
 
       {/* 上段: 基本情報（左）+ メンバー（右） */}
       <div style={{ ...detailGridStyle, marginBottom: "1.5rem" }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem", minWidth: 0 }}>
+        <div style={{ ...sectionStackStyle, minWidth: 0 }}>
           <DetailSection title="基本情報" icon={FolderKanban}>
             <div style={fieldGridStyle}>
               <InfoField label="プロジェクト名" value={project.name} />
@@ -159,7 +159,7 @@ export default async function ProjectDetailPage({
           )}
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem", minWidth: 0 }}>
+        <div style={{ ...sectionStackStyle, minWidth: 0 }}>
           {/* メンバー（閲覧のみ） */}
           <DetailSection title={`メンバー（${members.length}名）`} icon={Users}>
             {members.length > 0 ? (

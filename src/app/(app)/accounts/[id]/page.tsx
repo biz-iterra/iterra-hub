@@ -12,7 +12,7 @@ import { DetailSection } from "@/components/ui/DetailSection";
 import { InfoField } from "@/components/ui/InfoField";
 import { EntityLink } from "@/components/ui/EntityLink";
 import { LabelBadge } from "@/components/ui/badges";
-import { detailContainerStyle, detailGridStyle, fieldGridStyle } from "@/lib/layout";
+import { detailContainerStyle, detailGridStyle, fieldGridStyle, sectionStackStyle } from "@/lib/layout";
 
 /** ステータス更新日の表示。時刻までは要らないので日付だけ出す */
 function formatDate(value: string | null | undefined): string {
@@ -181,7 +181,7 @@ export default async function AccountDetailPage({
         style={detailGridStyle}
       >
         {/* ======== Left ======== */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+        <div style={sectionStackStyle}>
           <DetailSection title="基本情報" icon={Briefcase}>
             <div
               style={fieldGridStyle}
@@ -286,7 +286,7 @@ export default async function AccountDetailPage({
         </div>
 
         {/* ======== Right ======== */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+        <div style={sectionStackStyle}>
           <DetailSection title="連絡先一覧" icon={Users}>
             {contacts.length > 0 ? (
               <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>

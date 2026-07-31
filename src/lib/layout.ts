@@ -60,3 +60,18 @@ export const fieldGridStyle: CSSProperties = {
   gridTemplateColumns: "1fr 1fr",
   gap: "1rem",
 };
+
+/**
+ * DetailSection を縦に積むときの間隔。
+ *
+ * DetailSection は見出しがカードの外にあるため、セクション間が狭いと
+ * 見出しが直前のカードに属して見える。見出し下の余白（0.5rem）より
+ * はっきり広い値を取り、どのカードの見出しかが一目で分かるようにする。
+ *
+ * ページごとに 1.25rem / 1.5rem / 指定なし が混在していたのでここに寄せる。
+ */
+export const sectionStackStyle: CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
+  gap: "2rem",
+};

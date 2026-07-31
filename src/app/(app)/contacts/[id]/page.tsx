@@ -334,13 +334,13 @@ export default async function ContactDetailPage({
               <InfoField label="社内メモ" value={c.internal_memo} />
             </DetailSection>
           )}
-
-          {/* Gmail 連携で取り込んだやり取り。本文は持たないので Gmail へ遷移する */}
-          <EmailHistorySection messages={emailMessages} />
         </div>
 
         {/* ======== Right ======== */}
         <div style={sectionStackStyle}>
+          {/* Gmail 連携で取り込んだやり取り。本文は持たないので Gmail へ遷移する */}
+          <EmailHistorySection messages={emailMessages} />
+
           <DetailSection title="所属取引先" icon={Briefcase}>
             {accountContacts.length === 0 ? (
               <p

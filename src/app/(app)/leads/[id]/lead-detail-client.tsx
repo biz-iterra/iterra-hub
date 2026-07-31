@@ -190,7 +190,7 @@ function Field({
   );
 }
 
-/** アコーディオン行（社内対応履歴） */
+/** アコーディオン行（社内対応） */
 function ActivityAccordionItem({
   act,
   isAdmin,
@@ -465,7 +465,7 @@ function LeadActivityEditModal({
       showToast({ type: "error", message: result.error ?? "保存結果を取得できませんでした" });
       return;
     }
-    showToast({ type: "success", message: "対応履歴を更新しました" });
+    showToast({ type: "success", message: "社内対応を更新しました" });
     onSaved(result.data);
     onClose();
   };
@@ -621,7 +621,7 @@ function LeadActivityEditModal({
   );
 }
 
-/** 顧客行動ログ追加モーダル */
+/** 顧客行動追加モーダル */
 function CustomerActivityModal({
   leadId,
   customerActivityTypes,
@@ -666,7 +666,7 @@ function CustomerActivityModal({
       showToast({ type: "error", message: result.error ?? "保存結果を取得できませんでした" });
       return;
     }
-    showToast({ type: "success", message: "顧客行動ログを追加しました" });
+    showToast({ type: "success", message: "顧客行動を追加しました" });
     onSaved(result.data);
     onClose();
   };
@@ -694,7 +694,7 @@ function CustomerActivityModal({
     <div style={overlayStyle} onClick={saving ? undefined : onClose}>
       <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
         <h3 style={{ color: "var(--color-text-title)", fontSize: "1.125rem", fontWeight: 600, marginBottom: "1rem" }}>
-          顧客行動ログを追加
+          顧客行動を追加
         </h3>
         <div style={{ display: "flex", flexDirection: "column", gap: "0.875rem" }}>
           <div>
@@ -824,7 +824,7 @@ export function LeadDetailClient({
       activity_type_id: "",
       note: "",
     });
-    showToast({ type: "success", message: "対応履歴を追加しました" });
+    showToast({ type: "success", message: "社内対応を追加しました" });
   };
 
   const handleDeleteActivity = async (actId: string) => {
@@ -836,14 +836,14 @@ export function LeadDetailClient({
       return;
     }
     setActivities((prev) => prev.filter((a) => a.id !== actId));
-    showToast({ type: "success", message: "対応履歴を削除しました" });
+    showToast({ type: "success", message: "社内対応を削除しました" });
   };
 
   const handleEditActivitySaved = (updated: LeadActivityWithRelations) => {
     setActivities((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
   };
 
-  // ---- 顧客行動ログ ----
+  // ---- 顧客行動 ----
   const [customerActivities, setCustomerActivities] = useState<LeadCustomerActivity[]>(
     () => (lead.customer_activities ?? []).slice().sort(
       (a, b) => new Date(b.occurred_at ?? b.created_at).getTime() - new Date(a.occurred_at ?? a.created_at).getTime()
@@ -861,7 +861,7 @@ export function LeadDetailClient({
       return;
     }
     setCustomerActivities((prev) => prev.filter((a) => a.id !== caId));
-    showToast({ type: "success", message: "顧客行動ログを削除しました" });
+    showToast({ type: "success", message: "顧客行動を削除しました" });
   };
 
   // ---- キャンペーン（参照のみ）----
@@ -1393,7 +1393,7 @@ export function LeadDetailClient({
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
             {/* children が単一カードにならないため DetailSection は使わず、見出しの体裁だけ揃える */}
             <h2 style={detailHeadingStyle}>
-              顧客行動ログ
+              顧客行動
               {customerActivities.length > 0 && (
                 <span
                   style={{
@@ -1412,7 +1412,7 @@ export function LeadDetailClient({
               onClick={() => setShowAddCustomerActivity(true)}
             >
               <Plus size={14} />
-              行動ログを追加
+              顧客行動を追加
             </button>
           </div>
 
@@ -1425,7 +1425,7 @@ export function LeadDetailClient({
                 padding: "2rem 1.5rem",
               }}
             >
-              顧客行動ログがありません
+              顧客行動がありません
             </div>
           ) : (
             <>
@@ -1590,7 +1590,7 @@ export function LeadDetailClient({
           <div>
             {/* 同上。アコーディオン一覧が続くのでカードで囲まない */}
             <h2 style={{ ...detailHeadingStyle, marginBottom: "0.75rem" }}>
-              社内対応履歴
+              社内対応
               {activities.length > 0 && (
                 <span
                   style={{
@@ -1605,7 +1605,7 @@ export function LeadDetailClient({
               )}
             </h2>
             <p style={{ ...styles.helpText, marginBottom: "0.75rem" }}>
-              社内担当者による対応記録（架電・メール等）です。顧客側の行動ログは「顧客行動」タブをご確認ください。
+              社内担当者による対応記録（架電・メール等）です。顧客側の記録は「顧客行動」タブをご確認ください。
             </p>
 
             {activities.length === 0 ? (
@@ -1617,7 +1617,7 @@ export function LeadDetailClient({
                   padding: "2rem 1.5rem",
                 }}
               >
-                アクティビティがありません
+                社内対応がありません
               </div>
             ) : (
               <div
@@ -1854,7 +1854,7 @@ export function LeadDetailClient({
           }
         }
 
-        /* ── 顧客行動ログ: デスクトップはグリッド, モバイル(768px以下)はカード ── */
+        /* ── 顧客行動: デスクトップはグリッド, モバイル(768px以下)はカード ── */
         .customer-activity-row {
           display: grid;
           grid-template-columns: 140px 120px 1fr 120px 60px;

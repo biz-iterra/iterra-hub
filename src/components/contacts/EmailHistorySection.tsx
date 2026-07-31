@@ -16,7 +16,7 @@ export function EmailHistorySection({
 }) {
   return (
     <DetailSection
-      title="やり取り履歴"
+      title="アクティビティ"
       icon={Mail}
       action={
         messages.length > 0 ? (

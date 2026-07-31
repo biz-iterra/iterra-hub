@@ -857,7 +857,7 @@ export async function updateLeadCustomerActivity(
     .eq("id", id)
     .single();
   if (fetchErr || !existing) {
-    return { data: null, error: "顧客行動ログが見つかりません" };
+    return { data: null, error: "顧客行動が見つかりません" };
   }
 
   const { data, error } = await supabase
@@ -905,7 +905,7 @@ export async function deleteLeadCustomerActivity(
     .eq("id", id)
     .single();
   if (fetchErr || !existing) {
-    return { data: null, error: "顧客行動ログが見つかりません" };
+    return { data: null, error: "顧客行動が見つかりません" };
   }
 
   const { error } = await supabase

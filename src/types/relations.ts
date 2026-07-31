@@ -60,7 +60,7 @@ export type DealWithRelations = Row<"deals"> & {
   deal_services: { service: NamedRef | null }[];
 };
 
-/** deals.ts の getDeal に対応（DEAL_SELECT + 契約・対応履歴・プロジェクト） */
+/** deals.ts の getDeal に対応（DEAL_SELECT + 契約・アクティビティ・プロジェクト） */
 export type DealDetail = DealWithRelations & {
   contracts: Ref<
     "contracts",
@@ -490,7 +490,7 @@ export type CampaignLeadRow = {
 };
 
 // ============================================================
-// 対応履歴（Deal / Lead）
+// アクティビティ（Deal / Lead）
 // ============================================================
 
 /** コード・色を持つマスタ参照（アクティビティ種別・通電状況など） */

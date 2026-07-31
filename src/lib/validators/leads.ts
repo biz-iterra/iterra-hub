@@ -193,7 +193,7 @@ export const leadCustomerActivityCreateSchema = z.object({
 export const leadCustomerActivityUpdateSchema = leadCustomerActivityCreateSchema
   .partial()
   .extend({
-    id: uuidString("[id] 行動ログIDは必須です"),
+    id: uuidString("[id] 顧客行動IDは必須です"),
   });
 
 // ---------- leadFiltersSchema ----------

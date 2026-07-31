@@ -163,7 +163,7 @@ export default async function DashboardPage() {
     .order("created_at", { ascending: false })
     .limit(5);
 
-  // ---------- 最近の対応履歴 ----------
+  // ---------- 最近のアクティビティ ----------
   const { data: recentActivities, error: recentActivitiesError } = await supabase
     .from("deal_activities")
     .select(
@@ -433,7 +433,7 @@ export default async function DashboardPage() {
           )}
         </div>
 
-        {/* 最近の対応履歴 */}
+        {/* 最近のアクティビティ */}
         <div
           className="p-6"
           style={{
@@ -446,7 +446,7 @@ export default async function DashboardPage() {
             className="text-base font-bold mb-4"
             style={{ color: "var(--color-text-title)" }}
           >
-            最近の対応履歴
+            最近のアクティビティ
           </h2>
           {recentActivitiesError ? (
             <p className="text-sm" style={{ color: "var(--color-sumi600)" }}>
@@ -454,7 +454,7 @@ export default async function DashboardPage() {
             </p>
           ) : !recentActivities || recentActivities.length === 0 ? (
             <p className="text-sm" style={{ color: "var(--color-sumi500)" }}>
-              対応履歴がありません
+              アクティビティがありません
             </p>
           ) : (
             <div className="overflow-x-auto">

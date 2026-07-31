@@ -170,7 +170,9 @@
 |---|---|---|
 | **変更履歴** | `*_change_histories` | エンティティのフィールド変更を記録する INSERT ONLY テーブル。UPDATE / DELETE 禁止。 |
 | **ステージ遷移履歴** | `deal_stage_histories` | ディールステージの変更履歴。 |
-| **対応履歴** | `deal_activities` | ディールに紐づく営業活動（メール・電話・打合せ等）の記録。 |
+| **アクティビティ** | `lead_activities` / `lead_customer_activities` / `deal_activities` / `email_messages` | 活動の記録の総称。画面では「社内対応」「顧客行動」「メール」の 3 つに分けて呼ぶ。横断一覧は `/activities`。 |
+| **社内対応** | `lead_activities` | こちらから動いた記録（架電・名刺交換等）。 |
+| **顧客行動** | `lead_customer_activities` | 相手が動いた記録（イベント参加・資料DL等）。 |
 
 ---
 

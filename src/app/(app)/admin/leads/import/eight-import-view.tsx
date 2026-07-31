@@ -255,7 +255,7 @@ export function EightImportView({
 
       <p style={{ ...styles.sub, margin: 0 }}>
         Eight プレミアムでダウンロードした CSV をそのまま取り込めます（Shift_JIS のままで可）。
-        同じ人と複数回名刺交換した行は 1 件のリードにまとめ、交換日は対応履歴として残します。
+        同じ人と複数回名刺交換した行は 1 件のリードにまとめ、交換日は社内対応として残します。
       </p>
 
       {/* ---- 1. ファイル選択 ---- */}
@@ -357,7 +357,7 @@ export function EightImportView({
             担当者を選ぶ
           </h2>
           <p style={{ ...styles.sub, marginBottom: "0.75rem" }}>
-            取り込むリードの担当者になります。名刺交換の対応履歴もこの担当者で記録します。
+            取り込むリードの担当者になります。名刺交換の社内対応もこの担当者で記録します。
           </p>
           <select
             value={ownerUserId}

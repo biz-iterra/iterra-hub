@@ -174,6 +174,13 @@ npm run typecheck && npm test && npm run build
 | 法人情報 | company / companies |
 | 連絡先 | contact / contacts |
 | マスタ・取込 | admin |
+| アクティビティ | activity / activities（活動の記録の総称） |
+| 社内対応 | lead_activities |
+| 顧客行動 | lead_customer_activities |
+
+活動の記録は「アクティビティ」を総称とし、記録元は **社内対応 / 顧客行動 / メール** の
+3 つで呼ぶ。「対応履歴」「行動ログ」「やり取り履歴」は使わない（同じものが画面ごとに
+別名で出ていたため 2026-07-31 に統一）。
 
 ## CRMデータモデル概要
 

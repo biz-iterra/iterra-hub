@@ -353,7 +353,7 @@ export default async function DealDetailPage({
 
         {/* ======== Right ======== */}
         <div style={sectionStackStyle}>
-          <DetailSection title="対応履歴" icon={Clock}>
+          <DetailSection title="アクティビティ" icon={Clock}>
             {activities.length === 0 ? (
               <p
                 style={{

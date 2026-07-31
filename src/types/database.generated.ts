@@ -2583,6 +2583,168 @@ export type Database = {
           },
         ]
       }
+      email_contact_candidates: {
+        Row: {
+          company_id: string | null
+          contact_id: string | null
+          created_at: string
+          display_name: string | null
+          email_address: string
+          first_seen_at: string
+          id: string
+          last_seen_at: string
+          message_count: number
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          company_id?: string | null
+          contact_id?: string | null
+          created_at?: string
+          display_name?: string | null
+          email_address: string
+          first_seen_at?: string
+          id?: string
+          last_seen_at?: string
+          message_count?: number
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string | null
+          contact_id?: string | null
+          created_at?: string
+          display_name?: string | null
+          email_address?: string
+          first_seen_at?: string
+          id?: string
+          last_seen_at?: string
+          message_count?: number
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_contact_candidates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_contact_candidates_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_contact_candidates_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "crm_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_message_contacts: {
+        Row: {
+          contact_id: string
+          created_at: string
+          id: string
+          message_id: string
+          role: string
+        }
+        Insert: {
+          contact_id: string
+          created_at?: string
+          id?: string
+          message_id: string
+          role: string
+        }
+        Update: {
+          contact_id?: string
+          created_at?: string
+          id?: string
+          message_id?: string
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_message_contacts_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_message_contacts_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "email_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_messages: {
+        Row: {
+          cc_emails: string[]
+          connection_id: string
+          created_at: string
+          direction: string
+          from_email: string
+          from_name: string | null
+          gmail_message_id: string
+          gmail_thread_id: string
+          id: string
+          sent_at: string
+          subject: string | null
+          to_emails: string[]
+        }
+        Insert: {
+          cc_emails?: string[]
+          connection_id: string
+          created_at?: string
+          direction: string
+          from_email: string
+          from_name?: string | null
+          gmail_message_id: string
+          gmail_thread_id: string
+          id?: string
+          sent_at: string
+          subject?: string | null
+          to_emails?: string[]
+        }
+        Update: {
+          cc_emails?: string[]
+          connection_id?: string
+          created_at?: string
+          direction?: string
+          from_email?: string
+          from_name?: string | null
+          gmail_message_id?: string
+          gmail_thread_id?: string
+          id?: string
+          sent_at?: string
+          subject?: string | null
+          to_emails?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_messages_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "gmail_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       entity_change_logs: {
         Row: {
           changed_at: string
@@ -2720,6 +2882,56 @@ export type Database = {
           {
             foreignKeyName: "financial_info_last_updated_by_fkey"
             columns: ["last_updated_by"]
+            isOneToOne: false
+            referencedRelation: "crm_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gmail_connections: {
+        Row: {
+          created_at: string
+          crm_user_id: string
+          email_address: string
+          granted_scope: string | null
+          id: string
+          is_active: boolean
+          last_error: string | null
+          last_history_id: string | null
+          last_synced_at: string | null
+          refresh_token_enc: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          crm_user_id: string
+          email_address: string
+          granted_scope?: string | null
+          id?: string
+          is_active?: boolean
+          last_error?: string | null
+          last_history_id?: string | null
+          last_synced_at?: string | null
+          refresh_token_enc: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          crm_user_id?: string
+          email_address?: string
+          granted_scope?: string | null
+          id?: string
+          is_active?: boolean
+          last_error?: string | null
+          last_history_id?: string | null
+          last_synced_at?: string | null
+          refresh_token_enc?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gmail_connections_crm_user_id_fkey"
+            columns: ["crm_user_id"]
             isOneToOne: false
             referencedRelation: "crm_users"
             referencedColumns: ["id"]
@@ -5628,6 +5840,17 @@ export type Database = {
     }
     Functions: {
       apply_default_status_colors: { Args: never; Returns: undefined }
+      approve_email_contact_candidate: {
+        Args: {
+          p_candidate_id: string
+          p_company_id: string
+          p_first_name: string
+          p_last_name: string
+          p_owner_user_id: string
+        }
+        Returns: string
+      }
+      find_contact_by_email: { Args: { p_email: string }; Returns: string }
       get_user_role: { Args: never; Returns: string }
       import_eight_leads: {
         Args: { p_batch: Json; p_defaults: Json; p_errors: Json; p_leads: Json }
@@ -5655,6 +5878,22 @@ export type Database = {
       purge_soft_deleted_records: { Args: never; Returns: undefined }
       recalculate_all_lead_scores: { Args: never; Returns: number }
       recalculate_lead_score: { Args: { p_lead_id: string }; Returns: number }
+      record_email_message: {
+        Args: {
+          p_cc_emails: string[]
+          p_connection_id: string
+          p_direction: string
+          p_from_email: string
+          p_from_name: string
+          p_gmail_message_id: string
+          p_gmail_thread_id: string
+          p_participants: Json
+          p_sent_at: string
+          p_subject: string
+          p_to_emails: string[]
+        }
+        Returns: string
+      }
       resolve_lead_company_size: {
         Args: { p_capital: number; p_employee_count: number }
         Returns: string

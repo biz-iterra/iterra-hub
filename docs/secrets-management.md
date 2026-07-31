@@ -74,7 +74,7 @@ Environment に無いときへ静かにフォールバックし、分離でき�
 | `nas/iterra-hub:production/HOUJIN_BANGOU_APP_ID` | 法人情報の実在確認（国税庁 法人番号 Web-API） | https://www.houjin-bangou.nta.go.jp/webapi/ の利用申請 | 無償。未設定でも起動は通り、画面に「未設定」と出るだけ |
 | `nas/iterra-hub:production/GOOGLE_OAUTH_CLIENT_ID` | Gmail 連携の OAuth クライアント | Google Cloud → APIs & Services → 認証情報 → OAuth 2.0 クライアント ID（ウェブアプリケーション） | 秘密値ではない（同意画面で利用者に見える）が、シークレットと組で管理するため同じ場所に置く |
 | `nas/iterra-hub:production/GOOGLE_OAUTH_CLIENT_SECRET` | 同上 | 同上 | 再発行すると既存の連携が切れる |
-| `nas/iterra-hub:production/GMAIL_TOKEN_ENCRYPTION_KEY` | リフレッシュトークンの暗号化鍵（pgcrypto） | `openssl rand -base64 48` で自分で生成 | **変更・紛失すると保存済みトークンを復号できず全員が再連携になる**。ローテーション時は再連携の案内とセットで |
+| `nas/iterra-hub:production/GMAIL_TOKEN_ENCRYPTION_KEY` | リフレッシュトークンの暗号化鍵（pgcrypto） | 自分のターミナルで生成（PowerShell: `[System.Security.Cryptography.RandomNumberGenerator]::Fill($b)` → `[Convert]::ToBase64String($b)`）。値をチャットやログに残さないこと | **変更・紛失すると保存済みトークンを復号できず全員が再連携になる**。ローテーション時は再連携の案内とセットで |
 
 `IMAGE_TAG` は切り戻し時のみ使う運用値で、秘密値ではないため登録対象外。
 

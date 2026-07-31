@@ -32,11 +32,15 @@ jobs:
             exit 1
           fi
 
-          # PostgREST のルートは OpenAPI スキーマを DB から生成して返すため、
-          # 単なる HTTP 疎通ではなく DB へのアクセスとして記録される。
+          # 実テーブルへの SELECT で DB まで到達させる。
+          # RLS により anon には行が返らないが、クエリ自体は実行されるため活動として記録される。
+          #
+          # PostgREST のルート（/rest/v1/）は使わない。OpenAPI スキーマの取得には
+          # 昇格した権限が必要で、anon では本番・STG とも 401 になる（実測済み）。
           for i in 1 2 3; do
             CODE=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 30 \
-              -H "apikey: $SUPABASE_ANON_KEY" "$SUPABASE_URL/rest/v1/" || echo 000)
+              -H "apikey: $SUPABASE_ANON_KEY" \
+              "$SUPABASE_URL/rest/v1/leads?select=id&limit=1" || echo 000)
 
             if [ "$CODE" = "200" ]; then
               echo "✅ STG 稼働中 (HTTP $CODE)"
@@ -54,8 +58,8 @@ jobs:
             echo "| HTTP | 意味 | 対処 |"
             echo "|---|---|---|"
             echo "| 000 | 到達不可 | プロジェクトが一時停止している可能性。ダッシュボードから再開 |"
-            echo "| 401 | キー不一致 | Environment \`staging\` の ANON_KEY を確認 |"
-            echo "| 404 | URL 誤り | Environment \`staging\` の SUPABASE_URL を確認 |"
+            echo "| 401 | キーと URL の不一致 | Environment \`staging\` の URL / ANON_KEY の組み合わせを確認 |"
+            echo "| 404 | \`leads\` が存在しない | **マイグレーション未適用**。\`bash scripts/setup-staging.sh\` を実行する |"
           } >> "$GITHUB_STEP_SUMMARY"
 
           echo "::error::STG への疎通が 3 回連続で失敗しました（HTTP $CODE）"

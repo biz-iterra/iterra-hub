@@ -27,6 +27,8 @@ interface Props {
   initialData: Paged<ContactWithRelations> | null;
   statuses: ContactStatus[];
   users: CrmUser[];
+  /** メールに出てきたが未登録のアドレス件数。0 なら導線を出さない */
+  pendingCandidateCount: number;
 }
 
 /**
@@ -150,7 +152,12 @@ const PER_PAGE = DEFAULT_PAGE_SIZE;
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
-export function ContactsView({ initialData, statuses, users }: Props) {
+export function ContactsView({
+  initialData,
+  statuses,
+  users,
+  pendingCandidateCount,
+}: Props) {
   const router = useRouter();
   const [data, setData] = useState(initialData);
   const [statusFilter, setStatusFilter] = useState("");
@@ -220,6 +227,29 @@ export function ContactsView({ initialData, statuses, users }: Props) {
         >
           連絡先
         </h1>
+        {/* メール連携で見つかった未登録アドレス。件数があるときだけ出す */}
+        {pendingCandidateCount > 0 && (
+          <Link
+            href="/contacts/candidates"
+            className="hover:bg-[var(--color-bg-hover)]"
+            style={{
+              marginLeft: "auto",
+              marginRight: "0.75rem",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "0.375rem",
+              color: "var(--color-terra)",
+              fontSize: "0.8125rem",
+              fontWeight: 500,
+              textDecoration: "none",
+              padding: "0.375rem 0.625rem",
+              borderRadius: "var(--radius-sm)",
+            }}
+          >
+            <Mail size={14} />
+            未登録の候補 {pendingCandidateCount} 件
+          </Link>
+        )}
         <Link
           href="/contacts/new"
           className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white transition-colors"

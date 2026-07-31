@@ -537,3 +537,41 @@ export type ActivityLogWithRelations = Row<"activity_logs"> & {
 // ============================================================
 
 export type Paged<T> = { rows: T[]; total: number };
+
+// ============================================================
+// メール連携（Gmail）
+// ============================================================
+
+/** email-sync.ts の getMyGmailConnections に対応。トークンは含めない */
+export type GmailConnectionSummary = Ref<
+  "gmail_connections",
+  | "id"
+  | "email_address"
+  | "granted_scope"
+  | "last_synced_at"
+  | "last_error"
+  | "is_active"
+  | "created_at"
+>;
+
+/** email-sync.ts の getEmailContactCandidates に対応 */
+export type EmailCandidateWithCompany = Row<"email_contact_candidates"> & {
+  /** ドメインから引き当てた法人。承認時の所属の初期値になる */
+  company: NamedRef | null;
+};
+
+/**
+ * email-sync.ts の getContactEmailMessages に対応。
+ * role は「そのメールでこの連絡先が From / To / Cc のどれだったか」。
+ */
+export type EmailMessageWithContacts = Ref<
+  "email_messages",
+  | "id"
+  | "gmail_message_id"
+  | "gmail_thread_id"
+  | "direction"
+  | "subject"
+  | "sent_at"
+  | "from_email"
+  | "from_name"
+> & { role: string };

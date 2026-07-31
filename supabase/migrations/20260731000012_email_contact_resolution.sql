@@ -136,12 +136,17 @@ COMMENT ON FUNCTION record_email_message IS
 -- 同一トランザクションで行う。承認した瞬間に過去のやり取りが
 -- 履歴として見えるようにするため。
 -- ------------------------------------------------------------
+-- 法人・担当者は省略できる（個人としての登録、担当者は実行者）。
+-- 既定値を持たせておかないと、生成される TS 型で必須引数になり
+-- null を渡せなくなる
+DROP FUNCTION IF EXISTS approve_email_contact_candidate(UUID, TEXT, TEXT, UUID, UUID);
+
 CREATE OR REPLACE FUNCTION approve_email_contact_candidate(
-  p_candidate_id UUID,
-  p_last_name    TEXT,
-  p_first_name   TEXT,
-  p_company_id   UUID,
-  p_owner_user_id UUID
+  p_candidate_id  UUID,
+  p_last_name     TEXT,
+  p_first_name    TEXT DEFAULT '',
+  p_company_id    UUID DEFAULT NULL,
+  p_owner_user_id UUID DEFAULT NULL
 ) RETURNS UUID
 LANGUAGE plpgsql
 SET search_path = public, pg_temp

@@ -1,4 +1,6 @@
 import { getContact } from "@/actions/contacts";
+import { getContactEmailMessages } from "@/actions/email-sync";
+import { EmailHistorySection } from "@/components/contacts/EmailHistorySection";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -90,7 +92,11 @@ export default async function ContactDetailPage({
     );
   }
 
-  const { data: contact, error } = await getContact(id);
+  const [{ data: contact, error }, { data: emailMessagesRaw }] = await Promise.all([
+    getContact(id),
+    getContactEmailMessages(id),
+  ]);
+  const emailMessages = emailMessagesRaw ?? [];
   const c = contact;
 
   if (error || !c) {
@@ -328,6 +334,9 @@ export default async function ContactDetailPage({
               <InfoField label="社内メモ" value={c.internal_memo} />
             </DetailSection>
           )}
+
+          {/* Gmail 連携で取り込んだやり取り。本文は持たないので Gmail へ遷移する */}
+          <EmailHistorySection messages={emailMessages} />
         </div>
 
         {/* ======== Right ======== */}

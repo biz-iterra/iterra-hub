@@ -5843,10 +5843,10 @@ export type Database = {
       approve_email_contact_candidate: {
         Args: {
           p_candidate_id: string
-          p_company_id: string
-          p_first_name: string
+          p_company_id?: string
+          p_first_name?: string
           p_last_name: string
-          p_owner_user_id: string
+          p_owner_user_id?: string
         }
         Returns: string
       }

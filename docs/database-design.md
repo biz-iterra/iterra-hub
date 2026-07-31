@@ -2939,9 +2939,33 @@ CRM 側の実装は変わらない。
 | `20260731000012_email_contact_resolution.sql` | `find_contact_by_email` / `record_email_message` / `approve_email_contact_candidate` |
 | `20260731000013_fix_email_function_privileges.sql` | 承認関数を `SECURITY DEFINER` 化、`record_email_message` を service_role 限定に |
 
-### 20.7 未実装
+### 20.7 実装
 
-- OAuth フロー（`/api/gmail/auth`・`/api/gmail/callback`）とトークンの暗号化保存
-- Gmail API クライアント（`messages.list` / `messages.get` / `history.list`）
-- 差分同期のジョブ（`historyId` は数日で失効するため、失効時は全件走査に戻す）
-- プロフィール画面の連携管理 UI
+| ファイル | 役割 |
+|---|---|
+| `src/lib/gmail/config.ts` | 環境変数の読み取り。未設定でも起動は通し、画面に案内を出すだけにする |
+| `src/lib/gmail/crypto.ts` | リフレッシュトークンの暗号化（AES-256-GCM）。**アプリ側で暗号化し DB には鍵を渡さない** |
+| `src/lib/gmail/client.ts` | OAuth とGmail API の薄いラッパ。`googleapis` は入れない（使うのは数エンドポイントのみ） |
+| `src/lib/gmail/address.ts` | ヘッダの解析と記録対象の選別 |
+| `src/lib/gmail/sync.ts` | 取り込み本体。書き込みは service_role で `record_email_message` を呼ぶ |
+| `src/app/api/gmail/auth`・`callback` | 認可の開始と受領。`state` を Cookie で照合して CSRF を防ぐ |
+| `src/components/profile/GmailConnectionsSection.tsx` | 連携・同期・解除の UI |
+
+**コールバック URL は固定値を持たず、リクエストの origin から組む。**
+開発機（`http://localhost:2000`）と本番（`https://hub.iterra.online`）で環境変数を
+分けずに済む。Google Cloud 側には両方の URI を登録しておくこと。
+
+**認可時にスコープを検証する。** 要求は `gmail.metadata` のみで、これより広い
+Gmail スコープが付いていたら連携を中止する。本文を読める権限が紛れ込むと設計の前提が崩れる。
+
+取り込み範囲は次のとおり。
+
+- 初回（`last_synced_at` が空）: 直近 50 通。動作確認と直近の文脈を拾うため。過去分の一括取り込みはしない
+- 通常: `history.list` の差分
+- `historyId` 失効時（404）: 直近 50 通へフォールバック
+- 1 回あたり最大 200 通。長時間のリクエストにしないため
+
+### 20.8 未実装
+
+- 定期実行（現在は プロフィール画面の「同期」ボタンによる手動のみ）
+- 過去メールのインポート経路（データ化した外部ファイルの取り込み）

@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { isGmailConfigured } from "@/lib/gmail/config";
+import { syncConnection, type SyncResult } from "@/lib/gmail/sync";
 import type {
   EmailCandidateWithCompany,
   EmailMessageWithContacts,
@@ -48,6 +50,47 @@ export async function getMyGmailConnections(): Promise<
 
   if (error) return { data: null, error: error.message };
   return { data: data ?? [], error: null };
+}
+
+/**
+ * Gmail 連携が使える状態か（環境変数が入っているか）。
+ * 値そのものは返さない。画面は「未設定」の案内を出すためだけに使う。
+ */
+export async function getGmailSetupStatus(): Promise<ActionResult<{ configured: boolean }>> {
+  const { supabase, user } = await getAuthenticatedUser();
+  if (!supabase || !user) return { data: null, error: "認証が必要です" };
+  return { data: { configured: isGmailConfigured() }, error: null };
+}
+
+/**
+ * 自分の連携を同期する。
+ *
+ * 取り込み自体は service_role で行うため、ここで「自分の連携か」を必ず確かめる。
+ * 他人の connection_id を渡されても走らせない。
+ */
+export async function syncMyGmailConnection(
+  connectionId: string
+): Promise<ActionResult<SyncResult>> {
+  const { supabase, user } = await getAuthenticatedUser();
+  if (!supabase || !user) return { data: null, error: "認証が必要です" };
+
+  const { data: owned } = await supabase
+    .from("gmail_connections")
+    .select("id")
+    .eq("id", connectionId)
+    .eq("crm_user_id", user.id)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (!owned) return { data: null, error: "連携が見つかりません" };
+
+  const result = await syncConnection(connectionId);
+  if (result.error) return { data: null, error: result.error };
+
+  revalidatePath("/profile");
+  revalidatePath("/activities");
+  revalidatePath("/contacts/candidates");
+  return { data: result.data, error: null };
 }
 
 /** 連携解除。取り込み済みのメールは履歴として残す（消すと経緯が失われる） */

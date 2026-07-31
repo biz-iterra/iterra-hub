@@ -5902,17 +5902,17 @@ export type Database = {
       recalculate_lead_score: { Args: { p_lead_id: string }; Returns: number }
       record_email_message: {
         Args: {
-          p_cc_emails: string[]
+          p_cc_emails?: string[]
           p_connection_id: string
           p_direction: string
           p_from_email: string
-          p_from_name: string
+          p_from_name?: string
           p_gmail_message_id: string
           p_gmail_thread_id: string
-          p_participants: Json
+          p_participants?: Json
           p_sent_at: string
           p_subject: string
-          p_to_emails: string[]
+          p_to_emails?: string[]
         }
         Returns: string
       }

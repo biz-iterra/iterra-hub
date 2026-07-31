@@ -89,6 +89,13 @@ Environment に無いときへ静かにフォールバックし、分離でき�
 | キー | 値の出どころ |
 |---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` / `SUPABASE_SERVICE_ROLE_KEY` | `npx supabase status` の出力 |
+| `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` | Google Cloud に**開発用として別に作った**クライアント。本番のものを手元に持ってこない |
+| `GMAIL_TOKEN_ENCRYPTION_KEY` | 自分で生成した**開発専用**の鍵。本番と同じ値にしない |
+| `HOUJIN_BANGOU_APP_ID` | 本番と同じ値でよい（読み取り専用の公開 API。無償・レート制限のみ） |
+
+**Gmail の暗号鍵を本番と共通にしないこと。** 本番 DB をローカルへコピーしたとき、
+鍵が同じだと保存済みのリフレッシュトークンを復号でき、開発機から本番のメールを読めてしまう。
+別鍵にしておけば、コピーした時点でトークンが復号不能になり無害化される。
 
 ローカル Supabase が起動時に生成するローカル専用値で、**本番の値を一切含まない**。
 `npx supabase status` でいつでも再取得できる＝正本が別にあるため Bitwarden には登録しない。
@@ -100,8 +107,11 @@ Environment に無いときへ静かにフォールバックし、分離でき�
 `docker-compose.yml` を手元で扱うためのファイルで、キー構成は NAS の `.env` と同一。
 **正本は Bitwarden の `nas/iterra-hub:production/*`。** 値の再確認は必ず Bitwarden を起点にする。
 
-このファイルは削除しないこと。開発機から SSH で NAS の docker を操作するほか、
-**STG をこのマシンの docker compose で動かしている**ため実行時に読まれる。
+このファイルは削除しないこと。開発機から SSH で NAS の docker を操作するときの
+手元コピーとして使う。
+
+**STG には転記しない。** STG は Supabase のみでアプリの実行環境が無い
+（`docs/deployment-nas.md § 10`）ため、実行時シークレットの置き場所自体が存在しない。
 
 ### 同値グループ（ローテーション時にまとめて更新するもの）
 

@@ -866,9 +866,15 @@ Account / Deal が**増えない**。増えていたら二重発火の防止が�
 
 ```bash
 cd /volume1/docker/iterra-hub
-set -a; . ./.env; set +a
-docker exec iterra-hub-app wget -qO- --post-data=''   --header="Authorization: Bearer $GMAIL_SYNC_CRON_SECRET"   http://127.0.0.1:3000/api/gmail/sync
+( set -a; . ./.env; set +a
+  docker exec iterra-hub-app wget -qO- --post-data=''     --header="Authorization: Bearer $GMAIL_SYNC_CRON_SECRET"     http://127.0.0.1:3000/api/gmail/sync )
 ```
+
+**括弧（サブシェル）を外さないこと。** 外すと `.env` の値が対話シェルに残り、
+`docker compose` は **シェルの環境変数を `.env` より優先する**ため、
+以降 `.env` を直しても古い値がコンテナに渡り続ける。
+実際にこれで `.env` は正しいのにコンテナ側だけ古い、という状態になった（2026-08-01）。
+その場合は `unset <キー名>` するか、SSH に入り直してから `up -d` する。
 
 **間隔を 15 分にする理由。** Gmail の `historyId`（差分同期の起点）は数日で失効する。
 15 分ならまず当たらない。API の消費も 1 回あたり数リクエストで、割り当てに対して

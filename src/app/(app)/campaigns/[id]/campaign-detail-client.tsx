@@ -3,7 +3,18 @@
 import { useState, useTransition, type CSSProperties } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Pencil, Users, FileText, X, Plus, ArrowUpRight, Search } from "lucide-react";
+import {
+  ArrowLeft,
+  Pencil,
+  Users,
+  FileText,
+  X,
+  Plus,
+  ArrowUpRight,
+  Search,
+  Megaphone,
+  UserSearch,
+} from "lucide-react";
 import { attachLeadsToCampaign, detachLeadFromCampaign } from "@/actions/campaigns";
 import {
   CampaignTypeBadge,
@@ -14,6 +25,8 @@ import {
   CategoryBadge,
 } from "@/components/ui/badges";
 import { useToast } from "@/components/ui/toast";
+import { DetailSection } from "@/components/ui/DetailSection";
+import { InfoField } from "@/components/ui/InfoField";
 import type {
   CampaignLeadRow,
   Row,
@@ -95,27 +108,6 @@ function onFocus(e: React.FocusEvent<HTMLInputElement>) {
 function onBlur(e: React.FocusEvent<HTMLInputElement>) {
   e.currentTarget.style.borderColor = "var(--color-border-default)";
   e.currentTarget.style.boxShadow = "";
-}
-
-/** ラベル+値のペア表示（閲覧専用フィールド） */
-function Field({
-  label,
-  value,
-  empty = "—",
-}: {
-  label: string;
-  value?: string | null;
-  empty?: string;
-}) {
-  const isEmpty = value === null || value === undefined || value === "";
-  return (
-    <div>
-      <span style={styles.label}>{label}</span>
-      <p style={isEmpty ? styles.valueEmpty : styles.value}>
-        {isEmpty ? empty : value}
-      </p>
-    </div>
-  );
 }
 
 // ---------- リード紐付けモーダル ----------
@@ -539,45 +531,36 @@ export function CampaignDetailClient({
       {/* === 基本情報タブ（閲覧専用）=== */}
       {activeTab === "basic" && (
         <div>
-          <div style={styles.card}>
-            <h2 style={{ color: "var(--color-text-title)", fontSize: "1rem", fontWeight: 600, margin: "0 0 1rem 0" }}>
-              基本情報
-            </h2>
-            <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-              <Field label="キャンペーン名" value={campaign.name} />
-              <div style={styles.grid2}>
-                <div>
-                  <span style={styles.label}>種別</span>
-                  <div style={{ marginTop: "0.125rem" }}>
-                    <CampaignTypeBadge type={campaign.type} />
-                  </div>
-                </div>
-                <div>
-                  <span style={styles.label}>ステータス</span>
-                  <div style={{ marginTop: "0.125rem" }}>
-                    <CampaignStatusBadge status={campaign.status} />
-                  </div>
-                </div>
-                <Field
-                  label="開始日"
-                  value={
-                    campaign.start_date
-                      ? new Date(campaign.start_date).toLocaleDateString("ja-JP")
-                      : null
-                  }
-                />
-                <Field
-                  label="終了日"
-                  value={
-                    campaign.end_date
-                      ? new Date(campaign.end_date).toLocaleDateString("ja-JP")
-                      : null
-                  }
-                />
-              </div>
-              <Field label="説明" value={campaign.description} />
+          <DetailSection title="基本情報" icon={Megaphone}>
+            <div style={styles.grid2}>
+              <InfoField label="キャンペーン名" value={campaign.name} full />
+              <InfoField
+                label="種別"
+                value={<CampaignTypeBadge type={campaign.type} />}
+              />
+              <InfoField
+                label="ステータス"
+                value={<CampaignStatusBadge status={campaign.status} />}
+              />
+              <InfoField
+                label="開始日"
+                value={
+                  campaign.start_date
+                    ? new Date(campaign.start_date).toLocaleDateString("ja-JP")
+                    : null
+                }
+              />
+              <InfoField
+                label="終了日"
+                value={
+                  campaign.end_date
+                    ? new Date(campaign.end_date).toLocaleDateString("ja-JP")
+                    : null
+                }
+              />
+              <InfoField label="説明" value={campaign.description} full />
             </div>
-          </div>
+          </DetailSection>
         </div>
       )}
 
@@ -605,10 +588,10 @@ export function CampaignDetailClient({
               紐付いているリードはありません
             </div>
           ) : (
-            <div style={styles.card}>
-              <h2 style={{ color: "var(--color-text-title)", fontSize: "1rem", fontWeight: 600, margin: "0 0 1rem 0" }}>
-                紐付きリード（{campaignLeads.length} 件）
-              </h2>
+            <DetailSection
+              title={`紐付きリード（${campaignLeads.length} 件）`}
+              icon={UserSearch}
+            >
               <div
                 className="overflow-x-auto no-scrollbar"
                 style={{ borderRadius: "var(--radius-sm)", border: "1px solid var(--color-border-default)" }}
@@ -694,7 +677,7 @@ export function CampaignDetailClient({
                   </tbody>
                 </table>
               </div>
-            </div>
+            </DetailSection>
           )}
         </div>
       )}

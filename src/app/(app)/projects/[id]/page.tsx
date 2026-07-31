@@ -1,7 +1,9 @@
 import { getProject } from "@/actions/projects";
 import Link from "next/link";
-import { ArrowLeft, ArrowUpRight, FolderKanban, Users, Handshake, Pencil } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, FolderKanban, Users, Handshake, Pencil, StickyNote } from "lucide-react";
 import { ProjectStatusBadge, PipelineBadge, StageBadge } from "@/components/ui/badges";
+import { DetailSection } from "@/components/ui/DetailSection";
+import { InfoField } from "@/components/ui/InfoField";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -132,32 +134,19 @@ export default async function ProjectDetailPage({
         }}
       >
         <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem", minWidth: 0 }}>
-          <div
-            style={{
-              backgroundColor: "#fff",
-              borderRadius: "var(--radius-card)",
-              boxShadow: "var(--elevation-low)",
-              padding: "1.5rem",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "1rem" }}>
-              <FolderKanban size={18} style={{ color: "var(--color-text-title)" }} />
-              <h2 style={{ color: "var(--color-text-title)", fontSize: "1rem", fontWeight: 600, margin: 0 }}>
-                基本情報
-              </h2>
-            </div>
+          <DetailSection title="基本情報" icon={FolderKanban}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
-              <InfoItem label="プロジェクト名" value={project.name} />
-              <InfoItem label="ステータス" value={project.project_status?.name} />
-              <InfoItem label="開始日" value={project.start_date} />
-              <InfoItem label="終了予定日" value={project.end_date} />
-              <InfoItem label="責任者" value={project.owner?.full_name} />
-              <InfoItem
+              <InfoField label="プロジェクト名" value={project.name} />
+              <InfoField label="ステータス" value={project.project_status?.name} />
+              <InfoField label="開始日" value={project.start_date} />
+              <InfoField label="終了予定日" value={project.end_date} />
+              <InfoField label="責任者" value={project.owner?.full_name} />
+              <InfoField
                 label="作成日"
                 value={project.created_at ? new Date(project.created_at).toLocaleDateString("ja-JP") : null}
               />
               {/* いつからこの状態かが分からないと、保留・中止の判断が追えない */}
-              <InfoItem
+              <InfoField
                 label="ステータス更新日"
                 value={
                   project.status_updated_at
@@ -165,70 +154,21 @@ export default async function ProjectDetailPage({
                     : null
                 }
               />
-              <InfoItem label="有効" value={project.is_active ? "有効" : "無効"} />
-              {project.description && (
-                <div style={{ gridColumn: "1 / -1" }}>
-                  <span
-                    style={{
-                      color: "var(--color-sumi600)",
-                      fontSize: "0.75rem",
-                      fontWeight: 600,
-                      display: "block",
-                      marginBottom: "0.25rem",
-                    }}
-                  >
-                    説明
-                  </span>
-                  <p style={{ color: "var(--color-text-body)", fontSize: "0.875rem", whiteSpace: "pre-wrap", margin: 0 }}>
-                    {project.description}
-                  </p>
-                </div>
-              )}
+              <InfoField label="有効" value={project.is_active ? "有効" : "無効"} />
+              <InfoField label="説明" value={project.description} full />
             </div>
-          </div>
+          </DetailSection>
 
           {project.internal_memo && (
-            <div
-              style={{
-                backgroundColor: "#fff",
-                borderRadius: "var(--radius-card)",
-                boxShadow: "var(--elevation-low)",
-                padding: "1.5rem",
-              }}
-            >
-              <h2 style={{ color: "var(--color-text-title)", fontSize: "1rem", fontWeight: 600, margin: "0 0 0.75rem 0" }}>
-                メモ
-              </h2>
-              <p style={{ color: "var(--color-text-body)", fontSize: "0.875rem", whiteSpace: "pre-wrap", margin: 0 }}>
-                {project.internal_memo}
-              </p>
-            </div>
+            <DetailSection title="メモ" icon={StickyNote}>
+              <InfoField label="社内メモ" value={project.internal_memo} />
+            </DetailSection>
           )}
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem", minWidth: 0 }}>
           {/* メンバー（閲覧のみ） */}
-          <div
-            style={{
-              backgroundColor: "#fff",
-              borderRadius: "var(--radius-card)",
-              boxShadow: "var(--elevation-low)",
-              padding: "1.5rem",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "1rem" }}>
-              <Users size={18} style={{ color: "var(--color-text-title)" }} />
-              <h2
-                style={{
-                  color: "var(--color-text-title)",
-                  fontSize: "1rem",
-                  fontWeight: 600,
-                  margin: 0,
-                }}
-              >
-                メンバー（{members.length}名）
-              </h2>
-            </div>
+          <DetailSection title={`メンバー（${members.length}名）`} icon={Users}>
             {members.length > 0 ? (
               <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
                 {members.map((m) => (
@@ -265,40 +205,14 @@ export default async function ProjectDetailPage({
             >
               ※ 追加・解除は編集ページから
             </p>
-          </div>
+          </DetailSection>
         </div>
       </div>
 
       {/* 下段: 紐づく商談（閲覧のみ、全幅） */}
-      <div
-        style={{
-          backgroundColor: "#fff",
-          borderRadius: "var(--radius-card)",
-          boxShadow: "var(--elevation-low)",
-          padding: "1.5rem",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            marginBottom: "1rem",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <Handshake size={18} style={{ color: "var(--color-text-title)" }} />
-            <h2
-              style={{
-                color: "var(--color-text-title)",
-                fontSize: "1rem",
-                fontWeight: 600,
-                margin: 0,
-              }}
-            >
-              紐づく商談（{deals.length}件）
-            </h2>
-          </div>
+      <DetailSection title={`紐づく商談（${deals.length}件）`} icon={Handshake}>
+        {/* 合計金額は見出しではなくカード内に置く（DetailSection は見出し右に要素を持てない） */}
+        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "0.75rem" }}>
           <span style={{ fontSize: "0.75rem", color: "var(--color-sumi600)" }}>
             合計金額: ¥{totalAmount.toLocaleString()}
           </span>
@@ -383,28 +297,7 @@ export default async function ProjectDetailPage({
         >
           ※ 追加・解除は編集ページから
         </p>
-      </div>
-    </div>
-  );
-}
-
-function InfoItem({ label, value }: { label: string; value: string | null | undefined }) {
-  return (
-    <div>
-      <span
-        style={{
-          color: "var(--color-sumi600)",
-          fontSize: "0.75rem",
-          fontWeight: 600,
-          display: "block",
-          marginBottom: "0.25rem",
-        }}
-      >
-        {label}
-      </span>
-      <span style={{ color: value ? "var(--color-text-body)" : "var(--color-sumi400)", fontSize: "0.875rem" }}>
-        {value ?? "-"}
-      </span>
+      </DetailSection>
     </div>
   );
 }

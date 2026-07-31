@@ -210,13 +210,15 @@ export default async function ProjectDetailPage({
       </div>
 
       {/* 下段: 紐づく商談（閲覧のみ、全幅） */}
-      <DetailSection title={`紐づく商談（${deals.length}件）`} icon={Handshake}>
-        {/* 合計金額は見出しではなくカード内に置く（DetailSection は見出し右に要素を持てない） */}
-        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "0.75rem" }}>
+      <DetailSection
+        title={`紐づく商談（${deals.length}件）`}
+        icon={Handshake}
+        action={
           <span style={{ fontSize: "0.75rem", color: "var(--color-sumi600)" }}>
             合計金額: ¥{totalAmount.toLocaleString()}
           </span>
-        </div>
+        }
+      >
         {deals.length > 0 ? (
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>

@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { SystemTagBadge, GradeBadge, LabelBadge } from "@/components/ui/badges";
 import { useToast } from "@/components/ui/toast";
+import { DetailSection } from "@/components/ui/DetailSection";
 import { addTalentAchievement, removeTalentAchievement } from "@/actions/talent-classification";
 import type { TalentProfileResult } from "@/lib/talent-classification";
 import type {
@@ -208,16 +209,6 @@ const card: CSSProperties = {
   marginBottom: "1.5rem",
 };
 
-const cardTitle: CSSProperties = {
-  color: "var(--color-text-title)",
-  fontSize: "1rem",
-  fontWeight: 600,
-  margin: "0 0 1rem 0",
-  display: "flex",
-  alignItems: "center",
-  gap: "0.5rem",
-};
-
 const emptyText: CSSProperties = {
   color: "var(--color-sumi500)",
   fontSize: "0.875rem",
@@ -326,11 +317,7 @@ function JobTypeTabContent({
   return (
     <div>
       {/* ── 系統サマリ ── */}
-      <div style={card}>
-        <h2 style={cardTitle}>
-          <Award size={18} />
-          系統（System）
-        </h2>
+      <DetailSection title="系統（System）" icon={Award}>
 
         {matchedSystems.length === 0 ? (
           <p style={emptyText}>
@@ -377,15 +364,11 @@ function JobTypeTabContent({
             </strong>
           </p>
         )}
-      </div>
+      </DetailSection>
 
       {/* ── グレード（系統ごと） ── */}
       {matchedSystems.length > 0 && (
-        <div style={card}>
-          <h2 style={cardTitle}>
-            <Star size={18} />
-            グレード（Grade）
-          </h2>
+        <DetailSection title="グレード（Grade）" icon={Star}>
           <div
             style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}
           >
@@ -482,15 +465,11 @@ function JobTypeTabContent({
                 );
               })}
           </div>
-        </div>
+        </DetailSection>
       )}
 
       {/* ── 適合職種 ── */}
-      <div style={card}>
-        <h2 style={cardTitle}>
-          <Briefcase size={18} />
-          適合職種
-        </h2>
+      <DetailSection title="適合職種" icon={Briefcase}>
 
         {profile.job_types.length === 0 ? (
           <p style={emptyText}>スキル要件を満たす職種がありません</p>
@@ -534,14 +513,10 @@ function JobTypeTabContent({
             ))}
           </div>
         )}
-      </div>
+      </DetailSection>
 
       {/* ── 実績管理 ── */}
-      <div style={card}>
-        <h2 style={cardTitle}>
-          <Award size={18} />
-          実績（Achievement）
-        </h2>
+      <DetailSection title="実績（Achievement）" icon={Award}>
 
         {achievements.length === 0 ? (
           <p style={{ ...emptyText, marginBottom: "1rem" }}>
@@ -753,7 +728,7 @@ function JobTypeTabContent({
             )}
           </div>
         )}
-      </div>
+      </DetailSection>
     </div>
   );
 }
@@ -950,24 +925,10 @@ export function TalentDetailClient({
               constellation?.keywords ||
               constellation?.element_description ||
               constellation?.nature_description) && (
-              <div style={card}>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    marginBottom: "0.25rem",
-                  }}
-                >
-                  <h2
-                    style={{
-                      ...cardTitle,
-                      margin: 0,
-                    }}
-                  >
-                    <Star size={18} />
-                    診断結果（自動）
-                  </h2>
+              <DetailSection
+                title="診断結果（自動）"
+                icon={Star}
+                action={
                   <span
                     style={{
                       color: "var(--color-sumi600)",
@@ -979,7 +940,8 @@ export function TalentDetailClient({
                   >
                     生年月日から算出
                   </span>
-                </div>
+                }
+              >
                 <p
                   style={{
                     color: "var(--color-sumi500)",
@@ -1124,16 +1086,12 @@ export function TalentDetailClient({
                     </div>
                   </div>
                 )}
-              </div>
+              </DetailSection>
             )}
 
             {/* 性格分析カード */}
             {talent.personality_memo && (
-              <div style={card}>
-                <h2 style={cardTitle}>
-                  <UserCircle size={18} />
-                  性格分析
-                </h2>
+              <DetailSection title="性格分析" icon={UserCircle}>
                 <div
                   style={{
                     color: "var(--color-text-body)",
@@ -1144,24 +1102,15 @@ export function TalentDetailClient({
                 >
                   {talent.personality_memo}
                 </div>
-              </div>
+              </DetailSection>
             )}
 
             {/* 強み・弱みカード */}
             {(talent.custom_strengths || talent.custom_weaknesses) && (
-              <div style={card}>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    marginBottom: "1rem",
-                  }}
-                >
-                  <h2 style={{ ...cardTitle, margin: 0 }}>
-                    <Star size={18} />
-                    強み・弱み
-                  </h2>
+              <DetailSection
+                title="強み・弱み"
+                icon={Star}
+                action={
                   <span
                     style={{
                       color: "var(--color-sumi600)",
@@ -1173,7 +1122,8 @@ export function TalentDetailClient({
                   >
                     手入力
                   </span>
-                </div>
+                }
+              >
                 <div
                   style={{
                     display: "grid",
@@ -1226,13 +1176,12 @@ export function TalentDetailClient({
                     </div>
                   </div>
                 </div>
-              </div>
+              </DetailSection>
             )}
 
             {/* 適性メモカード */}
             {talent.aptitude_notes && (
-              <div style={card}>
-                <h2 style={cardTitle}>適性メモ</h2>
+              <DetailSection title="適性メモ">
                 <div
                   style={{
                     color: "var(--color-text-body)",
@@ -1243,13 +1192,12 @@ export function TalentDetailClient({
                 >
                   {talent.aptitude_notes}
                 </div>
-              </div>
+              </DetailSection>
             )}
 
             {/* 総合評価カード */}
             {talent.overall_assessment && (
-              <div style={card}>
-                <h2 style={cardTitle}>総合評価</h2>
+              <DetailSection title="総合評価">
                 <div
                   style={{
                     color: "var(--color-text-body)",
@@ -1260,18 +1208,18 @@ export function TalentDetailClient({
                 >
                   {talent.overall_assessment}
                 </div>
-              </div>
+              </DetailSection>
             )}
           </div>
 
           {/* 右カラム */}
           <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
             {/* 連絡先情報カード */}
-            <div style={{ ...card, marginBottom: 0 }}>
-              <h2 style={cardTitle}>
-                <UserCircle size={18} />
-                連絡先情報
-              </h2>
+            <DetailSection
+              title="連絡先情報"
+              icon={UserCircle}
+              cardStyle={{ marginBottom: 0 }}
+            >
               <div
                 style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}
               >
@@ -1362,15 +1310,15 @@ export function TalentDetailClient({
                   </div>
                 )}
               </div>
-            </div>
+            </DetailSection>
 
             {/* 占い情報カード */}
             {hasFortuneData && (
-              <div style={{ ...card, marginBottom: 0 }}>
-                <h2 style={cardTitle}>
-                  <Star size={18} />
-                  占い情報
-                </h2>
+              <DetailSection
+                title="占い情報"
+                icon={Star}
+                cardStyle={{ marginBottom: 0 }}
+              >
                 <div
                   style={{
                     display: "flex",
@@ -1428,7 +1376,7 @@ export function TalentDetailClient({
                     <InfoRow label="性質" value={constellation.nature} />
                   )}
                 </div>
-              </div>
+              </DetailSection>
             )}
           </div>
         </div>
@@ -1449,11 +1397,7 @@ export function TalentDetailClient({
             </div>
           ) : (
             Object.entries(skillsByCategory).map(([categoryName, skills]) => (
-              <div key={categoryName} style={card}>
-                <h2 style={cardTitle}>
-                  <Wrench size={18} />
-                  {categoryName}
-                </h2>
+              <DetailSection key={categoryName} title={categoryName} icon={Wrench}>
                 <div
                   style={{
                     display: "flex",
@@ -1520,7 +1464,7 @@ export function TalentDetailClient({
                     );
                   })}
                 </div>
-              </div>
+              </DetailSection>
             ))
           )}
         </div>
@@ -1551,11 +1495,7 @@ export function TalentDetailClient({
               <p style={emptyText}>経歴が登録されていません</p>
             </div>
           ) : (
-            <div style={card}>
-              <h2 style={cardTitle}>
-                <GraduationCap size={18} />
-                経歴
-              </h2>
+            <DetailSection title="経歴" icon={GraduationCap}>
               <div
                 style={{ display: "flex", flexDirection: "column", gap: "1rem" }}
               >
@@ -1619,7 +1559,7 @@ export function TalentDetailClient({
                   </div>
                 ))}
               </div>
-            </div>
+            </DetailSection>
           )}
         </div>
       )}

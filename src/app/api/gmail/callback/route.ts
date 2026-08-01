@@ -12,19 +12,23 @@ import { getGmailConfig, gmailRedirectUri, GMAIL_SCOPE } from "@/lib/gmail/confi
 import { exchangeCode, getProfile } from "@/lib/gmail/client";
 import { encryptToken, toByteaLiteral } from "@/lib/gmail/crypto";
 import { safeEqual } from "@/lib/gmail/secret";
+import { resolveExternalOrigin } from "@/lib/app-origin";
 import { OAUTH_STATE_COOKIE } from "../auth/route";
 
 export async function GET(request: NextRequest) {
-  const origin = request.nextUrl.origin;
   const params = request.nextUrl.searchParams;
 
+  // 画面内のリダイレクトはリクエスト基準でよい（Next が相対 URL に畳む）
   const back = (message: string) =>
     NextResponse.redirect(
-      `${origin}/profile?gmail_error=${encodeURIComponent(message)}`
+      new URL(`/profile?gmail_error=${encodeURIComponent(message)}`, request.url)
     );
   const done = (email: string) =>
     NextResponse.redirect(
-      `${origin}/profile?gmail_connected=${encodeURIComponent(email)}`
+      new URL(
+        `/profile?gmail_connected=${encodeURIComponent(email)}`,
+        request.url
+      )
     );
 
   const store = await cookies();
@@ -53,10 +57,18 @@ export async function GET(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return NextResponse.redirect(`${origin}/login`);
+  if (!user) return NextResponse.redirect(new URL("/login", request.url));
 
   const config = getGmailConfig();
   if (!config) return back("Gmail 連携が未設定です");
+
+  // 認可時と同じ redirect_uri でなければトークン交換は通らない
+  const origin = resolveExternalOrigin(request.nextUrl.origin);
+  if (!origin) {
+    return back(
+      "公開 URL を特定できません（APP_ORIGIN に https://hub.iterra.online を設定してください）"
+    );
+  }
 
   try {
     const token = await exchangeCode({

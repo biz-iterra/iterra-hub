@@ -597,6 +597,7 @@ chmod 600 .env
 
 | キー | 未設定だとどうなるか |
 |---|---|
+| `APP_ORIGIN` | 起動はする。**Gmail 連携が Google に拒否される**（§9 の `invalid_request`）。`https://hub.iterra.online` |
 | `SUPABASE_SERVICE_ROLE_KEY` | **起動しない**（compose が `:?` で止める） |
 | `CLOUDFLARE_TUNNEL_TOKEN` | **公開されない**（トンネルが繋がらない） |
 | `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` / `GMAIL_TOKEN_ENCRYPTION_KEY` | 起動はする。Gmail 連携が「未設定」表示になる |
@@ -655,6 +656,25 @@ cd /volume1/docker/iterra-hub
 docker compose pull
 docker compose up -d
 docker image prune -f      # 古いイメージの掃除
+```
+
+**アプリのイメージだけでは足りないリリースがある。** 環境変数を追加した回は
+`docker-compose.yml` と `.env` も配置し直す必要がある。イメージを新しくしても、
+compose に `environment:` の行が無ければその値はコンテナに渡らない。
+
+```bash
+# リポジトリの docker-compose.yml を配置し直したあと
+grep -c 'GMAIL_SYNC_CRON_SECRET' docker-compose.yml   # 1 以上であること
+awk -F= '{print $1": "length($2)"文字"}' .env         # 値は出さず桁数だけ確認
+
+# コンテナに実際に渡っているか（値は出さない）
+docker exec iterra-hub-app sh -c 'for k in GOOGLE_OAUTH_CLIENT_ID GOOGLE_OAUTH_CLIENT_SECRET GMAIL_TOKEN_ENCRYPTION_KEY GMAIL_SYNC_CRON_SECRET HOUJIN_BANGOU_APP_ID; do v=$(printenv "$k"); echo "$k: ${#v} 文字"; done'
+```
+
+動いているイメージがどのコミットかは次で分かる。
+
+```bash
+docker inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' iterra-hub-app
 ```
 
 ### ロールバック
@@ -883,6 +903,10 @@ cd /volume1/docker/iterra-hub
 **戻り値の読み方。** 正常時は取り込み件数の JSON が返る。タスクの実行ログに残るので
 「動いているが 0 件」と「落ちている」を区別できる。
 
+イメージは Alpine で、`wget` は busybox 版のため **HTTP エラー時は本文を捨てて**
+`wget: server returned error: HTTP/1.1 401 Unauthorized` のようにステータス行だけを出す。
+本文まで見たいときは `-S -O-`（ヘッダを stderr に出す）で手動実行する。
+
 | 応答 | 意味 | 対処 |
 |---|---|---|
 | `{"connections":n,"recorded":n,...}` | 正常 | — |
@@ -941,6 +965,23 @@ Cloudflare の Health Checks は Pro プラン以上の機能なので、無料�
 | ヘルスチェックが Access のログイン画面を返す | Access の Bypass ポリシー（§3-4） |
 | `docker compose pull` が 401 | GHCR のログイン（§5.2）。PAT の有効期限も確認 |
 | コンテナが unhealthy を繰り返す | `docker compose logs app`。環境変数の未設定が多い |
+| Gmail 連携で `エラー 400: invalid_request` | `.env` の `APP_ORIGIN`（下記） |
+
+### プロキシの内側では公開 URL をリクエストから復元できない
+
+Gmail 連携が Google の画面で `invalid_request`（「OAuth 2.0 ポリシーに準拠していない」）に
+なった事象の記録（2026-08-01）。**`redirect_uri_mismatch` ではない**点が手掛かりだった。
+
+standalone の Next は Host ヘッダを信用せず、サーバーの `HOSTNAME`（Docker では `0.0.0.0`）で
+リクエストの絶対 URL を組む。そのため `request.nextUrl.origin` が `https://0.0.0.0` になり、
+`https://0.0.0.0/api/gmail/callback` を Google へ送っていた。IP アドレスのリダイレクト先は
+Google のポリシーで禁止されているため、URI の登録有無に関係なく弾かれる。
+
+- 画面内のリダイレクトは Next が相対 URL に畳むので**表面化しない**。外部へ渡す URL だけが壊れる
+- 開発機は直アクセスで正しい値になるため、ローカルでは再現しない
+- 対処: `.env` に `APP_ORIGIN=https://hub.iterra.online` を設定する。
+  実装は `src/lib/app-origin.ts`（未設定かつリクエスト由来の値も使えない場合は、
+  連携ボタンを押した時点で理由が画面に出る）
 
 ---
 

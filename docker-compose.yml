@@ -18,6 +18,10 @@ services:
     restart: unless-stopped
 
     environment:
+      # 外部へ渡す URL（OAuth の redirect_uri 等）の組み立てに使う。
+      # プロキシの内側ではリクエストから復元できないため明示する
+      APP_ORIGIN: ${APP_ORIGIN:-}
+
       # サーバー側でのみ使用（RLS をバイパスするため外部に出さない）
       SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:?SUPABASE_SERVICE_ROLE_KEY is required}
 

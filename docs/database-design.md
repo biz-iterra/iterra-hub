@@ -2944,6 +2944,7 @@ CRM 側の実装は変わらない。
 | ファイル | 役割 |
 |---|---|
 | `src/lib/gmail/config.ts` | 環境変数の読み取り。未設定でも起動は通し、画面に案内を出すだけにする |
+| `src/lib/app-origin.ts` | 外部へ渡す URL のオリジン解決（`APP_ORIGIN`）。Gmail 固有ではないため lib 直下 |
 | `src/lib/gmail/crypto.ts` | リフレッシュトークンの暗号化（AES-256-GCM）。**アプリ側で暗号化し DB には鍵を渡さない** |
 | `src/lib/gmail/client.ts` | OAuth とGmail API の薄いラッパ。`googleapis` は入れない（使うのは数エンドポイントのみ） |
 | `src/lib/gmail/address.ts` | ヘッダの解析と記録対象の選別 |
@@ -2951,9 +2952,20 @@ CRM 側の実装は変わらない。
 | `src/app/api/gmail/auth`・`callback` | 認可の開始と受領。`state` を Cookie で照合して CSRF を防ぐ |
 | `src/components/profile/GmailConnectionsSection.tsx` | 連携・同期・解除の UI |
 
-**コールバック URL は固定値を持たず、リクエストの origin から組む。**
-開発機（`http://localhost:2000`）と本番（`https://hub.iterra.online`）で環境変数を
-分けずに済む。Google Cloud 側には両方の URI を登録しておくこと。
+**コールバック URL は `APP_ORIGIN` から組む。**
+リバースプロキシ（Cloudflare Tunnel）の内側では、リクエストから公開 URL を復元できない。
+standalone の Next は Host ヘッダを信用せず、サーバーの `HOSTNAME`（Docker では `0.0.0.0`）で
+絶対 URL を組むためで、当初の「リクエストの origin から組む」実装では
+`https://0.0.0.0/api/gmail/callback` を Google へ送っていた（IP アドレスのリダイレクト先は
+OAuth のポリシーで禁止されており `invalid_request` になる。`docs/deployment-nas.md § 9`）。
+
+解決は `src/lib/app-origin.ts` に集約する。`APP_ORIGIN` が未設定なら
+リクエスト由来の値で代替するため、開発機（`http://localhost:2000`）は設定不要。
+Google Cloud 側には開発・本番の両方の URI を登録しておくこと。
+
+**外部へ渡す URL と、画面へ戻すリダイレクトの両方が対象。** Route Handler の
+`NextResponse.redirect` は middleware と違い絶対 URL をそのまま `Location` に入れるため、
+戻り先も同じ基準で組まないと `https://0.0.0.0:3000/profile` へ飛ばすことになる。
 
 **認可時にスコープを検証する。** 要求は `gmail.metadata` のみで、これより広い
 Gmail スコープが付いていたら連携を中止する。本文を読める権限が紛れ込むと設計の前提が崩れる。

@@ -74,12 +74,26 @@ export async function verifyCompany(
 
   const { data: company, error: fetchErr } = await supabase
     .from("companies")
-    .select("id, name, corporate_number, prefecture, city, address_line1")
+    .select("id, name, corporate_number")
     .eq("id", companyId)
     .is("deleted_at", null)
     .single();
 
   if (fetchErr || !company) return { data: null, error: "法人情報が見つかりません" };
+
+  // 所在地は住所マスタ側にある。照合には主住所を使う
+  const { data: primaryAddress } = await supabase
+    .from("entity_addresses")
+    .select("address:addresses(prefecture, city, address_line1)")
+    .eq("company_id", companyId)
+    .eq("is_primary", true)
+    .maybeSingle();
+
+  const addr = (primaryAddress?.address ?? null) as {
+    prefecture: string | null;
+    city: string | null;
+    address_line1: string | null;
+  } | null;
 
   const apiResult = company.corporate_number
     ? await searchByNumber(company.corporate_number)
@@ -102,7 +116,7 @@ export async function verifyCompany(
       case "matched": {
         const current = {
           name: company.name,
-          address: [company.prefecture, company.city, company.address_line1]
+          address: [addr?.prefecture, addr?.city, addr?.address_line1]
             .filter(Boolean)
             .join(""),
         };

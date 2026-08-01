@@ -9,6 +9,8 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import { isFieldValidationError } from "@/lib/errors";
 import { formContainerStyle } from "@/lib/layout";
+import { AddressesEditor } from "@/components/common/AddressesEditor";
+import type { EntityAddress } from "@/types/relations";
 import {
   CompanyDomainsSection,
   type CompanyDomainRow,
@@ -30,11 +32,6 @@ type CompanyData = {
   primary_contact_id: string | null;
   corporate_number: string | null;
   invoice_registration_number: string | null;
-  postal_code: string | null;
-  prefecture: string | null;
-  city: string | null;
-  address_line1: string | null;
-  address_line2: string | null;
   phone: string | null;
   fax: string | null;
   website_url: string | null;
@@ -187,11 +184,14 @@ export function CompanyEditForm({
   masters,
   isAdmin,
   domains,
+  addresses,
 }: {
   company: CompanyData;
   masters: Masters;
   isAdmin: boolean;
   domains: CompanyDomainRow[];
+  /** 住所マスタ経由。本体の保存とは独立して増減させる */
+  addresses: EntityAddress[];
 }) {
   const router = useRouter();
   const { showToast } = useToast();
@@ -206,11 +206,6 @@ export function CompanyEditForm({
     primary_contact_id: company.primary_contact_id ?? "",
     corporate_number: company.corporate_number ?? "",
     invoice_registration_number: company.invoice_registration_number ?? "",
-    postal_code: company.postal_code ?? "",
-    prefecture: company.prefecture ?? "",
-    city: company.city ?? "",
-    address_line1: company.address_line1 ?? "",
-    address_line2: company.address_line2 ?? "",
     phone: company.phone ?? "",
     fax: company.fax ?? "",
     website_url: company.website_url ?? "",
@@ -252,11 +247,6 @@ export function CompanyEditForm({
       corporate_number: values.corporate_number || null,
       invoice_registered: !!values.invoice_registration_number,
       invoice_registration_number: values.invoice_registration_number || null,
-      postal_code: values.postal_code || null,
-      prefecture: values.prefecture || null,
-      city: values.city || null,
-      address_line1: values.address_line1 || null,
-      address_line2: values.address_line2 || null,
       phone: values.phone || null,
       fax: values.fax || null,
       website_url: values.website_url || null,
@@ -446,71 +436,14 @@ export function CompanyEditForm({
           </div>
         </div>
 
-        {/* 住所 */}
+        {/* 住所。addresses マスタに持ち、本社・支店・請求先を分けて登録する */}
         <div style={styles.card}>
           <h2 style={styles.sectionTitle}>住所</h2>
-          <div style={styles.grid}>
-            <div>
-              <label style={styles.label}>郵便番号</label>
-              <input
-                type="text"
-                style={styles.input}
-                placeholder="000-0000"
-                value={values.postal_code}
-                onChange={(e) => set("postal_code", e.target.value)}
-                onFocus={onFocus}
-                onBlur={onBlur}
-              />
-            </div>
-            <div>
-              <label style={styles.label}>都道府県</label>
-              <select
-                style={styles.input}
-                value={values.prefecture}
-                onChange={(e) => set("prefecture", e.target.value)}
-                onFocus={onFocus}
-                onBlur={onBlur}
-              >
-                <option value="">-- 選択 --</option>
-                {PREFECTURES.map((p) => (
-                  <option key={p} value={p}>{p}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label style={styles.label}>市区町村</label>
-              <input
-                type="text"
-                style={styles.input}
-                value={values.city}
-                onChange={(e) => set("city", e.target.value)}
-                onFocus={onFocus}
-                onBlur={onBlur}
-              />
-            </div>
-            <div>
-              <label style={styles.label}>番地</label>
-              <input
-                type="text"
-                style={styles.input}
-                value={values.address_line1}
-                onChange={(e) => set("address_line1", e.target.value)}
-                onFocus={onFocus}
-                onBlur={onBlur}
-              />
-            </div>
-            <div style={{ gridColumn: "1 / -1" }}>
-              <label style={styles.label}>建物名</label>
-              <input
-                type="text"
-                style={styles.input}
-                value={values.address_line2}
-                onChange={(e) => set("address_line2", e.target.value)}
-                onFocus={onFocus}
-                onBlur={onBlur}
-              />
-            </div>
-          </div>
+          <AddressesEditor
+            ownerType="company"
+            ownerId={company.id}
+            addresses={addresses}
+          />
         </div>
 
         {/* 連絡先 */}

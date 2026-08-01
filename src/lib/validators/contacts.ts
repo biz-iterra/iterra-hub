@@ -16,13 +16,6 @@ const contactBaseSchema = z.object({
   contact_status_id: uuidString("ステータスは必須です"),
   contact_type: z.enum(["individual", "corporate_rep", "employee", "other"]).nullable().optional(),
   company_id: uuidString().nullable().optional(),
-  invoice_registered: z.boolean().default(false),
-  invoice_registration_number: z.string().regex(/^T\d{13}$/).nullable().optional(),
-  postal_code: z.string().regex(/^\d{3}-\d{4}$/).nullable().optional(),
-  prefecture: z.string().nullable().optional(),
-  city: z.string().max(100).nullable().optional(),
-  address_line1: z.string().max(200).nullable().optional(),
-  address_line2: z.string().max(200).nullable().optional(),
   department: z.string().max(100).nullable().optional(),
   job_title: z.string().max(100).nullable().optional(),
   birth_date: birthDateSchema,
@@ -36,10 +29,9 @@ const contactBaseSchema = z.object({
   website_url: urlSchema,
 });
 
-export const createContactSchema = contactBaseSchema.refine(
-  (data) => !data.invoice_registered || !!data.invoice_registration_number,
-  { message: "インボイス登録ありの場合、登録番号は必須です", path: ["invoice_registration_number"] }
-);
+// インボイス登録番号は取引の主体（取引先）に紐づく情報なので連絡先では扱わない。
+// 住所も entity_addresses へ移したためここには無い
+export const createContactSchema = contactBaseSchema;
 
 export const updateContactSchema = contactBaseSchema
   .partial()

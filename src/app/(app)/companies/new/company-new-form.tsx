@@ -152,11 +152,6 @@ export function CompanyNewForm({ masters }: { masters: Masters }) {
     owner_user_id: "",
     corporate_number: "",
     invoice_registration_number: "",
-    postal_code: "",
-    prefecture: "",
-    city: "",
-    address_line1: "",
-    address_line2: "",
     phone: "",
     fax: "",
     website_url: "",
@@ -195,13 +190,8 @@ export function CompanyNewForm({ masters }: { masters: Masters }) {
       lead_source_id: values.lead_source_id || null,
       owner_user_id: values.owner_user_id || null,
       corporate_number: values.corporate_number || null,
-      invoice_registered: !!values.invoice_registration_number,
       invoice_registration_number: values.invoice_registration_number || null,
-      postal_code: values.postal_code || null,
-      prefecture: values.prefecture || null,
-      city: values.city || null,
-      address_line1: values.address_line1 || null,
-      address_line2: values.address_line2 || null,
+      invoice_registered: !!values.invoice_registration_number,
       phone: values.phone || null,
       fax: values.fax || null,
       website_url: values.website_url || null,
@@ -363,71 +353,12 @@ export function CompanyNewForm({ masters }: { masters: Masters }) {
           </div>
         </div>
 
-        {/* 住所 */}
+        {/* 住所は作成後に登録する。addresses マスタへ紐づけるため相手の ID が要る */}
         <div style={styles.card}>
           <h2 style={styles.sectionTitle}>住所</h2>
-          <div style={styles.grid}>
-            <div>
-              <label style={styles.label}>郵便番号</label>
-              <input
-                type="text"
-                style={styles.input}
-                placeholder="000-0000"
-                value={values.postal_code}
-                onChange={(e) => set("postal_code", e.target.value)}
-                onFocus={onFocus}
-                onBlur={onBlur}
-              />
-            </div>
-            <div>
-              <label style={styles.label}>都道府県</label>
-              <select
-                style={styles.input}
-                value={values.prefecture}
-                onChange={(e) => set("prefecture", e.target.value)}
-                onFocus={onFocus}
-                onBlur={onBlur}
-              >
-                <option value="">-- 選択 --</option>
-                {PREFECTURES.map((p) => (
-                  <option key={p} value={p}>{p}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label style={styles.label}>市区町村</label>
-              <input
-                type="text"
-                style={styles.input}
-                value={values.city}
-                onChange={(e) => set("city", e.target.value)}
-                onFocus={onFocus}
-                onBlur={onBlur}
-              />
-            </div>
-            <div>
-              <label style={styles.label}>番地</label>
-              <input
-                type="text"
-                style={styles.input}
-                value={values.address_line1}
-                onChange={(e) => set("address_line1", e.target.value)}
-                onFocus={onFocus}
-                onBlur={onBlur}
-              />
-            </div>
-            <div style={{ gridColumn: "1 / -1" }}>
-              <label style={styles.label}>建物名</label>
-              <input
-                type="text"
-                style={styles.input}
-                value={values.address_line2}
-                onChange={(e) => set("address_line2", e.target.value)}
-                onFocus={onFocus}
-                onBlur={onBlur}
-              />
-            </div>
-          </div>
+          <p style={{ color: "var(--color-sumi600)", fontSize: "0.875rem", margin: 0 }}>
+            住所は作成後に編集画面から登録できます（本社・支店・請求先など複数を登録できます）。
+          </p>
         </div>
 
         {/* 連絡先 */}

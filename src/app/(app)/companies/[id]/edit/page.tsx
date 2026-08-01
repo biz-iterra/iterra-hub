@@ -3,6 +3,7 @@ import { getCompany } from "@/actions/companies";
 import { getCorporateTypes, getLeadSources, getCompanyStatuses } from "@/actions/masters";
 import { getCrmUsers, getCurrentUser } from "@/actions/users";
 import { CompanyEditForm } from "./company-edit-form";
+import { getEntityAddresses } from "@/actions/entity-addresses";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -36,7 +37,7 @@ export default async function CompanyEditPage({
     );
   }
 
-  const [companyResult, corporateTypesResult, leadSourcesResult, companyStatusesResult, usersResult, meResult] =
+  const [companyResult, corporateTypesResult, leadSourcesResult, companyStatusesResult, usersResult, meResult, addressesResult] =
     await Promise.all([
       getCompany(id),
       getCorporateTypes(),
@@ -44,6 +45,7 @@ export default async function CompanyEditPage({
       getCompanyStatuses(),
       getCrmUsers(),
       getCurrentUser(),
+      getEntityAddresses("company", id),
     ]);
 
   const company = companyResult.data;
@@ -111,6 +113,7 @@ export default async function CompanyEditPage({
       masters={masters}
       isAdmin={isAdmin}
       domains={company.company_domains ?? []}
+      addresses={addressesResult.data ?? []}
     />
   );
 }

@@ -2,11 +2,12 @@ import { getContact } from "@/actions/contacts";
 import { getContactEmailMessages } from "@/actions/email-sync";
 import { EmailHistorySection } from "@/components/contacts/EmailHistorySection";
 import { BusinessCardsSection } from "@/components/contacts/BusinessCardsSection";
+import { AddressList } from "@/components/common/AddressesEditor";
+import { getEntityAddresses } from "@/actions/entity-addresses";
 import Link from "next/link";
 import {
   ArrowLeft,
   Briefcase,
-  FileText,
   Layers,
   Mail,
   Pencil,
@@ -93,11 +94,14 @@ export default async function ContactDetailPage({
     );
   }
 
-  const [{ data: contact, error }, { data: emailMessagesRaw }] = await Promise.all([
-    getContact(id),
-    getContactEmailMessages(id),
-  ]);
+  const [{ data: contact, error }, { data: emailMessagesRaw }, { data: addressRows }] =
+    await Promise.all([
+      getContact(id),
+      getContactEmailMessages(id),
+      getEntityAddresses("contact", id),
+    ]);
   const emailMessages = emailMessagesRaw ?? [];
+  const addresses = addressRows ?? [];
   const c = contact;
 
   if (error || !c) {
@@ -121,9 +125,6 @@ export default async function ContactDetailPage({
   const talent = c.talent;
   const talentSkills = talent?.talent_skills ?? [];
   const talentCareers = talent?.talent_careers ?? [];
-  const address = [c.prefecture, c.city, c.address_line1, c.address_line2]
-    .filter(Boolean)
-    .join(" ");
 
   return (
     <div style={detailContainerStyle}>
@@ -190,6 +191,10 @@ export default async function ContactDetailPage({
               <InfoField label="部署" value={c.department} />
               <InfoField label="役職" value={c.job_title} />
             </div>
+            {/* 住所は連絡手段ではなく所在の情報なので基本情報に置く */}
+            <div style={{ marginTop: "1rem" }}>
+              <InfoField label="住所" value={<AddressList addresses={addresses} />} />
+            </div>
           </DetailSection>
 
           <DetailSection title="属性情報" icon={Layers}>
@@ -244,26 +249,6 @@ export default async function ContactDetailPage({
           {/* 所属は名刺ごとの情報。どれを現在の所属とするかは人が選ぶ */}
           <BusinessCardsSection cards={c.business_cards ?? []} />
 
-          <DetailSection title="プロファイル" icon={Sparkles}>
-            <div
-              style={fieldGridStyle}
-            >
-              <InfoField label="生年月日" value={formatDate(c.birth_date)} />
-              <InfoField
-                label="血液型"
-                value={c.blood_type ? `${c.blood_type} 型` : null}
-              />
-              <InfoField
-                label="星座"
-                value={c.constellation_fortune_telling?.constellation}
-              />
-              <InfoField
-                label="ポテンシャルタイプ"
-                value={c.number_diagnosis?.type}
-              />
-            </div>
-          </DetailSection>
-
           <DetailSection title="連絡先" icon={Mail}>
             <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
               <InfoField
@@ -308,28 +293,7 @@ export default async function ContactDetailPage({
                   )
                 }
               />
-              <div style={fieldGridStyle}>
-                <InfoField
-                  label="郵便番号"
-                  value={c.postal_code ? `〒${c.postal_code}` : null}
-                />
-                <InfoField label="住所" value={address} />
-              </div>
-            </div>
-          </DetailSection>
-
-          <DetailSection title="インボイス" icon={FileText}>
-            <div
-              style={fieldGridStyle}
-            >
-              <InfoField
-                label="登録有無"
-                value={c.invoice_registration_number ? "登録済み" : "未登録"}
-              />
-              <InfoField
-                label="登録番号"
-                value={c.invoice_registration_number}
-              />
+              {/* 住所は基本情報へ移した（ここは連絡手段だけを扱う） */}
             </div>
           </DetailSection>
 
@@ -342,6 +306,25 @@ export default async function ContactDetailPage({
 
         {/* ======== Right ======== */}
         <div style={sectionStackStyle}>
+          {/* 人物の特性。business 情報ではないので本文から分けて右に置く */}
+          <DetailSection title="プロファイル" icon={Sparkles}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+              <InfoField label="生年月日" value={formatDate(c.birth_date)} />
+              <InfoField
+                label="血液型"
+                value={c.blood_type ? `${c.blood_type} 型` : null}
+              />
+              <InfoField
+                label="星座"
+                value={c.constellation_fortune_telling?.constellation}
+              />
+              <InfoField
+                label="ポテンシャルタイプ"
+                value={c.number_diagnosis?.type}
+              />
+            </div>
+          </DetailSection>
+
           {/* Gmail 連携で取り込んだやり取り。本文は持たないので Gmail へ遷移する */}
           <EmailHistorySection messages={emailMessages} />
 

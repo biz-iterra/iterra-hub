@@ -28,6 +28,7 @@ type AccountData = {
   lead_source_id: string | null;
   owner_user_id: string | null;
   description: string | null;
+  invoice_registration_number: string | null;
 };
 
 type Masters = {
@@ -182,6 +183,7 @@ export function AccountEditForm({
     lead_source_id: account.lead_source_id ?? "",
     owner_user_id: account.owner_user_id ?? "",
     description: account.description ?? "",
+    invoice_registration_number: account.invoice_registration_number ?? "",
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -204,6 +206,9 @@ export function AccountEditForm({
       lead_source_id: values.lead_source_id || null,
       owner_user_id: values.owner_user_id || null,
       description: values.description || null,
+      // 登録番号の有無で登録ステータスを自動判定する（チェックボックスは持たない）
+      invoice_registration_number: values.invoice_registration_number || null,
+      invoice_registered: !!values.invoice_registration_number,
       // 楽観ロック: 編集開始時点の updated_at を送り、他者更新があれば競合として弾く
       expected_updated_at: account.updated_at ?? undefined,
     };
@@ -366,6 +371,28 @@ export function AccountEditForm({
           roleTypes={roleTypes}
           initialRoles={assignedRoles}
         />
+
+        {/* インボイス。登録番号は取引の主体に紐づくのでここで持つ */}
+        <div style={styles.card}>
+          <h2 style={styles.sectionTitle}>インボイス</h2>
+          <p style={{ color: "var(--color-sumi600)", fontSize: "0.8125rem", margin: "0 0 0.75rem 0" }}>
+            登録番号の有無で登録ステータスを自動判定します。
+          </p>
+          <div style={styles.grid}>
+            <div>
+              <label style={styles.label}>登録番号（T+13桁）</label>
+              <input
+                type="text"
+                style={styles.input}
+                placeholder="T1234567890123"
+                value={values.invoice_registration_number}
+                onChange={(e) => set("invoice_registration_number", e.target.value)}
+                onFocus={onFocus}
+                onBlur={onBlur}
+              />
+            </div>
+          </div>
+        </div>
 
         {/* 説明 */}
         <div style={styles.card}>

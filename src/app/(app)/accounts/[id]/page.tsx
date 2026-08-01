@@ -209,6 +209,15 @@ export default async function AccountDetailPage({
               <InfoField label="種別" value={a.account_type?.name} />
               <InfoField label="ステータス" value={a.account_status?.name} />
               <InfoField label="リードソース" value={a.lead_source?.name} />
+              {/* インボイス登録番号は取引の主体に紐づく（連絡先ではなくここ） */}
+              <InfoField
+                label="インボイス登録"
+                value={a.invoice_registration_number ? "登録済み" : "未登録"}
+              />
+              <InfoField
+                label="登録番号"
+                value={a.invoice_registration_number}
+              />
               {/* いつからこの状態かが分からないと、休眠・解約の判断が追えない */}
               <InfoField
                 label="ステータス更新日"

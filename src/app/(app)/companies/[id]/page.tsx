@@ -1,4 +1,6 @@
 import { getCompany } from "@/actions/companies";
+import { getEntityAddresses } from "@/actions/entity-addresses";
+import { AddressList } from "@/components/common/AddressesEditor";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -71,7 +73,11 @@ export default async function CompanyDetailPage({
     );
   }
 
-  const { data: company, error } = await getCompany(id);
+  const [{ data: company, error }, { data: addressRows }] = await Promise.all([
+    getCompany(id),
+    getEntityAddresses("company", id),
+  ]);
+  const addresses = addressRows ?? [];
 
   if (error || !company) {
     return (
@@ -174,6 +180,10 @@ export default async function CompanyDetailPage({
               />
               <InfoField label="社内担当者" value={company.crm_users?.full_name} />
             </div>
+            {/* 所在地は住所マスタから。本社・支店・請求先を並べる */}
+            <div style={{ marginTop: "1rem" }}>
+              <InfoField label="所在地" value={<AddressList addresses={addresses} />} />
+            </div>
           </DetailSection>
 
           <DetailSection title="属性情報" icon={Layers}>
@@ -230,11 +240,6 @@ export default async function CompanyDetailPage({
             <div
               style={fieldGridStyle}
             >
-              <InfoField label="郵便番号" value={company.postal_code} />
-              <InfoField label="都道府県" value={company.prefecture} />
-              <InfoField label="市区町村" value={company.city} />
-              <InfoField label="番地" value={company.address_line1} />
-              <InfoField label="建物名" value={company.address_line2} />
               <InfoField label="代表電話" value={company.phone} />
               <InfoField label="FAX" value={company.fax} />
               <InfoField

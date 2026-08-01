@@ -13,6 +13,8 @@ import {
   ContactChannelsEditor,
   type ChannelRow,
 } from "@/components/contacts/ContactChannelsEditor";
+import { AddressesEditor } from "@/components/common/AddressesEditor";
+import type { EntityAddress } from "@/types/relations";
 
 type SelectOption = { value: string; label: string };
 
@@ -33,12 +35,6 @@ type ContactData = {
   job_title: string | null;
   birth_date: string | null;
   blood_type: "A" | "B" | "AB" | "O" | null;
-  invoice_registration_number: string | null;
-  postal_code: string | null;
-  prefecture: string | null;
-  city: string | null;
-  address_line1: string | null;
-  address_line2: string | null;
   lead_source_id: string | null;
   line_user_id: string | null;
   owner_user_id: string | null;
@@ -212,6 +208,7 @@ export function ContactEditForm({
   isAdmin,
   emails,
   phones,
+  addresses,
 }: {
   contact: ContactData;
   masters: Masters;
@@ -219,6 +216,7 @@ export function ContactEditForm({
   /** 1 人に複数紐づく。本体の保存とは独立して増減させる */
   emails: ChannelRow[];
   phones: ChannelRow[];
+  addresses: EntityAddress[];
 }) {
   const router = useRouter();
   const { showToast } = useToast();
@@ -236,12 +234,6 @@ export function ContactEditForm({
     job_title: contact.job_title ?? "",
     birth_date: contact.birth_date ?? "",
     blood_type: (contact.blood_type ?? "") as BloodType,
-    invoice_registration_number: contact.invoice_registration_number ?? "",
-    postal_code: contact.postal_code ?? "",
-    prefecture: contact.prefecture ?? "",
-    city: contact.city ?? "",
-    address_line1: contact.address_line1 ?? "",
-    address_line2: contact.address_line2 ?? "",
     lead_source_id: contact.lead_source_id ?? "",
     line_user_id: contact.line_user_id ?? "",
     owner_user_id: contact.owner_user_id ?? "",
@@ -274,13 +266,6 @@ export function ContactEditForm({
       job_title: values.job_title || null,
       birth_date: values.birth_date || null,
       blood_type: values.blood_type || null,
-      invoice_registered: !!values.invoice_registration_number,
-      invoice_registration_number: values.invoice_registration_number || null,
-      postal_code: values.postal_code || null,
-      prefecture: values.prefecture || null,
-      city: values.city || null,
-      address_line1: values.address_line1 || null,
-      address_line2: values.address_line2 || null,
       lead_source_id: values.lead_source_id || null,
       line_user_id: values.line_user_id || null,
       owner_user_id: values.owner_user_id || null,
@@ -586,91 +571,14 @@ export function ContactEditForm({
           </div>
         </div>
 
-        {/* 住所 */}
+        {/* 住所。addresses マスタに持ち、自宅・勤務先などを分けて登録する */}
         <div style={styles.card}>
           <h2 style={styles.sectionTitle}>住所</h2>
-          <div style={styles.grid}>
-            <div>
-              <label style={styles.label}>郵便番号</label>
-              <input
-                type="text"
-                style={styles.input}
-                placeholder="000-0000"
-                value={values.postal_code}
-                onChange={(e) => set("postal_code", e.target.value)}
-                onFocus={onFocus}
-                onBlur={onBlur}
-              />
-            </div>
-            <div>
-              <label style={styles.label}>都道府県</label>
-              <select
-                style={styles.input}
-                value={values.prefecture}
-                onChange={(e) => set("prefecture", e.target.value)}
-                onFocus={onFocus}
-                onBlur={onBlur}
-              >
-                <option value="">-- 選択 --</option>
-                {PREFECTURES.map((p) => (
-                  <option key={p} value={p}>{p}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label style={styles.label}>市区町村</label>
-              <input
-                type="text"
-                style={styles.input}
-                value={values.city}
-                onChange={(e) => set("city", e.target.value)}
-                onFocus={onFocus}
-                onBlur={onBlur}
-              />
-            </div>
-            <div>
-              <label style={styles.label}>番地</label>
-              <input
-                type="text"
-                style={styles.input}
-                value={values.address_line1}
-                onChange={(e) => set("address_line1", e.target.value)}
-                onFocus={onFocus}
-                onBlur={onBlur}
-              />
-            </div>
-            <div style={{ gridColumn: "1 / -1" }}>
-              <label style={styles.label}>建物名</label>
-              <input
-                type="text"
-                style={styles.input}
-                value={values.address_line2}
-                onChange={(e) => set("address_line2", e.target.value)}
-                onFocus={onFocus}
-                onBlur={onBlur}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* インボイス */}
-        <div style={styles.card}>
-          <h2 style={styles.sectionTitle}>インボイス</h2>
-          <p style={{ color: "var(--color-sumi600)", fontSize: "0.75rem", margin: "0 0 0.75rem 0" }}>
-            登録番号の有無で登録ステータスを自動判定します。
-          </p>
-          <div>
-            <label style={styles.label}>登録番号（T+13桁）</label>
-            <input
-              type="text"
-              style={styles.input}
-              placeholder="T1234567890123"
-              value={values.invoice_registration_number}
-              onChange={(e) => set("invoice_registration_number", e.target.value)}
-              onFocus={onFocus}
-              onBlur={onBlur}
-            />
-          </div>
+          <AddressesEditor
+            ownerType="contact"
+            ownerId={contact.id}
+            addresses={addresses}
+          />
         </div>
 
         {/* その他情報 */}

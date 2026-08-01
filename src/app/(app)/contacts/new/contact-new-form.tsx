@@ -176,12 +176,6 @@ export function ContactNewForm({ masters }: { masters: Masters }) {
     job_title: "",
     birth_date: "",
     blood_type: "" as BloodType,
-    invoice_registration_number: "",
-    postal_code: "",
-    prefecture: "",
-    city: "",
-    address_line1: "",
-    address_line2: "",
     lead_source_id: "",
     line_user_id: "",
     owner_user_id: "",
@@ -216,13 +210,6 @@ export function ContactNewForm({ masters }: { masters: Masters }) {
       job_title: values.job_title || null,
       birth_date: values.birth_date || null,
       blood_type: values.blood_type || null,
-      invoice_registered: !!values.invoice_registration_number,
-      invoice_registration_number: values.invoice_registration_number || null,
-      postal_code: values.postal_code || null,
-      prefecture: values.prefecture || null,
-      city: values.city || null,
-      address_line1: values.address_line1 || null,
-      address_line2: values.address_line2 || null,
       lead_source_id: values.lead_source_id || null,
       line_user_id: values.line_user_id || null,
       owner_user_id: values.owner_user_id || null,
@@ -476,91 +463,12 @@ export function ContactNewForm({ masters }: { masters: Masters }) {
           </div>
         </div>
 
-        {/* 住所 */}
+        {/* 住所は作成後に登録する。addresses マスタへ紐づけるため相手の ID が要る */}
         <div style={styles.card}>
           <h2 style={styles.sectionTitle}>住所</h2>
-          <div style={styles.grid}>
-            <div>
-              <label style={styles.label}>郵便番号</label>
-              <input
-                type="text"
-                style={styles.input}
-                placeholder="000-0000"
-                value={values.postal_code}
-                onChange={(e) => set("postal_code", e.target.value)}
-                onFocus={onFocus}
-                onBlur={onBlur}
-              />
-            </div>
-            <div>
-              <label style={styles.label}>都道府県</label>
-              <select
-                style={styles.input}
-                value={values.prefecture}
-                onChange={(e) => set("prefecture", e.target.value)}
-                onFocus={onFocus}
-                onBlur={onBlur}
-              >
-                <option value="">-- 選択 --</option>
-                {PREFECTURES.map((p) => (
-                  <option key={p} value={p}>{p}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label style={styles.label}>市区町村</label>
-              <input
-                type="text"
-                style={styles.input}
-                value={values.city}
-                onChange={(e) => set("city", e.target.value)}
-                onFocus={onFocus}
-                onBlur={onBlur}
-              />
-            </div>
-            <div>
-              <label style={styles.label}>番地</label>
-              <input
-                type="text"
-                style={styles.input}
-                value={values.address_line1}
-                onChange={(e) => set("address_line1", e.target.value)}
-                onFocus={onFocus}
-                onBlur={onBlur}
-              />
-            </div>
-            <div style={{ gridColumn: "1 / -1" }}>
-              <label style={styles.label}>建物名</label>
-              <input
-                type="text"
-                style={styles.input}
-                value={values.address_line2}
-                onChange={(e) => set("address_line2", e.target.value)}
-                onFocus={onFocus}
-                onBlur={onBlur}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* インボイス */}
-        <div style={styles.card}>
-          <h2 style={styles.sectionTitle}>インボイス</h2>
-          <p style={{ color: "var(--color-sumi600)", fontSize: "0.75rem", margin: "0 0 0.75rem 0" }}>
-            登録番号の有無で登録ステータスを自動判定します。
+          <p style={{ color: "var(--color-sumi600)", fontSize: "0.875rem", margin: 0 }}>
+            住所は作成後に編集画面から登録できます（本社・支店・請求先など複数を登録できます）。
           </p>
-          <div>
-            <label style={styles.label}>登録番号(T+13桁)</label>
-            <input
-              type="text"
-              style={styles.input}
-              placeholder="T1234567890123"
-              value={values.invoice_registration_number}
-              onChange={(e) => set("invoice_registration_number", e.target.value)}
-              onFocus={onFocus}
-              onBlur={onBlur}
-            />
-          </div>
         </div>
 
         {/* その他情報 */}

@@ -140,6 +140,20 @@ export type BusinessCardRef = Ref<
   contact_phone: Ref<"contact_phones", "id" | "phone"> | null;
 };
 
+/**
+ * 住所の紐付け 1 件（entity_addresses + addresses）。
+ * 連絡先・法人情報・取引先のいずれからも同じ形で扱う。
+ */
+export type EntityAddress = Ref<
+  "entity_addresses",
+  "id" | "label" | "is_primary" | "phone" | "fax" | "memo"
+> & {
+  address: Ref<
+    "addresses",
+    "id" | "postal_code" | "prefecture" | "city" | "address_line1" | "address_line2" | "raw_text"
+  > | null;
+};
+
 /** 統合候補の判断材料として見せる連絡先の情報 */
 export type ContactMergeSide = Ref<
   "contacts",

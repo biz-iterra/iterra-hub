@@ -401,6 +401,8 @@ export type Database = {
           deletion_reason: string | null
           description: string | null
           id: string
+          invoice_registered: boolean
+          invoice_registration_number: string | null
           last_updated_by: string | null
           lead_source_id: string | null
           name: string
@@ -420,6 +422,8 @@ export type Database = {
           deletion_reason?: string | null
           description?: string | null
           id?: string
+          invoice_registered?: boolean
+          invoice_registration_number?: string | null
           last_updated_by?: string | null
           lead_source_id?: string | null
           name: string
@@ -439,6 +443,8 @@ export type Database = {
           deletion_reason?: string | null
           description?: string | null
           id?: string
+          invoice_registered?: boolean
+          invoice_registration_number?: string | null
           last_updated_by?: string | null
           lead_source_id?: string | null
           name?: string
@@ -822,9 +828,6 @@ export type Database = {
       }
       companies: {
         Row: {
-          address_line1: string | null
-          address_line2: string | null
-          city: string | null
           company_code: string
           company_status_id: string
           corporate_number: string | null
@@ -846,8 +849,6 @@ export type Database = {
           name_kana: string | null
           owner_user_id: string | null
           phone: string | null
-          postal_code: string | null
-          prefecture: string | null
           primary_contact_id: string | null
           registration_certificate_url: string | null
           representative_name: string | null
@@ -860,9 +861,6 @@ export type Database = {
           website_url: string | null
         }
         Insert: {
-          address_line1?: string | null
-          address_line2?: string | null
-          city?: string | null
           company_code?: string
           company_status_id: string
           corporate_number?: string | null
@@ -884,8 +882,6 @@ export type Database = {
           name_kana?: string | null
           owner_user_id?: string | null
           phone?: string | null
-          postal_code?: string | null
-          prefecture?: string | null
           primary_contact_id?: string | null
           registration_certificate_url?: string | null
           representative_name?: string | null
@@ -898,9 +894,6 @@ export type Database = {
           website_url?: string | null
         }
         Update: {
-          address_line1?: string | null
-          address_line2?: string | null
-          city?: string | null
           company_code?: string
           company_status_id?: string
           corporate_number?: string | null
@@ -922,8 +915,6 @@ export type Database = {
           name_kana?: string | null
           owner_user_id?: string | null
           phone?: string | null
-          postal_code?: string | null
-          prefecture?: string | null
           primary_contact_id?: string | null
           registration_certificate_url?: string | null
           representative_name?: string | null
@@ -1559,11 +1550,8 @@ export type Database = {
       }
       contacts: {
         Row: {
-          address_line1: string | null
-          address_line2: string | null
           birth_date: string | null
           blood_type: string | null
-          city: string | null
           company_id: string | null
           constellation_id: string | null
           contact_code: string
@@ -1579,8 +1567,6 @@ export type Database = {
           first_name_kana: string | null
           id: string
           internal_memo: string | null
-          invoice_registered: boolean
-          invoice_registration_number: string | null
           job_title: string | null
           last_name: string
           last_name_kana: string | null
@@ -1591,19 +1577,14 @@ export type Database = {
           middle_name: string | null
           middle_name_kana: string | null
           owner_user_id: string | null
-          postal_code: string | null
           potential_number: number | null
-          prefecture: string | null
           status_updated_at: string | null
           updated_at: string
           website_url: string | null
         }
         Insert: {
-          address_line1?: string | null
-          address_line2?: string | null
           birth_date?: string | null
           blood_type?: string | null
-          city?: string | null
           company_id?: string | null
           constellation_id?: string | null
           contact_code?: string
@@ -1619,8 +1600,6 @@ export type Database = {
           first_name_kana?: string | null
           id?: string
           internal_memo?: string | null
-          invoice_registered?: boolean
-          invoice_registration_number?: string | null
           job_title?: string | null
           last_name: string
           last_name_kana?: string | null
@@ -1631,19 +1610,14 @@ export type Database = {
           middle_name?: string | null
           middle_name_kana?: string | null
           owner_user_id?: string | null
-          postal_code?: string | null
           potential_number?: number | null
-          prefecture?: string | null
           status_updated_at?: string | null
           updated_at?: string
           website_url?: string | null
         }
         Update: {
-          address_line1?: string | null
-          address_line2?: string | null
           birth_date?: string | null
           blood_type?: string | null
-          city?: string | null
           company_id?: string | null
           constellation_id?: string | null
           contact_code?: string
@@ -1659,8 +1633,6 @@ export type Database = {
           first_name_kana?: string | null
           id?: string
           internal_memo?: string | null
-          invoice_registered?: boolean
-          invoice_registration_number?: string | null
           job_title?: string | null
           last_name?: string
           last_name_kana?: string | null
@@ -1671,9 +1643,7 @@ export type Database = {
           middle_name?: string | null
           middle_name_kana?: string | null
           owner_user_id?: string | null
-          postal_code?: string | null
           potential_number?: number | null
-          prefecture?: string | null
           status_updated_at?: string | null
           updated_at?: string
           website_url?: string | null
@@ -2922,6 +2892,100 @@ export type Database = {
             columns: ["connection_id"]
             isOneToOne: false
             referencedRelation: "gmail_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      entity_addresses: {
+        Row: {
+          account_id: string | null
+          address_id: string
+          company_id: string | null
+          contact_id: string | null
+          created_at: string
+          created_by: string | null
+          fax: string | null
+          id: string
+          is_primary: boolean
+          label: string
+          last_updated_by: string | null
+          memo: string | null
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_id?: string | null
+          address_id: string
+          company_id?: string | null
+          contact_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          fax?: string | null
+          id?: string
+          is_primary?: boolean
+          label?: string
+          last_updated_by?: string | null
+          memo?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string | null
+          address_id?: string
+          company_id?: string | null
+          contact_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          fax?: string | null
+          id?: string
+          is_primary?: boolean
+          label?: string
+          last_updated_by?: string | null
+          memo?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "entity_addresses_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entity_addresses_address_id_fkey"
+            columns: ["address_id"]
+            isOneToOne: false
+            referencedRelation: "addresses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entity_addresses_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entity_addresses_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entity_addresses_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "crm_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entity_addresses_last_updated_by_fkey"
+            columns: ["last_updated_by"]
+            isOneToOne: false
+            referencedRelation: "crm_users"
             referencedColumns: ["id"]
           },
         ]
@@ -4702,108 +4766,6 @@ export type Database = {
         }
         Relationships: []
       }
-      other_addresses: {
-        Row: {
-          address_line1: string | null
-          address_line2: string | null
-          city: string | null
-          company_id: string | null
-          contact_id: string | null
-          created_at: string
-          created_by: string
-          deleted_at: string | null
-          deleted_by: string | null
-          deletion_reason: string | null
-          fax: string | null
-          id: string
-          label: string | null
-          last_updated_by: string | null
-          memo: string | null
-          phone: string | null
-          postal_code: string | null
-          prefecture: string | null
-          updated_at: string
-        }
-        Insert: {
-          address_line1?: string | null
-          address_line2?: string | null
-          city?: string | null
-          company_id?: string | null
-          contact_id?: string | null
-          created_at?: string
-          created_by?: string
-          deleted_at?: string | null
-          deleted_by?: string | null
-          deletion_reason?: string | null
-          fax?: string | null
-          id?: string
-          label?: string | null
-          last_updated_by?: string | null
-          memo?: string | null
-          phone?: string | null
-          postal_code?: string | null
-          prefecture?: string | null
-          updated_at?: string
-        }
-        Update: {
-          address_line1?: string | null
-          address_line2?: string | null
-          city?: string | null
-          company_id?: string | null
-          contact_id?: string | null
-          created_at?: string
-          created_by?: string
-          deleted_at?: string | null
-          deleted_by?: string | null
-          deletion_reason?: string | null
-          fax?: string | null
-          id?: string
-          label?: string | null
-          last_updated_by?: string | null
-          memo?: string | null
-          phone?: string | null
-          postal_code?: string | null
-          prefecture?: string | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "other_addresses_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "other_addresses_contact_id_fkey"
-            columns: ["contact_id"]
-            isOneToOne: false
-            referencedRelation: "contacts"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "other_addresses_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "crm_users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "other_addresses_deleted_by_fkey"
-            columns: ["deleted_by"]
-            isOneToOne: false
-            referencedRelation: "crm_users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "other_addresses_last_updated_by_fkey"
-            columns: ["last_updated_by"]
-            isOneToOne: false
-            referencedRelation: "crm_users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       pipeline_types: {
         Row: {
           created_at: string
@@ -6042,6 +6004,23 @@ export type Database = {
       }
     }
     Functions: {
+      add_entity_address: {
+        Args: {
+          p_actor?: string
+          p_address_line1: string
+          p_address_line2: string
+          p_city: string
+          p_fax?: string
+          p_label?: string
+          p_memo?: string
+          p_owner_id: string
+          p_owner_type: string
+          p_phone?: string
+          p_postal_code: string
+          p_prefecture: string
+        }
+        Returns: string
+      }
       apply_business_card_as_current: {
         Args: { p_actor?: string; p_card_id: string }
         Returns: undefined
@@ -6070,6 +6049,14 @@ export type Database = {
       }
       is_admin: { Args: never; Returns: boolean }
       is_deal_accessible: { Args: { p_deal_id: string }; Returns: boolean }
+      is_entity_address_accessible: {
+        Args: {
+          p_account_id: string
+          p_company_id: string
+          p_contact_id: string
+        }
+        Returns: boolean
+      }
       is_free_email_domain: { Args: { p_domain: string }; Returns: boolean }
       is_lead_accessible: { Args: { p_lead_id: string }; Returns: boolean }
       is_manager_or_above: { Args: never; Returns: boolean }
@@ -6169,6 +6156,10 @@ export type Database = {
         Returns: undefined
       }
       set_primary_contact_phone: {
+        Args: { p_actor?: string; p_id: string }
+        Returns: undefined
+      }
+      set_primary_entity_address: {
         Args: { p_actor?: string; p_id: string }
         Returns: undefined
       }

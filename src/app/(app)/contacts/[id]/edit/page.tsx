@@ -5,6 +5,7 @@ import { getCompanies } from "@/actions/companies";
 import { buildCompanyOptions } from "@/lib/company-options";
 import { getCrmUsers, getCurrentUser } from "@/actions/users";
 import { ContactEditForm } from "./contact-edit-form";
+import { getEntityAddresses } from "@/actions/entity-addresses";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -23,13 +24,6 @@ type ContactRecord = {
   job_title: string | null;
   birth_date: string | null;
   blood_type: "A" | "B" | "AB" | "O" | null;
-  invoice_registered: boolean | null;
-  invoice_registration_number: string | null;
-  postal_code: string | null;
-  prefecture: string | null;
-  city: string | null;
-  address_line1: string | null;
-  address_line2: string | null;
   lead_source_id: string | null;
   line_user_id: string | null;
   owner_user_id: string | null;
@@ -73,6 +67,7 @@ export default async function ContactEditPage({
     companiesResult,
     usersResult,
     meResult,
+    addressesResult,
   ] = await Promise.all([
     getContact(id),
     getContactStatuses(),
@@ -80,6 +75,7 @@ export default async function ContactEditPage({
     getCompanies({ perPage: 1000 }),
     getCrmUsers(),
     getCurrentUser(),
+    getEntityAddresses("contact", id),
   ]);
 
   const contact = contactResult.data as ContactRecord | null;
@@ -149,6 +145,7 @@ export default async function ContactEditPage({
       isAdmin={isAdmin}
       emails={emails}
       phones={phones}
+      addresses={addressesResult.data ?? []}
     />
   );
 }

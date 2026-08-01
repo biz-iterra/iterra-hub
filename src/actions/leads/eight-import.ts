@@ -64,6 +64,8 @@ export type EightImportResult = {
   transferredCount: number;
   /** 同じ会社で部署・役職が変わった連絡先の数（異動） */
   reassignedCount: number;
+  /** 姓名だけが一致し、同一人物か判断が要る組の数 */
+  mergeCandidateCount: number;
 };
 
 // ------------------------------------------------------------
@@ -375,6 +377,7 @@ export async function commitEightImport(
     error_count: number;
     transferred_count?: number;
     reassigned_count?: number;
+    merge_candidate_count?: number;
   };
 
   // スコアは名刺交換の活動を含めて再計算する。
@@ -397,6 +400,7 @@ export async function commitEightImport(
       errorCount: result.error_count,
       transferredCount: result.transferred_count ?? 0,
       reassignedCount: result.reassigned_count ?? 0,
+      mergeCandidateCount: result.merge_candidate_count ?? 0,
     },
     error: null,
   };

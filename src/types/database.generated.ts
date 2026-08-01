@@ -1350,6 +1350,67 @@ export type Database = {
           },
         ]
       }
+      contact_merge_candidates: {
+        Row: {
+          candidate_contact_id: string
+          contact_id: string
+          created_at: string
+          decided_at: string | null
+          decided_by_user_id: string | null
+          detail: Json
+          id: string
+          reason: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          candidate_contact_id: string
+          contact_id: string
+          created_at?: string
+          decided_at?: string | null
+          decided_by_user_id?: string | null
+          detail?: Json
+          id?: string
+          reason: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          candidate_contact_id?: string
+          contact_id?: string
+          created_at?: string
+          decided_at?: string | null
+          decided_by_user_id?: string | null
+          detail?: Json
+          id?: string
+          reason?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_merge_candidates_candidate_contact_id_fkey"
+            columns: ["candidate_contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_merge_candidates_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_merge_candidates_decided_by_user_id_fkey"
+            columns: ["decided_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "crm_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contact_phones: {
         Row: {
           contact_id: string
@@ -1499,6 +1560,7 @@ export type Database = {
           last_updated_by: string | null
           lead_source_id: string | null
           line_user_id: string | null
+          merged_into_contact_id: string | null
           middle_name: string | null
           middle_name_kana: string | null
           owner_user_id: string | null
@@ -1538,6 +1600,7 @@ export type Database = {
           last_updated_by?: string | null
           lead_source_id?: string | null
           line_user_id?: string | null
+          merged_into_contact_id?: string | null
           middle_name?: string | null
           middle_name_kana?: string | null
           owner_user_id?: string | null
@@ -1577,6 +1640,7 @@ export type Database = {
           last_updated_by?: string | null
           lead_source_id?: string | null
           line_user_id?: string | null
+          merged_into_contact_id?: string | null
           middle_name?: string | null
           middle_name_kana?: string | null
           owner_user_id?: string | null
@@ -1635,6 +1699,13 @@ export type Database = {
             columns: ["lead_source_id"]
             isOneToOne: false
             referencedRelation: "lead_sources"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contacts_merged_into_contact_id_fkey"
+            columns: ["merged_into_contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
             referencedColumns: ["id"]
           },
           {
@@ -5969,6 +6040,10 @@ export type Database = {
         }
         Returns: string
       }
+      detect_contact_merge_candidates: {
+        Args: { p_contact_id: string }
+        Returns: number
+      }
       find_contact_by_email: { Args: { p_email: string }; Returns: string }
       get_user_role: { Args: never; Returns: string }
       import_eight_leads: {
@@ -5981,6 +6056,14 @@ export type Database = {
       is_lead_accessible: { Args: { p_lead_id: string }; Returns: boolean }
       is_manager_or_above: { Args: never; Returns: boolean }
       is_mobile_phone: { Args: { p_phone: string }; Returns: boolean }
+      merge_contacts: {
+        Args: { p_keep: string; p_merge: string }
+        Returns: Json
+      }
+      merge_contacts_preview: {
+        Args: { p_keep: string; p_merge: string }
+        Returns: Json
+      }
       normalize_company_name: { Args: { p_name: string }; Returns: string }
       normalize_domain: { Args: { p_input: string }; Returns: string }
       promote_lead_to_deal: {

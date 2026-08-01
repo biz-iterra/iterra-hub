@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, Mail, Phone, Building2, Briefcase } from "lucide-react";
+import { Plus, Mail, Phone, Building2, Briefcase, Merge } from "lucide-react";
 import { getContacts } from "@/actions/contacts";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { FilterSelect } from "@/components/ui/FilterSelect";
@@ -29,6 +29,8 @@ interface Props {
   users: CrmUser[];
   /** メールに出てきたが未登録のアドレス件数。0 なら導線を出さない */
   pendingCandidateCount: number;
+  /** 姓名が一致し所属先が違う連絡先の組。0 なら導線を出さない */
+  mergeCandidateCount: number;
 }
 
 /**
@@ -157,6 +159,7 @@ export function ContactsView({
   statuses,
   users,
   pendingCandidateCount,
+  mergeCandidateCount,
 }: Props) {
   const router = useRouter();
   const [data, setData] = useState(initialData);
@@ -248,6 +251,29 @@ export function ContactsView({
           >
             <Mail size={14} />
             未登録の候補 {pendingCandidateCount} 件
+          </Link>
+        )}
+        {/* 転職の可能性がある同姓同名。放置すると同じ人が二重に残る */}
+        {mergeCandidateCount > 0 && (
+          <Link
+            href="/contacts/merge-candidates"
+            className="hover:bg-[var(--color-bg-hover)]"
+            style={{
+              marginLeft: pendingCandidateCount > 0 ? undefined : "auto",
+              marginRight: "0.75rem",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "0.375rem",
+              color: "var(--color-terra)",
+              fontSize: "0.8125rem",
+              fontWeight: 500,
+              textDecoration: "none",
+              padding: "0.375rem 0.625rem",
+              borderRadius: "var(--radius-sm)",
+            }}
+          >
+            <Merge size={14} />
+            統合候補 {mergeCandidateCount} 件
           </Link>
         )}
         <Link

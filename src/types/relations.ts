@@ -136,6 +136,51 @@ export type ContactAffiliationRef = Ref<
   company: NamedRef | null;
 };
 
+/** 統合候補の判断材料として見せる連絡先の情報 */
+export type ContactMergeSide = Ref<
+  "contacts",
+  | "id"
+  | "contact_code"
+  | "last_name"
+  | "first_name"
+  | "last_name_kana"
+  | "first_name_kana"
+  | "department"
+  | "job_title"
+  | "created_at"
+> & {
+  company: NamedRef | null;
+};
+
+/** contact-merge.ts の getMergeCandidates に対応 */
+export type ContactMergeCandidate = Ref<
+  "contact_merge_candidates",
+  "id" | "reason" | "detail" | "status" | "created_at"
+> & {
+  contact: ContactMergeSide | null;
+  candidate: ContactMergeSide | null;
+};
+
+/**
+ * merge_contacts_preview / merge_contacts の戻り値。
+ * 統合で付け替わる件数。取り消せない操作なので実行前に必ず見せる。
+ */
+export type ContactMergePreview = {
+  emails: number;
+  phones: number;
+  affiliations: number;
+  accounts: number;
+  leads: number;
+  deals: number;
+  contracts: number;
+  talents: number;
+  emails_synced: number;
+  activities: number;
+  histories: number;
+  /** タレント情報が両方にあると統合できない（1:1 制約） */
+  talent_conflict: boolean;
+};
+
 /** contacts.ts の getContact に対応（タレント・診断・所属アカウント・所属履歴を含む） */
 export type ContactDetail = ContactWithRelations & {
   contact_affiliations: ContactAffiliationRef[];

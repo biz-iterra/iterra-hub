@@ -612,6 +612,27 @@ export function EightImportView({
                 ` 異動 ${result.reassignedCount.toLocaleString()} 件`}
             </div>
           )}
+          {/* 姓名しか一致しない組は自動統合していない。人の判断が要る */}
+          {result.mergeCandidateCount > 0 && (
+            <div style={{ marginTop: "0.375rem" }}>
+              同姓同名で所属先が違う連絡先が{" "}
+              {result.mergeCandidateCount.toLocaleString()} 組見つかりました。
+              別人として取り込んでいます。
+              <Link
+                href="/contacts/merge-candidates"
+                className="hover:bg-[var(--color-bg-hover)]"
+                style={{
+                  marginLeft: "0.25rem",
+                  color: "var(--color-terra)",
+                  textDecoration: "none",
+                  padding: "0.125rem 0.25rem",
+                  borderRadius: "var(--radius-sm)",
+                }}
+              >
+                統合候補を確認
+              </Link>
+            </div>
+          )}
           <div style={{ marginTop: "0.625rem" }}>
             <Link
               href="/leads"

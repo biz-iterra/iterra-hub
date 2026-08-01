@@ -6057,6 +6057,7 @@ export type Database = {
         }
         Returns: string
       }
+      default_phone_label: { Args: { p_phone: string }; Returns: string }
       detect_contact_merge_candidates: {
         Args: { p_contact_id: string }
         Returns: number
@@ -6083,6 +6084,7 @@ export type Database = {
       }
       normalize_company_name: { Args: { p_name: string }; Returns: string }
       normalize_domain: { Args: { p_input: string }; Returns: string }
+      phone_line_type: { Args: { p_phone: string }; Returns: string }
       promote_lead_to_deal: {
         Args: {
           p_account: Json
@@ -6161,6 +6163,14 @@ export type Database = {
           p_phone: string
         }
         Returns: string
+      }
+      set_primary_contact_email: {
+        Args: { p_actor?: string; p_id: string }
+        Returns: undefined
+      }
+      set_primary_contact_phone: {
+        Args: { p_actor?: string; p_id: string }
+        Returns: undefined
       }
       upsert_company_domain: {
         Args: { p_company_id: string; p_input: string; p_is_primary?: boolean }

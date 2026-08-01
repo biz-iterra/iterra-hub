@@ -9,6 +9,10 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import { isFieldValidationError } from "@/lib/errors";
 import { formContainerStyle } from "@/lib/layout";
+import {
+  ContactChannelsEditor,
+  type ChannelRow,
+} from "@/components/contacts/ContactChannelsEditor";
 
 type SelectOption = { value: string; label: string };
 
@@ -206,10 +210,15 @@ export function ContactEditForm({
   contact,
   masters,
   isAdmin,
+  emails,
+  phones,
 }: {
   contact: ContactData;
   masters: Masters;
   isAdmin: boolean;
+  /** 1 人に複数紐づく。本体の保存とは独立して増減させる */
+  emails: ChannelRow[];
+  phones: ChannelRow[];
 }) {
   const router = useRouter();
   const { showToast } = useToast();
@@ -557,6 +566,23 @@ export function ContactEditForm({
                 ))}
               </select>
             </div>
+          </div>
+        </div>
+
+        {/* 連絡手段。1 人に複数紐づくので行単位で増減できるようにする */}
+        <div style={styles.card}>
+          <h2 style={styles.sectionTitle}>連絡手段</h2>
+          <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+            <ContactChannelsEditor
+              contactId={contact.id}
+              channel="email"
+              rows={emails}
+            />
+            <ContactChannelsEditor
+              contactId={contact.id}
+              channel="phone"
+              rows={phones}
+            />
           </div>
         </div>
 

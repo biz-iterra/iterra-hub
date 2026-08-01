@@ -127,5 +127,28 @@ export default async function ContactEditPage({
 
   const isAdmin = meResult.data?.role === "admin";
 
-  return <ContactEditForm contact={contact} masters={masters} isAdmin={isAdmin} />;
+  // 連絡手段は本体とは別に増減させるため、そのまま渡す
+  const detail = contactResult.data;
+  const emails = (detail?.contact_emails ?? []).map((e) => ({
+    id: e.id,
+    value: e.email,
+    label: e.label,
+    is_primary: e.is_primary,
+  }));
+  const phones = (detail?.contact_phones ?? []).map((p) => ({
+    id: p.id,
+    value: p.phone,
+    label: p.label,
+    is_primary: p.is_primary,
+  }));
+
+  return (
+    <ContactEditForm
+      contact={contact}
+      masters={masters}
+      isAdmin={isAdmin}
+      emails={emails}
+      phones={phones}
+    />
+  );
 }

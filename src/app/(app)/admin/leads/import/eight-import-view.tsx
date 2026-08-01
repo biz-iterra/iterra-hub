@@ -511,6 +511,42 @@ export function EightImportView({
                 </div>
               )}
 
+              {/* 同姓同名。別人として取り込まれるので取込前に見せる */}
+              {preview.sameNameCount > 0 && (
+                <div style={styles.alertWarn}>
+                  <strong
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.375rem",
+                      marginBottom: "0.375rem",
+                    }}
+                  >
+                    <AlertTriangle size={15} />
+                    同姓同名の連絡先がすでにあります（{preview.sameNameCount} 件）
+                  </strong>
+                  <div style={{ marginBottom: "0.375rem" }}>
+                    転職した同じ人か、同姓同名の別人かはここでは判断できないため、
+                    <strong>別人として取り込みます。</strong>
+                    取込後に統合候補として一覧に出るので、そこで判断してください。
+                  </div>
+                  <ul style={{ margin: 0, paddingLeft: "1.25rem" }}>
+                    {preview.sameNames.slice(0, 8).map((s) => (
+                      <li key={`${s.rowNumber}-${s.existingContactId}`}>
+                        {s.rowNumber} 行目: {s.personName}（名刺:{" "}
+                        {s.companyName ?? "所属不明"} / 既存:{" "}
+                        {s.existingCompanyName ?? "所属不明"}）
+                      </li>
+                    ))}
+                  </ul>
+                  {preview.sameNameCount > 8 && (
+                    <div style={{ marginTop: "0.375rem" }}>
+                      ほか {preview.sameNameCount - 8} 件
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* サンプル */}
               {preview.samples.length > 0 && (
                 <div>

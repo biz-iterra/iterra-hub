@@ -53,6 +53,20 @@ export type EightImportPreview = {
   warnings: { rowNumber: number; messages: string[] }[];
   /** 画面確認用の先頭数件 */
   samples: EightImportSample[];
+  /**
+   * 同姓同名の既存連絡先がある行。取り込むと統合候補として挙がる。
+   * **別人として取り込まれる**ので、事前に見えるようにしておく。
+   */
+  sameNameCount: number;
+  sameNames: {
+    rowNumber: number;
+    personName: string;
+    /** 名刺の会社名 */
+    companyName: string | null;
+    /** 既存の連絡先の所属先 */
+    existingCompanyName: string | null;
+    existingContactId: string;
+  }[];
 };
 
 export type EightImportResult = {
@@ -179,6 +193,51 @@ async function findExistingKeys(
   return found;
 }
 
+/**
+ * 同姓同名の既存連絡先を探す。
+ *
+ * 取り込んだ後に統合候補として挙がる組を、取り込む前に見せるためのもの。
+ * 姓でまとめて引いてから姓名で突き合わせる（1 行ずつ問い合わせない）。
+ *
+ * **ここで判定できるのは「同姓同名がいる」ことまで。** 転職か異動かは
+ * 法人の名寄せ（メールドメインが一次キー）を通さないと決まらず、
+ * それは取込時にしか走らせられないため、ドライランでは踏み込まない。
+ */
+async function findSameNameContacts(
+  supabase: ReturnType<typeof createAdminClient>,
+  names: { lastName: string; firstName: string }[]
+): Promise<Map<string, { id: string; companyName: string | null }>> {
+  const found = new Map<string, { id: string; companyName: string | null }>();
+  const lastNames = [...new Set(names.map((n) => n.lastName).filter(Boolean))];
+  if (lastNames.length === 0) return found;
+
+  const wanted = new Set(names.map((n) => nameKey(n.lastName, n.firstName)));
+
+  const CHUNK = 100;
+  for (let i = 0; i < lastNames.length; i += CHUNK) {
+    const chunk = lastNames.slice(i, i + CHUNK);
+    const { data, error } = await supabase
+      .from("contacts")
+      .select("id, last_name, first_name, company:companies!contacts_company_id_fkey(name)")
+      .in("last_name", chunk)
+      .is("deleted_at", null);
+    if (error) {
+      throw new Error(`同姓同名の確認に失敗しました: ${error.message}`);
+    }
+    for (const row of data ?? []) {
+      const key = nameKey(row.last_name, row.first_name ?? "");
+      if (!wanted.has(key) || found.has(key)) continue;
+      const company = row.company as { name: string } | null;
+      found.set(key, { id: row.id, companyName: company?.name ?? null });
+    }
+  }
+  return found;
+}
+
+function nameKey(lastName: string | null, firstName: string | null): string {
+  return `${(lastName ?? "").trim()} ${(firstName ?? "").trim()}`;
+}
+
 // ------------------------------------------------------------
 // dry-run
 // ------------------------------------------------------------
@@ -235,6 +294,48 @@ export async function dryRunEightImport(
     };
   });
 
+  // 同姓同名は「別人として取り込まれ、統合候補に挙がる」ので事前に見せる。
+  // 新規に作られる行だけが対象（既存キーに一致する行は同じ連絡先に紐づく）
+  const newLeads = parsed.merged.filter((m) => !existing.has(m.externalKey));
+  let sameNames: EightImportPreview["sameNames"] = [];
+  try {
+    const found = await findSameNameContacts(
+      admin,
+      newLeads.map((m) => ({
+        lastName: m.primary.lead.contact_last_name ?? "",
+        firstName: m.primary.lead.contact_first_name ?? "",
+      }))
+    );
+
+    sameNames = newLeads.flatMap((m) => {
+      const last = m.primary.lead.contact_last_name ?? "";
+      const first = m.primary.lead.contact_first_name ?? "";
+      if (!last) return [];
+      const hit = found.get(nameKey(last, first));
+      if (!hit) return [];
+      // 所属先が同じなら同一人物として紐づくので、候補にはならない
+      if (
+        hit.companyName &&
+        m.primary.lead.company_name &&
+        hit.companyName === m.primary.lead.company_name
+      ) {
+        return [];
+      }
+      return [
+        {
+          rowNumber: m.primary.rowNumber,
+          personName: [last, first].filter(Boolean).join(" "),
+          companyName: m.primary.lead.company_name,
+          existingCompanyName: hit.companyName,
+          existingContactId: hit.id,
+        },
+      ];
+    });
+  } catch (e) {
+    // 事前確認の付加情報なので、取得できなくても取込自体は続けられる
+    console.warn("[dryRunEightImport] 同姓同名の確認 WARN:", e);
+  }
+
   return {
     data: {
       fileName: parsed.fileName,
@@ -251,6 +352,8 @@ export async function dryRunEightImport(
       })),
       warnings,
       samples,
+      sameNameCount: sameNames.length,
+      sameNames: sameNames.slice(0, 20),
     },
     error: null,
   };

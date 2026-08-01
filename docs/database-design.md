@@ -98,6 +98,7 @@ ITERRAの営業・取引管理CRMシステムを新規構築する。現在ス�
 | D09 | リード顧客行動ログ | `lead_customer_activities` | T09 leads | 顧客側の行動履歴（手動入力） |
 | D10 | リードスコア内訳 | `lead_score_breakdowns` | T09 leads | recalculate_lead_score の算出内訳 |
 | D11 | 連絡先所属履歴 | `contact_affiliations` | T04 contacts | Contact 1 : N 所属（会社・部署・役職を時系列で保持。§21） |
+| D12 | 連絡先統合候補 | `contact_merge_candidates` | T04 contacts | 姓名のみ一致した組。統合するかは人が判断（§21.7） |
 
 ### 2.5b パイプライン拡張（Deal 1:1 / 1:N）
 パイプラインごとに固有カラムを保持する拡張テーブル。共通規約については §9 参照。
@@ -3080,9 +3081,33 @@ CHECK: 会社 ID と会社名のどちらも無い行は作れない / `ended_on
 | `20260801000002_contact_affiliation_resolution.sql` | `is_mobile_phone` / `apply_contact_affiliation` / `sync_contact_current_affiliation` / `resolve_or_create_contact` 改訂 |
 | `20260801000003_backfill_contact_affiliations.sql` | 既存 749 件の連絡先から現在の所属を作成 |
 | `20260801000004_import_eight_leads_affiliations.sql` | 名刺取込に所属反映を組み込み、戻り値に転職・異動の件数を追加 |
+| `20260801000005_create_contact_merge_candidates.sql` | `contacts.merged_into_contact_id` / `contact_merge_candidates` / `detect_contact_merge_candidates` |
+| `20260801000006_merge_contacts.sql` | `merge_contacts_preview` / `merge_contacts` |
+| `20260801000007_import_eight_leads_merge_candidates.sql` | 取込時の候補検出、戻り値に候補件数を追加 |
 
-### 21.7 未実装（Phase B / C）
+### 21.7 統合候補と統合（Phase B / C）
 
-- `contact_merge_candidates`（姓名のみ一致した組の記録）と統合候補の一覧画面
-- `merge_contacts()`（連絡先の統合）と `contacts.merged_into_contact_id`
-- ドライラン時点での「転職 / 異動 / 統合候補」の区分表示
+**姓名しか一致しない組は自動で統合しない。** 同姓同名の誤統合は元に戻せないため、
+別人として取り込んだうえで `contact_merge_candidates` に記録し、人が判断する。
+
+| テーブル / 関数 | 役割 |
+|---|---|
+| `contact_merge_candidates` | 候補の記録。ペアの向きは UUID の大小で正規化し `UNIQUE` で重複を防ぐ |
+| `detect_contact_merge_candidates(UUID)` | 姓名一致・会社違いの組を検出。カナが両方あって食い違う組は除外 |
+| `merge_contacts_preview(UUID, UUID)` | 付け替え件数の下見。変更しない |
+| `merge_contacts(UUID, UUID)` | 統合の実行。**manager 以上**。取り消せない |
+| `contacts.merged_into_contact_id` | 吸収された側から残った側への参照 |
+
+統合は 18 の外部キーに跨るため単一トランザクションで行う。一意制約があるもの
+（`contact_emails` / `contact_phones` / `account_contacts` / `email_message_contacts`）は
+重複しない行だけを移して残りを捨てる。所属履歴は全部移したうえで `is_current` を
+最新 1 行に整理する。タレント情報は連絡先と 1:1 のため、両方にある場合は例外で止める。
+
+吸収した側は物理削除せず `deleted_at` + `merged_into_contact_id` で閉じる（削除ポリシー）。
+
+### 21.8 ドライランで判定しないこと
+
+**法人の名寄せは法人を作る処理でもあるため、ドライランでは走らせられない。**
+そのため転職・異動の予測はドライランでは出さず、確定値を取込結果で返す。
+姓名の一致だけは文字列で確定するので、「同姓同名の連絡先が既にある」ことは事前に出す
+（`docs/contact-identity.md § 8`）。

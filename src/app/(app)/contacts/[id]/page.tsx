@@ -1,6 +1,7 @@
 import { getContact } from "@/actions/contacts";
 import { getContactEmailMessages } from "@/actions/email-sync";
 import { EmailHistorySection } from "@/components/contacts/EmailHistorySection";
+import { AffiliationHistorySection } from "@/components/contacts/AffiliationHistorySection";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -239,6 +240,11 @@ export default async function ContactDetailPage({
               />
             </div>
           </DetailSection>
+
+          {/* 名刺は「その時点の所属」なので、転職・異動を跨いで時系列で見せる */}
+          <AffiliationHistorySection
+            affiliations={c.contact_affiliations ?? []}
+          />
 
           <DetailSection title="プロファイル" icon={Sparkles}>
             <div

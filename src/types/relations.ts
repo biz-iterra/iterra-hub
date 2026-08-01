@@ -117,8 +117,28 @@ export type ContactWithRelations = Row<"contacts"> & {
   account_contacts: AccountContactRef[];
 };
 
-/** contacts.ts の getContact に対応（タレント・診断・所属アカウントを含む） */
+/**
+ * 所属履歴の 1 行（contact_affiliations）。
+ * 名刺交換日を起点に、その時点の会社・部署・役職を時系列で持つ。
+ */
+export type ContactAffiliationRef = Ref<
+  "contact_affiliations",
+  | "id"
+  | "company_id"
+  | "company_name_raw"
+  | "department"
+  | "job_title"
+  | "started_on"
+  | "ended_on"
+  | "is_current"
+  | "source"
+> & {
+  company: NamedRef | null;
+};
+
+/** contacts.ts の getContact に対応（タレント・診断・所属アカウント・所属履歴を含む） */
 export type ContactDetail = ContactWithRelations & {
+  contact_affiliations: ContactAffiliationRef[];
   talent:
     | (Row<"talents"> & {
         talent_skills: (Row<"talent_skills"> & {

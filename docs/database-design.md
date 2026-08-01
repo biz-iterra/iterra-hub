@@ -97,6 +97,7 @@ ITERRAの営業・取引管理CRMシステムを新規構築する。現在ス�
 | D08 | リード架電記録 | `lead_activities` | T09 leads | Lead 1 : N 架電記録（call_number UNIQUE） |
 | D09 | リード顧客行動ログ | `lead_customer_activities` | T09 leads | 顧客側の行動履歴（手動入力） |
 | D10 | リードスコア内訳 | `lead_score_breakdowns` | T09 leads | recalculate_lead_score の算出内訳 |
+| D11 | 連絡先所属履歴 | `contact_affiliations` | T04 contacts | Contact 1 : N 所属（会社・部署・役職を時系列で保持。§21） |
 
 ### 2.5b パイプライン拡張（Deal 1:1 / 1:N）
 パイプラインごとに固有カラムを保持する拡張テーブル。共通規約については §9 参照。
@@ -2993,3 +2994,95 @@ Gmail スコープが付いていたら連携を中止する。本文を読め�
 ### 20.9 未実装
 
 - 過去メールのインポート経路（データ化した外部ファイルの取り込み）
+
+---
+
+## 21. 連絡先の所属履歴（2026-08-01）
+
+名刺は「ある時点における、その人の所属のスナップショット」である。
+人は変わらないが所属は変わるため、会社・部署・役職を時系列で持つ。
+設計の背景と判断の経緯は `docs/contact-identity.md` が正本。
+
+### 21.1 D11 `contact_affiliations`
+
+| カラム | 型 | 説明 |
+|---|---|---|
+| `contact_id` | UUID NOT NULL | → `contacts` ON DELETE CASCADE |
+| `company_id` | UUID | → `companies`。特定できない名刺は NULL |
+| `company_name_raw` | TEXT | 名刺に書かれていた会社名。`company_id` が NULL のときの手掛かり |
+| `department` / `job_title` | TEXT | |
+| `started_on` | DATE | 在籍を確認できた最古の日（名刺交換日）。不明なら NULL |
+| `ended_on` | DATE | 次の所属が判明した時点で入る |
+| `is_current` | BOOLEAN | 現在の所属。**`contact_id` ごとに 1 行**（部分 UNIQUE インデックス） |
+| `source` | TEXT | `business_card` / `manual` / `email` / `import` |
+| `source_record_id` | UUID | 由来する `lead_import_records.id` 等 |
+
+CHECK: 会社 ID と会社名のどちらも無い行は作れない / `ended_on >= started_on`。
+
+**`contacts.company_id` / `department` / `job_title` は `is_current` 行のキャッシュ。**
+既存の画面・検索・RLS を壊さないために残している。正本は `contact_affiliations` 側で、
+キャッシュの更新は `sync_contact_current_affiliation()` の中でのみ行う。
+**アプリから直接書き換えないこと。**
+
+### 21.2 人物の同定
+
+`resolve_or_create_contact` は上から順に判定し、決まった時点で下は見ない。
+
+| 段 | 条件 | 根拠 |
+|---|---|---|
+| P1 | `contact_emails` にメールが完全一致 | 最も確実 |
+| P2 | **携帯番号**が一致 + 姓が一致 | 転職しても携帯は変わらない |
+| P3 | 会社 × 姓 × 名 が一致 | 従来の判定 |
+
+**P2 は携帯に限る。** 代表電話で判定すると同じ会社の全員が一致してしまうため、
+`is_mobile_phone()`（`070`/`080`/`090` + 8 桁）で絞る。照合は数字だけに正規化して行うので
+ハイフンの有無は問わない（`contact_phones` に式インデックスあり）。
+
+姓名だけが一致するケースは**自動統合しない**。同姓同名の誤統合は元に戻せないため、
+別人として作ったうえで統合候補に回す（Phase B。未実装）。
+
+### 21.3 所属の反映
+
+`apply_contact_affiliation()` が名刺の所属と現在の所属を突き合わせる。
+戻り値: `unchanged` / `created` / `transferred`（転職） / `reassigned`（異動） / `history_only`。
+
+```
+現在の所属が無い              → 作る（is_current）
+会社・部署・役職が同じ         → 何もしない（開始日がより古ければ早める）
+交換日が不明 / 現所属より古い   → 履歴にだけ残す。現在の所属は動かさない
+交換日が現所属より新しい       → 現所属を ended_on = 交換日 - 1 日で閉じ、新所属を is_current で追加
+```
+
+**古い名刺で現在の所属が巻き戻らない**ことが要点。名刺は交換日順に届くとは限らない。
+
+### 21.4 値の優先
+
+| 項目 | 規則 |
+|---|---|
+| 会社・部署・役職 | 交換日が現所属の開始日より新しければ**上書き**。古ければ履歴のみ |
+| メール・電話 | **追加**。旧アドレスも残す（過去のメール履歴の参照先を壊さないため） |
+| その他 | 空欄補完のみ（従来どおり） |
+
+### 21.5 リードとの関係
+
+**リードは「会社 × 人の案件」なので、転職したら別リードになるのが正しい。**
+連絡先は同一人物に寄せる一方で、リードは新旧が並存する。
+
+転職を検知すると、旧所属のリードに `lead_activities`（種別 `memo`）を 1 件自動記録し、
+後任へのアプローチを検討できるようにする。ステージ・ステータスは動かさない。
+同じメモは再取込で積み増さない。
+
+### 21.6 マイグレーション
+
+| ファイル | 内容 |
+|---|---|
+| `20260801000001_create_contact_affiliations.sql` | テーブル・インデックス・RLS |
+| `20260801000002_contact_affiliation_resolution.sql` | `is_mobile_phone` / `apply_contact_affiliation` / `sync_contact_current_affiliation` / `resolve_or_create_contact` 改訂 |
+| `20260801000003_backfill_contact_affiliations.sql` | 既存 749 件の連絡先から現在の所属を作成 |
+| `20260801000004_import_eight_leads_affiliations.sql` | 名刺取込に所属反映を組み込み、戻り値に転職・異動の件数を追加 |
+
+### 21.7 未実装（Phase B / C）
+
+- `contact_merge_candidates`（姓名のみ一致した組の記録）と統合候補の一覧画面
+- `merge_contacts()`（連絡先の統合）と `contacts.merged_into_contact_id`
+- ドライラン時点での「転職 / 異動 / 統合候補」の区分表示

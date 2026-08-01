@@ -1167,6 +1167,89 @@ export type Database = {
         }
         Relationships: []
       }
+      contact_affiliations: {
+        Row: {
+          company_id: string | null
+          company_name_raw: string | null
+          contact_id: string
+          created_at: string
+          created_by: string | null
+          department: string | null
+          ended_on: string | null
+          id: string
+          is_current: boolean
+          job_title: string | null
+          last_updated_by: string | null
+          source: string
+          source_record_id: string | null
+          started_on: string | null
+          updated_at: string
+        }
+        Insert: {
+          company_id?: string | null
+          company_name_raw?: string | null
+          contact_id: string
+          created_at?: string
+          created_by?: string | null
+          department?: string | null
+          ended_on?: string | null
+          id?: string
+          is_current?: boolean
+          job_title?: string | null
+          last_updated_by?: string | null
+          source?: string
+          source_record_id?: string | null
+          started_on?: string | null
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string | null
+          company_name_raw?: string | null
+          contact_id?: string
+          created_at?: string
+          created_by?: string | null
+          department?: string | null
+          ended_on?: string | null
+          id?: string
+          is_current?: boolean
+          job_title?: string | null
+          last_updated_by?: string | null
+          source?: string
+          source_record_id?: string | null
+          started_on?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_affiliations_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_affiliations_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_affiliations_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "crm_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_affiliations_last_updated_by_fkey"
+            columns: ["last_updated_by"]
+            isOneToOne: false
+            referencedRelation: "crm_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contact_change_histories: {
         Row: {
           changed_at: string
@@ -5861,6 +5944,20 @@ export type Database = {
       }
     }
     Functions: {
+      apply_contact_affiliation: {
+        Args: {
+          p_actor?: string
+          p_company_id: string
+          p_company_name_raw: string
+          p_contact_id: string
+          p_department: string
+          p_exchanged_on: string
+          p_job_title: string
+          p_source?: string
+          p_source_record_id?: string
+        }
+        Returns: string
+      }
       apply_default_status_colors: { Args: never; Returns: undefined }
       approve_email_contact_candidate: {
         Args: {
@@ -5883,6 +5980,7 @@ export type Database = {
       is_free_email_domain: { Args: { p_domain: string }; Returns: boolean }
       is_lead_accessible: { Args: { p_lead_id: string }; Returns: boolean }
       is_manager_or_above: { Args: never; Returns: boolean }
+      is_mobile_phone: { Args: { p_phone: string }; Returns: boolean }
       normalize_company_name: { Args: { p_name: string }; Returns: string }
       normalize_domain: { Args: { p_input: string }; Returns: string }
       promote_lead_to_deal: {
@@ -5946,6 +6044,10 @@ export type Database = {
           p_phone: string
         }
         Returns: string
+      }
+      sync_contact_current_affiliation: {
+        Args: { p_contact_id: string }
+        Returns: undefined
       }
       upsert_company_domain: {
         Args: { p_company_id: string; p_input: string; p_is_primary?: boolean }

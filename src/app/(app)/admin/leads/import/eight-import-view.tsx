@@ -601,6 +601,17 @@ export function EightImportView({
           新規 {result.createdCount.toLocaleString()} 件 / 追記{" "}
           {result.updatedCount.toLocaleString()} 件
           {result.errorCount > 0 && ` / 取込できなかった行 ${result.errorCount} 件`}
+          {/* 所属が変わった人は、旧所属のリードの扱いを見直す必要があるので明示する */}
+          {(result.transferredCount > 0 || result.reassignedCount > 0) && (
+            <div style={{ marginTop: "0.375rem" }}>
+              所属の更新:
+              {result.transferredCount > 0 &&
+                ` 転職 ${result.transferredCount.toLocaleString()} 件`}
+              {result.transferredCount > 0 && result.reassignedCount > 0 && " /"}
+              {result.reassignedCount > 0 &&
+                ` 異動 ${result.reassignedCount.toLocaleString()} 件`}
+            </div>
+          )}
           <div style={{ marginTop: "0.625rem" }}>
             <Link
               href="/leads"

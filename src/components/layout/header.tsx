@@ -30,6 +30,9 @@ const segmentLabels: Record<string, string> = {
   new: "新規作成",
   edit: "編集",
   deleted: "削除済み",
+  candidates: "連絡先の候補",
+  "merge-candidates": "統合候補",
+  import: "取込",
 };
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

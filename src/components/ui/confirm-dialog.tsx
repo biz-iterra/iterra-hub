@@ -43,6 +43,9 @@ const styles = {
     fontSize: "0.875rem",
     margin: "0 0 1.5rem 0",
     lineHeight: 1.6,
+    // 何が起きるかを行ごとに分けて書けるようにする。
+    // 改行を含まないメッセージの見え方は変わらない
+    whiteSpace: "pre-line",
   } as CSSProperties,
   footer: {
     display: "flex",

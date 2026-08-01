@@ -115,7 +115,13 @@ export type ParsedEightRow = {
   rowNumber: number;
   raw: Record<string, string>;
   externalKey: string | null;
-  /** 名刺交換日（YYYY-MM-DD）。ソートと lead_activities に使う */
+  /**
+   * CSV の「名刺交換日」（YYYY-MM-DD）。
+   *
+   * **列名に反して、実態は利用者が Eight にデータを登録した日。**
+   * 名刺情報の変更日でも在籍期間でもないため、所属の順序の根拠には使わない
+   * （docs/contact-identity.md）。行の統合順と lead_activities の記録日に使う。
+   */
   exchangedOn: string | null;
   lead: {
     lead_name: string;

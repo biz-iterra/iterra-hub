@@ -255,7 +255,7 @@ export function EightImportView({
 
       <p style={{ ...styles.sub, margin: 0 }}>
         Eight プレミアムでダウンロードした CSV をそのまま取り込めます（Shift_JIS のままで可）。
-        同じ人と複数回名刺交換した行は 1 件のリードにまとめ、交換日は社内対応として残します。
+        同じ人の行は 1 件のリードにまとめ、Eight への登録日は社内対応として残します。この日付は名刺を交換した日ではありません。
       </p>
 
       {/* ---- 1. ファイル選択 ---- */}
@@ -561,7 +561,7 @@ export function EightImportView({
                           <th style={styles.th}>リード名</th>
                           <th style={styles.th}>担当者名</th>
                           <th style={styles.th}>メール</th>
-                          <th style={styles.th}>最終交換日</th>
+                          <th style={styles.th}>最終登録日</th>
                           <th style={styles.th}>名刺</th>
                           <th style={styles.th}>区分</th>
                         </tr>
@@ -637,15 +637,12 @@ export function EightImportView({
           新規 {result.createdCount.toLocaleString()} 件 / 追記{" "}
           {result.updatedCount.toLocaleString()} 件
           {result.errorCount > 0 && ` / 取込できなかった行 ${result.errorCount} 件`}
-          {/* 所属が変わった人は、旧所属のリードの扱いを見直す必要があるので明示する */}
-          {(result.transferredCount > 0 || result.reassignedCount > 0) && (
+          {/* 名刺は記録するだけ。連絡先の現在の所属は変えないことを明示する */}
+          {result.cardCount > 0 && (
             <div style={{ marginTop: "0.375rem" }}>
-              所属の更新:
-              {result.transferredCount > 0 &&
-                ` 転職 ${result.transferredCount.toLocaleString()} 件`}
-              {result.transferredCount > 0 && result.reassignedCount > 0 && " /"}
-              {result.reassignedCount > 0 &&
-                ` 異動 ${result.reassignedCount.toLocaleString()} 件`}
+              名刺 {result.cardCount.toLocaleString()} 枚を記録しました。
+              連絡先の現在の所属は変更していません（名刺ごとに所属が残るので、
+              切り替えたい場合は連絡先の「名刺」から選んでください）。
             </div>
           )}
           {/* 姓名しか一致しない組は自動統合していない。人の判断が要る */}

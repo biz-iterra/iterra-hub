@@ -140,7 +140,7 @@ export async function getContact(id: string): Promise<ActionResult<ContactDetail
   const { data, error } = await supabase
     .from("contacts")
     .select(
-      `*, contact_status:contact_statuses(id, name, color), company:companies!contacts_company_id_fkey(id, name), owner:crm_users!contacts_owner_user_id_fkey(id, full_name), contact_emails(id, email, label, is_primary), contact_phones(id, phone, label, is_primary), contact_affiliations(id, company_id, company_name_raw, department, job_title, started_on, ended_on, is_current, source, company:companies!contact_affiliations_company_id_fkey(id, name)), talent:talents(*, talent_skills(*, skill:skills(id, name, skill_categories(name))), talent_careers(*)), number_diagnosis(*), constellation_fortune_telling:constellation_fortune_telling(*), account_contacts(id, role, account:accounts(id, account_code, name))`
+      `*, contact_status:contact_statuses(id, name, color), company:companies!contacts_company_id_fkey(id, name), owner:crm_users!contacts_owner_user_id_fkey(id, full_name), contact_emails(id, email, label, is_primary), contact_phones(id, phone, label, is_primary), business_cards(id, company_id, company_name_raw, department, job_title, source, source_registered_on, is_primary, company:companies!business_cards_company_id_fkey(id, name), contact_email:contact_emails!business_cards_contact_email_id_fkey(id, email), contact_phone:contact_phones!business_cards_contact_phone_id_fkey(id, phone)), talent:talents(*, talent_skills(*, skill:skills(id, name, skill_categories(name))), talent_careers(*)), number_diagnosis(*), constellation_fortune_telling:constellation_fortune_telling(*), account_contacts(id, role, account:accounts(id, account_code, name))`
     )
     .eq("id", id)
     .single();

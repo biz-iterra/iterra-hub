@@ -637,6 +637,116 @@ export type Database = {
           },
         ]
       }
+      business_cards: {
+        Row: {
+          address_id: string | null
+          company_id: string | null
+          company_name_raw: string | null
+          contact_email_id: string | null
+          contact_id: string
+          contact_phone_id: string | null
+          created_at: string
+          created_by: string | null
+          department: string | null
+          id: string
+          is_primary: boolean
+          job_title: string | null
+          last_updated_by: string | null
+          source: string
+          source_external_key: string | null
+          source_registered_on: string | null
+          updated_at: string
+        }
+        Insert: {
+          address_id?: string | null
+          company_id?: string | null
+          company_name_raw?: string | null
+          contact_email_id?: string | null
+          contact_id: string
+          contact_phone_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          department?: string | null
+          id?: string
+          is_primary?: boolean
+          job_title?: string | null
+          last_updated_by?: string | null
+          source?: string
+          source_external_key?: string | null
+          source_registered_on?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address_id?: string | null
+          company_id?: string | null
+          company_name_raw?: string | null
+          contact_email_id?: string | null
+          contact_id?: string
+          contact_phone_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          department?: string | null
+          id?: string
+          is_primary?: boolean
+          job_title?: string | null
+          last_updated_by?: string | null
+          source?: string
+          source_external_key?: string | null
+          source_registered_on?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_cards_address_id_fkey"
+            columns: ["address_id"]
+            isOneToOne: false
+            referencedRelation: "addresses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "business_cards_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "business_cards_contact_email_id_fkey"
+            columns: ["contact_email_id"]
+            isOneToOne: false
+            referencedRelation: "contact_emails"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "business_cards_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "business_cards_contact_phone_id_fkey"
+            columns: ["contact_phone_id"]
+            isOneToOne: false
+            referencedRelation: "contact_phones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "business_cards_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "crm_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "business_cards_last_updated_by_fkey"
+            columns: ["last_updated_by"]
+            isOneToOne: false
+            referencedRelation: "crm_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaigns: {
         Row: {
           created_at: string
@@ -1166,89 +1276,6 @@ export type Database = {
           weaknesses?: string | null
         }
         Relationships: []
-      }
-      contact_affiliations: {
-        Row: {
-          company_id: string | null
-          company_name_raw: string | null
-          contact_id: string
-          created_at: string
-          created_by: string | null
-          department: string | null
-          ended_on: string | null
-          id: string
-          is_current: boolean
-          job_title: string | null
-          last_updated_by: string | null
-          source: string
-          source_record_id: string | null
-          started_on: string | null
-          updated_at: string
-        }
-        Insert: {
-          company_id?: string | null
-          company_name_raw?: string | null
-          contact_id: string
-          created_at?: string
-          created_by?: string | null
-          department?: string | null
-          ended_on?: string | null
-          id?: string
-          is_current?: boolean
-          job_title?: string | null
-          last_updated_by?: string | null
-          source?: string
-          source_record_id?: string | null
-          started_on?: string | null
-          updated_at?: string
-        }
-        Update: {
-          company_id?: string | null
-          company_name_raw?: string | null
-          contact_id?: string
-          created_at?: string
-          created_by?: string | null
-          department?: string | null
-          ended_on?: string | null
-          id?: string
-          is_current?: boolean
-          job_title?: string | null
-          last_updated_by?: string | null
-          source?: string
-          source_record_id?: string | null
-          started_on?: string | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "contact_affiliations_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "contact_affiliations_contact_id_fkey"
-            columns: ["contact_id"]
-            isOneToOne: false
-            referencedRelation: "contacts"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "contact_affiliations_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "crm_users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "contact_affiliations_last_updated_by_fkey"
-            columns: ["last_updated_by"]
-            isOneToOne: false
-            referencedRelation: "crm_users"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       contact_change_histories: {
         Row: {
@@ -6015,19 +6042,9 @@ export type Database = {
       }
     }
     Functions: {
-      apply_contact_affiliation: {
-        Args: {
-          p_actor?: string
-          p_company_id: string
-          p_company_name_raw: string
-          p_contact_id: string
-          p_department: string
-          p_exchanged_on: string
-          p_job_title: string
-          p_source?: string
-          p_source_record_id?: string
-        }
-        Returns: string
+      apply_business_card_as_current: {
+        Args: { p_actor?: string; p_card_id: string }
+        Returns: undefined
       }
       apply_default_status_colors: { Args: never; Returns: undefined }
       approve_email_contact_candidate: {
@@ -6081,6 +6098,23 @@ export type Database = {
       purge_soft_deleted_records: { Args: never; Returns: undefined }
       recalculate_all_lead_scores: { Args: never; Returns: number }
       recalculate_lead_score: { Args: { p_lead_id: string }; Returns: number }
+      record_business_card: {
+        Args: {
+          p_actor?: string
+          p_address_id?: string
+          p_company_id: string
+          p_company_name_raw: string
+          p_contact_id: string
+          p_department: string
+          p_email: string
+          p_job_title: string
+          p_phone: string
+          p_registered_on?: string
+          p_source?: string
+          p_source_external_key?: string
+        }
+        Returns: string
+      }
       record_email_message: {
         Args: {
           p_cc_emails?: string[]
@@ -6127,10 +6161,6 @@ export type Database = {
           p_phone: string
         }
         Returns: string
-      }
-      sync_contact_current_affiliation: {
-        Args: { p_contact_id: string }
-        Returns: undefined
       }
       upsert_company_domain: {
         Args: { p_company_id: string; p_input: string; p_is_primary?: boolean }

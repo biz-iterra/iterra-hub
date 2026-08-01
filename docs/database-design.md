@@ -97,7 +97,7 @@ ITERRAの営業・取引管理CRMシステムを新規構築する。現在ス�
 | D08 | リード架電記録 | `lead_activities` | T09 leads | Lead 1 : N 架電記録（call_number UNIQUE） |
 | D09 | リード顧客行動ログ | `lead_customer_activities` | T09 leads | 顧客側の行動履歴（手動入力） |
 | D10 | リードスコア内訳 | `lead_score_breakdowns` | T09 leads | recalculate_lead_score の算出内訳 |
-| D11 | 連絡先所属履歴 | `contact_affiliations` | T04 contacts | Contact 1 : N 所属（会社・部署・役職を時系列で保持。§21） |
+| D11 | 名刺 | `business_cards` | T04 contacts | Contact 1 : N 名刺。所属を名刺の属性として持ち、メール・電話の行に紐づく（§21） |
 | D12 | 連絡先統合候補 | `contact_merge_candidates` | T04 contacts | 姓名のみ一致した組。統合するかは人が判断（§21.7） |
 
 ### 2.5b パイプライン拡張（Deal 1:1 / 1:N）
@@ -2998,116 +2998,87 @@ Gmail スコープが付いていたら連携を中止する。本文を読め�
 
 ---
 
-## 21. 連絡先の所属履歴（2026-08-01）
+## 21. 名刺と連絡先の同一性（2026-08-01）
 
-名刺は「ある時点における、その人の所属のスナップショット」である。
-人は変わらないが所属は変わるため、会社・部署・役職を時系列で持つ。
-設計の背景と判断の経緯は `docs/contact-identity.md` が正本。
+名刺は「その人の、ある所属における連絡手段」。設計の背景と判断の経緯は
+`docs/contact-identity.md` が正本。
 
-### 21.1 D11 `contact_affiliations`
+### 21.1 日付を所属の根拠にしない
+
+Eight の CSV にある「名刺交換日」は、**利用者が Eight にデータを登録した日**であり、
+名刺を受け取った日でも在籍期間でもない。過去の名刺を後からまとめて登録すると
+登録日が最新になるため、これを時系列の根拠にすると前職で現職を上書きしてしまう。
+
+そのため所属の順序は日付で決めず、**所属は名刺ごとの情報として持ち、
+どれが現在の所属かは人が決める**。
+
+### 21.2 D11 `business_cards`
 
 | カラム | 型 | 説明 |
 |---|---|---|
 | `contact_id` | UUID NOT NULL | → `contacts` ON DELETE CASCADE |
-| `company_id` | UUID | → `companies`。特定できない名刺は NULL |
-| `company_name_raw` | TEXT | 名刺に書かれていた会社名。`company_id` が NULL のときの手掛かり |
+| `contact_email_id` / `contact_phone_id` | UUID | → `contact_emails` / `contact_phones`。**この名刺の連絡手段** |
+| `company_id` / `company_name_raw` | | 名刺に書かれていた所属先 |
 | `department` / `job_title` | TEXT | |
-| `started_on` | DATE | 在籍を確認できた最古の日（名刺交換日）。不明なら NULL |
-| `ended_on` | DATE | 次の所属が判明した時点で入る |
-| `is_current` | BOOLEAN | 現在の所属。**`contact_id` ごとに 1 行**（部分 UNIQUE インデックス） |
-| `source` | TEXT | `business_card` / `manual` / `email` / `import` |
-| `source_record_id` | UUID | 由来する `lead_import_records.id` 等 |
+| `address_id` | UUID | → `addresses` |
+| `source` / `source_external_key` | TEXT | 取込元と一意キー（再取込で増やさない） |
+| `source_registered_on` | DATE | **取込元に登録した日。在籍期間ではない**（名前で誤用を防ぐ） |
+| `is_primary` | BOOLEAN | 現在の所属として採用している名刺。`contact_id` ごとに 1 枚 |
 
-CHECK: 会社 ID と会社名のどちらも無い行は作れない / `ended_on >= started_on`。
+メールアドレスは会社ドメインを含むため所属の裏付けになる。名刺をメール・電話の行に
+紐づけることで、日付に頼らず「どの所属のときの連絡手段か」を保持できる。
 
-**`contacts.company_id` / `department` / `job_title` は `is_current` 行のキャッシュ。**
-既存の画面・検索・RLS を壊さないために残している。正本は `contact_affiliations` 側で、
-キャッシュの更新は `sync_contact_current_affiliation()` の中でのみ行う。
-**アプリから直接書き換えないこと。**
-
-### 21.2 人物の同定
-
-`resolve_or_create_contact` は上から順に判定し、決まった時点で下は見ない。
+### 21.3 人物の同定
 
 | 段 | 条件 | 根拠 |
 |---|---|---|
 | P1 | `contact_emails` にメールが完全一致 | 最も確実 |
 | P2 | **携帯番号**が一致 + 姓が一致 | 転職しても携帯は変わらない |
 | P3 | 会社 × 姓 × 名 が一致 | 従来の判定 |
+| P4 | 姓名のみ一致 | 別人として作り、`contact_merge_candidates` に記録 |
 
-**P2 は携帯に限る。** 代表電話で判定すると同じ会社の全員が一致してしまうため、
-`is_mobile_phone()`（`070`/`080`/`090` + 8 桁）で絞る。照合は数字だけに正規化して行うので
-ハイフンの有無は問わない（`contact_phones` に式インデックスあり）。
+P2 は `is_mobile_phone()`（`070`/`080`/`090` + 8 桁）で携帯に限る。代表電話では
+同じ会社の全員が一致してしまうため。照合は数字だけに正規化する（式インデックスあり）。
 
-姓名だけが一致するケースは**自動統合しない**。同姓同名の誤統合は元に戻せないため、
-別人として作ったうえで統合候補に回す（Phase B。未実装）。
+### 21.4 所属の切り替え
 
-### 21.3 所属の反映
+`contacts.company_id` / `department` / `job_title` は**人が決めた現在の所属**。
 
-`apply_contact_affiliation()` が名刺の所属と現在の所属を突き合わせる。
-戻り値: `unchanged` / `created` / `transferred`（転職） / `reassigned`（異動） / `history_only`。
+- **取込（`record_business_card`）は書き換えない。** 名刺として別に残すだけ
+- 書き換えるのは `apply_business_card_as_current()` のみで、画面の
+  「現在の所属にする」からしか呼ばれない
 
-```
-現在の所属が無い              → 作る（is_current）
-会社・部署・役職が同じ         → 何もしない（開始日がより古ければ早める）
-交換日が不明 / 現所属より古い   → 履歴にだけ残す。現在の所属は動かさない
-交換日が現所属より新しい       → 現所属を ended_on = 交換日 - 1 日で閉じ、新所属を is_current で追加
-```
+例外は「現在の所属がその名刺と同じ会社のとき」で、採用済みの印だけ付ける
+（値が同じなので上書きにはならない）。
 
-**古い名刺で現在の所属が巻き戻らない**ことが要点。名刺は交換日順に届くとは限らない。
+### 21.5 統合候補と統合（D12）
 
-### 21.4 値の優先
+姓名しか一致しない組は自動統合せず `contact_merge_candidates` に記録する。
 
-| 項目 | 規則 |
+| 関数 | 役割 |
 |---|---|
-| 会社・部署・役職 | 交換日が現所属の開始日より新しければ**上書き**。古ければ履歴のみ |
-| メール・電話 | **追加**。旧アドレスも残す（過去のメール履歴の参照先を壊さないため） |
-| その他 | 空欄補完のみ（従来どおり） |
+| `detect_contact_merge_candidates(UUID)` | 姓名一致・会社違いの組を検出。カナが両方あって食い違う組は除外 |
+| `merge_contacts_preview(UUID, UUID)` | 付け替え件数の下見 |
+| `merge_contacts(UUID, UUID)` | 統合の実行。**manager 以上**。取り消せない |
 
-### 21.5 リードとの関係
-
-**リードは「会社 × 人の案件」なので、転職したら別リードになるのが正しい。**
-連絡先は同一人物に寄せる一方で、リードは新旧が並存する。
-
-転職を検知すると、旧所属のリードに `lead_activities`（種別 `memo`）を 1 件自動記録し、
-後任へのアプローチを検討できるようにする。ステージ・ステータスは動かさない。
-同じメモは再取込で積み増さない。
+統合は 18 の外部キーに跨るため単一トランザクションで行う。一意制約があるものは
+重複しない行だけを移す。名刺はすべて移し、**採用済みの印は残す側を優先する**
+（統合で所属が勝手に変わらないようにするため）。タレント情報は 1:1 のため
+両方にある場合は例外で止める。吸収した側は `deleted_at` + `merged_into_contact_id`。
 
 ### 21.6 マイグレーション
 
 | ファイル | 内容 |
 |---|---|
-| `20260801000001_create_contact_affiliations.sql` | テーブル・インデックス・RLS |
-| `20260801000002_contact_affiliation_resolution.sql` | `is_mobile_phone` / `apply_contact_affiliation` / `sync_contact_current_affiliation` / `resolve_or_create_contact` 改訂 |
-| `20260801000003_backfill_contact_affiliations.sql` | 既存 749 件の連絡先から現在の所属を作成 |
-| `20260801000004_import_eight_leads_affiliations.sql` | 名刺取込に所属反映を組み込み、戻り値に転職・異動の件数を追加 |
-| `20260801000005_create_contact_merge_candidates.sql` | `contacts.merged_into_contact_id` / `contact_merge_candidates` / `detect_contact_merge_candidates` |
-| `20260801000006_merge_contacts.sql` | `merge_contacts_preview` / `merge_contacts` |
-| `20260801000007_import_eight_leads_merge_candidates.sql` | 取込時の候補検出、戻り値に候補件数を追加 |
+| `20260801000001_create_business_cards.sql` | テーブル・RLS・`apply_business_card_as_current` |
+| `20260801000002_business_card_resolution.sql` | `is_mobile_phone` / `resolve_or_create_contact` 改訂 / `record_business_card` |
+| `20260801000003_backfill_business_cards.sql` | 既存リード・連絡先から名刺 756 枚を復元。活動記録の文言も実態に合わせて修正 |
+| `20260801000004_create_contact_merge_candidates.sql` | 統合候補と検出関数 |
+| `20260801000005_merge_contacts.sql` | 統合の下見と実行 |
+| `20260801000006_import_eight_business_cards.sql` | 取込で名刺を記録し、統合候補を検出 |
 
-### 21.7 統合候補と統合（Phase B / C）
+### 21.7 ドライランで判定しないこと
 
-**姓名しか一致しない組は自動で統合しない。** 同姓同名の誤統合は元に戻せないため、
-別人として取り込んだうえで `contact_merge_candidates` に記録し、人が判断する。
-
-| テーブル / 関数 | 役割 |
-|---|---|
-| `contact_merge_candidates` | 候補の記録。ペアの向きは UUID の大小で正規化し `UNIQUE` で重複を防ぐ |
-| `detect_contact_merge_candidates(UUID)` | 姓名一致・会社違いの組を検出。カナが両方あって食い違う組は除外 |
-| `merge_contacts_preview(UUID, UUID)` | 付け替え件数の下見。変更しない |
-| `merge_contacts(UUID, UUID)` | 統合の実行。**manager 以上**。取り消せない |
-| `contacts.merged_into_contact_id` | 吸収された側から残った側への参照 |
-
-統合は 18 の外部キーに跨るため単一トランザクションで行う。一意制約があるもの
-（`contact_emails` / `contact_phones` / `account_contacts` / `email_message_contacts`）は
-重複しない行だけを移して残りを捨てる。所属履歴は全部移したうえで `is_current` を
-最新 1 行に整理する。タレント情報は連絡先と 1:1 のため、両方にある場合は例外で止める。
-
-吸収した側は物理削除せず `deleted_at` + `merged_into_contact_id` で閉じる（削除ポリシー）。
-
-### 21.8 ドライランで判定しないこと
-
-**法人の名寄せは法人を作る処理でもあるため、ドライランでは走らせられない。**
-そのため転職・異動の予測はドライランでは出さず、確定値を取込結果で返す。
-姓名の一致だけは文字列で確定するので、「同姓同名の連絡先が既にある」ことは事前に出す
-（`docs/contact-identity.md § 8`）。
+法人の名寄せ（`resolve_or_create_company`）は法人を**作る**処理でもあるため、
+ドライランでは走らせられない。所属の変化はドライランでは出さず、
+姓名の一致だけを事前に知らせる（`docs/contact-identity.md § 8`）。

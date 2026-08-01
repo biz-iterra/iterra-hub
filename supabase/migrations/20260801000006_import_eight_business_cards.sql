@@ -1,12 +1,17 @@
 -- ============================================================
--- 名刺取込で統合候補を検出する
+-- 名刺取込で business_cards を記録する
 --
--- 変更点（20260801000004 からの差分）:
---   - 連絡先が紐付いたときに detect_contact_merge_candidates を呼ぶ
---   - 戻り値に merge_candidate_count を足す
+-- 変更点（20260731000004 からの差分）:
+--   - 連絡先を解決したあと record_business_card を呼び、名刺をメール・電話の
+--     行に紐づけて残す
+--   - 姓名しか一致しない組を統合候補として記録する
+--   - 戻り値に card_count / merge_candidate_count を足す
 --
--- 姓名しか一致しない組は自動では統合しない。取り込んだうえで候補に挙げ、
--- 統合するかは人が判断する（docs/contact-identity.md § 4, § 9）。
+-- **連絡先の現在の所属（会社・部署・役職）は書き換えない。**
+-- Eight の「名刺交換日」は利用者が Eight にデータを登録した日であり、
+-- 在籍期間でも名刺情報の変更日でもないため、日付を根拠に所属を
+-- 切り替えることをしない。切り替えは人が名刺を選んで行う
+-- （apply_business_card_as_current）。docs/contact-identity.md § 5
 -- ============================================================
 
 CREATE OR REPLACE FUNCTION import_eight_leads(
@@ -46,23 +51,18 @@ DECLARE
   v_company_id     UUID;
   v_contact_id     UUID;
 
-  -- 所属の反映
-  v_exchanged_on    DATE;
-  v_prev_company_id UUID;
-  v_aff_result      TEXT;
-  v_memo_type       UUID;
-  v_old_lead        RECORD;
-  v_memo            TEXT;
-
-  v_created      INTEGER := 0;
-  v_updated      INTEGER := 0;
-  v_skipped      INTEGER := 0;
-  v_error        INTEGER := 0;
-  v_transferred  INTEGER := 0;
-  v_reassigned   INTEGER := 0;
-  v_candidates   INTEGER := 0;
-  -- 連絡先を今回紐付けたかどうか。候補検出を走らせる判断に使う
+  -- 名刺の記録
+  v_card_id          UUID;
+  v_registered_on    DATE;
+  -- 連絡先を今回紐付けたか。統合候補の検出を走らせる判断に使う
   v_contact_was_null BOOLEAN;
+
+  v_created     INTEGER := 0;
+  v_updated     INTEGER := 0;
+  v_skipped     INTEGER := 0;
+  v_error       INTEGER := 0;
+  v_cards       INTEGER := 0;
+  v_candidates  INTEGER := 0;
 BEGIN
   IF v_imported_by IS NULL THEN
     RAISE EXCEPTION 'imported_by が指定されていません';
@@ -77,9 +77,6 @@ BEGIN
   IF v_activity_type IS NULL OR v_call_status_id IS NULL THEN
     RAISE EXCEPTION '対応種別 / 通電状況の既定値が解決できていません';
   END IF;
-
-  -- 転職メモ用。無ければ名刺交換と同じ種別で残す
-  SELECT id INTO v_memo_type FROM lead_activity_types WHERE code = 'memo' LIMIT 1;
 
   -- ── バッチ ────────────────────────────────────────────────────────────────
   INSERT INTO lead_import_batches (
@@ -104,8 +101,9 @@ BEGIN
      WHERE source_external_key = (v_item ->> 'external_key')
        AND deleted_at IS NULL;
 
-    -- この名刺の交換日。複数回交換していれば最新を所属の起点にする
-    SELECT MAX((a ->> 'exchanged_on')::DATE) INTO v_exchanged_on
+    -- Eight へ登録した日。**在籍期間ではない**ので所属の順序には使わない。
+    -- 複数回登録されていれば最後のものを名刺の記録日として持つ
+    SELECT MAX((a ->> 'exchanged_on')::DATE) INTO v_registered_on
       FROM jsonb_array_elements(COALESCE(v_item -> 'activities', '[]'::JSONB)) a
      WHERE NULLIF(a ->> 'exchanged_on', '') IS NOT NULL;
 
@@ -160,8 +158,6 @@ BEGIN
       -- ── 既存を補完（空欄のみ）──
       -- CRM 側で入力・修正された値を名刺の値で上書きしないため COALESCE の
       -- 左に既存値を置く。ステージ / ステータス / 担当者は運用中の状態なので触らない。
-      -- 所属（会社・部署・役職）だけは名刺の方が新しければ後段で上書きする
-      -- （docs/contact-identity.md § 7）。
       v_lead_id := v_existing_id;
 
       UPDATE leads SET
@@ -235,71 +231,27 @@ BEGIN
        WHERE id = v_lead_id;
     END IF;
 
-    -- ── 所属（転職・異動）────────────────────────────────────────────────
-    -- 名刺は「その時点の所属」。交換日が現在の所属の開始日より新しいときだけ
-    -- 現在の所属を切り替え、古い名刺は履歴にだけ残す。
+    -- ── 名刺 ──────────────────────────────────────────────────────────────
+    -- 所属（会社・部署・役職）は名刺の属性として残し、メール・電話の行に紐づける。
+    -- **連絡先の現在の所属は書き換えない。** 登録日は在籍期間を表さないため、
+    -- どの名刺を現在の所属とするかは人が決める
     IF v_contact_id IS NOT NULL THEN
-      -- 転職メモの宛先を決めるため、切り替わる前の会社を控える
-      SELECT company_id INTO v_prev_company_id
-        FROM contact_affiliations
-       WHERE contact_id = v_contact_id AND is_current;
-
-      v_aff_result := apply_contact_affiliation(
+      v_card_id := record_business_card(
         v_contact_id,
         v_company_id,
         v_lead_row.company_name,
         v_lead_row.contact_department,
         v_lead_row.contact_job_title,
-        v_exchanged_on,
-        'business_card',
-        NULL,
+        v_lead_row.contact_email,
+        v_lead_row.contact_phone,
+        v_lead_row.address_id,
+        'eight',
+        v_item ->> 'external_key',
+        v_registered_on,
         v_imported_by
       );
-
-      IF v_aff_result = 'transferred' THEN
-        v_transferred := v_transferred + 1;
-
-        -- 旧所属のリードに気付けるようメモを残す。
-        -- ステージ・ステータスは動かさない（後任への引き継ぎ営業があり得るため）
-        IF v_prev_company_id IS NOT NULL THEN
-          v_memo := format(
-            '担当者が %s へ転職（名刺交換日: %s）',
-            COALESCE(v_lead_row.company_name, '別の会社'),
-            COALESCE(v_exchanged_on::TEXT, '不明')
-          );
-
-          FOR v_old_lead IN
-            SELECT id FROM leads
-             WHERE contact_id = v_contact_id
-               AND company_id = v_prev_company_id
-               AND id <> v_lead_id
-               AND deleted_at IS NULL
-          LOOP
-            -- 再取込で同じメモを積み増さない
-            CONTINUE WHEN EXISTS (
-              SELECT 1 FROM lead_activities
-               WHERE lead_id = v_old_lead.id AND note = v_memo
-            );
-
-            SELECT COALESCE(MAX(call_number), 0) + 1 INTO v_call_number
-              FROM lead_activities WHERE lead_id = v_old_lead.id;
-
-            INSERT INTO lead_activities (
-              lead_id, call_number, called_on, caller_user_id,
-              activity_type_id, call_status_id, note
-            ) VALUES (
-              v_old_lead.id,
-              v_call_number,
-              COALESCE(v_exchanged_on, CURRENT_DATE),
-              v_owner_id,
-              COALESCE(v_memo_type, v_activity_type),
-              v_call_status_id,
-              v_memo
-            );
-          END LOOP;
-        END IF;
-      ELSIF v_aff_result = 'reassigned' THEN
-        v_reassigned := v_reassigned + 1;
+      IF v_card_id IS NOT NULL THEN
+        v_cards := v_cards + 1;
       END IF;
 
       -- 姓名しか一致しない別会社の連絡先を候補として拾う。
@@ -309,9 +261,9 @@ BEGIN
       END IF;
     END IF;
 
-    -- ── 名刺交換の履歴 ──
-    -- 同一人物と複数回交換した分をすべて記録する。
-    -- 同じ日付の重複記録は作らない（再取込しても増えない）
+    -- ── 名刺データの登録履歴 ──
+    -- Eight にデータを登録した日を活動として残す。**名刺を交換した日ではない**ので
+    -- 文言でそう分かるようにする。同じ日付の重複記録は作らない（再取込しても増えない）
     FOR v_act IN SELECT * FROM jsonb_array_elements(COALESCE(v_item -> 'activities', '[]'::JSONB))
     LOOP
       IF (v_act ->> 'exchanged_on') IS NULL THEN
@@ -341,7 +293,7 @@ BEGIN
         v_owner_id,
         v_activity_type,
         v_call_status_id,
-        '名刺交換（Eight からの取込）'
+        '名刺データの登録（Eight）'
       );
     END LOOP;
 
@@ -385,17 +337,16 @@ BEGIN
   WHERE id = v_batch_id;
 
   RETURN jsonb_build_object(
-    'batch_id',          v_batch_id,
-    'created_count',     v_created,
-    'updated_count',     v_updated,
-    'skipped_count',     v_skipped,
-    'error_count',       v_error,
-    'transferred_count', v_transferred,
-    'reassigned_count',  v_reassigned,
+    'batch_id',      v_batch_id,
+    'created_count', v_created,
+    'updated_count', v_updated,
+    'skipped_count', v_skipped,
+    'error_count',   v_error,
+    'card_count',    v_cards,
     'merge_candidate_count', v_candidates
   );
 END;
 $$;
 
 COMMENT ON FUNCTION import_eight_leads(JSONB, JSONB, JSONB, JSONB) IS
-  'Eight 名刺 CSV の取込。addresses/leads/companies/contacts/contact_affiliations/lead_activities/lead_import_records を単一トランザクションで書く。名刺交換日を所属の起点として転職・異動を反映し、姓名のみ一致する連絡先は統合候補として記録する';
+  'Eight 名刺 CSV の取込。addresses/leads/companies/contacts/business_cards/lead_activities/lead_import_records を単一トランザクションで書く。連絡先の現在の所属は書き換えない（登録日が在籍期間を表さないため）';

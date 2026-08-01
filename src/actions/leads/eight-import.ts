@@ -74,10 +74,8 @@ export type EightImportResult = {
   createdCount: number;
   updatedCount: number;
   errorCount: number;
-  /** 所属先が変わった連絡先の数（転職） */
-  transferredCount: number;
-  /** 同じ会社で部署・役職が変わった連絡先の数（異動） */
-  reassignedCount: number;
+  /** 記録した名刺の枚数 */
+  cardCount: number;
   /** 姓名だけが一致し、同一人物か判断が要る組の数 */
   mergeCandidateCount: number;
 };
@@ -478,8 +476,7 @@ export async function commitEightImport(
     created_count: number;
     updated_count: number;
     error_count: number;
-    transferred_count?: number;
-    reassigned_count?: number;
+    card_count?: number;
     merge_candidate_count?: number;
   };
 
@@ -501,8 +498,7 @@ export async function commitEightImport(
       createdCount: result.created_count,
       updatedCount: result.updated_count,
       errorCount: result.error_count,
-      transferredCount: result.transferred_count ?? 0,
-      reassignedCount: result.reassigned_count ?? 0,
+      cardCount: result.card_count ?? 0,
       mergeCandidateCount: result.merge_candidate_count ?? 0,
     },
     error: null,

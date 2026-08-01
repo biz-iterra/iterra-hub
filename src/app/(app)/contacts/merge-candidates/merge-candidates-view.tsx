@@ -204,7 +204,7 @@ function buildMessage(
   const moved = [
     p.emails && `メール ${p.emails} 件`,
     p.phones && `電話 ${p.phones} 件`,
-    p.affiliations && `所属履歴 ${p.affiliations} 件`,
+    p.cards && `名刺 ${p.cards} 枚`,
     p.leads && `リード ${p.leads} 件`,
     p.deals && `商談 ${p.deals} 件`,
     p.contracts && `契約 ${p.contracts} 件`,

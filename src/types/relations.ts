@@ -118,22 +118,26 @@ export type ContactWithRelations = Row<"contacts"> & {
 };
 
 /**
- * 所属履歴の 1 行（contact_affiliations）。
- * 名刺交換日を起点に、その時点の会社・部署・役職を時系列で持つ。
+ * 名刺 1 枚（business_cards）。
+ *
+ * 所属（会社・部署・役職）は名刺の属性として持ち、その名刺のメール・電話に紐づく。
+ * `source_registered_on` は**取込元にデータを登録した日**で、在籍期間でも
+ * 名刺を交換した日でもない（docs/contact-identity.md）。
  */
-export type ContactAffiliationRef = Ref<
-  "contact_affiliations",
+export type BusinessCardRef = Ref<
+  "business_cards",
   | "id"
   | "company_id"
   | "company_name_raw"
   | "department"
   | "job_title"
-  | "started_on"
-  | "ended_on"
-  | "is_current"
   | "source"
+  | "source_registered_on"
+  | "is_primary"
 > & {
   company: NamedRef | null;
+  contact_email: Ref<"contact_emails", "id" | "email"> | null;
+  contact_phone: Ref<"contact_phones", "id" | "phone"> | null;
 };
 
 /** 統合候補の判断材料として見せる連絡先の情報 */
@@ -168,7 +172,7 @@ export type ContactMergeCandidate = Ref<
 export type ContactMergePreview = {
   emails: number;
   phones: number;
-  affiliations: number;
+  cards: number;
   accounts: number;
   leads: number;
   deals: number;
@@ -181,9 +185,9 @@ export type ContactMergePreview = {
   talent_conflict: boolean;
 };
 
-/** contacts.ts の getContact に対応（タレント・診断・所属アカウント・所属履歴を含む） */
+/** contacts.ts の getContact に対応（タレント・診断・所属アカウント・名刺を含む） */
 export type ContactDetail = ContactWithRelations & {
-  contact_affiliations: ContactAffiliationRef[];
+  business_cards: BusinessCardRef[];
   talent:
     | (Row<"talents"> & {
         talent_skills: (Row<"talent_skills"> & {

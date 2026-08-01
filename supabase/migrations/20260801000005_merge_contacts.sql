@@ -23,7 +23,7 @@ AS $$
   SELECT jsonb_build_object(
     'emails',        (SELECT count(*) FROM contact_emails            WHERE contact_id = p_merge),
     'phones',        (SELECT count(*) FROM contact_phones            WHERE contact_id = p_merge),
-    'affiliations',  (SELECT count(*) FROM contact_affiliations      WHERE contact_id = p_merge),
+    'cards',         (SELECT count(*) FROM business_cards           WHERE contact_id = p_merge),
     'accounts',      (SELECT count(*) FROM account_contacts          WHERE contact_id = p_merge),
     'leads',         (SELECT count(*) FROM leads                     WHERE contact_id = p_merge OR promoted_contact_id = p_merge),
     'deals',         (SELECT count(*) FROM deals                     WHERE contact_id = p_merge),
@@ -126,22 +126,17 @@ BEGIN
      );
   DELETE FROM email_message_contacts WHERE contact_id = p_merge;
 
-  -- ── 所属履歴: すべて移し、現在の所属は最新の 1 行だけにする ──
-  UPDATE contact_affiliations SET is_current = FALSE
-   WHERE contact_id IN (p_keep, p_merge) AND is_current;
+  -- ── 名刺: すべて移す ──
+  -- 採用済みの印は残す側のものを優先する。**現在の所属は勝手に切り替えない**
+  -- （名刺の登録日は在籍期間を表さないため。docs/contact-identity.md）。
+  -- 残す側に印が無いときだけ、吸収した側の印を引き継ぐ
+  IF EXISTS (SELECT 1 FROM business_cards WHERE contact_id = p_keep AND is_primary) THEN
+    UPDATE business_cards SET is_primary = FALSE
+     WHERE contact_id = p_merge AND is_primary;
+  END IF;
 
-  UPDATE contact_affiliations SET contact_id = p_keep, last_updated_by = v_actor
+  UPDATE business_cards SET contact_id = p_keep, last_updated_by = v_actor
    WHERE contact_id = p_merge;
-
-  UPDATE contact_affiliations SET is_current = TRUE
-   WHERE id = (
-     SELECT id FROM contact_affiliations
-      WHERE contact_id = p_keep
-      ORDER BY started_on DESC NULLS LAST, created_at DESC
-      LIMIT 1
-   );
-
-  PERFORM sync_contact_current_affiliation(p_keep);
 
   -- ── 単純な付け替え ──
   UPDATE leads     SET contact_id = p_keep          WHERE contact_id = p_merge;

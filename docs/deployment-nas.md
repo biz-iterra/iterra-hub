@@ -977,7 +977,10 @@ standalone の Next は Host ヘッダを信用せず、サーバーの `HOSTNAM
 `https://0.0.0.0/api/gmail/callback` を Google へ送っていた。IP アドレスのリダイレクト先は
 Google のポリシーで禁止されているため、URI の登録有無に関係なく弾かれる。
 
-- 画面内のリダイレクトは Next が相対 URL に畳むので**表面化しない**。外部へ渡す URL だけが壊れる
+- **middleware と Route Handler で挙動が違う。** middleware の `NextResponse.redirect` は
+  同一オリジンなら相対 URL に畳まれるため表面化しない。Route Handler は絶対 URL を
+  そのまま `Location` に入れるので、連携後に `https://0.0.0.0:3000/profile` へ飛ばされた
+  （redirect_uri を直した後にこれが残っていた）。**画面へ戻すリダイレクトも公開 URL 基準にする**
 - 開発機は直アクセスで正しい値になるため、ローカルでは再現しない
 - 対処: `.env` に `APP_ORIGIN=https://hub.iterra.online` を設定する。
   実装は `src/lib/app-origin.ts`（未設定かつリクエスト由来の値も使えない場合は、

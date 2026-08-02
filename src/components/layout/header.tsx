@@ -23,6 +23,7 @@ const pathLabels: Record<string, string> = {
   // サイドバーと画面内の戻りリンクは「マスタ・取込」。パンくずだけ「管理」だった
   "/admin": "マスタ・取込",
   "/admin/deleted": "削除済みレコード",
+  "/admin/members": "社内メンバー",
   "/profile": "プロフィール設定",
 };
 

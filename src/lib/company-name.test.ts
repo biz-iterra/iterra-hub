@@ -3,6 +3,7 @@ import {
   detectCorporateType,
   expandCorporateAbbreviations,
   formatCompanyName,
+  stripCorporateType,
 } from "./company-name";
 
 /**
@@ -77,6 +78,54 @@ describe("formatCompanyName", () => {
 
   it("前後の空白を落とす", () => {
     expect(formatCompanyName("  ㈱テスト  ")).toBe("株式会社テスト");
+  });
+});
+
+describe("stripCorporateType", () => {
+  it("前株・後株のどちらでも同じ結果になる", () => {
+    expect(stripCorporateType("株式会社大和食品工業")).toBe("大和食品工業");
+    expect(stripCorporateType("大和食品工業株式会社")).toBe("大和食品工業");
+  });
+
+  it("略記も落とす", () => {
+    expect(stripCorporateType("㈱ワンエイト")).toBe("ワンエイト");
+    expect(stripCorporateType("（財）災害科学研究所")).toBe("災害科学研究所");
+  });
+
+  it("法人格を落とした後に頭へ残る記号を取り除く", () => {
+    expect(stripCorporateType("(一般㈶)秋田県建設技術センター")).toBe(
+      "秋田県建設技術センター"
+    );
+  });
+
+  it("長い綴りを先に当てる", () => {
+    // 「独立行政法人」が先に当たると「地方」が残ってしまう
+    expect(stripCorporateType("地方独立行政法人鳥取県産業技術センター")).toBe(
+      "鳥取県産業技術センター"
+    );
+    expect(stripCorporateType("独立行政法人中小企業基盤整備機構")).toBe(
+      "中小企業基盤整備機構"
+    );
+  });
+
+  it("中身が法人格だけになった括弧を残さない", () => {
+    expect(stripCorporateType("鳥取県産業技術センター（地方独立行政法人）")).toBe(
+      "鳥取県産業技術センター"
+    );
+  });
+
+  it("全角の法人格も落とす", () => {
+    expect(stripCorporateType("ＮＰＯ法人 埼玉ＩＴコーディネータ")).toBe(
+      "埼玉ＩＴコーディネータ"
+    );
+  });
+
+  it("法人格が無い名称はそのまま", () => {
+    expect(stripCorporateType("やまだ商店")).toBe("やまだ商店");
+  });
+
+  it("空値は空文字", () => {
+    expect(stripCorporateType(null)).toBe("");
   });
 });
 

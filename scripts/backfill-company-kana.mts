@@ -7,14 +7,24 @@
  * **読みは正確とは限らない。** 人が入れた値は触らない（空欄だけを対象にする）。
  *
  * 実行:
- *   npx tsx scripts/backfill-company-kana.mts          … 反映する
+ *   npx tsx scripts/backfill-company-kana.mts           … 空欄を埋める
+ *   npx tsx scripts/backfill-company-kana.mts --rebuild … 法人格が入ってしまった分も作り直す
  *   npx tsx scripts/backfill-company-kana.mts --dry-run … 内容だけ見る
  */
 import { readFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
+import { stripCorporateType } from "@/lib/company-name";
 import { toKatakanaReading } from "@/lib/kana";
 
 const dryRun = process.argv.includes("--dry-run");
+const rebuild = process.argv.includes("--rebuild");
+
+/**
+ * 読みに現れる法人格。--rebuild ではこれを含むフリガナだけを作り直す。
+ * 人が入れた「法人格を含まないフリガナ」を上書きしないため。
+ */
+const KANA_CORPORATE_FORMS =
+  /カブシキ[ガカ]イシャ|ユウゲン[ガカ]イシャ|ゴウドウ[ガカ]イシャ|ゴウシ[ガカ]イシャ|ゴウメイ[ガカ]イシャ|ホウジン|キョウドウクミアイ/;
 
 const env: Record<string, string> = {};
 // CRLF のファイルを "\n" で割ると行末の \r が残るため \r?\n で分割する
@@ -26,13 +36,18 @@ const db = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_
 
 // PostgREST は 1 回に 1000 行しか返さない。ページを送って全件を集める
 const PAGE = 1000;
-const targets: { id: string; name: string }[] = [];
+const targets: { id: string; name: string; name_kana: string | null }[] = [];
 for (let from = 0; ; from += PAGE) {
-  const { data, error } = await db
+  let query = db
     .from("companies")
-    .select("id, name")
-    .is("deleted_at", null)
-    .or("name_kana.is.null,name_kana.eq.")
+    .select("id, name, name_kana")
+    .is("deleted_at", null);
+
+  // 通常は空欄だけ。--rebuild では埋まっているものも見て、
+  // 法人格が入ってしまったものだけを対象にする
+  if (!rebuild) query = query.or("name_kana.is.null,name_kana.eq.");
+
+  const { data, error } = await query
     .order("created_at")
     .range(from, from + PAGE - 1);
 
@@ -54,11 +69,24 @@ const CONCURRENCY = 20;
 const pending: { id: string; reading: string }[] = [];
 
 for (const c of targets) {
-  const reading = await toKatakanaReading(c.name);
+  // 既に人が入れたフリガナ（法人格を含まないもの）は触らない
+  if (c.name_kana && !KANA_CORPORATE_FORMS.test(c.name_kana)) {
+    skipped += 1;
+    continue;
+  }
 
-  // 読みが引けない（記号だけの社名など）ものは空欄のままにする。
-  // 表記と同じ結果しか出ないなら入れても手掛かりにならない
-  if (!reading || reading === c.name) {
+  // フリガナは事業者の呼び名なので法人格は含めない
+  const base = stripCorporateType(c.name);
+  const reading = await toKatakanaReading(base);
+
+  if (!reading || reading === c.name_kana) {
+    skipped += 1;
+    continue;
+  }
+
+  // 空欄に入れる場合だけ、表記と同じ結果しか出ないものを見送る
+  // （手掛かりにならないため）。既に入っているものは法人格を落とすだけでも意味がある
+  if (!c.name_kana && reading === base) {
     skipped += 1;
     continue;
   }

@@ -1,6 +1,10 @@
 "use server";
 
-import { detectCorporateType, formatCompanyName } from "@/lib/company-name";
+import {
+  detectCorporateType,
+  formatCompanyName,
+  stripCorporateType,
+} from "@/lib/company-name";
 import { toKatakanaReading } from "@/lib/kana";
 import { createClient } from "@/lib/supabase/server";
 import { conflictErrorMessage } from "@/lib/validators/common";
@@ -46,9 +50,10 @@ async function applyCompanyNameRules<
   const name = formatCompanyName(values.name);
   const result: T = { ...values, name };
 
-  // フリガナは読みの下書き。正確とは限らないので人の入力を上書きしない
+  // フリガナは読みの下書き。正確とは限らないので人の入力を上書きしない。
+  // 法人格は呼び名に含めないので落としてから読む
   if (!result.name_kana?.trim()) {
-    const reading = await toKatakanaReading(name);
+    const reading = await toKatakanaReading(stripCorporateType(name));
     if (reading) result.name_kana = reading;
   }
 
@@ -67,7 +72,7 @@ async function applyCompanyNameRules<
  * 会社名からフリガナの下書きを作る。
  *
  * 形態素解析の読みなので**正確とは限らない**。画面では編集できる状態で見せ、
- * 人が直せるようにする。
+ * 人が直せるようにする。法人格は呼び名に含めない。
  */
 export async function suggestCompanyKana(
   name: string
@@ -75,7 +80,7 @@ export async function suggestCompanyKana(
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
-  return { data: await toKatakanaReading(formatCompanyName(name)), error: null };
+  return { data: await toKatakanaReading(stripCorporateType(name)), error: null };
 }
 
 // 一覧取得（検索・ページネーション対応）

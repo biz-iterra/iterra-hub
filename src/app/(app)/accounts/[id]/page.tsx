@@ -1,4 +1,12 @@
-import { getAccount, updateAccount } from "@/actions/accounts";
+import {
+  getAccount,
+  updateAccount,
+  addAccountContact,
+  removeAccountContact,
+} from "@/actions/accounts";
+import { getContacts } from "@/actions/contacts";
+import { RelationListSection } from "@/components/ui/RelationListSection";
+import { ACCOUNT_CONTACT_ROLES, accountContactRoleLabel } from "@/lib/account-contact-roles";
 import { getCompanies } from "@/actions/companies";
 import { getCrmUsers, getCurrentUser } from "@/actions/users";
 import { buildCompanyOptions } from "@/lib/company-options";
@@ -111,12 +119,14 @@ export default async function AccountDetailPage({
   const [
     { data: account, error },
     { data: companiesResult },
+    { data: contactsResult },
     { data: users },
     { data: me },
   ] = await Promise.all([
     getAccount(id),
     // 紐づけの付け替え用。編集ページと同じ範囲を出す
     getCompanies({ perPage: 1000 }),
+    getContacts({ perPage: 1000 }),
     getCrmUsers(),
     getCurrentUser(),
   ]);
@@ -136,15 +146,29 @@ export default async function AccountDetailPage({
     );
   }
 
-  const contacts =
-    a.contacts
-      ?.map((ac) => ({
-        ...ac.contact,
-        role: ac.role,
-      }))
-      .filter((c) => c && c.deleted_at === null) ?? [];
+  const contacts = (a.contacts ?? [])
+    .filter((ac) => ac.contact && ac.contact.deleted_at === null)
+    .map((ac) => ({ ...ac.contact!, role: ac.role }));
 
   const deals = a.deals ?? [];
+
+  const linkedContactIds = new Set(contacts.map((c) => c.id).filter(Boolean) as string[]);
+
+  async function addContact(contactId: string, role?: string) {
+    "use server";
+    const { error: saveError } = await addAccountContact({
+      account_id: id,
+      contact_id: contactId,
+      role: (role ?? null) as "primary" | "billing" | "technical" | "other" | null,
+    });
+    return { error: saveError };
+  }
+
+  async function removeContact(contactId: string) {
+    "use server";
+    const { error: saveError } = await removeAccountContact(id, contactId);
+    return { error: saveError };
+  }
 
   // 紐づけの付け替え。編集ページ側からは外してあり、ここが唯一の入口になる
   const canEdit = me?.role === "admin" || a.owner_user_id === me?.id;
@@ -338,60 +362,33 @@ export default async function AccountDetailPage({
 
         {/* ======== Right ======== */}
         <div style={sectionStackStyle}>
+          {/* 連絡先と取引先はどちらが親とも言えないので、両側から足し外しできる */}
           <DetailSection title="連絡先一覧" icon={Users}>
-            {contacts.length > 0 ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-                {contacts.map((contact) => (
-                  <div
-                    key={contact.id}
-                    style={{
-                      borderBottom: "1px solid var(--color-border-default)",
-                      paddingBottom: "0.5rem",
-                    }}
-                  >
-                    <EntityLink href={`/contacts/${contact.id}`} compact>
-                      {contact.last_name} {contact.first_name}
-                    </EntityLink>
-                    {(contact.department || contact.job_title) && (
-                      <span
-                        style={{
-                          display: "block",
-                          color: "var(--color-sumi600)",
-                          fontSize: "0.75rem",
-                          marginTop: "0.125rem",
-                        }}
-                      >
-                        {[contact.department, contact.job_title]
-                          .filter(Boolean)
-                          .join(" / ")}
-                      </span>
-                    )}
-                    {contact.company?.name && (
-                      <span
-                        style={{
-                          display: "block",
-                          color: "var(--color-sumi600)",
-                          fontSize: "0.75rem",
-                          marginTop: "0.125rem",
-                        }}
-                      >
-                        {contact.company.name}
-                      </span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p
-                style={{
-                  color: "var(--color-sumi400)",
-                  fontSize: "0.875rem",
-                  margin: 0,
-                }}
-              >
-                —
-              </p>
-            )}
+            <RelationListSection
+              label="連絡先一覧"
+              rows={contacts.map((c) => ({
+                id: c.id,
+                href: `/contacts/${c.id}`,
+                label: [c.last_name, c.first_name].filter(Boolean).join(" ") || "—",
+                code: [c.department, c.job_title].filter(Boolean).join(" / ") || null,
+                badge: accountContactRoleLabel(c.role),
+              }))}
+              options={(contactsResult?.rows ?? [])
+                .filter((c) => !linkedContactIds.has(c.id))
+                .map((c) => ({
+                  value: c.id,
+                  label:
+                    [c.last_name, c.first_name].filter(Boolean).join(" ") || "(無名)",
+                }))}
+              extra={{
+                label: "区分",
+                options: ACCOUNT_CONTACT_ROLES,
+                defaultValue: "other",
+              }}
+              onAdd={addContact}
+              onRemove={removeContact}
+              editable={canEdit}
+            />
           </DetailSection>
         </div>
       </div>

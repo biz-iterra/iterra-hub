@@ -255,10 +255,10 @@ export default async function ContractDetailPage({
             >
               <InfoField
                 label="契約相手先区分"
-                value={contract.counterparty_type === "corporate" ? "法人" : "個人"}
+                value={contract.counterparty_type === "company" ? "法人" : "個人"}
               />
 
-              {contract.counterparty_type === "corporate" ? (
+              {contract.counterparty_type === "company" ? (
                 <>
                   <RelationField
                     label="事業者情報"

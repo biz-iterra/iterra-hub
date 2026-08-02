@@ -1,4 +1,13 @@
-import { getDeal, updateDeal } from "@/actions/deals";
+import {
+  getDeal,
+  updateDeal,
+  addDealService,
+  removeDealService,
+} from "@/actions/deals";
+import { getProjects, addDealProject, removeDealProject } from "@/actions/projects";
+import { getServices } from "@/actions/masters";
+import { RelationMultiField } from "@/components/ui/RelationMultiField";
+import { RelationListSection } from "@/components/ui/RelationListSection";
 import { getAccounts } from "@/actions/accounts";
 import { getCrmUsers, getCurrentUser } from "@/actions/users";
 import { RelationField } from "@/components/ui/RelationField";
@@ -10,6 +19,7 @@ import {
   ClipboardList,
   Clock,
   FileText,
+  FolderKanban,
   Handshake,
   Layers,
   ListChecks,
@@ -110,11 +120,20 @@ export default async function DealDetailPage({
     );
   }
 
-  const [{ data: deal, error }, { data: accountsResult }, { data: users }, { data: me }] =
+  const [
+    { data: deal, error },
+    { data: accountsResult },
+    { data: projectsResult },
+    { data: serviceMaster },
+    { data: users },
+    { data: me },
+  ] =
     await Promise.all([
       getDeal(id),
       // 紐づけの付け替え用。編集ページと同じ範囲を出す
       getAccounts({ perPage: 1000 }),
+      getProjects({ perPage: 1000 }),
+      getServices(),
       getCrmUsers(),
       getCurrentUser(),
     ]);
@@ -152,6 +171,48 @@ export default async function DealDetailPage({
   }
 
   const services = deal.deal_services ?? [];
+  const linkedProjects = (deal.deal_projects ?? []).filter(
+    (dp) => dp.project && dp.project.deleted_at === null
+  );
+  const linkedProjectIds = new Set(linkedProjects.map((dp) => dp.project!.id));
+
+  /**
+   * 商談で扱うサービス。中間テーブルを 1 行ずつ足し外しする API しか無いので、
+   * 選び直しの結果と今の状態の差分だけを送る。
+   */
+  async function saveServices(values: string[]) {
+    "use server";
+    const current = new Set(
+      (deal?.deal_services ?? []).map((ds) => ds.service?.id).filter(Boolean) as string[]
+    );
+    const next = new Set(values);
+    for (const serviceId of next) {
+      if (current.has(serviceId)) continue;
+      const { error: addError } = await addDealService({
+        deal_id: id,
+        service_id: serviceId,
+      });
+      if (addError) return { error: addError };
+    }
+    for (const serviceId of current) {
+      if (next.has(serviceId)) continue;
+      const { error: removeError } = await removeDealService(id, serviceId);
+      if (removeError) return { error: removeError };
+    }
+    return { error: null };
+  }
+
+  async function addProject(projectId: string) {
+    "use server";
+    const { error: saveError } = await addDealProject({ deal_id: id, project_id: projectId });
+    return { error: saveError };
+  }
+
+  async function removeProject(projectId: string) {
+    "use server";
+    const { error: saveError } = await removeDealProject(id, projectId);
+    return { error: saveError };
+  }
   const contracts = deal.contracts ?? [];
   const activities = deal.deal_activities ?? [];
 
@@ -323,24 +384,43 @@ export default async function DealDetailPage({
             </div>
           </DetailSection>
 
+          {/* サービスはマスタへの紐づけ。詳細ページを持たないのでチップで選ぶ */}
           <DetailSection title="サービス" icon={ListChecks}>
-            {services.length === 0 ? (
-              <p
-                style={{
-                  color: "var(--color-sumi400)",
-                  fontSize: "0.875rem",
-                  margin: 0,
-                }}
-              >
-                —
-              </p>
-            ) : (
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
-                {services.map((ds) => (
-                  <LabelBadge key={ds.service?.id} name={ds.service?.name} />
-                ))}
-              </div>
-            )}
+            <RelationMultiField
+              label="扱うサービス"
+              values={
+                services.map((ds) => ds.service?.id).filter(Boolean) as string[]
+              }
+              options={(serviceMaster ?? []).map((sv) => ({
+                value: sv.id,
+                label: sv.name,
+              }))}
+              action={saveServices}
+              editable={canEdit}
+            />
+          </DetailSection>
+
+          {/* 商談とプロジェクトは多対多。編集ページから移した */}
+          <DetailSection title="プロジェクト" icon={FolderKanban}>
+            <RelationListSection
+              label="プロジェクト"
+              rows={linkedProjects.map((dp) => ({
+                id: dp.project!.id,
+                href: `/projects/${dp.project!.id}`,
+                label: dp.project!.name,
+                code: dp.project!.project_code,
+                badge: dp.project!.project_status?.name,
+              }))}
+              options={(projectsResult?.rows ?? [])
+                .filter((pj) => !linkedProjectIds.has(pj.id))
+                .map((pj) => ({
+                  value: pj.id,
+                  label: pj.project_code ? `${pj.project_code} ${pj.name}` : pj.name,
+                }))}
+              onAdd={addProject}
+              onRemove={removeProject}
+              editable={canEdit}
+            />
           </DetailSection>
 
           <DetailSection title="契約" icon={FileText}>

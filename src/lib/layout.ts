@@ -7,7 +7,6 @@
  * 種別で分けている理由:
  *   一覧   … 列が多く、横スクロールを増やしたくないので幅を制限しない
  *   詳細   … 2 カラム構成が主。広すぎると視線移動が大きくなる
- *   フォーム … 1 行が長いと読みづらく、入力欄も間延びする
  *
  * 余白は layout.tsx の p-6 が持つ。ページ側で padding を足すと
  * 一覧と詳細で余白がずれるため、コンテナには padding を入れない。
@@ -18,8 +17,14 @@ import type { CSSProperties } from "react";
 /** 詳細ページ */
 export const DETAIL_MAX_WIDTH = 1280;
 
-/** 編集・新規作成などのフォームページ */
-export const FORM_MAX_WIDTH = 960;
+/**
+ * 編集・新規作成などのフォームページ。
+ *
+ * **詳細ページと同じ幅にしてある。** 以前はフォームだけ 960 に絞っていたが、
+ * 詳細から編集へ移るたびに本文が縮んで、同じものを見ている感覚が切れていた。
+ * 1 行が伸びすぎないかは各フォームの grid（2 列）が受け持つ。
+ */
+export const FORM_MAX_WIDTH = DETAIL_MAX_WIDTH;
 
 /** 詳細ページのコンテナ */
 export const detailContainerStyle: CSSProperties = {

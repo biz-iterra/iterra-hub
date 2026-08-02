@@ -7,8 +7,6 @@ import {
 } from "@/actions/masters";
 import { getCurrentUser } from "@/actions/users";
 import { DealEditForm } from "./deal-edit-form";
-import { DealProjectsSection } from "./deal-projects-section";
-import { formContainerStyle } from "@/lib/layout";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -105,28 +103,23 @@ export default async function DealEditPage({
   const isAdmin = meResult.data?.role === "admin";
 
   return (
-    <>
-      <DealEditForm
-        deal={{
-          id: deal.id,
-          name: deal.name,
-          pipeline_type_id: deal.pipeline_type_id,
-          deal_stage_id: deal.deal_stage_id,
-          deal_status_id: deal.deal_status_id,
-          amount: deal.amount,
-          contract_name: deal.contract_name,
-          application_date: deal.application_date,
-          review_completed_date: deal.review_completed_date,
-          expected_close_date: deal.expected_close_date,
-          closed_at: deal.closed_at,
-          updated_at: deal.updated_at,
-        }}
-        masters={masters}
-        isAdmin={isAdmin}
-      />
-      <div style={formContainerStyle}>
-        <DealProjectsSection dealId={deal.id} initialProjects={deal.deal_projects ?? []} />
-      </div>
-    </>
+    <DealEditForm
+      deal={{
+        id: deal.id,
+        name: deal.name,
+        pipeline_type_id: deal.pipeline_type_id,
+        deal_stage_id: deal.deal_stage_id,
+        deal_status_id: deal.deal_status_id,
+        amount: deal.amount,
+        contract_name: deal.contract_name,
+        application_date: deal.application_date,
+        review_completed_date: deal.review_completed_date,
+        expected_close_date: deal.expected_close_date,
+        closed_at: deal.closed_at,
+        updated_at: deal.updated_at,
+      }}
+      masters={masters}
+      isAdmin={isAdmin}
+    />
   );
 }

@@ -1,4 +1,14 @@
-import { getProject, updateProject } from "@/actions/projects";
+import {
+  getProject,
+  updateProject,
+  addProjectMember,
+  removeProjectMember,
+  addDealProject,
+  removeDealProject,
+} from "@/actions/projects";
+import { getDeals } from "@/actions/deals";
+import { RelationListSection } from "@/components/ui/RelationListSection";
+import { ProjectDealsSection } from "./project-deals-section";
 import { getCrmUsers, getCurrentUser } from "@/actions/users";
 import { RelationField } from "@/components/ui/RelationField";
 import Link from "next/link";
@@ -38,11 +48,14 @@ export default async function ProjectDetailPage({
     );
   }
 
-  const [{ data: project, error }, { data: users }, { data: me }] = await Promise.all([
-    getProject(id),
-    getCrmUsers(),
-    getCurrentUser(),
-  ]);
+  const [{ data: project, error }, { data: users }, { data: me }, { data: dealsResult }] =
+    await Promise.all([
+      getProject(id),
+      getCrmUsers(),
+      getCurrentUser(),
+      // 紐づけの付け替え用
+      getDeals({ perPage: 1000 }),
+    ]);
   if (error || !project) {
     return (
       <div style={{ padding: "2rem" }}>
@@ -79,6 +92,41 @@ export default async function ProjectDetailPage({
     .filter((d): d is ProjectDeal => d !== null && d.deleted_at === null);
   const members = project.project_members ?? [];
   const totalAmount = deals.reduce((sum, d) => sum + (d.amount ?? 0), 0);
+
+  // 紐づけの付け替え。プロジェクトの中身をいじるのは manager 以上
+  const canEdit = me?.role === "manager" || me?.role === "admin";
+  const memberUserIds = new Set(members.map((m) => m.user?.id).filter(Boolean) as string[]);
+  const linkedDealIds = new Set(deals.map((d) => d.id));
+
+  async function addMember(userId: string) {
+    "use server";
+    const { error: saveError } = await addProjectMember({
+      project_id: id,
+      user_id: userId,
+    });
+    return { error: saveError };
+  }
+
+  async function removeMember(userId: string) {
+    "use server";
+    const { error: saveError } = await removeProjectMember(id, userId);
+    return { error: saveError };
+  }
+
+  async function addDeal(dealId: string) {
+    "use server";
+    const { error: saveError } = await addDealProject({
+      deal_id: dealId,
+      project_id: id,
+    });
+    return { error: saveError };
+  }
+
+  async function removeDeal(dealId: string) {
+    "use server";
+    const { error: saveError } = await removeDealProject(dealId, id);
+    return { error: saveError };
+  }
 
   return (
     <div style={detailContainerStyle}>
@@ -181,139 +229,53 @@ export default async function ProjectDetailPage({
         </div>
 
         <div style={{ ...sectionStackStyle, minWidth: 0 }}>
-          {/* メンバー（閲覧のみ） */}
+          {/* メンバーは crm_users への紐づけ。編集ページから移した */}
           <DetailSection title={`メンバー（${members.length}名）`} icon={Users}>
-            {members.length > 0 ? (
-              <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-                {members.map((m) => (
-                  <li
-                    key={m.id}
-                    style={{
-                      padding: "0.5rem 0",
-                      borderBottom: "1px solid var(--color-border-default)",
-                    }}
-                  >
-                    <div style={{ fontSize: "0.875rem", color: "var(--color-text-body)" }}>
-                      {m.user?.full_name ?? "(不明)"}
-                    </div>
-                    {m.user?.role && (
-                      <div style={{ fontSize: "0.7rem", color: "var(--color-sumi600)" }}>
-                        {m.user.role}
-                      </div>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p style={{ color: "var(--color-sumi400)", fontSize: "0.875rem", margin: 0 }}>
-                メンバーなし
-              </p>
-            )}
-            <p
-              style={{
-                fontSize: "0.7rem",
-                color: "var(--color-sumi600)",
-                marginTop: "0.75rem",
-                marginBottom: 0,
-              }}
-            >
-              ※ 追加・解除は編集ページから
-            </p>
+            <RelationListSection
+              label="メンバー"
+              rows={members
+                .filter((m) => m.user)
+                .map((m) => ({
+                  id: m.user!.id,
+                  href: `/admin/members`,
+                  label: m.user!.full_name,
+                  badge: m.user!.role,
+                }))}
+              options={(users ?? [])
+                .filter((u) => !memberUserIds.has(u.id))
+                .map((u) => ({ value: u.id, label: u.full_name }))}
+              onAdd={addMember}
+              onRemove={removeMember}
+              editable={canEdit}
+            />
           </DetailSection>
         </div>
       </div>
 
-      {/* 下段: 紐づく商談（閲覧のみ、全幅） */}
-      <DetailSection
-        title={`紐づく商談（${deals.length}件）`}
-        icon={Handshake}
-        action={
-          <span style={{ fontSize: "0.75rem", color: "var(--color-sumi600)" }}>
-            合計金額: ¥{totalAmount.toLocaleString()}
-          </span>
-        }
-      >
-        {deals.length > 0 ? (
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead>
-                <tr>
-                  {["コード", "商談名", "パイプライン", "ステージ", "金額", "取引先"].map((h) => (
-                    <th
-                      key={h}
-                      style={{
-                        backgroundColor: "var(--color-sumi50)",
-                        fontSize: "0.75rem",
-                        fontWeight: 600,
-                        color: "var(--color-sumi700)",
-                        padding: "0.5rem",
-                        textAlign: "left",
-                      }}
-                    >
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {deals.map((d) => (
-                  <tr key={d.id}>
-                    <td style={{ borderBottom: "1px solid var(--color-border-default)", padding: "0.5rem" }}>
-                      <Link
-                        href={`/deals/${d.id}`}
-                        className="hover:bg-[var(--color-bg-hover)]"
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: "0.25rem",
-                          color: "var(--color-terra)",
-                          textDecoration: "none",
-                          padding: "0.125rem 0.375rem",
-                          margin: "-0.125rem -0.375rem",
-                          borderRadius: "var(--radius-sm)",
-                          fontSize: "0.875rem",
-                        }}
-                      >
-                        {d.deal_code}
-                        <ArrowUpRight size={14} />
-                      </Link>
-                    </td>
-                    <td style={{ borderBottom: "1px solid var(--color-border-default)", padding: "0.5rem", fontSize: "0.875rem" }}>
-                      {d.name}
-                    </td>
-                    <td style={{ borderBottom: "1px solid var(--color-border-default)", padding: "0.5rem", fontSize: "0.875rem" }}>
-                      <PipelineBadge name={d.pipeline_type?.name} />
-                    </td>
-                    <td style={{ borderBottom: "1px solid var(--color-border-default)", padding: "0.5rem", fontSize: "0.875rem" }}>
-                      <StageBadge name={d.deal_stage?.name} color={d.deal_stage?.color} sortOrder={d.deal_stage?.sort_order} />
-                    </td>
-                    <td style={{ borderBottom: "1px solid var(--color-border-default)", padding: "0.5rem", fontSize: "0.875rem" }}>
-                      {d.amount != null ? `¥${d.amount.toLocaleString()}` : "-"}
-                    </td>
-                    <td style={{ borderBottom: "1px solid var(--color-border-default)", padding: "0.5rem", fontSize: "0.875rem" }}>
-                      {d.account?.name ?? "-"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p style={{ color: "var(--color-sumi400)", fontSize: "0.875rem", margin: 0 }}>
-            まだ商談が紐づいていません
-          </p>
-        )}
-        <p
-          style={{
-            fontSize: "0.7rem",
-            color: "var(--color-sumi600)",
-            marginTop: "0.75rem",
-            marginBottom: 0,
-          }}
-        >
-          ※ 追加・解除は編集ページから
-        </p>
-      </DetailSection>
+      {/* 下段: 紐づく商談（全幅）。多対多なのでここから足し外しできる */}
+      <ProjectDealsSection
+        projectId={id}
+        deals={deals.map((d) => ({
+          id: d.id,
+          deal_code: d.deal_code,
+          name: d.name,
+          pipeline_name: d.pipeline_type?.name ?? null,
+          stage_name: d.deal_stage?.name ?? null,
+          stage_color: d.deal_stage?.color ?? null,
+          stage_sort_order: d.deal_stage?.sort_order ?? null,
+          amount: d.amount,
+          account_name: d.account?.name ?? null,
+        }))}
+        options={(dealsResult?.rows ?? [])
+          .filter((d) => !linkedDealIds.has(d.id))
+          .map((d) => ({
+            value: d.id,
+            label:
+              `${d.deal_code} ${d.name}` +
+              (d.account?.name ? ` / ${d.account.name}` : ""),
+          }))}
+        editable={canEdit}
+      />
     </div>
   );
 }

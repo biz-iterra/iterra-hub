@@ -1,232 +1,157 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { Handshake, Plus, X, ArrowUpRight } from "lucide-react";
-import { getDeals } from "@/actions/deals";
+import { useRouter } from "next/navigation";
+import { ArrowUpRight, Handshake, Plus, X } from "lucide-react";
+
 import { addDealProject, removeDealProject } from "@/actions/projects";
+import { DetailSection } from "@/components/ui/DetailSection";
 import { PipelineBadge, StageBadge } from "@/components/ui/badges";
 import { useToast } from "@/components/ui/toast";
 
-type LinkedDeal = {
+/**
+ * プロジェクトに紐づく商談。
+ *
+ * 商談とプロジェクトは多対多で、どちらが親とも言えないため両側から足し外しできる
+ * （商談側は詳細ページの「プロジェクト」）。列が多いので右カラムのリストではなく
+ * 本文側のテーブルで出す。
+ */
+
+export type LinkedDeal = {
   id: string;
-  deal_id: string;
-  deal: {
-    id: string;
-    deal_code: string;
-    name: string;
-    amount: number | null;
-    account: { id: string; name: string; account_code: string | null } | null;
-    pipeline_type: { id: string; name: string } | null;
-    deal_stage: { id: string; name: string; sort_order?: number; color: string | null } | null;
-    deal_status: { id: string; name: string; sort_order?: number; color: string | null } | null;
-  } | null;
+  deal_code: string | null;
+  name: string;
+  pipeline_name: string | null;
+  stage_name: string | null;
+  stage_color: string | null;
+  stage_sort_order: number | null;
+  amount: number | null;
+  account_name: string | null;
+};
+
+export type DealOption = { value: string; label: string };
+
+const cell = {
+  borderBottom: "1px solid var(--color-border-default)",
+  padding: "0.5rem",
+  fontSize: "0.875rem",
+} as const;
+
+const th = {
+  backgroundColor: "var(--color-sumi50)",
+  fontSize: "0.75rem",
+  fontWeight: 600,
+  color: "var(--color-sumi700)",
+  padding: "0.5rem",
+  textAlign: "left" as const,
+};
+
+const iconButton = {
+  display: "inline-flex" as const,
+  alignItems: "center" as const,
+  justifyContent: "center" as const,
+  width: "1.25rem",
+  height: "1.25rem",
+  border: "none",
+  backgroundColor: "transparent",
+  borderRadius: "var(--radius-sm)",
+  color: "var(--color-sumi500)",
+  cursor: "pointer",
+  padding: 0,
 };
 
 export function ProjectDealsSection({
   projectId,
-  initialDealProjects,
+  deals,
+  options,
+  editable = true,
 }: {
   projectId: string;
-  initialDealProjects: LinkedDeal[];
+  deals: LinkedDeal[];
+  /** 足せる商談。既に紐づいているものは呼び出し側で除いておく */
+  options: DealOption[];
+  editable?: boolean;
 }) {
-  const [linked, setLinked] = useState<LinkedDeal[]>(
-    initialDealProjects.filter((d) => d.deal)
-  );
-  const [allDeals, setAllDeals] = useState<
-    { id: string; deal_code: string; name: string; account_name: string | null }[]
-  >([]);
-  const [selectedId, setSelectedId] = useState("");
-  const [isPending, startTransition] = useTransition();
+  const router = useRouter();
   const { showToast } = useToast();
+  const [adding, setAdding] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
-    (async () => {
-      const res = await getDeals({ perPage: 200 });
-      if (res.data?.rows) {
-        setAllDeals(
-          res.data.rows.map((d) => ({
-            id: d.id,
-            deal_code: d.deal_code,
-            name: d.name,
-            account_name: d.account?.name ?? null,
-          }))
-        );
-      }
-    })();
-  }, []);
+  const totalAmount = deals.reduce((sum, d) => sum + (d.amount ?? 0), 0);
 
-  const linkedIds = new Set(linked.map((d) => d.deal?.id).filter(Boolean));
-  const availableDeals = allDeals.filter((d) => !linkedIds.has(d.id));
-
-  const totalAmount = linked.reduce((sum, l) => sum + (l.deal?.amount ?? 0), 0);
-
-  const handleAdd = () => {
-    if (!selectedId) return;
-    startTransition(async () => {
-      const result = await addDealProject({ deal_id: selectedId, project_id: projectId });
+  async function run(fn: () => Promise<{ error: string | null }>) {
+    setBusy(true);
+    try {
+      const result = await fn();
       if (result.error) {
         showToast({ type: "error", message: result.error });
-        return;
+        return false;
       }
-      const d = allDeals.find((x) => x.id === selectedId);
-      if (d && result.data) {
-        setLinked((prev) => [
-          ...prev,
-          {
-            id: (result.data as { id: string }).id,
-            deal_id: d.id,
-            deal: {
-              id: d.id,
-              deal_code: d.deal_code,
-              name: d.name,
-              amount: null,
-              account: d.account_name
-                ? { id: "", name: d.account_name, account_code: null }
-                : null,
-              pipeline_type: null,
-              deal_stage: null,
-              deal_status: null,
-            },
-          },
-        ]);
-      }
-      setSelectedId("");
-      showToast({ type: "success", message: "商談を紐づけました" });
-    });
-  };
+      showToast({ type: "success", message: "保存しました" });
+      router.refresh();
+      return true;
+    } catch (err) {
+      showToast({
+        type: "error",
+        message: err instanceof Error ? err.message : String(err),
+      });
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  }
 
-  const handleRemove = (dealId: string) => {
-    startTransition(async () => {
-      const result = await removeDealProject(dealId, projectId);
-      if (result.error) {
-        showToast({ type: "error", message: result.error });
-        return;
-      }
-      setLinked((prev) => prev.filter((l) => l.deal?.id !== dealId));
-      showToast({ type: "success", message: "紐づけを解除しました" });
+  async function add() {
+    if (!draft) {
+      showToast({ type: "error", message: "商談を選んでください" });
+      return;
+    }
+    const ok = await run(async () => {
+      const { error } = await addDealProject({
+        deal_id: draft,
+        project_id: projectId,
+      });
+      return { error };
     });
-  };
+    if (ok) {
+      setAdding(false);
+      setDraft("");
+    }
+  }
 
   return (
-    <div
-      style={{
-        backgroundColor: "#fff",
-        borderRadius: "var(--radius-card)",
-        boxShadow: "var(--elevation-low)",
-        padding: "1.5rem",
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          marginBottom: "1rem",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-          <Handshake size={18} style={{ color: "var(--color-text-title)" }} />
-          <h2
-            style={{
-              color: "var(--color-text-title)",
-              fontSize: "1rem",
-              fontWeight: 600,
-              margin: 0,
-            }}
-          >
-            紐づく商談（{linked.length}件）
-          </h2>
-        </div>
+    <DetailSection
+      title={`紐づく商談（${deals.length}件）`}
+      icon={Handshake}
+      action={
         <span style={{ fontSize: "0.75rem", color: "var(--color-sumi600)" }}>
           合計金額: ¥{totalAmount.toLocaleString()}
         </span>
-      </div>
-
-      {/* 追加フォーム */}
-      <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.75rem" }}>
-        <select
-          value={selectedId}
-          onChange={(e) => setSelectedId(e.target.value)}
-          style={{
-            flex: 1,
-            border: "1px solid var(--color-border-default)",
-            borderRadius: "var(--radius-input)",
-            padding: "0.375rem 0.5rem",
-            fontSize: "0.875rem",
-            backgroundColor: "#fff",
-            outline: "none",
-          }}
-        >
-          <option value="">-- 紐づける商談を選択 --</option>
-          {availableDeals.map((d) => (
-            <option key={d.id} value={d.id}>
-              {d.deal_code} {d.name}
-              {d.account_name ? ` / ${d.account_name}` : ""}
-            </option>
-          ))}
-        </select>
-        <button
-          type="button"
-          onClick={handleAdd}
-          disabled={!selectedId || isPending}
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "0.25rem",
-            backgroundColor: "var(--color-terra)",
-            color: "#fff",
-            border: "none",
-            borderRadius: "var(--radius-button)",
-            padding: "0.375rem 0.75rem",
-            cursor: "pointer",
-            fontSize: "0.75rem",
-            fontWeight: 500,
-            opacity: !selectedId || isPending ? 0.5 : 1,
-          }}
-        >
-          <Plus size={12} />
-          紐づける
-        </button>
-      </div>
-
-      {/* 商談一覧 */}
-      {linked.length > 0 ? (
+      }
+    >
+      {deals.length > 0 ? (
         <div style={{ overflowX: "auto" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr>
-              {["コード", "商談名", "パイプライン", "ステージ", "金額", "取引先", ""].map(
-                (h) => (
-                  <th
-                    key={h}
-                    style={{
-                      backgroundColor: "var(--color-sumi50)",
-                      fontSize: "0.75rem",
-                      fontWeight: 600,
-                      color: "var(--color-sumi700)",
-                      padding: "0.5rem",
-                      textAlign: h === "" ? "right" : "left",
-                    }}
-                  >
-                    {h}
-                  </th>
-                )
-              )}
-            </tr>
-          </thead>
-          <tbody>
-            {linked.map((l) =>
-              l.deal ? (
-                <tr key={l.id}>
-                  <td
-                    style={{
-                      borderBottom: "1px solid var(--color-border-default)",
-                      padding: "0.5rem",
-                    }}
-                  >
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr>
+                {["コード", "商談名", "パイプライン", "ステージ", "金額", "取引先"].map(
+                  (h) => (
+                    <th key={h} style={th}>
+                      {h}
+                    </th>
+                  )
+                )}
+                {editable && <th style={{ ...th, width: "2.5rem" }} aria-label="操作" />}
+              </tr>
+            </thead>
+            <tbody>
+              {deals.map((d) => (
+                <tr key={d.id}>
+                  <td style={cell}>
                     <Link
-                      href={`/deals/${l.deal.id}`}
+                      href={`/deals/${d.id}`}
                       className="hover:bg-[var(--color-bg-hover)]"
                       style={{
                         display: "inline-flex",
@@ -240,92 +165,161 @@ export function ProjectDealsSection({
                         fontSize: "0.875rem",
                       }}
                     >
-                      {l.deal.deal_code}
+                      {d.deal_code}
                       <ArrowUpRight size={14} />
                     </Link>
                   </td>
-                  <td
-                    style={{
-                      borderBottom: "1px solid var(--color-border-default)",
-                      padding: "0.5rem",
-                      fontSize: "0.875rem",
-                    }}
-                  >
-                    {l.deal.name}
+                  <td style={cell}>{d.name}</td>
+                  <td style={cell}>
+                    <PipelineBadge name={d.pipeline_name} />
                   </td>
-                  <td
-                    style={{
-                      borderBottom: "1px solid var(--color-border-default)",
-                      padding: "0.5rem",
-                      fontSize: "0.875rem",
-                    }}
-                  >
-                    <PipelineBadge name={l.deal.pipeline_type?.name} />
+                  <td style={cell}>
+                    <StageBadge
+                      name={d.stage_name}
+                      color={d.stage_color}
+                      sortOrder={d.stage_sort_order ?? undefined}
+                    />
                   </td>
-                  <td
-                    style={{
-                      borderBottom: "1px solid var(--color-border-default)",
-                      padding: "0.5rem",
-                      fontSize: "0.875rem",
-                    }}
-                  >
-                    <StageBadge name={l.deal.deal_stage?.name} color={l.deal.deal_stage?.color} sortOrder={l.deal.deal_stage?.sort_order} />
+                  <td style={cell}>
+                    {d.amount != null ? `¥${d.amount.toLocaleString()}` : "-"}
                   </td>
-                  <td
-                    style={{
-                      borderBottom: "1px solid var(--color-border-default)",
-                      padding: "0.5rem",
-                      fontSize: "0.875rem",
-                    }}
-                  >
-                    {l.deal.amount != null ? `¥${l.deal.amount.toLocaleString()}` : "-"}
-                  </td>
-                  <td
-                    style={{
-                      borderBottom: "1px solid var(--color-border-default)",
-                      padding: "0.5rem",
-                      fontSize: "0.875rem",
-                    }}
-                  >
-                    {l.deal.account?.name ?? "-"}
-                  </td>
-                  <td
-                    style={{
-                      borderBottom: "1px solid var(--color-border-default)",
-                      padding: "0.5rem",
-                      textAlign: "right",
-                    }}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => handleRemove(l.deal!.id)}
-                      disabled={isPending}
-                      style={{
-                        backgroundColor: "transparent",
-                        color: "var(--color-error)",
-                        border: "none",
-                        cursor: "pointer",
-                        fontSize: "0.75rem",
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: "0.25rem",
-                      }}
-                    >
-                      <X size={12} />
-                      解除
-                    </button>
-                  </td>
+                  <td style={cell}>{d.account_name ?? "-"}</td>
+                  {editable && (
+                    <td style={cell}>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          run(async () => {
+                            const { error } = await removeDealProject(d.id, projectId);
+                            return { error };
+                          })
+                        }
+                        disabled={busy}
+                        aria-label={`${d.name}との紐づけを外す`}
+                        title="紐づけを外す"
+                        className="hover:bg-[var(--color-bg-hover)]"
+                        style={iconButton}
+                      >
+                        <X size={12} />
+                      </button>
+                    </td>
+                  )}
                 </tr>
-              ) : null
-            )}
-          </tbody>
-        </table>
+              ))}
+            </tbody>
+          </table>
         </div>
       ) : (
         <p style={{ color: "var(--color-sumi400)", fontSize: "0.875rem", margin: 0 }}>
           まだ商談が紐づいていません
         </p>
       )}
-    </div>
+
+      {editable &&
+        (adding ? (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.375rem",
+              marginTop: "0.75rem",
+            }}
+          >
+            <select
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              disabled={busy}
+              autoFocus
+              style={{
+                flex: 1,
+                minWidth: 0,
+                border: "1px solid var(--color-border-default)",
+                borderRadius: "var(--radius-input)",
+                padding: "0.375rem 0.5rem",
+                fontSize: "0.875rem",
+                backgroundColor: "#fff",
+                outline: "none",
+                fontFamily: "inherit",
+              }}
+            >
+              <option value="">-- 選択 --</option>
+              {options.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={add}
+              disabled={busy}
+              aria-label="追加"
+              title="追加"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: "1.75rem",
+                height: "1.75rem",
+                border: "none",
+                backgroundColor: "var(--color-terra)",
+                color: "#fff",
+                borderRadius: "var(--radius-button)",
+                cursor: "pointer",
+                padding: 0,
+                flexShrink: 0,
+              }}
+            >
+              <Plus size={14} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setAdding(false)}
+              disabled={busy}
+              aria-label="やめる"
+              title="やめる"
+              className="hover:bg-[var(--color-bg-hover)]"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: "1.75rem",
+                height: "1.75rem",
+                border: "1px solid var(--color-border-default)",
+                backgroundColor: "transparent",
+                color: "var(--color-sumi600)",
+                borderRadius: "var(--radius-button)",
+                cursor: "pointer",
+                padding: 0,
+                flexShrink: 0,
+              }}
+            >
+              <X size={14} />
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setAdding(true)}
+            className="hover:bg-[var(--color-bg-hover)]"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "0.25rem",
+              border: "1px solid var(--color-border-default)",
+              backgroundColor: "transparent",
+              borderRadius: "var(--radius-button)",
+              padding: "0.25rem 0.625rem",
+              color: "var(--color-sumi600)",
+              fontSize: "0.75rem",
+              cursor: "pointer",
+              marginTop: "0.75rem",
+            }}
+          >
+            <Plus size={12} />
+            追加
+          </button>
+        ))}
+    </DetailSection>
   );
 }

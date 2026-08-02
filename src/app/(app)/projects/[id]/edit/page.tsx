@@ -2,9 +2,6 @@ import { getProject, getProjectStatuses } from "@/actions/projects";
 import { getCurrentUser } from "@/actions/users";
 import Link from "next/link";
 import { ProjectEditForm } from "./project-edit-form";
-import { ProjectMembersSection } from "../project-members-section";
-import { ProjectDealsSection } from "../project-deals-section";
-import { formContainerStyle } from "@/lib/layout";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -46,29 +43,12 @@ export default async function EditProjectPage({
   }
 
   const project = projectRes.data;
-  const members = project.project_members ?? [];
-  const dealProjects = (project.deal_projects ?? []).filter(
-    (dp) => dp.deal && dp.deal.deleted_at === null
-  );
 
   return (
-    <>
-      <ProjectEditForm
-        project={project}
-        statuses={(statusesRes.data ?? []).map((s) => ({ value: s.id, label: s.name }))}
-        isAdmin={currentUserRes.data?.role === "admin"}
-      />
-      <div
-        style={{
-          ...formContainerStyle,
-          display: "flex",
-          flexDirection: "column",
-          gap: "1.5rem",
-        }}
-      >
-        <ProjectMembersSection projectId={project.id} initialMembers={members} />
-        <ProjectDealsSection projectId={project.id} initialDealProjects={dealProjects} />
-      </div>
-    </>
+    <ProjectEditForm
+      project={project}
+      statuses={(statusesRes.data ?? []).map((s) => ({ value: s.id, label: s.name }))}
+      isAdmin={currentUserRes.data?.role === "admin"}
+    />
   );
 }

@@ -1,5 +1,8 @@
 import { getContact, updateContact } from "@/actions/contacts";
 import { getCompanies } from "@/actions/companies";
+import { getAccounts, addAccountContact, removeAccountContact } from "@/actions/accounts";
+import { RelationListSection } from "@/components/ui/RelationListSection";
+import { ACCOUNT_CONTACT_ROLES, accountContactRoleLabel } from "@/lib/account-contact-roles";
 import { getCrmUsers, getCurrentUser } from "@/actions/users";
 import { buildCompanyOptions } from "@/lib/company-options";
 import { RelationField } from "@/components/ui/RelationField";
@@ -106,6 +109,7 @@ export default async function ContactDetailPage({
     { data: addressRows },
     { data: referredRows },
     { data: companiesResult },
+    { data: accountsResult },
     { data: users },
     { data: me },
   ] = await Promise.all([
@@ -115,6 +119,7 @@ export default async function ContactDetailPage({
     getReferredContacts(id),
     // 紐づけの付け替え用。編集ページと同じ範囲を出す
     getCompanies({ perPage: 1000 }),
+    getAccounts({ perPage: 1000 }),
     getCrmUsers(),
     getCurrentUser(),
   ]);
@@ -150,6 +155,26 @@ export default async function ContactDetailPage({
       [field]: value,
       expected_updated_at: c?.updated_at ?? undefined,
     });
+    return { error: saveError };
+  }
+
+  const linkedAccountIds = new Set(
+    (c.account_contacts ?? []).map((ac) => ac.account?.id).filter(Boolean) as string[]
+  );
+
+  async function addAccount(accountId: string, role?: string) {
+    "use server";
+    const { error: saveError } = await addAccountContact({
+      account_id: accountId,
+      contact_id: id,
+      role: (role ?? null) as "primary" | "billing" | "technical" | "other" | null,
+    });
+    return { error: saveError };
+  }
+
+  async function removeAccount(accountId: string) {
+    "use server";
+    const { error: saveError } = await removeAccountContact(accountId, id);
     return { error: saveError };
   }
 
@@ -380,47 +405,32 @@ export default async function ContactDetailPage({
           {/* Gmail 連携で取り込んだやり取り。本文は持たないので Gmail へ遷移する */}
           <EmailHistorySection messages={emailMessages} />
 
+          {/* 連絡先と取引先はどちらが親とも言えないので、両側から足し外しできる */}
           <DetailSection title="所属取引先" icon={Briefcase}>
-            {accountContacts.length === 0 ? (
-              <p
-                style={{
-                  color: "var(--color-sumi400)",
-                  fontSize: "0.875rem",
-                  margin: 0,
-                }}
-              >
-                —
-              </p>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-                {accountContacts.map((ac) => (
-                  <div
-                    key={ac.id}
-                    style={{
-                      borderBottom: "1px solid var(--color-border-default)",
-                      paddingBottom: "0.5rem",
-                    }}
-                  >
-                    {ac.account?.account_code && (
-                      <span
-                        style={{
-                          display: "block",
-                          color: "var(--color-sumi500)",
-                          fontSize: "0.6875rem",
-                          fontFamily: "monospace",
-                          letterSpacing: "0.02em",
-                        }}
-                      >
-                        {ac.account.account_code}
-                      </span>
-                    )}
-                    <EntityLink href={`/accounts/${ac.account?.id}`} compact>
-                      {ac.account?.name ?? "—"}
-                    </EntityLink>
-                  </div>
-                ))}
-              </div>
-            )}
+            <RelationListSection
+              label="所属取引先"
+              rows={accountContacts.map((ac) => ({
+                id: ac.account?.id ?? ac.id,
+                href: `/accounts/${ac.account?.id}`,
+                label: ac.account?.name ?? "—",
+                code: ac.account?.account_code,
+                badge: accountContactRoleLabel(ac.role),
+              }))}
+              options={(accountsResult?.rows ?? [])
+                .filter((a) => !linkedAccountIds.has(a.id))
+                .map((a) => ({
+                  value: a.id,
+                  label: a.account_code ? `${a.account_code} ${a.name}` : a.name,
+                }))}
+              extra={{
+                label: "区分",
+                options: ACCOUNT_CONTACT_ROLES,
+                defaultValue: "other",
+              }}
+              onAdd={addAccount}
+              onRemove={removeAccount}
+              editable={canEdit}
+            />
           </DetailSection>
 
           {talent && (

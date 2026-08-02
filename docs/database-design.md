@@ -2615,11 +2615,31 @@ Admin のマスタ管理から色を編集できる（`colorSwatch` フィール
 |---|---|
 | `is_free_email_domain(TEXT)` | フリーメール判定。IMMUTABLE。`company_domains` の CHECK からも使う |
 | `normalize_domain(TEXT)` | メール／URL／裸のドメインを保存形式（小文字・www 無し）へ |
+| `expand_corporate_abbreviations(TEXT)` | 略記を正式表記へ（`㈱` → `株式会社`）。保存する値そのものを整える |
+| `resolve_corporate_type_id(TEXT)` | 名称に含まれる法人格を返す。最長一致。決まらなければ NULL |
 | `normalize_company_name(TEXT)` | 法人格表記・全角半角・区切り記号を落とした名寄せキー。`companies` に関数インデックス |
 | `resolve_or_create_company(...)` | ドメイン一致 → 会社名一致 → 新規作成。ドメインも同時に登録 |
 | `resolve_or_create_contact(...)` | メール一致 → 会社×姓名一致 → 新規作成。メール・電話は空欄補完のみ |
 
 取込（`import_eight_leads`）と既存リードの遡及作成が同じ関数を通る。片方だけ判定が変わる事故を防ぐため。
+
+#### 会社名の表記（20260802000003）
+
+`㈱` 712 件 /`（株）` 179 件 /`(株)` 89 件 と、同じ法人格が 4 通りで書かれていた。
+表記が違うだけで別法人として登録されるため、**保存する値を正式表記に開く**。
+
+- `normalize_company_name` は「開いてから落とす」順序にした。除去リストに合成文字を
+  書き足す方式では書き漏らしがそのまま名寄せの取りこぼしになる（実際 `㈱` が漏れ、
+  「㈱ワンエイト」と「株式会社ワンエイト」が別法人になっていた）
+- 綴りが一意に定まらない合成文字（`㈳` は社団法人か一般社団法人か決められない）は開かない
+- 規則は TS 側 `src/lib/company-name.ts` と対。画面からの保存は TS、名刺取込は DB を
+  通るため**両方に同じ規則が要る**。`company-name.test.ts` で固定している
+- **`normalize_company_name` を変えたら `companies_normalized_name_idx` を REINDEX する。**
+  PostgreSQL は IMMUTABLE 関数の再定義を検知せず、索引に古いキーが残る
+
+法人格（`corporate_types`）は名称に綴りが含まれていれば機械的に決まるので、
+新規保存時に空欄なら補う。**人が選んだ値は上書きしない。**
+名称に現れない「個人事業主」は自動では決まらない。
 
 ### 16.5 leads の新カラム
 

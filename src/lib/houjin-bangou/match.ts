@@ -7,6 +7,8 @@
  * 台帳に入り、以降の照合がすべてその法人を追ってしまう。
  */
 
+import { expandCorporateAbbreviations } from "../company-name";
+
 import type { HoujinRecord } from "./parse";
 import { isClosed } from "./parse";
 
@@ -20,8 +22,12 @@ import { isClosed } from "./parse";
 export function normalizeCompanyName(name: string | null | undefined): string {
   if (!name) return "";
 
+  // 略記を正式表記に開いてから落とす。㈱ のような合成文字を
+  // 下の除去リストに書き漏らすと、同じ会社が別のキーになってしまう
+  const expanded = expandCorporateAbbreviations(name);
+
   // 全角英数字 → 半角
-  const halfWidth = name.replace(/[Ａ-Ｚａ-ｚ０-９]/g, (ch) =>
+  const halfWidth = expanded.replace(/[Ａ-Ｚａ-ｚ０-９]/g, (ch) =>
     String.fromCharCode(ch.charCodeAt(0) - 0xfee0)
   );
 

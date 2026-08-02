@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Save } from "lucide-react";
 import { createCompany } from "@/actions/companies";
 import { useToast } from "@/components/ui/toast";
+import { detectCorporateType } from "@/lib/company-name";
 import { isFieldValidationError } from "@/lib/errors";
 import { formContainerStyle } from "@/lib/layout";
 
@@ -164,6 +165,23 @@ export function CompanyNewForm({ masters }: { masters: Masters }) {
     setValues((v) => ({ ...v, [key]: value }));
   };
 
+  // 会社名に法人格の綴りが含まれていれば法人格を選んでおく。
+  // 既に選ばれていれば触らない（人が選んだ値を上書きしない）。
+  // 保存時にも Server Action 側で同じ補完をするので、ここは確認のための先出し。
+  const onNameChange = (raw: string) => {
+    setValues((v) => {
+      const next = { ...v, name: raw };
+      if (!v.corporate_type_id) {
+        next.corporate_type_id =
+          detectCorporateType(
+            raw,
+            masters.corporateTypes.map((o) => ({ id: o.value, name: o.label }))
+          )?.id ?? "";
+      }
+      return next;
+    });
+  };
+
   // 法人番号（13桁数字）を入力したらインボイス番号を T+法人番号 で自動補完する。
   // 既に invoice_registration_number に手入力があれば上書きしない。
   const onCorporateNumberChange = (raw: string) => {
@@ -249,7 +267,7 @@ export function CompanyNewForm({ masters }: { masters: Masters }) {
                 type="text"
                 style={styles.input}
                 value={values.name}
-                onChange={(e) => set("name", e.target.value)}
+                onChange={(e) => onNameChange(e.target.value)}
                 required
                 onFocus={onFocus}
                 onBlur={onBlur}

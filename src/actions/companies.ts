@@ -1,5 +1,6 @@
 "use server";
 
+import { detectCorporateType, formatCompanyName } from "@/lib/company-name";
 import { createClient } from "@/lib/supabase/server";
 import { conflictErrorMessage } from "@/lib/validators/common";
 import { createCompanySchema, updateCompanySchema } from "@/lib/validators";
@@ -19,6 +20,37 @@ async function getAuthenticatedUser() {
   if (!user) return { supabase: null, user: null, role: null };
   const { data: crmUser } = await supabase.from("crm_users").select("role").eq("id", user.id).single();
   return { supabase, user, role: crmUser?.role ?? null };
+}
+
+/**
+ * 会社名を正式表記に整え、法人格が空なら名称から補う。
+ *
+ * 略記のまま保存すると同じ法人が別々に登録されるため（20260802000003）、
+ * 画面からの保存でも名刺取込と同じ規則を通す。
+ * 法人格は人が選んだ値を優先し、空のときだけ名称から決める。
+ */
+async function applyCompanyNameRules<
+  T extends { name?: string | null; corporate_type_id?: string | null }
+>(
+  supabase: NonNullable<Awaited<ReturnType<typeof getAuthenticatedUser>>["supabase"]>,
+  values: T
+): Promise<T> {
+  // 名前が更新対象に含まれていないときは触らない
+  if (typeof values.name !== "string" || !values.name) return values;
+
+  const name = formatCompanyName(values.name);
+  if (values.corporate_type_id) return { ...values, name };
+
+  const { data: types } = await supabase
+    .from("corporate_types")
+    .select("id, name")
+    .is("deleted_at", null);
+
+  return {
+    ...values,
+    name,
+    corporate_type_id: detectCorporateType(name, types ?? [])?.id ?? null,
+  };
 }
 
 // 一覧取得（検索・ページネーション対応）
@@ -99,9 +131,11 @@ export async function createCompany(input: Record<string, unknown>): Promise<Act
   const parsed = createCompanySchema.safeParse(input);
   if (!parsed.success) return { data: null, error: parsed.error.issues[0].message };
 
+  const values = await applyCompanyNameRules(supabase, parsed.data);
+
   const { data, error } = await supabase
     .from("companies")
-    .insert({ ...parsed.data, owner_user_id: parsed.data.owner_user_id ?? user.id, created_by: user.id })
+    .insert({ ...values, owner_user_id: values.owner_user_id ?? user.id, created_by: user.id })
     .select()
     .single();
 
@@ -128,7 +162,8 @@ export async function updateCompany(id: string, input: Record<string, unknown>):
   const { data: before } = await supabase.from("companies").select("*").eq("id", id).single();
 
   // expected_updated_at は DB カラムではないため更新値から除外する
-  const { expected_updated_at, ...fields } = parsed.data;
+  const { expected_updated_at, ...rest } = parsed.data;
+  const fields = await applyCompanyNameRules(supabase, rest);
 
   // status_updated_at はステータス変更時に更新
   const updates: Record<string, unknown> = { ...fields };

@@ -7,6 +7,8 @@
 
 import { createHash } from "node:crypto";
 
+import { formatCompanyName } from "../company-name";
+
 // ============================================================
 // 文字コード判定
 // ============================================================
@@ -49,19 +51,13 @@ export function decodeCsv(bytes: Uint8Array): DecodeResult {
 /**
  * 企業名の正規化。表示・保存する値に使う。
  *
- * 法人格の除去はしない。実データ（Eight 876 件）で ㈱ / (株) の略記は 0 件で、
- * 除去しても異なり数が 624 → 623 しか減らない一方、
- * 「株式会社A」と「有限会社A」を同一視してしまう危険がある。
- * 表記揺れの吸収に留める。
+ * 法人格の除去はしない。「株式会社A」と「有限会社A」を同一視してしまうため、
+ * 略記を正式表記に開いて表記揺れを吸収するに留める。
+ *
+ * 規則は `src/lib/company-name.ts` に集約した。画面からの保存でも同じ整えが
+ * 要るようになったため、取込専用の実装を持たない。
  */
-export function normalizeCompanyName(raw: string): string {
-  return raw
-    .replace(/　/g, " ")
-    .replace(/（株）|\(株\)|㈱/g, "株式会社")
-    .replace(/（有）|\(有\)|㈲/g, "有限会社")
-    .replace(/\s+/g, " ")
-    .trim();
-}
+export const normalizeCompanyName = formatCompanyName;
 
 /**
  * URL からドメインを抽出する（重複判定の補助キー）。

@@ -18,7 +18,7 @@
 
 **同じ値でも転記先ごとに 1 エントリ**（共通方針④）。片方だけ更新して食い違う事故を防ぐため。
 同値のものが生じたらセクション 2 の「同値グループ」に記載し、まとめて更新する
-（現在は production / staging が別プロジェクトのため同値グループなし）。
+（Cloudflare の本番アカウント API トークンが該当。Supabase 系は別値）。
 
 共通方針セクション 3 の表にある `vercel/<プロジェクト>:<環境>/`（ホスティングの環境変数）の
 自社 NAS 版として `nas/<プロジェクト>:<環境>/` を使う。共通方針側にも同じ行を追加済み。
@@ -81,7 +81,7 @@ Environment に無いときへ静かにフォールバックし、分離でき�
 | `nas/iterra-hub:production/CF_ACCESS_AUD` | 同上。JWT の宛先検証に使う | 同上の **Application Audience (AUD) Tag** | 片方だけだと従来どおりログイン画面が出る |
 | `nas/iterra-hub:production/CLOUDFLARE_ACCOUNT_ID` | 問い合わせ取込（D1 の読み取り） | Cloudflare ダッシュボード右下、または URL の `/accounts/` の後ろ | 秘密値ではない。`corporate-iterra` の CI にも同じ値が登録済み |
 | `nas/iterra-hub:production/CLOUDFLARE_D1_DATABASE_ID` | 同上。`corporate-iterra-leads` の ID | `corporate-iterra/wrangler.jsonc` に記載（`7ab6eea8-…`） | 秘密値ではない。STG を見る場合は `-stg` の ID に差し替える |
-| `nas/iterra-hub:production/CLOUDFLARE_API_TOKEN` | 同上。D1 REST API の認証 | My Profile → API Tokens → Create Token（Custom） | **権限は Account → D1 → Read だけ。** サイトのデプロイ用トークンとは別に作る |
+| `nas/iterra-hub:production/CLOUDFLARE_API_TOKEN` | 同上。D1 REST API の認証 | **corporate-iterra の本番アカウント API トークンと同値**（トークン名 `corporate-site env:production CI`。既に D1 Edit を持つ） | アカウント API トークンを**環境ごとに 1 本**にまとめる方針。個別トークンは作らない。→ 同値グループ |
 | `nas/iterra-hub:production/INQUIRY_SYNC_CRON_SECRET` | 取込エンドポイント（`/api/leads/inquiry-sync`）の Bearer トークン | 自分のターミナルで生成。Gmail 用とは別の値にする | 未設定ならエンドポイントは 503 で無効 |
 | `nas/iterra-hub:production/INQUIRY_SYNC_OWNER_EMAIL` | 取り込んだリードの担当者 | 運用で決める（`crm_users.email` と一致させる） | 秘密値ではない。未設定なら最初の管理者に付く |
 
@@ -131,13 +131,31 @@ Supabase の 3 つはローカル Supabase が起動時に生成する専用値�
 
 ### 同値グループ（ローテーション時にまとめて更新するもの）
 
-**現在なし**（2026-07-31 解消）。STG 用 Supabase プロジェクト `iterra-hub-stg`（`mddtzqixxnzdixceoxuc`）の
+#### Cloudflare 本番アカウント API トークン（2026-08-02〜）
+
+**Cloudflare のアカウント API トークンは環境ごとに 1 本**にまとめる方針
+（`corporate-iterra/docs/secrets-management.md` と揃える）。用途ごとに発行しない。
+
+| 転記先 | Bitwarden キー名 |
+|---|---|
+| corporate-iterra の CI | `gh/env:production/CLOUDFLARE_API_TOKEN`（別リポジトリの台帳） |
+| iterra-hub の NAS | `nas/iterra-hub:production/CLOUDFLARE_API_TOKEN` |
+
+- トークン名 `corporate-site env:production CI`。権限は Workers Scripts Edit + D1 Edit
+- **ローテーションしたら両方を差し替える。** 片方だけだとサイトのデプロイか
+  問い合わせ取込のどちらかが止まる
+- iterra-hub は D1 の**読み取りしか行わない**が、1 本にまとめる方針を優先して
+  書き込み権限つきのトークンを共有している。用途を分けたくなったら
+  `iterra-hub` 専用のアカウント API トークン（D1 Read のみ）を発行し、
+  このグループから外すこと
+
+#### Supabase 系
+
+**なし**（2026-07-31 解消）。STG 用 Supabase プロジェクト `iterra-hub-stg`（`mddtzqixxnzdixceoxuc`）の
 作成に伴い、`gh/env:staging/*` を STG 実物の値へ差し替えたため、production と staging は別の値になった。
 
 - ローカル `.env.local` はローカル Supabase の別プロジェクトを指すため、どのグループにも属さない
 - NAS の `SUPABASE_SERVICE_ROLE_KEY` は本番のみで、GitHub 側に同値の転記先を持たない
-
-同値のエントリが再び生じたら、この表を復活させてまとめて更新する対象を明記すること。
 
 ### Bitwarden Vault 側（Secrets Manager ではない）
 

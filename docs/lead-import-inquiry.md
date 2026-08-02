@@ -95,7 +95,7 @@ docker exec iterra-hub-app wget -qO- --post-data='' \
 |---|---|
 | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare ダッシュボードの右下、または URL の `/accounts/<id>` |
 | `CLOUDFLARE_D1_DATABASE_ID` | Workers & Pages → D1 → `corporate-iterra-leads` |
-| `CLOUDFLARE_API_TOKEN` | My Profile → API Tokens。権限は **Account → D1 → Read** だけでよい |
+| `CLOUDFLARE_API_TOKEN` | **corporate-iterra の本番アカウント API トークンをそのまま使う**（既に D1 Edit を持つ）。アカウント API トークンは環境ごとに 1 本にまとめる方針で、用途ごとに発行しない。→ `docs/secrets-management.md` の同値グループ |
 | `INQUIRY_SYNC_CRON_SECRET` | 自分で生成する（自分のターミナルで作り Bitwarden へ登録） |
 | `INQUIRY_SYNC_OWNER_EMAIL` | 任意。取り込んだリードの担当者 |
 

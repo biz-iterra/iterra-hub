@@ -4,7 +4,7 @@ import { useState, type CSSProperties, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Save } from "lucide-react";
-import { createCompany } from "@/actions/companies";
+import { createCompany, suggestCompanyKana } from "@/actions/companies";
 import { useToast } from "@/components/ui/toast";
 import { detectCorporateType } from "@/lib/company-name";
 import { isFieldValidationError } from "@/lib/errors";
@@ -165,6 +165,14 @@ export function CompanyNewForm({ masters }: { masters: Masters }) {
     setValues((v) => ({ ...v, [key]: value }));
   };
 
+  // 会社名を入力し終えたらフリガナの下書きを入れる。
+  // 形態素解析の読みなので正確とは限らない。人が入れた値は上書きしない
+  const fillKana = async () => {
+    if (!values.name.trim() || values.name_kana.trim()) return;
+    const { data } = await suggestCompanyKana(values.name);
+    if (data) set("name_kana", data);
+  };
+
   // 個人事業主は法人番号を持たないので、法人番号の欄を出さない
   const isSoleProprietor =
     masters.corporateTypes.find((o) => o.value === values.corporate_type_id)?.label ===
@@ -275,7 +283,10 @@ export function CompanyNewForm({ masters }: { masters: Masters }) {
                 onChange={(e) => onNameChange(e.target.value)}
                 required
                 onFocus={onFocus}
-                onBlur={onBlur}
+                onBlur={(e) => {
+                  onBlur(e);
+                  void fillKana();
+                }}
               />
             </div>
             <div>

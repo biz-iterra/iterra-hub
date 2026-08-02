@@ -1,6 +1,7 @@
 "use server";
 
 import { detectCorporateType, formatCompanyName } from "@/lib/company-name";
+import { toKatakanaReading } from "@/lib/kana";
 import { createClient } from "@/lib/supabase/server";
 import { conflictErrorMessage } from "@/lib/validators/common";
 import { createCompanySchema, updateCompanySchema } from "@/lib/validators";
@@ -23,14 +24,18 @@ async function getAuthenticatedUser() {
 }
 
 /**
- * 会社名を正式表記に整え、法人格が空なら名称から補う。
+ * 会社名を正式表記に整え、空いている法人格とフリガナを補う。
  *
  * 略記のまま保存すると同じ法人が別々に登録されるため（20260802000003）、
  * 画面からの保存でも名刺取込と同じ規則を通す。
- * 法人格は人が選んだ値を優先し、空のときだけ名称から決める。
+ * 法人格とフリガナは**人が入れた値を優先**し、空のときだけ補う。
  */
 async function applyCompanyNameRules<
-  T extends { name?: string | null; corporate_type_id?: string | null }
+  T extends {
+    name?: string | null;
+    name_kana?: string | null;
+    corporate_type_id?: string | null;
+  }
 >(
   supabase: NonNullable<Awaited<ReturnType<typeof getAuthenticatedUser>>["supabase"]>,
   values: T
@@ -39,18 +44,38 @@ async function applyCompanyNameRules<
   if (typeof values.name !== "string" || !values.name) return values;
 
   const name = formatCompanyName(values.name);
-  if (values.corporate_type_id) return { ...values, name };
+  const result: T = { ...values, name };
+
+  // フリガナは読みの下書き。正確とは限らないので人の入力を上書きしない
+  if (!result.name_kana?.trim()) {
+    const reading = await toKatakanaReading(name);
+    if (reading) result.name_kana = reading;
+  }
+
+  if (result.corporate_type_id) return result;
 
   const { data: types } = await supabase
     .from("corporate_types")
     .select("id, name")
     .is("deleted_at", null);
 
-  return {
-    ...values,
-    name,
-    corporate_type_id: detectCorporateType(name, types ?? [])?.id ?? null,
-  };
+  result.corporate_type_id = detectCorporateType(name, types ?? [])?.id ?? null;
+  return result;
+}
+
+/**
+ * 会社名からフリガナの下書きを作る。
+ *
+ * 形態素解析の読みなので**正確とは限らない**。画面では編集できる状態で見せ、
+ * 人が直せるようにする。
+ */
+export async function suggestCompanyKana(
+  name: string
+): Promise<ActionResult<string>> {
+  const { supabase, user } = await getAuthenticatedUser();
+  if (!supabase || !user) return { data: null, error: "認証が必要です" };
+
+  return { data: await toKatakanaReading(formatCompanyName(name)), error: null };
 }
 
 // 一覧取得（検索・ページネーション対応）

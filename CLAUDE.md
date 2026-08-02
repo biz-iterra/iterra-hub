@@ -18,6 +18,7 @@ ITERRA CRM（顧客関係管理）システム。
 - データベース: PostgreSQL (Supabase)
 - BaaS: Supabase (Auth + RLS + Storage)
 - バリデーション: Zod
+- 形態素解析: kuromoji（事業者名のフリガナ自動生成。辞書 17MB はサーバー側でのみ読む）
 - テスト: Vitest（判定ロジックのユニットテスト）
 - インフラ: 自社 NAS 上の Docker + Cloudflare Tunnel（`hub.iterra.online`）+ Supabase (Free / Tokyo)
   - **Vercel は使用しない。** Hobby プランは商用利用が規約で認められておらず基幹システムに適さない

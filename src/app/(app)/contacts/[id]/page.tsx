@@ -247,7 +247,7 @@ export default async function ContactDetailPage({
           </DetailSection>
 
           {/* 所属は名刺ごとの情報。どれを現在の所属とするかは人が選ぶ */}
-          <BusinessCardsSection cards={c.business_cards ?? []} />
+          <BusinessCardsSection cards={c.business_cards ?? []} contactId={c.id} />
 
           <DetailSection title="連絡先" icon={Mail}>
             <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>

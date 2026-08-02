@@ -137,18 +137,32 @@ export async function getContact(id: string): Promise<ActionResult<ContactDetail
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
-  const { data, error } = await supabase
-    .from("contacts")
-    .select(
-      `*, contact_status:contact_statuses(id, name, color), company:companies!contacts_company_id_fkey(id, name), owner:crm_users!contacts_owner_user_id_fkey(id, full_name), contact_emails(id, email, label, is_primary), contact_phones(id, phone, label, is_primary), business_cards(id, company_id, company_name_raw, department, job_title, source, source_registered_on, is_primary, company:companies!business_cards_company_id_fkey(id, name), contact_email:contact_emails!business_cards_contact_email_id_fkey(id, email), contact_phone:contact_phones!business_cards_contact_phone_id_fkey(id, phone)), talent:talents(*, talent_skills(*, skill:skills(id, name, skill_categories(name))), talent_careers(*)), number_diagnosis(*), constellation_fortune_telling:constellation_fortune_telling(*), account_contacts(id, role, account:accounts(id, account_code, name))`
-    )
-    .eq("id", id)
-    .single();
+  // 名刺は別で引く。1 つの select にまとめると supabase-js の型パーサが
+  // 解けなくなり（`{ error: true }` が返る）、カラム名の誤りを検出できなくなる
+  const [{ data, error }, cards] = await Promise.all([
+    supabase
+      .from("contacts")
+      .select(
+        `*, contact_status:contact_statuses(id, name, color), company:companies!contacts_company_id_fkey(id, name), owner:crm_users!contacts_owner_user_id_fkey(id, full_name), contact_emails(id, email, label, is_primary), contact_phones(id, phone, label, is_primary), talent:talents(*, talent_skills(*, skill:skills(id, name, skill_categories(name))), talent_careers(*)), number_diagnosis(*), constellation_fortune_telling:constellation_fortune_telling(*), account_contacts(id, role, account:accounts(id, account_code, name))`
+      )
+      .eq("id", id)
+      .single(),
+    supabase
+      .from("business_cards")
+      .select(
+        `id, company_id, company_name_raw, department, job_title, source, source_registered_on, is_primary, referrer_contact_id, referral_memo, company:companies!business_cards_company_id_fkey(id, name), referrer:contacts!business_cards_referrer_contact_id_fkey(id, last_name, first_name), contact_email:contact_emails!business_cards_contact_email_id_fkey(id, email), contact_phone:contact_phones!business_cards_contact_phone_id_fkey(id, phone)`
+      )
+      .eq("contact_id", id),
+  ]);
 
   if (error) return { data: null, error: error.message };
+
   // talent_careers.career_type は DB の CHECK 制約で 3 値に限定されているが
   // 生成型では TEXT のままなので、ここで一度だけ絞り込んだ型に寄せる。
-  return { data: data as ContactDetail, error: null };
+  return {
+    data: { ...data, business_cards: cards.data ?? [] } as ContactDetail,
+    error: null,
+  };
 }
 
 // ---------------------------------------------------------------------------

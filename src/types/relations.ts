@@ -134,10 +134,14 @@ export type BusinessCardRef = Ref<
   | "source"
   | "source_registered_on"
   | "is_primary"
+  | "referrer_contact_id"
+  | "referral_memo"
 > & {
   company: NamedRef | null;
   contact_email: Ref<"contact_emails", "id" | "email"> | null;
   contact_phone: Ref<"contact_phones", "id" | "phone"> | null;
+  /** 紹介者。連絡先に無い紹介者は referral_memo だけが入る */
+  referrer: Ref<"contacts", "id" | "last_name" | "first_name"> | null;
 };
 
 /**

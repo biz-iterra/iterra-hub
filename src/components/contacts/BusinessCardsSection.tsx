@@ -7,6 +7,7 @@ import { DetailSection } from "@/components/ui/DetailSection";
 import { EntityLink } from "@/components/ui/EntityLink";
 import { useToast } from "@/components/ui/toast";
 import { applyBusinessCardAsCurrent } from "@/actions/business-cards";
+import { BusinessCardReferral } from "@/components/contacts/BusinessCardReferral";
 import type { BusinessCardRef } from "@/types/relations";
 
 /**
@@ -16,7 +17,13 @@ import type { BusinessCardRef } from "@/types/relations";
  * 在籍期間を表さないため**時系列としては扱わず**、どれが現在の所属かは
  * 人が選ぶ（docs/contact-identity.md § 5）。
  */
-export function BusinessCardsSection({ cards }: { cards: BusinessCardRef[] }) {
+export function BusinessCardsSection({
+  cards,
+  contactId,
+}: {
+  cards: BusinessCardRef[];
+  contactId: string;
+}) {
   const router = useRouter();
   const { showToast } = useToast();
   const [applying, setApplying] = useState<string | null>(null);
@@ -108,6 +115,10 @@ export function BusinessCardsSection({ cards }: { cards: BusinessCardRef[] }) {
                     {c.source === "eight" ? " Eight へ" : ""}登録
                   </span>
                 )}
+
+                {/* 誰の紹介で会えたのか。名刺ごとに持つ（転職後に別の人から
+                    改めて紹介されることがある） */}
+                <BusinessCardReferral card={c} contactId={contactId} />
               </span>
 
               {!c.is_primary && (

@@ -652,6 +652,8 @@ export type Database = {
           is_primary: boolean
           job_title: string | null
           last_updated_by: string | null
+          referral_memo: string | null
+          referrer_contact_id: string | null
           source: string
           source_external_key: string | null
           source_registered_on: string | null
@@ -671,6 +673,8 @@ export type Database = {
           is_primary?: boolean
           job_title?: string | null
           last_updated_by?: string | null
+          referral_memo?: string | null
+          referrer_contact_id?: string | null
           source?: string
           source_external_key?: string | null
           source_registered_on?: string | null
@@ -690,6 +694,8 @@ export type Database = {
           is_primary?: boolean
           job_title?: string | null
           last_updated_by?: string | null
+          referral_memo?: string | null
+          referrer_contact_id?: string | null
           source?: string
           source_external_key?: string | null
           source_registered_on?: string | null
@@ -743,6 +749,13 @@ export type Database = {
             columns: ["last_updated_by"]
             isOneToOne: false
             referencedRelation: "crm_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "business_cards_referrer_contact_id_fkey"
+            columns: ["referrer_contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
             referencedColumns: ["id"]
           },
         ]

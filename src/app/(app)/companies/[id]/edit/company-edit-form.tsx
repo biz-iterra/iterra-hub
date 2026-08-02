@@ -280,7 +280,7 @@ export function CompanyEditForm({
     if (result.error) {
       return { error: result.error };
     }
-    showToast({ type: "success", message: "法人情報を削除しました" });
+    showToast({ type: "success", message: "事業者情報を削除しました" });
     router.push("/companies");
     router.refresh();
     return { error: null };
@@ -300,10 +300,10 @@ export function CompanyEditForm({
         }}
       >
         <ArrowLeft size={16} />
-        法人情報詳細に戻る
+        事業者情報詳細に戻る
       </Link>
       <div style={styles.headerRow}>
-        <h1 style={styles.title}>法人情報を編集</h1>
+        <h1 style={styles.title}>事業者情報を編集</h1>
       </div>
 
       <form onSubmit={handleSubmit}>
@@ -422,7 +422,7 @@ export function CompanyEditForm({
               </select>
               {masters.linkedContacts.length === 0 && (
                 <p style={{ color: "var(--color-sumi500)", fontSize: "0.75rem", margin: "0.25rem 0 0 0" }}>
-                  この法人情報に紐づく連絡先がまだありません
+                  この事業者情報に紐づく連絡先がまだありません
                 </p>
               )}
             </div>
@@ -562,7 +562,7 @@ export function CompanyEditForm({
 
       <ConfirmDialog
         open={confirmDelete}
-        title="法人情報を削除"
+        title="事業者情報を削除"
         message={`「${company.name}」を削除します。この操作は取り消せません。紐づく取引先が存在する場合は削除できません。`}
         confirmLabel="削除する"
         danger

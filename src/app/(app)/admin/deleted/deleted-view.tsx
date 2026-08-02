@@ -13,7 +13,7 @@ import { useToast } from "@/components/ui/toast";
 import { detailContainerStyle } from "@/lib/layout";
 
 const ENTITY_LABELS: Record<DeletedEntity, string> = {
-  companies: "法人情報",
+  companies: "事業者情報",
   accounts: "取引先",
   contacts: "連絡先",
   deals: "商談",

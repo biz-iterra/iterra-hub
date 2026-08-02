@@ -195,7 +195,7 @@ export default async function DealDetailPage({
                       {deal.account.company && ` (${deal.account.company.name})`}
                     </EntityLink>
                   ) : (
-                    // 契約前は取引先が無い。相手先は法人情報 / 連絡先で示す
+                    // 契約前は取引先が無い。相手先は事業者情報 / 連絡先で示す
                     (() => {
                       const cp = getDealCounterparty(deal);
                       if (!cp) return null;

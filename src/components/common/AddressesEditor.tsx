@@ -16,7 +16,7 @@ import {
 import type { EntityAddress } from "@/types/relations";
 
 /**
- * 住所の増減。連絡先・法人情報・取引先で共通で使う。
+ * 住所の増減。連絡先・事業者情報・取引先で共通で使う。
  *
  * 住所は `addresses` に持ち、`entity_addresses` が相手と結ぶ。本社・支店・請求先を
  * 区別できるよう種別を持ち、主住所を 1 つ指定する。

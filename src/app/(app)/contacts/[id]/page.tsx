@@ -209,7 +209,7 @@ export default async function ContactDetailPage({
                 }
               />
               <InfoField
-                label="所属法人情報"
+                label="所属事業者情報"
                 value={
                   c.company ? (
                     <EntityLink href={`/companies/${c.company.id}`}>

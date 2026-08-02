@@ -67,7 +67,7 @@ export default async function CompanyDetailPage({
         </p>
         <Link href="/companies" style={backLinkStyle}>
           <ArrowLeft size={16} />
-          法人情報一覧
+          事業者情報一覧
         </Link>
       </div>
     );
@@ -83,11 +83,11 @@ export default async function CompanyDetailPage({
     return (
       <div style={{ padding: "2rem" }}>
         <p style={{ color: "var(--color-text-body)", marginBottom: "1rem" }}>
-          法人情報が見つかりません
+          事業者情報が見つかりません
         </p>
         <Link href="/companies" style={backLinkStyle}>
           <ArrowLeft size={16} />
-          法人情報一覧
+          事業者情報一覧
         </Link>
       </div>
     );
@@ -117,7 +117,7 @@ export default async function CompanyDetailPage({
       <div style={{ marginBottom: "1.5rem" }}>
         <Link href="/companies" style={{ ...backLinkStyle, marginBottom: "0.75rem" }}>
           <ArrowLeft size={16} />
-          法人情報一覧
+          事業者情報一覧
         </Link>
         <div
           style={{

@@ -7,7 +7,7 @@ import type { EntityAddress } from "@/types/relations";
 /**
  * 住所。
  *
- * `addresses`（住所そのもの）を `entity_addresses` が連絡先・法人情報・取引先へ
+ * `addresses`（住所そのもの）を `entity_addresses` が連絡先・事業者情報・取引先へ
  * 結ぶ。1 つの相手が本社・支店・請求先を持てる（主住所は 1 件）。
  * 設計: docs/database-design.md § 22
  */

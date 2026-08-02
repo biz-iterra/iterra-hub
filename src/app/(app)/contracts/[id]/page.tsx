@@ -203,7 +203,7 @@ export default async function ContractDetailPage({
               {contract.counterparty_type === "corporate" ? (
                 <>
                   <InfoField
-                    label="法人情報"
+                    label="事業者情報"
                     value={
                       contract.counterparty_company ? (
                         <EntityLink

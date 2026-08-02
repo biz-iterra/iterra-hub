@@ -15,7 +15,7 @@ const pathLabels: Record<string, string> = {
   "/deals": "商談",
   "/contacts": "連絡先",
   "/contacts/candidates": "連絡先の候補",
-  "/companies": "法人情報",
+  "/companies": "事業者情報",
   "/accounts": "取引先",
   "/contracts": "契約",
   "/talents": "タレント",

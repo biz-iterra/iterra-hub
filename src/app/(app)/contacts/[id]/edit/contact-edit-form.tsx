@@ -459,7 +459,7 @@ export function ContactEditForm({
               </select>
             </div>
             <div>
-              <label style={styles.label}>所属法人情報</label>
+              <label style={styles.label}>所属事業者情報</label>
               <select
                 style={styles.input}
                 value={values.company_id}

@@ -101,7 +101,7 @@ function resolveAffiliation(row: ContactWithRelations): {
 }
 
 /**
- * 所属セル。出所（法人情報 / 取引先）をアイコンで区別し、遷移先もそれに合わせる。
+ * 所属セル。出所（事業者情報 / 取引先）をアイコンで区別し、遷移先もそれに合わせる。
  * 行全体が詳細ページへの遷移になっているため、リンククリックは伝播を止める。
  */
 function AffiliationCell({ row }: { row: ContactWithRelations }) {
@@ -414,7 +414,7 @@ export function ContactsView({
                   <td className="px-4 py-3 whitespace-nowrap">
                     <ContactTypeBadge type={row.contact_type} />
                   </td>
-                  {/* 所属（法人情報 / 取引先を 1 列に統合） */}
+                  {/* 所属（事業者情報 / 取引先を 1 列に統合） */}
                   <td className="px-4 py-3 whitespace-nowrap">
                     <AffiliationCell row={row} />
                   </td>

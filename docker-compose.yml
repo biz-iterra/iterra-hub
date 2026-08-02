@@ -33,7 +33,7 @@ services:
       # 未設定なら /api/gmail/sync は 503 で無効
       GMAIL_SYNC_CRON_SECRET: ${GMAIL_SYNC_CRON_SECRET:-}
 
-      # 法人情報の実在確認（国税庁 法人番号 Web-API）
+      # 事業者情報の実在確認（国税庁 法人番号 Web-API）
       HOUJIN_BANGOU_APP_ID: ${HOUJIN_BANGOU_APP_ID:-}
 
       TZ: Asia/Tokyo

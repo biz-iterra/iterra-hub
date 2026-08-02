@@ -308,7 +308,7 @@ const TOC = [
   { id: "section-4", no: "04", label: "ダッシュボード", icon: Gauge },
   { id: "section-5", no: "05", label: "マーケティング（リード・キャンペーン）", icon: UserSearch },
   { id: "section-6", no: "06", label: "営業（商談・プロジェクト・契約）", icon: Handshake },
-  { id: "section-7", no: "07", label: "顧客情報（連絡先・法人情報 他）", icon: Users },
+  { id: "section-7", no: "07", label: "顧客情報（連絡先・事業者情報 他）", icon: Users },
   { id: "section-8", no: "08", label: "マスタ・取込（マスタ管理）", icon: Settings },
   { id: "section-9", no: "09", label: "編集・削除の共通ルール", icon: Pencil },
   { id: "section-10", no: "10", label: "アクセス制御と見え方", icon: ShieldCheck },
@@ -466,7 +466,7 @@ export default function ManualPage() {
               </>,
               <>
                 <strong>顧客情報層</strong>:
-                連絡先・法人情報・取引先・タレント。
+                連絡先・事業者情報・取引先・タレント。
               </>,
               <>
                 <strong>ポテンシャル診断</strong>:
@@ -560,7 +560,7 @@ export default function ManualPage() {
               ["", "プロジェクト", <Code>/projects</Code>, "全員"],
               ["", "契約", <Code>/contracts</Code>, "manager / admin"],
               ["顧客情報", "連絡先", <Code>/contacts</Code>, "全員"],
-              ["", "法人情報", <Code>/companies</Code>, "全員"],
+              ["", "事業者情報", <Code>/companies</Code>, "全員"],
               ["", "取引先", <Code>/accounts</Code>, "全員"],
               ["", "タレント", <Code>/talents</Code>, "全員"],
               ["管理", "マニュアル", <Code>/manual</Code>, "全員"],
@@ -631,7 +631,7 @@ export default function ManualPage() {
                   "今月クローズ件数",
                   "取引先数（アクティブのみ）",
                   "連絡先数（アクティブのみ）",
-                  "法人情報数（アクティブのみ）",
+                  "事業者情報数（アクティブのみ）",
                 ]}
               />
             </div>
@@ -890,7 +890,7 @@ export default function ManualPage() {
           <SectionHeader
             number="07"
             icon={Users}
-            title="顧客情報（連絡先・法人情報・取引先・タレント）"
+            title="顧客情報（連絡先・事業者情報・取引先・タレント）"
             caption="Core CRM"
           />
 
@@ -904,9 +904,9 @@ export default function ManualPage() {
               overflowX: "auto",
             }}
           >
-            <div>法人情報（法的実体）─ 1:N ─ 取引先（法人）</div>
+            <div>事業者情報（法的実体）─ 1:N ─ 取引先（法人）</div>
             <div>              ↘        ↑ account_contacts (N:M)</div>
-            <div>法人情報 ─ 1:N ─ 連絡先（corporate_rep/employee）</div>
+            <div>事業者情報 ─ 1:N ─ 連絡先（corporate_rep/employee）</div>
             <div>                                        ↓</div>
             <div>                                   タレント（1:1）</div>
           </div>
@@ -914,13 +914,13 @@ export default function ManualPage() {
             items={[
               <>
                 <Code>contact_type</Code> = <strong>corporate_rep / employee</strong>{" "}
-                → 法人情報に直接紐付く
+                → 事業者情報に直接紐付く
               </>,
               <>
                 <Code>contact_type</Code> = <strong>individual</strong> →{" "}
                 <Code>account_contacts</Code> を介して取引先に紐付く
               </>,
-              "商談は必ず取引先に紐付く（直接連絡先／法人情報とは紐付かない）",
+              "商談は必ず取引先に紐付く（直接連絡先／事業者情報とは紐付かない）",
             ]}
           />
 
@@ -938,7 +938,7 @@ export default function ManualPage() {
                   className="text-base font-bold"
                   style={{ color: "var(--color-text-title)" }}
                 >
-                  法人情報
+                  事業者情報
                 </h3>
               </div>
               <Paragraph>
@@ -974,12 +974,12 @@ export default function ManualPage() {
                 </h3>
               </div>
               <Paragraph>
-                取引主体。<strong>法人</strong>（法人情報紐付き）と
+                取引主体。<strong>法人</strong>（事業者情報紐付き）と
                 <strong>個人</strong>（連絡先直接）の 2 パターン。
               </Paragraph>
               <UList
                 items={[
-                  "法人: 法人情報を既存から選択",
+                  "法人: 事業者情報を既存から選択",
                   "個人: individual 連絡先を紐付け",
                   "商談は必ず取引先経由",
                 ]}
@@ -1007,8 +1007,8 @@ export default function ManualPage() {
               </Paragraph>
               <UList
                 items={[
-                  "corporate_rep: 法人代表（法人情報直接）",
-                  "employee: 法人従業員（法人情報直接）",
+                  "corporate_rep: 法人代表（事業者情報直接）",
+                  "employee: 法人従業員（事業者情報直接）",
                   "individual: 個人（取引先経由）",
                 ]}
               />
@@ -1076,8 +1076,8 @@ export default function ManualPage() {
               ],
               ["", "契約種別", "contract_types"],
               ["", "サービス", "services"],
-              ["法人情報", "法人格", "corporate_types"],
-              ["", "法人情報ステータス", "company_statuses"],
+              ["事業者情報", "法人格", "corporate_types"],
+              ["", "事業者情報ステータス", "company_statuses"],
               ["取引先", "取引先種別", "account_types（法人/個人）"],
               ["", "取引先ステータス", "account_statuses"],
               ["連絡先", "連絡先ステータス", "contact_statuses"],

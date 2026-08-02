@@ -109,7 +109,7 @@ export function CompaniesView({
           className="text-2xl font-bold"
           style={{ color: "var(--color-text-title)" }}
         >
-          法人情報
+          事業者情報
         </h1>
         <Link
           href="/companies/new"
@@ -179,7 +179,7 @@ export function CompaniesView({
         >
           <Building2 size={40} style={{ color: "var(--color-sumi600)" }} />
           <p className="text-sm" style={{ color: "var(--color-sumi600)" }}>
-            法人情報が見つかりません
+            事業者情報が見つかりません
           </p>
         </div>
       ) : (

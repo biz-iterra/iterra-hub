@@ -397,7 +397,7 @@ export function LeadEditClient({
       showToast({
         type: "success",
         message: isCorporateSelected
-          ? "商談に昇格しました。法人情報と連絡先も作成されました"
+          ? "商談に昇格しました。事業者情報と連絡先も作成されました"
           : "商談に昇格しました。連絡先も作成されました",
       });
     } else {
@@ -750,11 +750,11 @@ export function LeadEditClient({
             />
             {isPromoted ? (
               <p style={{ ...styles.helpText, color: "var(--color-sumi500)" }}>
-                昇格後は法人情報に紐付けられているため変更できません
+                昇格後は事業者情報に紐付けられているため変更できません
               </p>
             ) : (
               <p style={styles.helpText}>
-                Opportunity 昇格時に自動で法人情報が作成されます
+                Opportunity 昇格時に自動で事業者情報が作成されます
               </p>
             )}
           </div>
@@ -1107,7 +1107,7 @@ export function LeadEditClient({
             </select>
             {isPromoted && (
               <p style={{ ...styles.helpText, color: "var(--color-sumi500)" }}>
-                昇格後は法人情報/連絡先に紐付けられているため変更できません
+                昇格後は事業者情報/連絡先に紐付けられているため変更できません
               </p>
             )}
           </div>
@@ -1317,7 +1317,7 @@ function PromoteConfirmDialog({
           </p>
           {isCorporate ? (
             <ul style={listStyle}>
-              <li>法人情報</li>
+              <li>事業者情報</li>
               <li>連絡先</li>
               <li>取引先</li>
               <li>商談</li>

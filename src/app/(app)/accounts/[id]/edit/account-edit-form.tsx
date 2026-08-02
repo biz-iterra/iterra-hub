@@ -272,7 +272,7 @@ export function AccountEditForm({
               />
             </div>
             <div>
-              <label style={styles.label}>法人情報</label>
+              <label style={styles.label}>事業者情報</label>
               <select
                 style={styles.input}
                 value={values.company_id}
@@ -367,7 +367,7 @@ export function AccountEditForm({
           initialRoles={assignedRoles}
         />
 
-        {/* インボイス登録番号は事業者に付く番号なので法人情報側で編集する（20260802000005） */}
+        {/* インボイス登録番号は事業者に付く番号なので事業者情報側で編集する（20260802000005） */}
 
         {/* 説明 */}
         <div style={styles.card}>

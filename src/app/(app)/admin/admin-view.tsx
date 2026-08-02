@@ -82,7 +82,7 @@ type MasterItem = Record<string, unknown> & { id: string; name: string };
 const TAB_KEYS = [
   // 共通・取引
   "pipeline", "contract_types", "services",
-  // 法人情報
+  // 事業者情報
   "corporate_types", "company_statuses", "company_verification",
   // 取引先（種別 = 事業体の形態、区分 = 取引上の役割。軸が違うので別マスタ）
   "account_types", "account_role_types", "account_statuses",
@@ -106,7 +106,7 @@ const TAB_LABELS: Record<TabKey, string> = {
   contract_types: "契約種別",
   services: "サービス",
   corporate_types: "法人格",
-  company_statuses: "法人情報ステータス",
+  company_statuses: "事業者情報ステータス",
   company_verification: "実在確認",
   account_types: "取引先種別",
   account_role_types: "取引先区分",
@@ -137,7 +137,7 @@ const GROUPS: { key: GroupKey; label: string; tabs: TabKey[] }[] = [
   },
   {
     key: "company",
-    label: "法人情報",
+    label: "事業者情報",
     tabs: ["corporate_types", "company_statuses", "company_verification"],
   },
   {
@@ -1821,7 +1821,7 @@ export function AdminView() {
       case "company_statuses":
         return (
           <SimpleMasterTab
-            title="法人情報ステータス"
+            title="事業者情報ステータス"
             items={companyStatuses}
             onCreate={createCompanyStatusAction}
             onUpdate={updateCompanyStatus}

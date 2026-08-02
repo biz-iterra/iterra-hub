@@ -151,8 +151,8 @@ export async function updateCompany(id: string, input: Record<string, unknown>):
   // owner チェック（admin 以外は自分の担当のみ）
   if (role !== "admin") {
     const { data: existing } = await supabase.from("companies").select("owner_user_id").eq("id", id).single();
-    if (!existing) return { data: null, error: "法人情報が見つかりません" };
-    if (existing.owner_user_id !== user.id) return { data: null, error: "この法人情報を編集する権限がありません" };
+    if (!existing) return { data: null, error: "事業者情報が見つかりません" };
+    if (existing.owner_user_id !== user.id) return { data: null, error: "この事業者情報を編集する権限がありません" };
   }
 
   const parsed = updateCompanySchema.safeParse(input);
@@ -186,7 +186,7 @@ export async function updateCompany(id: string, input: Record<string, unknown>):
 
   const { data, error } = await updateQuery.select().maybeSingle();
   if (error) return { data: null, error: error.message };
-  if (!data) return { data: null, error: conflictErrorMessage("この法人情報") };
+  if (!data) return { data: null, error: conflictErrorMessage("この事業者情報") };
 
   // 変更履歴記録
   if (before && data) {

@@ -231,7 +231,7 @@ export function CompanyNewForm({ masters }: { masters: Masters }) {
       }
       return;
     }
-    showToast({ type: "success", message: "法人情報を作成しました" });
+    showToast({ type: "success", message: "事業者情報を作成しました" });
     const newId = (result.data as { id?: string } | null)?.id;
     if (newId) {
       router.push(`/companies/${newId}`);
@@ -255,10 +255,10 @@ export function CompanyNewForm({ masters }: { masters: Masters }) {
         }}
       >
         <ArrowLeft size={16} />
-        法人情報一覧に戻る
+        事業者情報一覧に戻る
       </Link>
       <div style={styles.headerRow}>
-        <h1 style={styles.title}>法人情報を新規作成</h1>
+        <h1 style={styles.title}>事業者情報を新規作成</h1>
       </div>
 
       <form onSubmit={handleSubmit}>

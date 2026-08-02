@@ -146,7 +146,7 @@ const styles = {
   } as CSSProperties,
 };
 
-/** 取込で紐付いた法人情報・連絡先へのリンク（タイトル下のバッジ列に並べる） */
+/** 取込で紐付いた事業者情報・連絡先へのリンク（タイトル下のバッジ列に並べる） */
 const linkedEntityStyle: CSSProperties = {
   display: "inline-flex",
   alignItems: "center",
@@ -956,7 +956,7 @@ export function LeadDetailClient({
             )}
             {/*
               名刺はリードであると同時に連絡先でもあるため、取込時点で
-              法人情報・連絡先に紐付いている。昇格を待たずにそちらへ辿れるようにする。
+              事業者情報・連絡先に紐付いている。昇格を待たずにそちらへ辿れるようにする。
             */}
             {lead.linked_company && (
               <Link

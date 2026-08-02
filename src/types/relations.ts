@@ -142,7 +142,7 @@ export type BusinessCardRef = Ref<
 
 /**
  * 住所の紐付け 1 件（entity_addresses + addresses）。
- * 連絡先・法人情報・取引先のいずれからも同じ形で扱う。
+ * 連絡先・事業者情報・取引先のいずれからも同じ形で扱う。
  */
 export type EntityAddress = Ref<
   "entity_addresses",

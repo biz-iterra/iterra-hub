@@ -55,7 +55,7 @@ ITERRA CRM（顧客関係管理）システム。
 │   │   ├── dashboard/     # ダッシュボード（KPI・ファネル・最近の商談）
 │   │   ├── deals/         # 商談（カンバン/テーブル切替）
 │   │   ├── contacts/      # 連絡先（一覧・検索）
-│   │   ├── companies/     # 法人情報（一覧・検索）
+│   │   ├── companies/     # 事業者情報（一覧・検索）
 │   │   ├── accounts/      # 取引先（一覧・検索）
 │   │   ├── contracts/     # 契約（一覧・検索）
 │   │   ├── talents/       # タレント（一覧・検索・系統/グレード/職種の自動判定）
@@ -175,12 +175,15 @@ npm run typecheck && npm test && npm run build
 |---|---|
 | 商談 | deal / deals |
 | 取引先 | account / accounts |
-| 法人情報 | company / companies |
+| 事業者情報 | company / companies |
 | 連絡先 | contact / contacts |
 | マスタ・取込 | admin |
 | アクティビティ | activity / activities（活動の記録の総称） |
 | 社内対応 | lead_activities |
 | 顧客行動 | lead_customer_activities |
+
+「事業者情報」は 2026-08-02 に「法人情報」から改称した。法人だけでなく個人事業主も
+同じ器に入れる運用にしたため（`docs/database-design.md § 22.2.1`）。
 
 活動の記録は「アクティビティ」を総称とし、記録元は **社内対応 / 顧客行動 / メール** の
 3 つで呼ぶ。「対応履歴」「行動ログ」「やり取り履歴」は使わない（同じものが画面ごとに
@@ -210,8 +213,14 @@ Lead ─取込→ Company + Contact          名刺はリードであると同�
 ```
 
 - `deals.account_id` は **任意**。ただし account / company / contact のいずれか 1 つは必須（CHECK 制約）
-- 商談の相手先表示は `src/lib/deal-counterparty.ts` を使う。取引先 → 法人情報 → 連絡先の順にフォールバックする。画面ごとに分岐を書かない
-- 名刺取込の法人名寄せは **メールドメイン（`company_domains`）が一次キー**、次に正規化した会社名。判定は DB 関数 `resolve_or_create_company` / `resolve_or_create_contact` に集約されており、取込と遡及処理が同じ関数を通る
+- 商談の相手先表示は `src/lib/deal-counterparty.ts` を使う。取引先 → 事業者情報 → 連絡先の順にフォールバックする。画面ごとに分岐を書かない
+- 事業者の名寄せは **法人番号 > メールドメイン（`company_domains`）> 住所+名称 > 名称** の順。
+  **住所だけでは決めない**（雑居ビルやレンタルオフィスには何社も入っている）。同名の会社を区別する決め手として使う。
+  判定は DB 関数 `resolve_or_create_company` / `resolve_or_create_contact` に集約されており、取込と遡及処理が同じ関数を通る
+- 会社名は保存前に略記を正式表記へ開く（`㈱` → `株式会社`）。規則は TS 側 `src/lib/company-name.ts` と
+  DB 関数 `expand_corporate_abbreviations` の対で持つので、**片方だけ直さないこと**
+- 個人事業主も屋号で `companies`（事業者情報）に登録する。法人格「個人事業主」で区別し、器は分けない。
+  インボイス登録番号は事業者に付く番号なので `companies` が正本（`accounts` は持たない）
 
 ### バッジ色
 

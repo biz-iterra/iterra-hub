@@ -91,7 +91,7 @@ const navGroups: NavGroup[] = [
         description: "契約・商談の主体",
       },
       {
-        label: "法人情報",
+        label: "事業者情報",
         href: "/companies",
         icon: Building2,
         nested: true,

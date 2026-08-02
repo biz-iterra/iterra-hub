@@ -189,7 +189,7 @@ export default async function AccountDetailPage({
               <InfoField label="取引先名" value={a.name} />
               <InfoField label="担当者" value={a.owner?.full_name} />
               <InfoField
-                label="法人情報"
+                label="事業者情報"
                 value={
                   a.company ? (
                     <EntityLink href={`/companies/${a.company.id}`}>
@@ -209,13 +209,13 @@ export default async function AccountDetailPage({
               <InfoField label="種別" value={a.account_type?.name} />
               <InfoField label="ステータス" value={a.account_status?.name} />
               <InfoField label="リードソース" value={a.lead_source?.name} />
-              {/* 登録番号は事業者に付くものなので法人情報が正本。ここは読み取り */}
+              {/* 登録番号は事業者に付くものなので事業者情報が正本。ここは読み取り */}
               <InfoField
                 label="インボイス登録"
                 value={a.company?.invoice_registration_number ? "登録済み" : "未登録"}
               />
               <InfoField
-                label="登録番号（法人情報）"
+                label="登録番号（事業者情報）"
                 value={a.company?.invoice_registration_number}
               />
               {/* いつからこの状態かが分からないと、休眠・解約の判断が追えない */}

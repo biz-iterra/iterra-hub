@@ -79,7 +79,7 @@ export async function verifyCompany(
     .is("deleted_at", null)
     .single();
 
-  if (fetchErr || !company) return { data: null, error: "法人情報が見つかりません" };
+  if (fetchErr || !company) return { data: null, error: "事業者情報が見つかりません" };
 
   // 個人事業主は法人番号を持たないので、国税庁の台帳には載らない。
   // 商号検索で同名の法人に当たってしまうため、照合そのものを行わない

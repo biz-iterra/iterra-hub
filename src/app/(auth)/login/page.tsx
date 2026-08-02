@@ -1,13 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
-export default function LoginPage() {
+function LoginForm() {
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  // Cloudflare Access からの自動ログインに失敗するとここへ戻される。
+  // 理由が出ないと利用者は同じ操作を繰り返すことになる
+  const [error, setError] = useState<string | null>(
+    searchParams.get("error")
+  );
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
@@ -151,5 +156,14 @@ export default function LoginPage() {
         </form>
       </div>
     </div>
+  );
+}
+
+/** useSearchParams を使うため Suspense で包む（Next.js の要件） */
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   );
 }

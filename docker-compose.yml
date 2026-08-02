@@ -36,6 +36,11 @@ services:
       # 事業者情報の実在確認（国税庁 法人番号 Web-API）
       HOUJIN_BANGOU_APP_ID: ${HOUJIN_BANGOU_APP_ID:-}
 
+      # Cloudflare Access の認証をアプリのログインに引き継ぐ。
+      # 両方そろって初めて有効になり、未設定ならログイン画面が出る
+      CF_ACCESS_TEAM_DOMAIN: ${CF_ACCESS_TEAM_DOMAIN:-}
+      CF_ACCESS_AUD: ${CF_ACCESS_AUD:-}
+
       TZ: Asia/Tokyo
 
     healthcheck:

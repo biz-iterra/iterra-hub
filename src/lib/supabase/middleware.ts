@@ -1,6 +1,11 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+import {
+  CF_ACCESS_CALLBACK_PATH,
+  CF_ACCESS_JWT_HEADER,
+} from "@/lib/cf-access";
+
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
@@ -44,8 +49,24 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const isLoginPage = request.nextUrl.pathname === "/login";
+  // セッションを張る経路そのものは素通しする。回さないと無限に往復する
+  const isAccessCallback =
+    request.nextUrl.pathname === CF_ACCESS_CALLBACK_PATH;
 
-  if (!user && !isLoginPage) {
+  if (!user && !isLoginPage && !isAccessCallback) {
+    // Cloudflare Access を通っていれば、その認証を引き継いでセッションを張る。
+    // 同じ人に 2 回名乗らせないため（src/lib/cf-access.ts）
+    if (request.headers.get(CF_ACCESS_JWT_HEADER)) {
+      const url = request.nextUrl.clone();
+      url.pathname = CF_ACCESS_CALLBACK_PATH;
+      url.search = "";
+      url.searchParams.set(
+        "next",
+        `${request.nextUrl.pathname}${request.nextUrl.search}`
+      );
+      return NextResponse.redirect(url);
+    }
+
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);

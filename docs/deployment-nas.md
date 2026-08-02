@@ -446,7 +446,7 @@ Tunnel だけでは URL を知っていれば誰でも到達できるため、Su
 |---|---|
 | Policy name | `iterra-members` |
 | Action | **Allow** |
-| Session duration | 任意（既定のままで可） |
+| Session duration | **1 month**（既定の 24 時間だと毎日 OTP を入れ直すことになる） |
 | Rules → Include → Selector | **Emails ending in** |
 | Value | `@iterra.jp` |
 
@@ -493,6 +493,31 @@ Path は先頭のスラッシュを含めない表記（`api/health`）で入力
 
 > Access アプリは**すべて既定で拒否**され、Allow ポリシーに一致した場合のみ通る。
 > ①にポリシーを付け忘れると誰もアクセスできなくなる。
+
+### 3.2.1 アプリのログインと一本化する
+
+Access を通ったあとにアプリのログイン画面が出ると、同じ人が 2 回名乗ることになる。
+Access が付ける `Cf-Access-Jwt-Assertion` を検証して、そのままアプリのセッションを
+張るようにしてある（`src/lib/cf-access.ts` / `/auth/cf-access`）。
+
+有効にするには `.env` に 2 つ入れる。**両方そろって初めて有効**になり、
+未設定なら従来どおりログイン画面が出る（ローカル開発は未設定のままでよい）。
+
+**①アプリ本体（`iterra-hub`）→ Overview** から次を控える。
+
+| `.env` のキー | 取得元 |
+|---|---|
+| `CF_ACCESS_TEAM_DOMAIN` | `<team>.cloudflareaccess.com`（Zero Trust の左上、チーム名から） |
+| `CF_ACCESS_AUD` | **Application Audience (AUD) Tag** |
+
+入れたら `docker compose up -d` で反映する。
+
+- **ヘッダーの存在だけでは信用しない。** 署名・発行元・AUD まで検証する。
+  経路の前提（cloudflared 経由のみ）が変わっても破れないようにするため
+- Access を通っても、`crm_users` に居ない／`is_active = false` の人は入れない。
+  退職者を止める経路をアプリ側にも残してある
+- 認証の回数を減らすのはポリシーの **Session duration**（§3.1）。
+  ここを延ばさないと Access 側の OTP を繰り返し求められる
 
 ### 3.3 動作確認
 
@@ -704,7 +729,7 @@ docker compose up -d
 |---|---|
 | `curl https://hub.iterra.online/api/health` | `{"status":"ok"}` / HTTP 200 |
 | `curl "https://hub.iterra.online/api/health?deep=1"` | `{"status":"ok","database":"ok"}` |
-| ブラウザで `https://hub.iterra.online` | Access の認証 → アプリのログイン画面 |
+| ブラウザで `https://hub.iterra.online` | Access の認証 → そのままダッシュボード（§3.2.1 未設定ならアプリのログイン画面） |
 | 未認証で `/dashboard` | `/login` へ 307 リダイレクト |
 
 ### 7.2 本番実機の検証チェックリスト

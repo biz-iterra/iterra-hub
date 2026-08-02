@@ -41,6 +41,14 @@ services:
       CF_ACCESS_TEAM_DOMAIN: ${CF_ACCESS_TEAM_DOMAIN:-}
       CF_ACCESS_AUD: ${CF_ACCESS_AUD:-}
 
+      # コーポレートサイトの問い合わせ取込（D1）。
+      # 未設定なら /api/leads/inquiry-sync は 503 で無効
+      CLOUDFLARE_ACCOUNT_ID: ${CLOUDFLARE_ACCOUNT_ID:-}
+      CLOUDFLARE_D1_DATABASE_ID: ${CLOUDFLARE_D1_DATABASE_ID:-}
+      CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:-}
+      INQUIRY_SYNC_CRON_SECRET: ${INQUIRY_SYNC_CRON_SECRET:-}
+      INQUIRY_SYNC_OWNER_EMAIL: ${INQUIRY_SYNC_OWNER_EMAIL:-}
+
       TZ: Asia/Tokyo
 
     healthcheck:

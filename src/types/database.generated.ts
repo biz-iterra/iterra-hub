@@ -6062,6 +6062,10 @@ export type Database = {
         Args: { p_batch: Json; p_defaults: Json; p_errors: Json; p_leads: Json }
         Returns: Json
       }
+      import_inquiry_leads: {
+        Args: { p_batch: Json; p_rows: Json }
+        Returns: Json
+      }
       is_admin: { Args: never; Returns: boolean }
       is_deal_accessible: { Args: { p_deal_id: string }; Returns: boolean }
       is_entity_address_accessible: {

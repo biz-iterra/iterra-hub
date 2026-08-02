@@ -33,6 +33,7 @@ ITERRA CRM（顧客関係管理）システム。
 │   ├── database-design.md # DB設計書
 │   ├── deployment-nas.md  # 本番Supabase構築 + NASデプロイ手順
 │   ├── lead-import-eight.md # Eight 名刺CSV取込の設計（実装済み: /admin/leads/import）
+│   ├── lead-import-inquiry.md # コーポレートサイトの問い合わせ取込（D1 → /api/leads/inquiry-sync）
 │   ├── operation-manual.md # 操作マニュアル（§13 バックアップと復旧）
 │   ├── test-checklist.md  # テストチェックリスト
 │   └── archive/           # 役目を終えたドキュメント（現行仕様の参照には使わない）

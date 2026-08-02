@@ -362,10 +362,14 @@ export default async function AccountDetailPage({
 
         {/* ======== Right ======== */}
         <div style={sectionStackStyle}>
-          {/* 連絡先と取引先はどちらが親とも言えないので、両側から足し外しできる */}
-          <DetailSection title="連絡先一覧" icon={Users}>
+          {/*
+            この取引先の窓口。契約を登録すると商談の相手担当者が主担当として
+            自動で入る。以降に窓口が増えたり役割が変わったりしたときは
+            ここで直す（連絡先側は閲覧のみ。同じ紐づけの入口を 2 つにしない）。
+          */}
+          <DetailSection title="窓口の連絡先" icon={Users}>
             <RelationListSection
-              label="連絡先一覧"
+              label="窓口の連絡先"
               rows={contacts.map((c) => ({
                 id: c.id,
                 href: `/contacts/${c.id}`,

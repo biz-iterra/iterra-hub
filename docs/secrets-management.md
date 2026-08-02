@@ -64,7 +64,7 @@ Environment に無いときへ静かにフォールバックし、分離でき�
 `environment: staging` のジョブを回すと、リポジトリレベルに残った**本番の値**へ静かに
 フォールバックし、STG のつもりで本番 DB を触ってしまう。
 
-### NAS — `/volume1/docker/iterra-hub/.env`（7 件）
+### NAS — `/volume1/docker/iterra-hub/.env`（14 件）
 
 `docker-compose.yml` がコンテナ実行時に読む。ファイルは `chmod 600`。
 
@@ -77,6 +77,13 @@ Environment に無いときへ静かにフォールバックし、分離でき�
 | `nas/iterra-hub:production/GOOGLE_OAUTH_CLIENT_SECRET` | 同上 | 同上 | 再発行すると既存の連携が切れる |
 | `nas/iterra-hub:production/GMAIL_TOKEN_ENCRYPTION_KEY` | リフレッシュトークンの暗号化鍵（pgcrypto） | 自分のターミナルで生成（PowerShell: `[System.Security.Cryptography.RandomNumberGenerator]::Fill($b)` → `[Convert]::ToBase64String($b)`）。値をチャットやログに残さないこと | **変更・紛失すると保存済みトークンを復号できず全員が再連携になる**。ローテーション時は再連携の案内とセットで |
 | `nas/iterra-hub:production/GMAIL_SYNC_CRON_SECRET` | 定期同期エンドポイント（`/api/gmail/sync`）の Bearer トークン | 自分のターミナルで生成。暗号鍵とは別の値にする | 未設定ならエンドポイントは 503 で無効。**開発機には置かない**（手動同期で足りる） |
+| `nas/iterra-hub:production/CF_ACCESS_TEAM_DOMAIN` | Cloudflare Access の認証をアプリのログインに引き継ぐ（`src/lib/cf-access.ts`） | Zero Trust → Access → Applications → `iterra-hub` → Overview（`<team>.cloudflareaccess.com`） | 秘密値ではないが AUD と組で管理する。**AUD と両方そろって初めて有効** |
+| `nas/iterra-hub:production/CF_ACCESS_AUD` | 同上。JWT の宛先検証に使う | 同上の **Application Audience (AUD) Tag** | 片方だけだと従来どおりログイン画面が出る |
+| `nas/iterra-hub:production/CLOUDFLARE_ACCOUNT_ID` | 問い合わせ取込（D1 の読み取り） | Cloudflare ダッシュボード右下、または URL の `/accounts/` の後ろ | 秘密値ではない。`corporate-iterra` の CI にも同じ値が登録済み |
+| `nas/iterra-hub:production/CLOUDFLARE_D1_DATABASE_ID` | 同上。`corporate-iterra-leads` の ID | `corporate-iterra/wrangler.jsonc` に記載（`7ab6eea8-…`） | 秘密値ではない。STG を見る場合は `-stg` の ID に差し替える |
+| `nas/iterra-hub:production/CLOUDFLARE_API_TOKEN` | 同上。D1 REST API の認証 | My Profile → API Tokens → Create Token（Custom） | **権限は Account → D1 → Read だけ。** サイトのデプロイ用トークンとは別に作る |
+| `nas/iterra-hub:production/INQUIRY_SYNC_CRON_SECRET` | 取込エンドポイント（`/api/leads/inquiry-sync`）の Bearer トークン | 自分のターミナルで生成。Gmail 用とは別の値にする | 未設定ならエンドポイントは 503 で無効 |
+| `nas/iterra-hub:production/INQUIRY_SYNC_OWNER_EMAIL` | 取り込んだリードの担当者 | 運用で決める（`crm_users.email` と一致させる） | 秘密値ではない。未設定なら最初の管理者に付く |
 
 `IMAGE_TAG` は切り戻し時のみ使う運用値で、秘密値ではないため登録対象外。
 

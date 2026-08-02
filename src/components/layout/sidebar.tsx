@@ -17,6 +17,7 @@ import {
   UserSearch,
   Megaphone,
   Activity,
+  CreditCard,
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -106,6 +107,13 @@ const navGroups: NavGroup[] = [
         description: "取引先に属する個人",
       },
       {
+        label: "名刺",
+        href: "/contacts/cards",
+        icon: CreditCard,
+        nested: true,
+        description: "所属の記録と紹介者",
+      },
+      {
         label: "タレント",
         href: "/talents",
         icon: UserCircle,
@@ -122,13 +130,23 @@ const navGroups: NavGroup[] = [
   },
 ];
 
+/** 選択中の判定で「より深いパスの項目」を探すために使う */
+const allHrefs = navGroups.flatMap((g) => g.items.map((i) => i.href));
+
 export function Sidebar({ userRole = "admin" }: { userRole?: CrmUserRole }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
 
   const isActive = (href: string) => {
     if (href === "/dashboard") return pathname === "/dashboard";
-    return pathname.startsWith(href);
+    if (!pathname.startsWith(href)) return false;
+
+    // 前方一致だけだと、/contacts/cards で「連絡先」と「名刺」が両方光る。
+    // より深いパスを持つ項目が当たっているなら、そちらに譲る
+    return !allHrefs.some(
+      (other) =>
+        other !== href && other.startsWith(href) && pathname.startsWith(other)
+    );
   };
 
   const canAccess = (item: NavItem) => {

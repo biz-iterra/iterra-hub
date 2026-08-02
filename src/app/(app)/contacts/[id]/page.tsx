@@ -205,6 +205,55 @@ export default async function ContactDetailPage({
             </div>
           </DetailSection>
 
+          {/* 連絡手段は使う頻度が高いので基本情報のすぐ下に置く */}
+          <DetailSection title="連絡先" icon={Mail}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+              <InfoField
+                label="メール"
+                value={
+                  emails.length === 0 ? null : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
+                      {emails.map((e) => (
+                        <div
+                          key={e.id}
+                          style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
+                        >
+                          {e.is_primary && (
+                            <Star size={12} style={{ color: "var(--color-terra)" }} />
+                          )}
+                          <span style={roleBadgeStyle}>{e.label ?? "main"}</span>
+                          <span>{e.email}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )
+                }
+              />
+              <InfoField
+                label="電話"
+                value={
+                  phones.length === 0 ? null : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
+                      {phones.map((p) => (
+                        <div
+                          key={p.id}
+                          style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
+                        >
+                          {p.is_primary && (
+                            <Star size={12} style={{ color: "var(--color-terra)" }} />
+                          )}
+                          <span style={roleBadgeStyle}>{p.label ?? "main"}</span>
+                          <span>{p.phone}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )
+                }
+              />
+              {/* 住所は基本情報へ移した（ここは連絡手段だけを扱う） */}
+            </div>
+          </DetailSection>
+
           <DetailSection title="属性情報" icon={Layers}>
             <div
               style={fieldGridStyle}
@@ -259,54 +308,6 @@ export default async function ContactDetailPage({
 
           {/* 紹介した相手。名刺に持つ紹介者の逆引き（0 件なら出さない） */}
           <ReferredContactsSection rows={referred} />
-
-          <DetailSection title="連絡先" icon={Mail}>
-            <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-              <InfoField
-                label="メール"
-                value={
-                  emails.length === 0 ? null : (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
-                      {emails.map((e) => (
-                        <div
-                          key={e.id}
-                          style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
-                        >
-                          {e.is_primary && (
-                            <Star size={12} style={{ color: "var(--color-terra)" }} />
-                          )}
-                          <span style={roleBadgeStyle}>{e.label ?? "main"}</span>
-                          <span>{e.email}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )
-                }
-              />
-              <InfoField
-                label="電話"
-                value={
-                  phones.length === 0 ? null : (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
-                      {phones.map((p) => (
-                        <div
-                          key={p.id}
-                          style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
-                        >
-                          {p.is_primary && (
-                            <Star size={12} style={{ color: "var(--color-terra)" }} />
-                          )}
-                          <span style={roleBadgeStyle}>{p.label ?? "main"}</span>
-                          <span>{p.phone}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )
-                }
-              />
-              {/* 住所は基本情報へ移した（ここは連絡手段だけを扱う） */}
-            </div>
-          </DetailSection>
 
           {c.internal_memo && (
             <DetailSection title="メモ" icon={StickyNote}>

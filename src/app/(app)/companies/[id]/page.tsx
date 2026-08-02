@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { DetailSection } from "@/components/ui/DetailSection";
 import { InfoField } from "@/components/ui/InfoField";
+import { ExternalLinkText } from "@/components/ui/ExternalLinkText";
 import { EntityLink } from "@/components/ui/EntityLink";
 import { detailContainerStyle, detailGridStyle, fieldGridStyle, sectionStackStyle } from "@/lib/layout";
 
@@ -275,22 +276,7 @@ export default async function CompanyDetailPage({
               <InfoField
                 label="登記事項証明書URL"
                 full
-                value={
-                  company.registration_certificate_url ? (
-                    <a
-                      href={company.registration_certificate_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{
-                        color: "var(--color-terra)",
-                        textDecoration: "underline",
-                        wordBreak: "break-all",
-                      }}
-                    >
-                      {company.registration_certificate_url}
-                    </a>
-                  ) : null
-                }
+                value={<ExternalLinkText value={company.registration_certificate_url} />}
               />
             </div>
           </DetailSection>
@@ -304,22 +290,7 @@ export default async function CompanyDetailPage({
               <InfoField
                 label="ホームページURL"
                 full
-                value={
-                  company.website_url ? (
-                    <a
-                      href={company.website_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{
-                        color: "var(--color-terra)",
-                        textDecoration: "underline",
-                        wordBreak: "break-all",
-                      }}
-                    >
-                      {company.website_url}
-                    </a>
-                  ) : null
-                }
+                value={<ExternalLinkText value={company.website_url} />}
               />
               <InfoField
                 label="メールドメイン"

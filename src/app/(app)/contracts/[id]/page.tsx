@@ -20,6 +20,7 @@ import {
 import { ContractMethodBadge } from "@/components/ui/badges";
 import { DetailSection } from "@/components/ui/DetailSection";
 import { InfoField } from "@/components/ui/InfoField";
+import { ExternalLinkText } from "@/components/ui/ExternalLinkText";
 import { EntityLink } from "@/components/ui/EntityLink";
 import { detailContainerStyle, detailGridStyle, fieldGridStyle, sectionStackStyle } from "@/lib/layout";
 
@@ -320,41 +321,11 @@ export default async function ContractDetailPage({
             <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
               <InfoField
                 label="原本URL"
-                value={
-                  contract.original_document_url ? (
-                    <a
-                      href={contract.original_document_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{
-                        color: "var(--color-terra)",
-                        textDecoration: "underline",
-                        wordBreak: "break-all",
-                      }}
-                    >
-                      {contract.original_document_url}
-                    </a>
-                  ) : null
-                }
+                value={<ExternalLinkText value={contract.original_document_url} />}
               />
               <InfoField
                 label="契約書URL"
-                value={
-                  contract.contract_url ? (
-                    <a
-                      href={contract.contract_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{
-                        color: "var(--color-terra)",
-                        textDecoration: "underline",
-                        wordBreak: "break-all",
-                      }}
-                    >
-                      {contract.contract_url}
-                    </a>
-                  ) : null
-                }
+                value={<ExternalLinkText value={contract.contract_url} />}
               />
             </div>
           </DetailSection>

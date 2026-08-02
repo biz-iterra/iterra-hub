@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type CSSProperties } from "react";
+import { useState, type CSSProperties, type ReactNode } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/badges";
 import { useToast } from "@/components/ui/toast";
 import { RelationField } from "@/components/ui/RelationField";
+import { ExternalLinkText } from "@/components/ui/ExternalLinkText";
 import { RelationMultiField } from "@/components/ui/RelationMultiField";
 import { DetailSection, detailHeadingStyle } from "@/components/ui/DetailSection";
 import type {
@@ -179,7 +180,8 @@ function Field({
   empty = "—",
 }: {
   label: string;
-  value?: string | number | null;
+  /** リンクなどを差し込めるよう ReactNode を受ける */
+  value?: ReactNode;
   empty?: string;
 }) {
   const isEmpty = value === null || value === undefined || value === "";
@@ -1114,7 +1116,7 @@ export function LeadDetailClient({
               <Field label="代表者名" value={lead.representative_name} />
               <Field label="法人番号" value={lead.corporate_number} />
               <Field label="代表電話" value={lead.company_phone} />
-              <Field label="企業URL" value={lead.url} />
+              <Field label="企業URL" value={<ExternalLinkText value={lead.url} />} />
             </div>
             <div style={styles.grid3}>
               <Field

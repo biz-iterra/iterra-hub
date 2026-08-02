@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { DetailSection } from "@/components/ui/DetailSection";
 import { InfoField } from "@/components/ui/InfoField";
+import { ExternalLinkText } from "@/components/ui/ExternalLinkText";
 import { LabelBadge } from "@/components/ui/badges";
 import { EntityLink } from "@/components/ui/EntityLink";
 import { detailContainerStyle, detailGridStyle, fieldGridStyle, sectionStackStyle } from "@/lib/layout";
@@ -347,22 +348,7 @@ export default async function ContactDetailPage({
               <InfoField
                 label="個人サイトURL"
                 full
-                value={
-                  c.website_url ? (
-                    <a
-                      href={c.website_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{
-                        color: "var(--color-terra)",
-                        textDecoration: "underline",
-                        wordBreak: "break-all",
-                      }}
-                    >
-                      {c.website_url}
-                    </a>
-                  ) : null
-                }
+                value={<ExternalLinkText value={c.website_url} />}
               />
             </div>
           </DetailSection>

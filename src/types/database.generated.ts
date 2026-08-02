@@ -6111,6 +6111,7 @@ export type Database = {
           lead_name: string
           owner_name: string
           score: number
+          stage_color: string
           stage_id: string
           stage_name: string
           stage_order: number
@@ -6125,6 +6126,7 @@ export type Database = {
         Returns: {
           is_terminal: boolean
           lead_count: number
+          stage_color: string
           stage_id: string
           stage_name: string
           stage_order: number

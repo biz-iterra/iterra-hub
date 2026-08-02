@@ -14,6 +14,7 @@ import type {
   Paged,
   Row,
   SortedRef,
+  SortedColoredRef,
 } from "@/types/relations";
 import type { z } from "zod";
 
@@ -95,11 +96,11 @@ export async function getDeals(params?: {
 
 // ---------- カンバン用取得 ----------
 type KanbanStageColumn = {
-  stage: SortedRef;
+  stage: SortedColoredRef;
   deals: DealWithRelations[];
 };
 type KanbanStatusColumn = {
-  status: SortedRef;
+  status: SortedColoredRef;
   deals: DealWithRelations[];
 };
 
@@ -117,13 +118,14 @@ export async function getDealsForKanban(
   const [stagesResult, statusesResult, dealsResult] = await Promise.all([
     supabase
       .from("deal_stages")
-      .select("id, name, sort_order")
+      // 列の色はマスタから。並び順で割り当てるとステージを足したときにずれる
+      .select("id, name, sort_order, color")
       .eq("pipeline_type_id", pipelineTypeId)
       .is("deleted_at", null)
       .order("sort_order", { ascending: true }),
     supabase
       .from("deal_statuses")
-      .select("id, name, sort_order")
+      .select("id, name, sort_order, color")
       .eq("pipeline_type_id", pipelineTypeId)
       .is("deleted_at", null)
       .order("sort_order", { ascending: true }),

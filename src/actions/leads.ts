@@ -936,6 +936,7 @@ export type LeadProgressCell = {
   stage_name: string;
   stage_slug: string;
   stage_order: number;
+  stage_color: string | null;
   is_terminal: boolean;
   status_id: string | null;
   status_name: string | null;
@@ -965,6 +966,7 @@ export type LeadKanbanCard = {
   stage_id: string;
   stage_name: string;
   stage_order: number;
+  stage_color: string | null;
   lead_id: string | null;
   lead_name: string | null;
   company_name: string | null;

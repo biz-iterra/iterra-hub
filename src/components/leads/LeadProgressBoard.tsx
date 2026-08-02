@@ -4,6 +4,7 @@ import type { CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 
 import type { LeadProgressCell } from "@/actions/leads";
+import { kanbanColorFrom } from "@/lib/kanban-color";
 
 /**
  * 進捗の集計。ステージごとに、その中のステータスの内訳を並べる。
@@ -47,15 +48,20 @@ export function LeadProgressBoard({
           .filter((c) => c.stage_id === s.stage_id)
           .reduce((sum, c) => sum + c.lead_count, 0);
 
+        // カンバンと同じ色を使う。同じステージが画面ごとに違う色にならないように
+        const color = kanbanColorFrom(s.stage_color);
+
         return (
           <div key={s.stage_id} style={styles.stage}>
             <button
               type="button"
-              style={styles.stageHead}
-              className="hover:bg-[var(--color-bg-hover)]"
+              style={{ ...styles.stageHead, backgroundColor: color.bg }}
               onClick={() => openList(s.stage_id)}
             >
-              <span style={styles.stageName}>
+              <span style={{ ...styles.stageName, color: color.text }}>
+                <span
+                  style={{ ...styles.stageMark, backgroundColor: color.solid }}
+                />
                 {s.stage_name}
                 {s.is_terminal && <span style={styles.terminal}>終了</span>}
               </span>
@@ -119,9 +125,17 @@ const styles = {
     textAlign: "left" as const,
   } as CSSProperties,
   stageName: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "0.5rem",
     fontSize: "0.9375rem",
     fontWeight: 600,
-    color: "var(--color-text-title)",
+  } as CSSProperties,
+  stageMark: {
+    width: 8,
+    height: 8,
+    borderRadius: "var(--radius-full)",
+    flexShrink: 0,
   } as CSSProperties,
   stageCount: {
     fontSize: "0.9375rem",

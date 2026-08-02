@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
+import { kanbanColorFrom, type KanbanColor } from "@/lib/kanban-color";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -23,8 +24,9 @@ import { DEFAULT_PAGE_SIZE } from "@/lib/constants/pagination";
 import type { DealWithRelations, Paged } from "@/types/relations";
 
 type Pipeline = { id: string; name: string };
-type Stage = { id: string; name: string; sort_order: number };
-type Status = { id: string; name: string; sort_order: number };
+// color はカンバンの列の色に使う（マスタ由来。src/lib/kanban-color.ts）
+type Stage = { id: string; name: string; sort_order: number; color: string | null };
+type Status = { id: string; name: string; sort_order: number; color: string | null };
 type CrmUser = { id: string; full_name: string; role: string };
 type StageColumn = { stage: Stage; deals: DealWithRelations[] };
 type StatusColumn = { status: Status; deals: DealWithRelations[] };
@@ -158,21 +160,6 @@ function getDueInfo(deal: DealWithRelations): DueInfo | null {
   };
 }
 
-// カラースケール（sort_order のインデックスで循環）
-const COLOR_SCALE: { solid: string; bg: string; text: string }[] = [
-  { solid: "#D7775D", bg: "rgba(215, 119, 93, 0.12)", text: "#A34E35" }, // soleil
-  { solid: "#7AA592", bg: "rgba(122, 165, 146, 0.14)", text: "#4D7A65" }, // sage
-  { solid: "#3B82F6", bg: "rgba(59, 130, 246, 0.12)", text: "#1E40AF" }, // info
-  { solid: "#E5C47F", bg: "rgba(229, 196, 127, 0.22)", text: "#8A6D1E" }, // amber
-  { solid: "#10B981", bg: "rgba(16, 185, 129, 0.12)", text: "#047857" }, // success
-  { solid: "#F59E0B", bg: "rgba(245, 158, 11, 0.14)", text: "#B45309" }, // warning
-  { solid: "#8B5CF6", bg: "rgba(139, 92, 246, 0.12)", text: "#6D28D9" }, // violet
-  { solid: "#EC4899", bg: "rgba(236, 72, 153, 0.12)", text: "#BE185D" }, // pink
-];
-
-function getScaleColor(index: number) {
-  return COLOR_SCALE[index % COLOR_SCALE.length];
-}
 
 // ---------- カンバン D&D 用ヘルパー ----------
 // 楽観的更新: 対象ディールを一旦すべての列から取り除き、指定列に部分更新して差し込む
@@ -708,6 +695,7 @@ type Column = {
   id: string;
   name: string;
   sort_order: number;
+  color: string | null;
   deals: DealWithRelations[];
 };
 
@@ -778,8 +766,10 @@ function KanbanView({
     : filteredByColumn;
 
   // sort_order 順（rawColumns の index）で色を固定
-  const colorByColumnId = new Map<string, ReturnType<typeof getScaleColor>>();
-  rawColumns.forEach((c, i) => colorByColumnId.set(c.id, getScaleColor(i)));
+  // 色はマスタの color から作る。並び順で割り当てると、ステージを 1 つ
+  // 足しただけで既存の列の色がずれ、バッジ側とも食い違う
+  const colorByColumnId = new Map<string, KanbanColor>();
+  rawColumns.forEach((c) => colorByColumnId.set(c.id, kanbanColorFrom(c.color)));
 
   if (columns.length === 0) {
     return (
@@ -813,7 +803,7 @@ function KanbanView({
         }}
       >
         {columns.map((col) => {
-          const color = colorByColumnId.get(col.id) ?? getScaleColor(0);
+          const color = colorByColumnId.get(col.id) ?? kanbanColorFrom(null);
           const isDragOver = dragOverColumnId === col.id;
           return (
         <div

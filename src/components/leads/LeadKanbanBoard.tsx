@@ -4,6 +4,7 @@ import type { CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 
 import type { LeadKanbanCard, LeadProgressCell } from "@/actions/leads";
+import { kanbanColorFrom } from "@/lib/kanban-color";
 
 /**
  * リードのカンバン。
@@ -52,11 +53,28 @@ export function LeadKanbanBoard({
         const total = totalOf(s.stage_id);
         const rest = total - items.length;
 
+        // 列の色はステージマスタの color から作る。並び順で割り当てると
+        // ステージを足したときに色がずれ、バッジ側とも食い違う
+        const color = kanbanColorFrom(s.stage_color);
+
         return (
-          <div key={s.stage_id} style={styles.column}>
+          <div
+            key={s.stage_id}
+            style={{ ...styles.column, backgroundColor: color.bg }}
+          >
             <div style={styles.columnHead}>
-              <span style={styles.stageName}>{s.stage_name}</span>
-              <span style={styles.stageCount}>{total.toLocaleString()}</span>
+              <span style={{ ...styles.stageName, color: color.text }}>
+                {s.stage_name}
+              </span>
+              <span
+                style={{
+                  ...styles.stageCount,
+                  backgroundColor: color.solid,
+                  color: "#fff",
+                }}
+              >
+                {total.toLocaleString()}
+              </span>
             </div>
 
             {items.length === 0 ? (
@@ -142,7 +160,6 @@ const styles = {
   } as CSSProperties,
   column: {
     flex: "0 0 240px",
-    backgroundColor: "var(--color-sumi50)",
     borderRadius: "var(--radius-card)",
     padding: "0.625rem",
     display: "flex",
@@ -162,8 +179,10 @@ const styles = {
     color: "var(--color-text-title)",
   } as CSSProperties,
   stageCount: {
-    fontSize: "0.75rem",
-    color: "var(--color-sumi600)",
+    fontSize: "0.6875rem",
+    fontWeight: 600,
+    borderRadius: "var(--radius-full)",
+    padding: "0.0625rem 0.5rem",
   } as CSSProperties,
   card: {
     display: "flex",

@@ -937,23 +937,24 @@ export type LeadProgressCell = {
   stage_slug: string;
   stage_order: number;
   is_terminal: boolean;
-  category_id: string | null;
-  category_name: string | null;
-  category_code: string | null;
-  category_color: string | null;
+  status_id: string | null;
+  status_name: string | null;
+  status_order: number | null;
   lead_count: number;
 };
 
-export async function getLeadProgressSummary(): Promise<
-  { data: LeadProgressCell[] | null; error: string | null }
-> {
+export async function getLeadProgressSummary(
+  categoryCode?: string
+): Promise<{ data: LeadProgressCell[] | null; error: string | null }> {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { data: null, error: "認証が必要です" };
 
-  const { data, error } = await supabase.rpc("lead_progress_summary");
+  const { data, error } = await supabase.rpc("lead_progress_summary", {
+    p_category_code: categoryCode ?? undefined,
+  });
   if (error) return { data: null, error: error.message };
 
   return { data: (data ?? []) as LeadProgressCell[], error: null };
@@ -970,19 +971,19 @@ export type LeadKanbanCard = {
   score: number | null;
   temperature_name: string | null;
   temperature_color: string | null;
-  category_name: string | null;
-  category_color: string | null;
+  status_name: string | null;
   owner_name: string | null;
   updated_at: string | null;
 };
 
 /**
  * カンバンのカード。
- * 3,800 件を全部カードにすると開けないので、ステージごとに上位だけを取る。
+ * 件数が多いので、ステージごとに上位だけを取る。
  * 総数は getLeadProgressSummary で数える。
  */
 export async function getLeadKanbanCards(
-  limitPerStage = 20
+  limitPerStage = 20,
+  categoryCode?: string
 ): Promise<{ data: LeadKanbanCard[] | null; error: string | null }> {
   const supabase = await createClient();
   const {
@@ -992,6 +993,7 @@ export async function getLeadKanbanCards(
 
   const { data, error } = await supabase.rpc("lead_kanban_cards", {
     p_limit: limitPerStage,
+    p_category_code: categoryCode ?? undefined,
   });
   if (error) return { data: null, error: error.message };
 

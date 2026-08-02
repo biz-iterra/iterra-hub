@@ -6,125 +6,93 @@ import { useRouter } from "next/navigation";
 import type { LeadProgressCell } from "@/actions/leads";
 
 /**
- * リードの進捗をステージ × カテゴリで見る。
+ * 進捗の集計。ステージごとに、その中のステータスの内訳を並べる。
  *
- * 一覧では「どの層がどこで滞っているか」が分からない。件数を面で並べ、
- * 気になるところから一覧へ降りられるようにする。
+ * ステータスはステージに従属するので、行列にすると空欄だらけになる。
+ * ステージを見出しにして中を入れ子にする方が読める。
  *
- * 件数は RLS が効いた範囲。member には自分の担当分しか出ない。
+ * **件数 0 の枠も出す。** 消えると、どこが空いているのか読み取れない。
+ * 件数は RLS が効いた範囲（member には自分の担当分だけ）。
  */
-export function LeadProgressBoard({ cells }: { cells: LeadProgressCell[] }) {
+export function LeadProgressBoard({
+  cells,
+  categoryId,
+}: {
+  cells: LeadProgressCell[];
+  /** 一覧へ降りるときに引き継ぐ */
+  categoryId?: string;
+}) {
   const router = useRouter();
 
-  // 関数側で sort_order 順に返している。出現順を保って組み直す
   const stages = [...new Map(cells.map((c) => [c.stage_id, c])).values()].sort(
     (a, b) => a.stage_order - b.stage_order
   );
-  const categories = [
-    ...new Map(
-      cells
-        .filter((c) => c.category_id)
-        .map((c) => [
-          c.category_id,
-          { id: c.category_id!, name: c.category_name!, color: c.category_color },
-        ])
-    ).values(),
-  ];
-
-  const countOf = (stageId: string, categoryId: string) =>
-    cells.find((c) => c.stage_id === stageId && c.category_id === categoryId)
-      ?.lead_count ?? 0;
-
-  const stageTotal = (stageId: string) =>
-    cells
-      .filter((c) => c.stage_id === stageId)
-      .reduce((sum, c) => sum + c.lead_count, 0);
-
-  const categoryTotal = (categoryId: string) =>
-    cells
-      .filter((c) => c.category_id === categoryId)
-      .reduce((sum, c) => sum + c.lead_count, 0);
 
   const total = cells.reduce((sum, c) => sum + c.lead_count, 0);
 
+  function openList(stageId: string, statusId?: string | null) {
+    const params = new URLSearchParams({ stage: stageId });
+    if (statusId) params.set("status", statusId);
+    if (categoryId) params.set("category", categoryId);
+    router.push(`/leads?${params.toString()}`);
+  }
+
   return (
     <div style={styles.card}>
-      <table className="w-full text-sm">
-        <thead>
-          <tr style={{ backgroundColor: "var(--color-sumi50)" }}>
-            <th style={{ ...styles.th, textAlign: "left" }}>ステージ</th>
-            {categories.map((c) => (
-              <th key={c.id} style={styles.th}>
-                <span
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "0.375rem",
-                  }}
-                >
-                  <span
-                    style={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: "var(--radius-full)",
-                      backgroundColor: c.color ?? "var(--color-sumi400)",
-                    }}
-                  />
-                  {c.name}
-                </span>
-              </th>
-            ))}
-            <th style={styles.th}>計</th>
-          </tr>
-        </thead>
-        <tbody>
-          {stages.map((s) => (
-            <tr key={s.stage_id} style={styles.tr}>
-              <td style={{ ...styles.td, textAlign: "left" }}>
+      {stages.map((s) => {
+        const rows = cells
+          .filter((c) => c.stage_id === s.stage_id && c.status_id)
+          .sort((a, b) => (a.status_order ?? 0) - (b.status_order ?? 0));
+        const stageTotal = cells
+          .filter((c) => c.stage_id === s.stage_id)
+          .reduce((sum, c) => sum + c.lead_count, 0);
+
+        return (
+          <div key={s.stage_id} style={styles.stage}>
+            <button
+              type="button"
+              style={styles.stageHead}
+              className="hover:bg-[var(--color-bg-hover)]"
+              onClick={() => openList(s.stage_id)}
+            >
+              <span style={styles.stageName}>
                 {s.stage_name}
                 {s.is_terminal && <span style={styles.terminal}>終了</span>}
-              </td>
-              {categories.map((c) => {
-                const n = countOf(s.stage_id, c.id);
-                return (
-                  <td key={c.id} style={styles.td}>
-                    {n === 0 ? (
-                      <span style={styles.zero}>—</span>
-                    ) : (
-                      <button
-                        type="button"
-                        style={styles.cellBtn}
-                        className="hover:bg-[var(--color-bg-hover)]"
-                        onClick={() =>
-                          router.push(
-                            `/leads?stage=${s.stage_id}&category=${c.id}`
-                          )
-                        }
-                      >
-                        {n.toLocaleString()}
-                      </button>
-                    )}
-                  </td>
-                );
-              })}
-              <td style={{ ...styles.td, fontWeight: 600 }}>
-                {stageTotal(s.stage_id).toLocaleString()}
-              </td>
-            </tr>
-          ))}
-          <tr style={{ backgroundColor: "var(--color-sumi50)" }}>
-            <td style={{ ...styles.td, textAlign: "left", fontWeight: 600 }}>計</td>
-            {categories.map((c) => (
-              <td key={c.id} style={{ ...styles.td, fontWeight: 600 }}>
-                {categoryTotal(c.id).toLocaleString()}
-              </td>
-            ))}
-            <td style={{ ...styles.td, fontWeight: 700 }}>
-              {total.toLocaleString()}
-            </td>
-          </tr>
-        </tbody>
-      </table>
+              </span>
+              <span style={styles.stageCount}>{stageTotal.toLocaleString()}</span>
+            </button>
+
+            {rows.length > 0 && (
+              <div style={styles.statuses}>
+                {rows.map((r) => (
+                  <button
+                    key={r.status_id}
+                    type="button"
+                    style={styles.statusRow}
+                    className="hover:bg-[var(--color-bg-hover)]"
+                    onClick={() => openList(s.stage_id, r.status_id)}
+                  >
+                    <span style={styles.statusName}>{r.status_name}</span>
+                    <span
+                      style={{
+                        ...styles.statusCount,
+                        ...(r.lead_count === 0 ? styles.zero : null),
+                      }}
+                    >
+                      {r.lead_count.toLocaleString()}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      <div style={styles.totalRow}>
+        <span>計</span>
+        <span style={{ fontWeight: 700 }}>{total.toLocaleString()}</span>
+      </div>
     </div>
   );
 }
@@ -134,41 +102,70 @@ const styles = {
     backgroundColor: "#fff",
     borderRadius: "var(--radius-card)",
     boxShadow: "var(--elevation-low)",
-    overflowX: "auto",
+    padding: "0.5rem 0",
   } as CSSProperties,
-  th: {
-    padding: "0.75rem 1rem",
-    textAlign: "center" as const,
-    fontSize: "0.75rem",
-    fontWeight: 600,
-    color: "var(--color-sumi600)",
-    whiteSpace: "nowrap" as const,
-  } as CSSProperties,
-  tr: {
+  stage: {
     borderBottom: "1px solid var(--color-border-default)",
   } as CSSProperties,
-  td: {
-    padding: "0.625rem 1rem",
-    textAlign: "center" as const,
-    color: "var(--color-text-list)",
-    whiteSpace: "nowrap" as const,
-  } as CSSProperties,
-  cellBtn: {
+  stageHead: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    width: "100%",
     border: "none",
     backgroundColor: "transparent",
-    color: "var(--color-terra)",
-    fontSize: "0.875rem",
-    fontWeight: 600,
+    padding: "0.75rem 1.25rem",
     cursor: "pointer",
-    padding: "0.25rem 0.5rem",
-    borderRadius: "var(--radius-sm)",
+    textAlign: "left" as const,
   } as CSSProperties,
-  zero: {
-    color: "var(--color-sumi400)",
+  stageName: {
+    fontSize: "0.9375rem",
+    fontWeight: 600,
+    color: "var(--color-text-title)",
+  } as CSSProperties,
+  stageCount: {
+    fontSize: "0.9375rem",
+    fontWeight: 600,
+    color: "var(--color-text-title)",
   } as CSSProperties,
   terminal: {
     marginLeft: "0.5rem",
     fontSize: "0.625rem",
     color: "var(--color-sumi500)",
+  } as CSSProperties,
+  statuses: {
+    display: "flex",
+    flexDirection: "column",
+    paddingBottom: "0.5rem",
+  } as CSSProperties,
+  statusRow: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    width: "100%",
+    border: "none",
+    backgroundColor: "transparent",
+    padding: "0.375rem 1.25rem 0.375rem 2.25rem",
+    cursor: "pointer",
+    textAlign: "left" as const,
+  } as CSSProperties,
+  statusName: {
+    fontSize: "0.8125rem",
+    color: "var(--color-sumi700)",
+  } as CSSProperties,
+  statusCount: {
+    fontSize: "0.8125rem",
+    color: "var(--color-text-list)",
+  } as CSSProperties,
+  zero: {
+    color: "var(--color-sumi400)",
+  } as CSSProperties,
+  totalRow: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: "0.75rem 1.25rem",
+    fontSize: "0.9375rem",
+    color: "var(--color-text-title)",
   } as CSSProperties,
 };

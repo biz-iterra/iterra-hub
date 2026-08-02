@@ -18,12 +18,21 @@ export function LeadKanbanBoard({
   cards,
   summary,
   limitPerStage,
+  categoryId,
 }: {
   cards: LeadKanbanCard[];
   summary: LeadProgressCell[];
   limitPerStage: number;
+  /** 一覧へ降りるときに引き継ぐ */
+  categoryId?: string;
 }) {
   const router = useRouter();
+
+  function openList(stageId: string) {
+    const params = new URLSearchParams({ stage: stageId });
+    if (categoryId) params.set("category", categoryId);
+    router.push(`/leads?${params.toString()}`);
+  }
 
   const stages = [...new Map(cards.map((c) => [c.stage_id, c])).values()].sort(
     (a, b) => a.stage_order - b.stage_order
@@ -66,17 +75,17 @@ export function LeadKanbanBoard({
                     <span style={styles.company}>{c.company_name}</span>
                   )}
                   <span style={styles.meta}>
-                    {c.category_name && (
+                    {/* カテゴリはページ全体で 1 つに絞られているので出さない。
+                        ここではステージ内のどこに居るか（ステータス）を見せる */}
+                    {c.status_name && (
                       <span
                         style={{
                           ...styles.chip,
-                          backgroundColor: c.category_color
-                            ? `${c.category_color}22`
-                            : "var(--color-sumi100)",
-                          color: c.category_color ?? "var(--color-sumi700)",
+                          backgroundColor: "var(--color-sumi100)",
+                          color: "var(--color-sumi700)",
                         }}
                       >
-                        {c.category_name}
+                        {c.status_name}
                       </span>
                     )}
                     {c.temperature_name && (
@@ -105,7 +114,7 @@ export function LeadKanbanBoard({
                 type="button"
                 style={styles.more}
                 className="hover:bg-[var(--color-bg-hover)]"
-                onClick={() => router.push(`/leads?stage=${s.stage_id}`)}
+                onClick={() => openList(s.stage_id)}
               >
                 他 {rest.toLocaleString()} 件を一覧で見る
               </button>

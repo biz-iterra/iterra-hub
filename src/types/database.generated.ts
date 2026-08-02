@@ -4169,6 +4169,7 @@ export type Database = {
         Row: {
           created_at: string
           created_by: string
+          default_category_id: string | null
           definition: string | null
           deleted_at: string | null
           deleted_by: string | null
@@ -4182,6 +4183,7 @@ export type Database = {
         Insert: {
           created_at?: string
           created_by?: string
+          default_category_id?: string | null
           definition?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
@@ -4195,6 +4197,7 @@ export type Database = {
         Update: {
           created_at?: string
           created_by?: string
+          default_category_id?: string | null
           definition?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
@@ -4211,6 +4214,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "crm_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_sources_default_category_id_fkey"
+            columns: ["default_category_id"]
+            isOneToOne: false
+            referencedRelation: "lead_categories"
             referencedColumns: ["id"]
           },
           {
@@ -6094,10 +6104,8 @@ export type Database = {
       is_manager_or_above: { Args: never; Returns: boolean }
       is_mobile_phone: { Args: { p_phone: string }; Returns: boolean }
       lead_kanban_cards: {
-        Args: { p_limit?: number }
+        Args: { p_category_code?: string; p_limit?: number }
         Returns: {
-          category_color: string
-          category_name: string
           company_name: string
           lead_id: string
           lead_name: string
@@ -6106,24 +6114,24 @@ export type Database = {
           stage_id: string
           stage_name: string
           stage_order: number
+          status_name: string
           temperature_color: string
           temperature_name: string
           updated_at: string
         }[]
       }
       lead_progress_summary: {
-        Args: never
+        Args: { p_category_code?: string }
         Returns: {
-          category_code: string
-          category_color: string
-          category_id: string
-          category_name: string
           is_terminal: boolean
           lead_count: number
           stage_id: string
           stage_name: string
           stage_order: number
           stage_slug: string
+          status_id: string
+          status_name: string
+          status_order: number
         }[]
       }
       merge_contacts: {

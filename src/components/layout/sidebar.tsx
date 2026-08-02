@@ -18,6 +18,9 @@ import {
   Megaphone,
   Activity,
   CreditCard,
+  MessageSquare,
+  TrendingUp,
+  PhoneCall,
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -70,6 +73,29 @@ const navGroups: NavGroup[] = [
     label: "マーケティング",
     items: [
       { label: "リード", href: "/leads", icon: UserSearch },
+      // カテゴリごとに追い方が違うので画面を分ける。
+      // SQL（商談化したもの）は商談で追うため、ここには置かない
+      {
+        label: "問い合わせ進捗",
+        href: "/progress/inquiry",
+        icon: MessageSquare,
+        nested: true,
+        description: "サイトから来た問い合わせ（Inquiry）",
+      },
+      {
+        label: "インバウンド進捗",
+        href: "/progress/inbound",
+        icon: TrendingUp,
+        nested: true,
+        description: "紹介・セミナー・名刺交換（MQL）",
+      },
+      {
+        label: "アウトバウンド進捗",
+        href: "/progress/outbound",
+        icon: PhoneCall,
+        nested: true,
+        description: "架電・DM（TQL）",
+      },
       { label: "キャンペーン", href: "/campaigns", icon: Megaphone },
     ],
   },

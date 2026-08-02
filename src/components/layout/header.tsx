@@ -11,6 +11,9 @@ const pathLabels: Record<string, string> = {
   "/dashboard": "ダッシュボード",
   "/activities": "アクティビティ",
   "/leads": "リード",
+  "/progress/inquiry": "問い合わせ進捗",
+  "/progress/inbound": "インバウンド進捗",
+  "/progress/outbound": "アウトバウンド進捗",
   "/campaigns": "キャンペーン",
   "/deals": "商談",
   "/contacts": "連絡先",
@@ -35,6 +38,8 @@ const segmentLabels: Record<string, string> = {
   candidates: "連絡先の候補",
   "merge-candidates": "統合候補",
   cards: "名刺",
+  // /progress 単体のページは無いが、中間セグメントとして出る
+  progress: "進捗管理",
   import: "取込",
   // /admin/leads/import の中間セグメント。単体のページは無いが英語のまま出ていた
   leads: "リード",

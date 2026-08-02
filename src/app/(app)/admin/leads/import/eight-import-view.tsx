@@ -245,7 +245,7 @@ export function EightImportView({
           }}
         >
           <ArrowLeft size={14} />
-          マスタ・取込
+          各種設定
         </Link>
         <h1 style={styles.title}>Eight 名刺データ取込</h1>
       </div>

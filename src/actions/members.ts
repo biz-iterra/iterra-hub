@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { createMemberSchema } from "@/lib/validators/members";
+import { createMemberSchema, updateMemberSchema } from "@/lib/validators/members";
 
 /**
  * 社内メンバー（`crm_users` + Supabase Auth のユーザー）。
@@ -165,6 +165,68 @@ export async function createMember(
 
   revalidatePath("/admin/members");
   return { data: { id: created.user.id }, error: null };
+}
+
+/**
+ * メンバーの氏名・権限を直す。
+ *
+ * **メールアドレスは対象外**（`updateMemberSchema`）。CRM・Auth・Cloudflare Access が
+ * 同じアドレスで結び付いており、片側だけ変えると本人が入れなくなる。
+ */
+export async function updateMember(
+  memberId: string,
+  input: Record<string, unknown>
+): Promise<ActionResult<null>> {
+  const auth = await requireAdmin();
+  if (!auth.ok) return { data: null, error: auth.error };
+
+  const parsed = updateMemberSchema.safeParse(input);
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    return { data: null, error: `[${issue.path.join(".")}] ${issue.message}` };
+  }
+
+  const admin = createAdminClient();
+
+  const { data: current } = await admin
+    .from("crm_users")
+    .select("role, is_active")
+    .eq("id", memberId)
+    .maybeSingle();
+
+  if (!current) return { data: null, error: "メンバーが見つかりません" };
+
+  // 管理者を降ろすときは、他に生きている管理者が要る
+  if (current.role === "admin" && parsed.data.role !== "admin") {
+    if (memberId === auth.userId) {
+      return { data: null, error: "自分の管理者権限は外せません" };
+    }
+
+    const { count } = await admin
+      .from("crm_users")
+      .select("id", { count: "exact", head: true })
+      .eq("role", "admin")
+      .eq("is_active", true)
+      .neq("id", memberId);
+
+    if ((count ?? 0) === 0) {
+      return { data: null, error: "管理者が居なくなるため変更できません" };
+    }
+  }
+
+  const { error } = await admin
+    .from("crm_users")
+    .update({
+      full_name: parsed.data.full_name,
+      full_name_kana: parsed.data.full_name_kana ?? null,
+      role: parsed.data.role,
+    })
+    .eq("id", memberId);
+
+  if (error) return { data: null, error: error.message };
+
+  revalidatePath("/admin/members");
+  return { data: null, error: null };
 }
 
 /**

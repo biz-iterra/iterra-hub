@@ -3,9 +3,14 @@
 import { useState, type CSSProperties, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Ban, RotateCcw, UserPlus } from "lucide-react";
+import { ArrowLeft, Ban, Pencil, RotateCcw, UserPlus } from "lucide-react";
 
-import { createMember, setMemberActive, type MemberRow } from "@/actions/members";
+import {
+  createMember,
+  setMemberActive,
+  updateMember,
+  type MemberRow,
+} from "@/actions/members";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ToneBadge } from "@/components/ui/badges";
 import { useToast } from "@/components/ui/toast";
@@ -61,6 +66,39 @@ export function MembersView({ members }: { members: MemberRow[] }) {
     null
   );
 
+  // 氏名と権限は行の中で直す。**メールアドレスは変えられない**
+  // （CRM・Auth・Cloudflare Access が同じアドレスで結び付いているため）
+  const [editing, setEditing] = useState<string | null>(null);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [editForm, setEditForm] = useState({
+    full_name: "",
+    full_name_kana: "",
+    role: "member",
+  });
+
+  function startEdit(m: MemberRow) {
+    setEditing(m.id);
+    setEditForm({
+      full_name: m.full_name,
+      full_name_kana: m.full_name_kana ?? "",
+      role: m.role,
+    });
+  }
+
+  async function saveEdit(memberId: string) {
+    setSavingEdit(true);
+    const { error: err } = await updateMember(memberId, editForm);
+    setSavingEdit(false);
+
+    if (err) {
+      showToast({ type: "error", message: err });
+      return;
+    }
+    showToast({ type: "success", message: "メンバー情報を更新しました" });
+    setEditing(null);
+    router.refresh();
+  }
+
   async function submit(e: FormEvent) {
     e.preventDefault();
     setSaving(true);
@@ -104,7 +142,7 @@ export function MembersView({ members }: { members: MemberRow[] }) {
         style={styles.backLink}
       >
         <ArrowLeft size={14} />
-        マスタ・取込
+        各種設定
       </Link>
 
       <div style={styles.headerRow}>
@@ -225,47 +263,131 @@ export function MembersView({ members }: { members: MemberRow[] }) {
             </tr>
           </thead>
           <tbody>
-            {members.map((m) => (
-              <tr key={m.id} style={styles.tr}>
-                <td style={styles.td} title={m.full_name}>
-                  {m.full_name}
-                  {m.full_name_kana && (
-                    <span style={styles.kana}>{m.full_name_kana}</span>
-                  )}
-                </td>
-                <td style={styles.td} title={m.email}>
-                  {m.email}
-                </td>
-                <td style={styles.td}>{ROLE_LABELS[m.role] ?? m.role}</td>
-                <td style={styles.td}>
-                  <ToneBadge tone={m.is_active ? "success" : "neutral"}>
-                    {m.is_active ? "利用中" : "停止"}
-                  </ToneBadge>
-                </td>
-                <td style={styles.td}>
-                  {m.last_sign_in_at ? (
-                    formatDateTime(m.last_sign_in_at)
-                  ) : (
-                    <span style={{ color: "var(--color-sumi400)" }}>未ログイン</span>
-                  )}
-                </td>
-                <td style={styles.tdActions}>
-                  <span style={{ color: "var(--color-sumi600)" }}>
-                    {formatDate(m.created_at)}
-                  </span>
-                  <button
-                    type="button"
-                    style={styles.iconBtn}
-                    className="hover:bg-[var(--color-bg-hover)]"
-                    onClick={() => setTarget({ member: m, next: !m.is_active })}
-                    aria-label={m.is_active ? "利用を停止" : "利用を再開"}
-                    title={m.is_active ? "利用を停止" : "利用を再開"}
-                  >
-                    {m.is_active ? <Ban size={13} /> : <RotateCcw size={13} />}
-                  </button>
-                </td>
-              </tr>
-            ))}
+            {members.map((m) => {
+              const isEditing = editing === m.id;
+
+              return (
+                <tr key={m.id} style={styles.tr}>
+                  <td style={styles.td} title={m.full_name}>
+                    {isEditing ? (
+                      <span style={styles.inlineFields}>
+                        <input
+                          type="text"
+                          style={styles.inlineInput}
+                          value={editForm.full_name}
+                          onChange={(e) =>
+                            setEditForm({ ...editForm, full_name: e.target.value })
+                          }
+                          aria-label="氏名"
+                        />
+                        <input
+                          type="text"
+                          style={styles.inlineInput}
+                          value={editForm.full_name_kana}
+                          onChange={(e) =>
+                            setEditForm({
+                              ...editForm,
+                              full_name_kana: e.target.value,
+                            })
+                          }
+                          placeholder="フリガナ"
+                          aria-label="フリガナ"
+                        />
+                      </span>
+                    ) : (
+                      <>
+                        {m.full_name}
+                        {m.full_name_kana && (
+                          <span style={styles.kana}>{m.full_name_kana}</span>
+                        )}
+                      </>
+                    )}
+                  </td>
+                  <td style={styles.td} title={m.email}>
+                    {m.email}
+                  </td>
+                  <td style={styles.td}>
+                    {isEditing ? (
+                      <select
+                        style={styles.inlineInput}
+                        value={editForm.role}
+                        onChange={(e) =>
+                          setEditForm({ ...editForm, role: e.target.value })
+                        }
+                        aria-label="権限"
+                      >
+                        <option value="member">メンバー</option>
+                        <option value="manager">マネージャー</option>
+                        <option value="admin">管理者</option>
+                      </select>
+                    ) : (
+                      (ROLE_LABELS[m.role] ?? m.role)
+                    )}
+                  </td>
+                  <td style={styles.td}>
+                    <ToneBadge tone={m.is_active ? "success" : "neutral"}>
+                      {m.is_active ? "利用中" : "停止"}
+                    </ToneBadge>
+                  </td>
+                  <td style={styles.td}>
+                    {m.last_sign_in_at ? (
+                      formatDateTime(m.last_sign_in_at)
+                    ) : (
+                      <span style={{ color: "var(--color-sumi400)" }}>未ログイン</span>
+                    )}
+                  </td>
+                  <td style={styles.tdActions}>
+                    {isEditing ? (
+                      <>
+                        <button
+                          type="button"
+                          style={styles.saveBtn}
+                          onClick={() => saveEdit(m.id)}
+                          disabled={savingEdit}
+                        >
+                          {savingEdit ? "保存中..." : "保存"}
+                        </button>
+                        <button
+                          type="button"
+                          style={styles.cancelBtn}
+                          className="hover:bg-[var(--color-bg-hover)]"
+                          onClick={() => setEditing(null)}
+                          disabled={savingEdit}
+                        >
+                          やめる
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <span style={{ color: "var(--color-sumi600)" }}>
+                          {formatDate(m.created_at)}
+                        </span>
+                        <button
+                          type="button"
+                          style={styles.iconBtn}
+                          className="hover:bg-[var(--color-bg-hover)]"
+                          onClick={() => startEdit(m)}
+                          aria-label="氏名と権限を変更"
+                          title="氏名と権限を変更"
+                        >
+                          <Pencil size={13} />
+                        </button>
+                        <button
+                          type="button"
+                          style={styles.iconBtn}
+                          className="hover:bg-[var(--color-bg-hover)]"
+                          onClick={() => setTarget({ member: m, next: !m.is_active })}
+                          aria-label={m.is_active ? "利用を停止" : "利用を再開"}
+                          title={m.is_active ? "利用を停止" : "利用を再開"}
+                        >
+                          {m.is_active ? <Ban size={13} /> : <RotateCcw size={13} />}
+                        </button>
+                      </>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -408,6 +530,40 @@ const styles = {
     display: "block",
     fontSize: "0.6875rem",
     color: "var(--color-sumi500)",
+  } as CSSProperties,
+  inlineFields: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "0.25rem",
+  } as CSSProperties,
+  inlineInput: {
+    border: "1px solid var(--color-border-default)",
+    borderRadius: "var(--radius-input)",
+    padding: "0.25rem 0.5rem",
+    width: "100%",
+    fontSize: "0.8125rem",
+    backgroundColor: "#fff",
+    fontFamily: "inherit",
+  } as CSSProperties,
+  saveBtn: {
+    backgroundColor: "var(--color-terra)",
+    color: "#fff",
+    border: "none",
+    borderRadius: "var(--radius-button)",
+    padding: "0.25rem 0.75rem",
+    fontSize: "0.75rem",
+    cursor: "pointer",
+    flexShrink: 0,
+  } as CSSProperties,
+  cancelBtn: {
+    backgroundColor: "transparent",
+    color: "var(--color-sumi600)",
+    border: "1px solid var(--color-border-default)",
+    borderRadius: "var(--radius-button)",
+    padding: "0.25rem 0.75rem",
+    fontSize: "0.75rem",
+    cursor: "pointer",
+    flexShrink: 0,
   } as CSSProperties,
   iconBtn: {
     display: "inline-flex",

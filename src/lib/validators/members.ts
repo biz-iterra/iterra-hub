@@ -29,3 +29,15 @@ export const createMemberSchema = z.object({
 });
 
 export type CreateMemberInput = z.infer<typeof createMemberSchema>;
+
+/**
+ * メンバーの修正。
+ *
+ * **メールアドレスは変えられない。** CRM の利用者と Supabase Auth のユーザー、
+ * さらに Cloudflare Access の認証がすべて同じアドレスで結び付いており、
+ * 片側だけ変えると本人がログインできなくなる。宛先が変わったときは
+ * 新しいアドレスで追加し、古い方を停止する。
+ */
+export const updateMemberSchema = createMemberSchema.omit({ email: true });
+
+export type UpdateMemberInput = z.infer<typeof updateMemberSchema>;

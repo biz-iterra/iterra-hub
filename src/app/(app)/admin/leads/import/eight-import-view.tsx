@@ -11,6 +11,7 @@ import {
   PlayCircle,
   UploadCloud,
 } from "lucide-react";
+import { ToneBadge } from "@/components/ui/badges";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import {
@@ -97,6 +98,14 @@ const styles = {
     borderBottom: "1px solid var(--color-border-default)",
     color: "var(--color-text-list)",
   } as CSSProperties,
+  // 日付・件数・区分など、折り返すと読みにくくなる列に使う
+  tdNowrap: {
+    padding: "0.625rem 0.75rem",
+    fontSize: "0.875rem",
+    borderBottom: "1px solid var(--color-border-default)",
+    color: "var(--color-text-list)",
+    whiteSpace: "nowrap" as const,
+  } as CSSProperties,
   select: {
     border: "1px solid var(--color-border-default)",
     borderRadius: "var(--radius-input)",
@@ -104,26 +113,14 @@ const styles = {
     fontSize: "0.875rem",
     backgroundColor: "#fff",
     minWidth: 200,
+    cursor: "pointer",
+    outline: "none",
+    transition: "border-color 0.15s, box-shadow 0.15s",
   } as CSSProperties,
-  // バッジ・アラートの配色は badges.tsx の段階色パレットと同じ方式:
+  // アラートの配色は badges.tsx の段階色パレットと同じ方式:
   // 背景はトークン値（--color-success #10B981 / --color-warning #F59E0B / --color-error #EF4444）
-  // 由来の rgba、文字色は WCAG AA（4.5:1）を満たすまで濃くした色を選定
-  badgeNew: {
-    backgroundColor: "rgba(16, 185, 129, 0.14)",
-    color: "#047857",
-    fontSize: "0.75rem",
-    fontWeight: 600,
-    padding: "0.125rem 0.5rem",
-    borderRadius: "var(--radius-badge)",
-  } as CSSProperties,
-  badgeUpdate: {
-    backgroundColor: "var(--color-sumi100)",
-    color: "var(--color-sumi700)",
-    fontSize: "0.75rem",
-    fontWeight: 600,
-    padding: "0.125rem 0.5rem",
-    borderRadius: "var(--radius-badge)",
-  } as CSSProperties,
+  // 由来の rgba、文字色は WCAG AA（4.5:1）を満たすまで濃くした色を選定。
+  // バッジは badges.tsx の ToneBadge に集約した
   alertError: {
     backgroundColor: "rgba(239, 68, 68, 0.08)",
     border: "1px solid rgba(239, 68, 68, 0.3)",
@@ -362,6 +359,13 @@ export function EightImportView({
           <select
             value={ownerUserId}
             onChange={(e) => setOwnerUserId(e.target.value)}
+            onFocus={(e) => {
+              e.currentTarget.style.boxShadow = "0 0 0 3px var(--color-focus-ring)";
+            }}
+            onBlur={(e) => {
+              e.currentTarget.style.boxShadow = "none";
+            }}
+            aria-label="取り込むリードの担当者"
             style={styles.select}
           >
             {users.map((u) => (
@@ -568,19 +572,22 @@ export function EightImportView({
                       </thead>
                       <tbody>
                         {preview.samples.map((s) => (
-                          <tr key={s.rowNumber}>
-                            <td style={styles.td}>{s.rowNumber}</td>
+                          <tr
+                            key={s.rowNumber}
+                            className="hover:bg-[var(--color-bg-hover)]"
+                          >
+                            <td style={styles.tdNowrap}>{s.rowNumber}</td>
                             <td style={styles.td}>{s.leadName}</td>
                             <td style={styles.td}>{s.personName ?? "—"}</td>
                             <td style={styles.td}>{s.email ?? "—"}</td>
-                            <td style={styles.td}>{s.exchangedOn ?? "—"}</td>
-                            <td style={styles.td}>
+                            <td style={styles.tdNowrap}>{s.exchangedOn ?? "—"}</td>
+                            <td style={styles.tdNowrap}>
                               {s.cardCount > 1 ? `${s.cardCount} 枚` : "1 枚"}
                             </td>
-                            <td style={styles.td}>
-                              <span style={s.isNew ? styles.badgeNew : styles.badgeUpdate}>
+                            <td style={styles.tdNowrap}>
+                              <ToneBadge tone={s.isNew ? "success" : "neutral"}>
                                 {s.isNew ? "新規" : "追記"}
-                              </span>
+                              </ToneBadge>
                             </td>
                           </tr>
                         ))}
@@ -710,22 +717,22 @@ export function EightImportView({
               </thead>
               <tbody>
                 {batches.map((b) => (
-                  <tr key={b.id}>
-                    <td style={styles.td}>{formatDateTime(b.imported_at)}</td>
+                  <tr key={b.id} className="hover:bg-[var(--color-bg-hover)]">
+                    <td style={styles.tdNowrap}>{formatDateTime(b.imported_at)}</td>
                     <td style={styles.td}>{b.file_name}</td>
-                    <td style={styles.td}>{b.encoding}</td>
-                    <td style={styles.td}>{b.row_count.toLocaleString()}</td>
-                    <td style={styles.td}>{b.created_count.toLocaleString()}</td>
-                    <td style={styles.td}>{b.updated_count.toLocaleString()}</td>
+                    <td style={styles.tdNowrap}>{b.encoding}</td>
+                    <td style={styles.tdNowrap}>{b.row_count.toLocaleString()}</td>
+                    <td style={styles.tdNowrap}>{b.created_count.toLocaleString()}</td>
+                    <td style={styles.tdNowrap}>{b.updated_count.toLocaleString()}</td>
                     <td
                       style={{
-                        ...styles.td,
+                        ...styles.tdNowrap,
                         color: b.error_count > 0 ? "var(--color-error)" : undefined,
                       }}
                     >
                       {b.error_count.toLocaleString()}
                     </td>
-                    <td style={styles.td}>{b.imported_by_name ?? "—"}</td>
+                    <td style={styles.tdNowrap}>{b.imported_by_name ?? "—"}</td>
                   </tr>
                 ))}
               </tbody>

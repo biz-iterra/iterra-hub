@@ -20,7 +20,8 @@ const pathLabels: Record<string, string> = {
   "/contracts": "契約",
   "/talents": "タレント",
   "/projects": "プロジェクト",
-  "/admin": "管理",
+  // サイドバーと画面内の戻りリンクは「マスタ・取込」。パンくずだけ「管理」だった
+  "/admin": "マスタ・取込",
   "/admin/deleted": "削除済みレコード",
   "/profile": "プロフィール設定",
 };
@@ -33,6 +34,8 @@ const segmentLabels: Record<string, string> = {
   candidates: "連絡先の候補",
   "merge-candidates": "統合候補",
   import: "取込",
+  // /admin/leads/import の中間セグメント。単体のページは無いが英語のまま出ていた
+  leads: "リード",
 };
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

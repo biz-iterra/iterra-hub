@@ -469,6 +469,35 @@ export function AccountTypeBadge({
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
+// トーンバッジ（成功 / 注意 / エラー / 情報 / 中立）
+//
+// マスタを持たない、その場の結果や状態を示すラベル向け。
+// 取込結果の「新規 / 追記」のように画面ごとに直書きされていたものをここへ集約する。
+// 文字色は WCAG AA（4.5:1）を満たすまで濃くした値を選んでいる。
+// ──────────────────────────────────────────────────────────────────────────────
+export type BadgeTone = "success" | "warning" | "error" | "info" | "neutral";
+
+const TONE_COLORS: Record<BadgeTone, React.CSSProperties> = {
+  success: { backgroundColor: "rgba(16, 185, 129, 0.14)", color: "#047857" },
+  warning: { backgroundColor: "rgba(245, 158, 11, 0.14)", color: "#B45309" },
+  error:   { backgroundColor: "rgba(239, 68, 68, 0.12)",  color: "#B91C1C" },
+  info:    { backgroundColor: "rgba(59, 130, 246, 0.12)", color: "#1E40AF" },
+  neutral: { backgroundColor: "var(--color-sumi100)",     color: "var(--color-sumi700)" },
+};
+
+export function ToneBadge({
+  tone = "neutral",
+  children,
+}: {
+  tone?: BadgeTone;
+  children: React.ReactNode;
+}) {
+  return (
+    <span style={{ ...BASE, ...TONE_COLORS[tone], fontWeight: 600 }}>{children}</span>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
 // 汎用ラベルバッジ (マスタ color を持つ任意品目向け)
 // ──────────────────────────────────────────────────────────────────────────────
 export function LabelBadge({

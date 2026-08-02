@@ -3,10 +3,11 @@
 import { useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Merge, X } from "lucide-react";
+import { ArrowRight, Merge, RefreshCw, X } from "lucide-react";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import {
+  detectAllMergeCandidates,
   mergeContactsAction,
   previewContactMerge,
   rejectMergeCandidate,
@@ -152,6 +153,47 @@ export function MergeCandidatesView({
   );
 }
 
+/**
+ * 全件を突き合わせて候補を洗い直す。
+ * 検出は名刺取込の中でしか走らないので、それ以外で増えた重複はここから拾う。
+ */
+export function DetectAllButton() {
+  const router = useRouter();
+  const { showToast } = useToast();
+  const [running, setRunning] = useState(false);
+
+  async function run() {
+    setRunning(true);
+    const { data, error } = await detectAllMergeCandidates();
+    setRunning(false);
+
+    if (error) {
+      showToast({ type: "error", message: error });
+      return;
+    }
+    showToast({
+      type: data ? "success" : "info",
+      message: data
+        ? `統合候補が ${data} 件見つかりました`
+        : "新しい統合候補はありませんでした",
+    });
+    router.refresh();
+  }
+
+  return (
+    <button
+      type="button"
+      className="hover:bg-[var(--color-bg-hover)]"
+      style={{ ...styles.btnGhost, ...(running ? styles.btnBusy : null) }}
+      onClick={run}
+      disabled={running}
+    >
+      <RefreshCw size={14} />
+      {running ? "検出中..." : "候補を洗い直す"}
+    </button>
+  );
+}
+
 function ContactCard({ side, label }: { side: ContactMergeSide; label: string }) {
   return (
     <div style={styles.side}>
@@ -205,6 +247,7 @@ function buildMessage(
     p.emails && `メール ${p.emails} 件`,
     p.phones && `電話 ${p.phones} 件`,
     p.cards && `名刺 ${p.cards} 枚`,
+    p.addresses && `住所 ${p.addresses} 件`,
     p.leads && `リード ${p.leads} 件`,
     p.deals && `商談 ${p.deals} 件`,
     p.contracts && `契約 ${p.contracts} 件`,
@@ -289,5 +332,9 @@ const styles = {
     padding: "0.4375rem 0.875rem",
     fontSize: "0.8125rem",
     cursor: "pointer",
+  } as CSSProperties,
+  btnBusy: {
+    cursor: "progress",
+    opacity: 0.6,
   } as CSSProperties,
 };

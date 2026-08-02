@@ -3062,14 +3062,25 @@ P2 は `is_mobile_phone()`（`070`/`080`/`090` + 8 桁）で携帯に限る。�
 
 | 関数 | 役割 |
 |---|---|
-| `detect_contact_merge_candidates(UUID)` | 姓名一致・会社違いの組を検出。カナが両方あって食い違う組は除外 |
+| `contact_merge_candidate_pairs(UUID)` | 候補になる組を返す。判定条件の正本。`NULL` で全件 |
+| `detect_contact_merge_candidates(UUID)` | 1 件分の検出。名刺取込の中から呼ばれる |
+| `detect_all_contact_merge_candidates()` | 全件の棚卸し。**manager 以上**。新規件数を返す |
 | `merge_contacts_preview(UUID, UUID)` | 付け替え件数の下見 |
 | `merge_contacts(UUID, UUID)` | 統合の実行。**manager 以上**。取り消せない |
 
+検出条件は姓名一致・会社違いで、カナが両方あって食い違う組は除外する。
+**検出は取込の中でしか走らない**ため、取込を通っていない連絡先どうしの重複は
+`/contacts/merge-candidates` の「候補を洗い直す」（全件版）でしか挙がらない。
+
 統合は 18 の外部キーに跨るため単一トランザクションで行う。一意制約があるものは
-重複しない行だけを移す。名刺はすべて移し、**採用済みの印は残す側を優先する**
-（統合で所属が勝手に変わらないようにするため）。タレント情報は 1:1 のため
+重複しない行だけを移す。名刺・住所はすべて移し、**主の印は残す側を優先する**
+（統合で所属が勝手に変わらないようにするため）。メール・電話も同じ扱いだが、
+主だった行を重複として捨てた場合に主が空にならないよう、統合の最後に補う
+（繰り上げトリガーは吸収した側しか見ないため）。タレント情報は 1:1 のため
 両方にある場合は例外で止める。吸収した側は `deleted_at` + `merged_into_contact_id`。
+
+統合で吸収した連絡先は `purge_soft_deleted_records()` の対象外にしている。
+90 日で物理削除すると統合先を辿れなくなるため。
 
 ### 21.6 マイグレーション
 
@@ -3081,6 +3092,8 @@ P2 は `is_mobile_phone()`（`070`/`080`/`090` + 8 桁）で携帯に限る。�
 | `20260801000004_create_contact_merge_candidates.sql` | 統合候補と検出関数 |
 | `20260801000005_merge_contacts.sql` | 統合の下見と実行 |
 | `20260801000006_import_eight_business_cards.sql` | 取込で名刺を記録し、統合候補を検出 |
+| `20260802000001_fix_contact_functions_after_address_move.sql` | 住所の共通マスタ化で取り残された参照を修正（`merge_contacts` / `purge_soft_deleted_records`）。統合に住所の引き継ぎと主フラグの調整を追加 |
+| `20260802000002_detect_all_contact_merge_candidates.sql` | 判定条件を `contact_merge_candidate_pairs` に切り出し、全件検出の入口を追加 |
 
 ### 21.7 連絡手段の増減
 

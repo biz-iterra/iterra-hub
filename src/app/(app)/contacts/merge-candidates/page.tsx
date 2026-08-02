@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { getMergeCandidates } from "@/actions/contact-merge";
 import { detailContainerStyle } from "@/lib/layout";
-import { MergeCandidatesView } from "./merge-candidates-view";
+import { DetectAllButton, MergeCandidatesView } from "./merge-candidates-view";
 
 /**
  * 連絡先の統合候補。
@@ -31,16 +31,28 @@ export default async function MergeCandidatesPage() {
           <ArrowLeft size={14} />
           連絡先
         </Link>
-        <h1
+        <div
           style={{
-            color: "var(--color-text-title)",
-            fontSize: "1.5rem",
-            fontWeight: 600,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "1rem",
+            flexWrap: "wrap",
             margin: "0.5rem 0 0.375rem 0",
           }}
         >
-          統合候補
-        </h1>
+          <h1
+            style={{
+              color: "var(--color-text-title)",
+              fontSize: "1.5rem",
+              fontWeight: 600,
+              margin: 0,
+            }}
+          >
+            統合候補
+          </h1>
+          <DetectAllButton />
+        </div>
         <p
           style={{
             color: "var(--color-sumi600)",

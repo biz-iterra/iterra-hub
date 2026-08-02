@@ -83,6 +83,24 @@ export async function countPendingMergeCandidates(): Promise<number> {
 }
 
 /**
+ * 全連絡先を突き合わせて候補を洗い直す。
+ *
+ * 検出は名刺取込の中でしか走らないため、取込を通っていない連絡先どうしの
+ * 重複は誰も見つけないまま残る。棚卸しのための入口。
+ * 記録するだけで統合はしない。戻り値は新たに挙がった件数。
+ */
+export async function detectAllMergeCandidates(): Promise<ActionResult<number>> {
+  const auth = await requireManager();
+  if ("error" in auth) return { data: null, error: auth.error };
+
+  const { data, error } = await auth.supabase.rpc("detect_all_contact_merge_candidates");
+  if (error) return { data: null, error: error.message };
+
+  revalidatePath("/contacts/merge-candidates");
+  return { data: data ?? 0, error: null };
+}
+
+/**
  * 統合の下見。何がどれだけ動くかを数えるだけで、変更はしない。
  * **統合は取り消せない**ので、実行前に必ずこれを見せる。
  */

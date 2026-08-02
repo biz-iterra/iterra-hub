@@ -187,6 +187,7 @@ export type ContactMergePreview = {
   emails: number;
   phones: number;
   cards: number;
+  addresses: number;
   accounts: number;
   leads: number;
   deals: number;

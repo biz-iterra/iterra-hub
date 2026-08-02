@@ -6036,7 +6036,17 @@ export type Database = {
         }
         Returns: string
       }
+      contact_merge_candidate_pairs: {
+        Args: { p_contact_id?: string }
+        Returns: {
+          candidate_company_id: string
+          candidate_contact_id: string
+          contact_company_id: string
+          contact_id: string
+        }[]
+      }
       default_phone_label: { Args: { p_phone: string }; Returns: string }
+      detect_all_contact_merge_candidates: { Args: never; Returns: number }
       detect_contact_merge_candidates: {
         Args: { p_contact_id: string }
         Returns: number
@@ -6103,6 +6113,10 @@ export type Database = {
           p_source_external_key?: string
         }
         Returns: string
+      }
+      record_contact_merge_candidates: {
+        Args: { p_contact_id: string }
+        Returns: number
       }
       record_email_message: {
         Args: {

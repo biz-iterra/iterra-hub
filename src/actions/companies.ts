@@ -75,7 +75,9 @@ export async function getCompanies(params?: {
     .from("companies")
     .select("*, corporate_types(id, name), lead_sources(name), company_status:company_statuses(id, name, color), crm_users!companies_owner_user_id_fkey(id, full_name)", { count: "exact" })
     .is("deleted_at", null)
-    .order("created_at", { ascending: false })
+    // 法人格を除いた名称の順に並べる（20260802000008）。
+    // 件数が多く、登録順では目当ての事業者を辿れないため
+    .order("sort_key", { ascending: true, nullsFirst: false })
     .range(from, to);
 
   if (params?.search) {

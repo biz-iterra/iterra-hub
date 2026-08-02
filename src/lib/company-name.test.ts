@@ -40,9 +40,26 @@ describe("expandCorporateAbbreviations", () => {
     expect(expandCorporateAbbreviations("NPO法人あかり")).toBe("NPO法人あかり");
   });
 
-  it("綴りが一意に定まらない合成文字は開かない", () => {
-    // ㈳ は「社団法人」か「一般社団法人」かを決められない
-    expect(expandCorporateAbbreviations("㈳日本◯◯会")).toBe("㈳日本◯◯会");
+  it("旧制度の財団法人・社団法人も開く", () => {
+    expect(expandCorporateAbbreviations("㈶やまがた産業支援機構")).toBe(
+      "財団法人やまがた産業支援機構"
+    );
+    expect(expandCorporateAbbreviations("（財）災害科学研究所")).toBe(
+      "財団法人災害科学研究所"
+    );
+    expect(expandCorporateAbbreviations("（社）小石川医師会")).toBe(
+      "社団法人小石川医師会"
+    );
+  });
+
+  it("複合した略記を単独より先に当てる", () => {
+    // 「㈶」を先に開くと「(一般財団法人)」になってしまう
+    expect(expandCorporateAbbreviations("(一般㈶)秋田県建設技術センター")).toBe(
+      "一般財団法人秋田県建設技術センター"
+    );
+    expect(expandCorporateAbbreviations("(公益㈶)あきた企業活性化センター")).toBe(
+      "公益財団法人あきた企業活性化センター"
+    );
   });
 
   it("空値は空文字を返す", () => {

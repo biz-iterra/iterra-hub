@@ -846,6 +846,7 @@ export type Database = {
           primary_contact_id: string | null
           registration_certificate_url: string | null
           representative_name: string | null
+          sort_key: string | null
           status_updated_at: string | null
           updated_at: string
           verification_note: string | null
@@ -879,6 +880,7 @@ export type Database = {
           primary_contact_id?: string | null
           registration_certificate_url?: string | null
           representative_name?: string | null
+          sort_key?: string | null
           status_updated_at?: string | null
           updated_at?: string
           verification_note?: string | null
@@ -912,6 +914,7 @@ export type Database = {
           primary_contact_id?: string | null
           registration_certificate_url?: string | null
           representative_name?: string | null
+          sort_key?: string | null
           status_updated_at?: string | null
           updated_at?: string
           verification_note?: string | null
@@ -6030,6 +6033,10 @@ export type Database = {
         }
         Returns: string
       }
+      company_sort_key: {
+        Args: { p_name: string; p_name_kana?: string }
+        Returns: string
+      }
       contact_merge_candidate_pairs: {
         Args: { p_contact_id?: string }
         Returns: {
@@ -6076,6 +6083,15 @@ export type Database = {
       merge_contacts_preview: {
         Args: { p_keep: string; p_merge: string }
         Returns: Json
+      }
+      normalize_address_key: {
+        Args: {
+          p_address_line1: string
+          p_city: string
+          p_postal_code: string
+          p_prefecture: string
+        }
+        Returns: string
       }
       normalize_company_name: { Args: { p_name: string }; Returns: string }
       normalize_domain: { Args: { p_input: string }; Returns: string }
@@ -6143,7 +6159,9 @@ export type Database = {
       resolve_or_create_company: {
         Args: {
           p_actor: string
+          p_address_id?: string
           p_company_name: string
+          p_corporate_number?: string
           p_email: string
           p_lead_source_id: string
           p_owner_user_id: string

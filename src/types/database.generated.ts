@@ -6093,6 +6093,39 @@ export type Database = {
       is_lead_accessible: { Args: { p_lead_id: string }; Returns: boolean }
       is_manager_or_above: { Args: never; Returns: boolean }
       is_mobile_phone: { Args: { p_phone: string }; Returns: boolean }
+      lead_kanban_cards: {
+        Args: { p_limit?: number }
+        Returns: {
+          category_color: string
+          category_name: string
+          company_name: string
+          lead_id: string
+          lead_name: string
+          owner_name: string
+          score: number
+          stage_id: string
+          stage_name: string
+          stage_order: number
+          temperature_color: string
+          temperature_name: string
+          updated_at: string
+        }[]
+      }
+      lead_progress_summary: {
+        Args: never
+        Returns: {
+          category_code: string
+          category_color: string
+          category_id: string
+          category_name: string
+          is_terminal: boolean
+          lead_count: number
+          stage_id: string
+          stage_name: string
+          stage_order: number
+          stage_slug: string
+        }[]
+      }
       merge_contacts: {
         Args: { p_keep: string; p_merge: string }
         Returns: Json
@@ -6167,6 +6200,10 @@ export type Database = {
       }
       resolve_corporate_type_id: {
         Args: { p_company_name: string }
+        Returns: string
+      }
+      resolve_lead_category: {
+        Args: { p_lead_source_id: string; p_stage_id: string }
         Returns: string
       }
       resolve_lead_company_size: {

@@ -3,8 +3,22 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, ArrowUpDown } from "lucide-react";
-import { getLeads } from "@/actions/leads";
+import {
+  Plus,
+  ArrowUpDown,
+  List,
+  Columns3,
+  LayoutGrid,
+} from "lucide-react";
+import {
+  getLeads,
+  getLeadKanbanCards,
+  getLeadProgressSummary,
+  type LeadKanbanCard,
+  type LeadProgressCell,
+} from "@/actions/leads";
+import { LeadKanbanBoard } from "@/components/leads/LeadKanbanBoard";
+import { LeadProgressBoard } from "@/components/leads/LeadProgressBoard";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { FilterSelect } from "@/components/ui/FilterSelect";
 import { FilterGroup, FilterClearButton } from "@/components/ui/FilterGroup";
@@ -17,6 +31,17 @@ import {
   CategoryBadge,
 } from "@/components/ui/badges";
 import type { LeadListRow, Paged } from "@/types/relations";
+
+type LeadView = "list" | "kanban" | "board";
+
+const VIEW_OPTIONS = [
+  { value: "list" as const, label: "一覧", icon: List },
+  { value: "kanban" as const, label: "カンバン", icon: Columns3 },
+  { value: "board" as const, label: "集計", icon: LayoutGrid },
+];
+
+/** カンバンに並べる 1 ステージあたりの上限。全件は一覧で見る */
+const KANBAN_LIMIT = 20;
 
 function formatDateTime(value: string | null | undefined): string {
   if (!value) return "—";
@@ -74,6 +99,28 @@ export function LeadsView({
   const [sortByScore, setSortByScore] = useState(false);
   const [page, setPage] = useState(1);
   const [isPending, startTransition] = useTransition();
+
+  // 一覧・カンバン・集計は同じ母集団を別の見方で示す。
+  // 重いのは開いたときだけ取り、以降は使い回す
+  const [view, setView] = useState<LeadView>("list");
+  const [kanban, setKanban] = useState<LeadKanbanCard[] | null>(null);
+  const [summary, setSummary] = useState<LeadProgressCell[] | null>(null);
+
+  function switchView(next: LeadView) {
+    setView(next);
+
+    startTransition(async () => {
+      // 集計はカンバンの総数にも使うので、どちらでも要る
+      if ((next === "board" || next === "kanban") && !summary) {
+        const { data } = await getLeadProgressSummary();
+        setSummary(data);
+      }
+      if (next === "kanban" && !kanban) {
+        const { data } = await getLeadKanbanCards(KANBAN_LIMIT);
+        setKanban(data);
+      }
+    });
+  }
 
   function handleFilter(
     key: string,
@@ -151,6 +198,27 @@ export function LeadsView({
         >
           リード
         </h1>
+
+        {/* 見方の切り替え。同じ母集団を一覧・カンバン・集計で見る */}
+        <div style={viewSwitchStyles.group} role="tablist" aria-label="表示の切り替え">
+          {VIEW_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              role="tab"
+              aria-selected={view === opt.value}
+              style={{
+                ...viewSwitchStyles.btn,
+                ...(view === opt.value ? viewSwitchStyles.btnActive : null),
+              }}
+              onClick={() => switchView(opt.value)}
+            >
+              <opt.icon size={14} />
+              {opt.label}
+            </button>
+          ))}
+        </div>
+
         <Link
           href="/leads/new"
           className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white transition-colors"
@@ -171,7 +239,8 @@ export function LeadsView({
         </Link>
       </div>
 
-      {/* フィルター行 */}
+      {/* フィルター行。カンバンと集計は絞り込みを持たないので出さない */}
+      {view === "list" && (
       <FilterGroup className="mb-4">
         <FilterSelect
           label="ステージ"
@@ -239,9 +308,10 @@ export function LeadsView({
           </span>
         )}
       </FilterGroup>
+      )}
 
       {/* テーブル */}
-      {sortedItems.length === 0 ? (
+      {view !== "list" ? null : sortedItems.length === 0 ? (
         <div
           className="p-10 text-center text-sm"
           style={{
@@ -390,12 +460,66 @@ export function LeadsView({
       )}
 
       {/* ページネーション */}
-      <Pagination
-        page={page}
-        totalCount={data?.total ?? 0}
-        pageSize={DEFAULT_PAGE_SIZE}
-        onPageChange={handlePageChange}
-      />
+      {view === "list" && (
+        <Pagination
+          page={page}
+          totalCount={data?.total ?? 0}
+          pageSize={DEFAULT_PAGE_SIZE}
+          onPageChange={handlePageChange}
+        />
+      )}
+
+      {view === "kanban" &&
+        (kanban ? (
+          <LeadKanbanBoard
+            cards={kanban}
+            summary={summary ?? []}
+            limitPerStage={KANBAN_LIMIT}
+          />
+        ) : (
+          <p style={loadingStyle}>読み込み中...</p>
+        ))}
+
+      {view === "board" &&
+        (summary ? (
+          <LeadProgressBoard cells={summary} />
+        ) : (
+          <p style={loadingStyle}>読み込み中...</p>
+        ))}
     </div>
   );
 }
+
+const loadingStyle = {
+  color: "var(--color-sumi500)",
+  fontSize: "0.875rem",
+  padding: "2rem 0",
+};
+
+const viewSwitchStyles = {
+  group: {
+    display: "inline-flex",
+    marginLeft: "auto",
+    marginRight: "0.75rem",
+    border: "1px solid var(--color-border-default)",
+    borderRadius: "var(--radius-button)",
+    overflow: "hidden",
+    backgroundColor: "#fff",
+  } as React.CSSProperties,
+  btn: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "0.25rem",
+    border: "none",
+    backgroundColor: "transparent",
+    color: "var(--color-sumi600)",
+    fontSize: "0.75rem",
+    padding: "0.375rem 0.75rem",
+    cursor: "pointer",
+  } as React.CSSProperties,
+  btnActive: {
+    backgroundColor: "var(--color-terra)",
+    color: "#fff",
+    fontWeight: 500,
+  } as React.CSSProperties,
+};

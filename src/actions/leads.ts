@@ -924,3 +924,76 @@ export async function deleteLeadCustomerActivity(
 
   return { data: null, error: null };
 }
+
+/**
+ * リードの進捗をステージ × カテゴリで数える。
+ *
+ * 一覧だけでは「どの層がどこで滞っているか」が見えないので、面で見るための集計。
+ * RLS が効くので、member には自分の担当分しか数えられない（一覧と件数が揃う）。
+ */
+export type LeadProgressCell = {
+  stage_id: string;
+  stage_name: string;
+  stage_slug: string;
+  stage_order: number;
+  is_terminal: boolean;
+  category_id: string | null;
+  category_name: string | null;
+  category_code: string | null;
+  category_color: string | null;
+  lead_count: number;
+};
+
+export async function getLeadProgressSummary(): Promise<
+  { data: LeadProgressCell[] | null; error: string | null }
+> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { data: null, error: "認証が必要です" };
+
+  const { data, error } = await supabase.rpc("lead_progress_summary");
+  if (error) return { data: null, error: error.message };
+
+  return { data: (data ?? []) as LeadProgressCell[], error: null };
+}
+
+/** カンバンに並べる 1 枚。ステージごとに上位だけを返す */
+export type LeadKanbanCard = {
+  stage_id: string;
+  stage_name: string;
+  stage_order: number;
+  lead_id: string | null;
+  lead_name: string | null;
+  company_name: string | null;
+  score: number | null;
+  temperature_name: string | null;
+  temperature_color: string | null;
+  category_name: string | null;
+  category_color: string | null;
+  owner_name: string | null;
+  updated_at: string | null;
+};
+
+/**
+ * カンバンのカード。
+ * 3,800 件を全部カードにすると開けないので、ステージごとに上位だけを取る。
+ * 総数は getLeadProgressSummary で数える。
+ */
+export async function getLeadKanbanCards(
+  limitPerStage = 20
+): Promise<{ data: LeadKanbanCard[] | null; error: string | null }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { data: null, error: "認証が必要です" };
+
+  const { data, error } = await supabase.rpc("lead_kanban_cards", {
+    p_limit: limitPerStage,
+  });
+  if (error) return { data: null, error: error.message };
+
+  return { data: (data ?? []) as LeadKanbanCard[], error: null };
+}

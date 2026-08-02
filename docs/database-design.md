@@ -1234,6 +1234,56 @@ UIは `pipeline_types.slug` をキーにしたレジストリパターンで拡�
 
 ---
 
+### J01b: contact_social_accounts（連絡先 × SNS・チャット）
+
+連絡先の SNS・チャットの連絡口。**1 人が複数持てる**（Chatwork と Slack の両方、
+Slack が 2 ワークスペース、など）。`contacts.line_user_id`（Messaging API 用の
+ユーザー ID）とは別物。
+
+| # | 論理名 | 物理名 | 型 | PK | FK | NN | 備考 |
+|---|--------|--------|-----|----|----|----|------|
+| 1 | ID | `id` | UUID | PK | | NN | |
+| 2 | 連絡先ID | `contact_id` | UUID | | FK→T04.id (CASCADE) | NN | |
+| 3 | サービスID | `service_id` | UUID | | FK→social_services.id | NN | |
+| 4 | アカウントID | `account_id` | TEXT | | | NN | 意味はサービスごとに違う（LINE ID / Chatwork のルーム ID / Slack のメンバー ID） |
+| 5 | ワークスペース | `workspace` | TEXT | | | | Slack のように相手を絞る上位の識別子 |
+| 6 | 表示名 | `display_name` | TEXT | | | | 同じサービスに複数あるときの区別 |
+| 7 | メモ | `note` | TEXT | | | | |
+
+**UK:** (contact_id, service_id, account_id, workspace)
+**CRUD:** 親（連絡先）に合わせる。RLS は `contacts.owner_user_id` を見る
+**削除:** 物理削除。連絡口は「今つながれるか」を表すだけで、やり取りの記録では
+ないため（記録はアクティビティが持つ）
+
+#### M: social_services（サービスマスタ）
+
+飛び先の URL の作り方をマスタに置く。`dm_url_template` の `{account_id}` /
+`{workspace}` を差し替えて**相手ひとりとのやり取りを直接開く**。置換で済むので、
+新しい SNS は admin がマスタに 1 行足せば動く（コードを直さなくてよい）。
+
+| 物理名 | 用途 |
+|---|---|
+| `code` / `name` | 識別子と表示名 |
+| `short_label` / `color` | 詳細ページに丸バッジで並べるときの表記と色。ブランドのロゴは使えないので略称と色で見分ける |
+| `dm_url_template` | 飛び先の雛形。例 `https://line.me/ti/p/~{account_id}` |
+| `requires_workspace` / `workspace_label` | Slack のようにワークスペースまで決めないと相手が定まらないサービス用 |
+| `account_label` / `hint` | 入力欄のラベルと案内。「何の ID か」がサービスごとに違うため |
+
+初期データ: Chatwork / Slack / LINE / X / Messenger / Instagram / LinkedIn / その他。
+LinkedIn だけは DM の直リンクが無いためプロフィールを開く。「その他」は入れた
+URL をそのまま開く。
+
+**URL の組み立ては `src/lib/social-links.ts`（ユニットテストあり）。**
+必要な値が欠けていたり、組み立てた結果が http(s) にならないときは開かない
+（「その他」の欄に `javascript:` を書かれても実行しない）。
+
+**画面:**
+- 詳細ページ … 連絡先セクションに**使えるサービスを全部並べる**。登録があるものは
+  サービスの色、無いものは灰色。誰にどの手段で連絡できるかが一目で分かる
+- 編集ページ … 「SNS・チャット」で増減。選んだサービスに合わせて欄と案内が変わる
+
+---
+
 ### J02: account_contacts（アカウント×コンタクト）
 
 | # | 論理名 | 物理名 | 型 | PK | FK | UK | NN | デフォルト | 区分値/CHECK | バリデーション |

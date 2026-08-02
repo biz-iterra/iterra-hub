@@ -1494,6 +1494,77 @@ export type Database = {
           },
         ]
       }
+      contact_social_accounts: {
+        Row: {
+          account_id: string
+          contact_id: string
+          created_at: string
+          created_by: string
+          display_name: string | null
+          id: string
+          last_updated_by: string | null
+          note: string | null
+          service_id: string
+          updated_at: string
+          workspace: string | null
+        }
+        Insert: {
+          account_id: string
+          contact_id: string
+          created_at?: string
+          created_by?: string
+          display_name?: string | null
+          id?: string
+          last_updated_by?: string | null
+          note?: string | null
+          service_id: string
+          updated_at?: string
+          workspace?: string | null
+        }
+        Update: {
+          account_id?: string
+          contact_id?: string
+          created_at?: string
+          created_by?: string
+          display_name?: string | null
+          id?: string
+          last_updated_by?: string | null
+          note?: string | null
+          service_id?: string
+          updated_at?: string
+          workspace?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_social_accounts_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_social_accounts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "crm_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_social_accounts_last_updated_by_fkey"
+            columns: ["last_updated_by"]
+            isOneToOne: false
+            referencedRelation: "crm_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_social_accounts_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "social_services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contact_statuses: {
         Row: {
           color: string | null
@@ -5323,6 +5394,57 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      social_services: {
+        Row: {
+          account_label: string
+          code: string
+          color: string
+          created_at: string
+          dm_url_template: string | null
+          hint: string | null
+          id: string
+          is_active: boolean
+          name: string
+          requires_workspace: boolean
+          short_label: string
+          sort_order: number
+          updated_at: string
+          workspace_label: string | null
+        }
+        Insert: {
+          account_label?: string
+          code: string
+          color?: string
+          created_at?: string
+          dm_url_template?: string | null
+          hint?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          requires_workspace?: boolean
+          short_label: string
+          sort_order?: number
+          updated_at?: string
+          workspace_label?: string | null
+        }
+        Update: {
+          account_label?: string
+          code?: string
+          color?: string
+          created_at?: string
+          dm_url_template?: string | null
+          hint?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          requires_workspace?: boolean
+          short_label?: string
+          sort_order?: number
+          updated_at?: string
+          workspace_label?: string | null
+        }
+        Relationships: []
       }
       talent_achievements: {
         Row: {

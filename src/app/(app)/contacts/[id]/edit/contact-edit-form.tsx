@@ -14,6 +14,11 @@ import {
   type ChannelRow,
 } from "@/components/contacts/ContactChannelsEditor";
 import { AddressesEditor } from "@/components/common/AddressesEditor";
+import { SocialAccountsEditor } from "@/components/contacts/SocialAccountsEditor";
+import type {
+  ContactSocialAccount,
+  SocialService,
+} from "@/actions/contact-social-accounts";
 import type { EntityAddress } from "@/types/relations";
 
 type SelectOption = { value: string; label: string };
@@ -205,6 +210,8 @@ export function ContactEditForm({
   emails,
   phones,
   addresses,
+  socialServices,
+  socialAccounts,
 }: {
   contact: ContactData;
   masters: Masters;
@@ -213,6 +220,8 @@ export function ContactEditForm({
   emails: ChannelRow[];
   phones: ChannelRow[];
   addresses: EntityAddress[];
+  socialServices: SocialService[];
+  socialAccounts: ContactSocialAccount[];
 }) {
   const router = useRouter();
   const { showToast } = useToast();
@@ -532,6 +541,24 @@ export function ContactEditForm({
               rows={phones}
             />
           </div>
+        </div>
+
+        {/*
+          SNS・チャットの連絡口。サービスによって入れるものが違う
+          （LINE ID / Chatwork のルーム ID / Slack はワークスペース + メンバー ID）ので、
+          選んだサービスに合わせて欄が変わる。
+        */}
+        <div style={styles.card}>
+          <h2 style={styles.sectionTitle}>SNS・チャット</h2>
+          <p style={{ color: "var(--color-sumi600)", fontSize: "0.75rem", margin: "0 0 0.75rem 0" }}>
+            登録すると詳細ページから相手ひとりとのやり取りを直接開けます。
+            追加・削除はこの場で反映されます（下の「保存」を待ちません）。
+          </p>
+          <SocialAccountsEditor
+            contactId={contact.id}
+            services={socialServices}
+            accounts={socialAccounts}
+          />
         </div>
 
         {/* 住所。addresses マスタに持ち、自宅・勤務先などを分けて登録する */}

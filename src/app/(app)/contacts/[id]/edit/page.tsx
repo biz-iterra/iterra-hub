@@ -4,6 +4,10 @@ import { getContactStatuses, getLeadSources } from "@/actions/masters";
 import { getCurrentUser } from "@/actions/users";
 import { ContactEditForm } from "./contact-edit-form";
 import { getEntityAddresses } from "@/actions/entity-addresses";
+import {
+  getContactSocialAccounts,
+  getSocialServices,
+} from "@/actions/contact-social-accounts";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -62,12 +66,16 @@ export default async function ContactEditPage({
     leadSourcesResult,
     meResult,
     addressesResult,
+    socialServicesResult,
+    socialAccountsResult,
   ] = await Promise.all([
     getContact(id),
     getContactStatuses(),
     getLeadSources(),
     getCurrentUser(),
     getEntityAddresses("contact", id),
+    getSocialServices(),
+    getContactSocialAccounts(id),
   ]);
 
   const contact = contactResult.data as ContactRecord | null;
@@ -132,6 +140,8 @@ export default async function ContactEditPage({
       emails={emails}
       phones={phones}
       addresses={addressesResult.data ?? []}
+      socialServices={socialServicesResult.data ?? []}
+      socialAccounts={socialAccountsResult.data ?? []}
     />
   );
 }

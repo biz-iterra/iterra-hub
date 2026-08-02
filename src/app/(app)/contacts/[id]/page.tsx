@@ -11,6 +11,11 @@ import { ReferredContactsSection } from "@/components/contacts/ReferredContactsS
 import { getReferredContacts } from "@/actions/business-cards";
 import { AddressList } from "@/components/common/AddressesEditor";
 import { getEntityAddresses } from "@/actions/entity-addresses";
+import {
+  getContactSocialAccounts,
+  getSocialServices,
+} from "@/actions/contact-social-accounts";
+import { SocialLinks } from "@/components/contacts/SocialLinks";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -109,6 +114,8 @@ export default async function ContactDetailPage({
     { data: companiesResult },
     { data: users },
     { data: me },
+    { data: socialServices },
+    { data: socialAccounts },
   ] = await Promise.all([
     getContact(id),
     getContactEmailMessages(id),
@@ -118,6 +125,8 @@ export default async function ContactDetailPage({
     getCompanies({ perPage: 1000 }),
     getCrmUsers(),
     getCurrentUser(),
+    getSocialServices(),
+    getContactSocialAccounts(id),
   ]);
   const emailMessages = emailMessagesRaw ?? [];
   const addresses = addressRows ?? [];
@@ -276,6 +285,19 @@ export default async function ContactDetailPage({
                       ))}
                     </div>
                   )
+                }
+              />
+              {/*
+                SNS・チャットの連絡口。使えるサービスを全部並べ、登録があるものだけ
+                色を付ける。誰にどの手段で連絡できるかが一目で分かるように。
+              */}
+              <InfoField
+                label="SNS・チャット"
+                value={
+                  <SocialLinks
+                    services={socialServices ?? []}
+                    accounts={socialAccounts ?? []}
+                  />
                 }
               />
               {/* 住所は基本情報へ移した（ここは連絡手段だけを扱う） */}

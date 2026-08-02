@@ -5,7 +5,7 @@ import { uuidString } from "./common";
 // 系統マスタ（閲覧のみ）
 // ============================================================
 export const talentSystemTagSchema = z.object({
-  id: z.string().uuid(),
+  id: uuidString(),
   system_code: z.string().max(8),
   name: z.string(),
   definition: z.string().nullable(),
@@ -20,7 +20,7 @@ export type TalentSystemTag = z.infer<typeof talentSystemTagSchema>;
 // グレードマスタ（閲覧のみ）
 // ============================================================
 export const talentGradeSchema = z.object({
-  id: z.string().uuid(),
+  id: uuidString(),
   grade_code: z.string().max(8),
   band: z.string().max(8),
   sort_order: z.number().int(),
@@ -51,7 +51,7 @@ export const skillThresholdSchema = z.object({
 export type SkillThreshold = z.infer<typeof skillThresholdSchema>;
 
 export const talentGradeRequirementSchema = z.object({
-  id: z.string().uuid(),
+  id: uuidString(),
   system_code: z.string().max(8),
   grade_code: z.string().max(8),
   skill_thresholds: z.array(skillThresholdSchema),
@@ -79,7 +79,7 @@ export const jobTypeRuleSchema = z.object({
 export type JobTypeRule = z.infer<typeof jobTypeRuleSchema>;
 
 export const talentJobTypeSchema = z.object({
-  id: z.string().uuid(),
+  id: uuidString(),
   job_type_code: z.string().max(32),
   name: z.string(),
   category: z.string().nullable(),
@@ -94,7 +94,7 @@ export type TalentJobType = z.infer<typeof talentJobTypeSchema>;
 // 実績マスタ（閲覧のみ）
 // ============================================================
 export const talentAchievementMasterSchema = z.object({
-  id: z.string().uuid(),
+  id: uuidString(),
   achievement_code: z.string().max(32),
   name: z.string(),
   criteria: z.string().nullable(),
@@ -148,9 +148,9 @@ export type UpdateTalentAchievementInput = z.infer<typeof updateTalentAchievemen
 export type SkillAxis = "T" | "D" | "B" | "M";
 
 export const skillExtendedSchema = z.object({
-  id: z.string().uuid(),
+  id: uuidString(),
   skill_code: z.string().max(8).nullable(),
-  skill_category_id: z.string().uuid(),
+  skill_category_id: uuidString(),
   axis: z.enum(["T", "D", "B", "M"]).nullable(),
   name: z.string(),
   system_tags: z.array(z.string()),

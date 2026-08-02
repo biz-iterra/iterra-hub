@@ -23,6 +23,7 @@ import { createLeadActivity, deleteLeadActivity, updateLeadActivity } from "@/ac
 import {
   createLeadCustomerActivity,
   deleteLeadCustomerActivity,
+  updateLead,
 } from "@/actions/leads";
 import {
   TemperatureBadge,
@@ -32,6 +33,8 @@ import {
   ActivityTypeBadge,
 } from "@/components/ui/badges";
 import { useToast } from "@/components/ui/toast";
+import { RelationField } from "@/components/ui/RelationField";
+import { RelationMultiField } from "@/components/ui/RelationMultiField";
 import { DetailSection, detailHeadingStyle } from "@/components/ui/DetailSection";
 import type {
   LeadActivityWithRelations,
@@ -765,6 +768,33 @@ export function LeadDetailClient({
 
   const promotedDealId: string | null = lead.promoted_deal_id ?? null;
 
+  /**
+   * 担当者の付け替え。
+   *
+   * 既存の updateLead をそのまま通す（権限・楽観ロック・変更履歴が同じ経路に乗る）。
+   * 戻りが {ok, errors} なので、項目編集が扱う {error} に均す。
+   */
+  async function saveLeadRelation(
+    patch: { owner_user_id?: string; sub_owner_user_ids?: string[] }
+  ): Promise<{ error: string | null }> {
+    const result = await updateLead({
+      id: lead.id,
+      expected_updated_at: lead.updated_at ?? undefined,
+      ...patch,
+    });
+    if (result.ok) return { error: null };
+    return { error: Object.values(result.errors).flat().join(" / ") };
+  }
+
+  async function saveOwner(value: string | null) {
+    if (!value) return { error: "社内担当者（主）は必須です" };
+    return saveLeadRelation({ owner_user_id: value });
+  }
+
+  async function saveSubOwners(values: string[]) {
+    return saveLeadRelation({ sub_owner_user_ids: values });
+  }
+
   // ---- 社内対応アクティビティ ----
   const [activities, setActivities] = useState(initialActivities);
   const [actForm, setActForm] = useState({
@@ -1160,34 +1190,31 @@ export function LeadDetailClient({
                 label="事業者種別"
                 value={lead.account_type?.name ?? findLabel(masters.accountTypes, lead.account_type_id)}
               />
-              <Field
+              {/* 担当者は別レコードへの紐づけ。編集ページからは外してここで直す */}
+              <RelationField
                 label="社内担当者（主）"
-                value={lead.owner?.full_name ?? findLabel(masters.owners, lead.owner_user_id)}
+                value={lead.owner_user_id}
+                display={
+                  lead.owner?.full_name ?? findLabel(masters.owners, lead.owner_user_id)
+                }
+                // 担当者不在のリードは作れないので、外さずに選び替えるだけ
+                nullable={false}
+                options={masters.owners}
+                action={saveOwner}
+                editable={isOwnerOrAbove}
               />
             </div>
-            {lead.sub_owners && lead.sub_owners.length > 0 && (
-              <div style={{ marginTop: "1rem" }}>
-                <span style={styles.label}>社内担当者（副）</span>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.375rem", marginTop: "0.25rem" }}>
-                  {lead.sub_owners.map((o) => (
-                    <span
-                      key={o.user_id}
-                      style={{
-                        display: "inline-block",
-                        padding: "0.125rem 0.625rem",
-                        borderRadius: "var(--radius-badge)",
-                        backgroundColor: "var(--color-sumi100)",
-                        color: "var(--color-sumi700)",
-                        fontSize: "0.75rem",
-                        fontWeight: 500,
-                      }}
-                    >
-                      {o.user?.full_name ?? o.user_id}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
+            <div style={{ marginTop: "1rem" }}>
+              <RelationMultiField
+                label="社内担当者（副）"
+                values={(lead.sub_owners ?? []).map((o) => o.user_id)}
+                // 主担当は副担当に重ねられない（保存時にも除かれる）
+                options={masters.owners.filter((o) => o.value !== lead.owner_user_id)}
+                emptyOptionsMessage="主担当以外のユーザーがいません"
+                action={saveSubOwners}
+                editable={isOwnerOrAbove}
+              />
+            </div>
           </DetailSection>
         </div>
       )}

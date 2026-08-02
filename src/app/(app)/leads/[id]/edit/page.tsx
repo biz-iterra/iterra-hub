@@ -10,7 +10,7 @@ import {
   getLeadSmallSegments,
   getLeadCategories,
 } from "@/actions/masters";
-import { getCrmUsers, getCurrentUser } from "@/actions/users";
+import { getCrmUsers } from "@/actions/users";
 import Link from "next/link";
 import { ArrowLeft, ArrowUpRight } from "lucide-react";
 import { LeadEditClient } from "./lead-edit-client";
@@ -113,7 +113,6 @@ export default async function LeadEditPage({
     smallSegmentsResult,
     categoriesResult,
     usersResult,
-    currentUserResult,
   ] = await Promise.all([
     getLeadStages(),
     getLeadStatuses(),
@@ -125,7 +124,6 @@ export default async function LeadEditPage({
     getLeadSmallSegments(),
     getLeadCategories(),
     getCrmUsers(),
-    getCurrentUser(),
   ]);
 
   const masters = {
@@ -180,9 +178,6 @@ export default async function LeadEditPage({
     <LeadEditClient
       lead={lead}
       masters={masters}
-      currentUser={
-        currentUserResult.data ?? { id: "", full_name: "", role: "member" }
-      }
     />
   );
 }

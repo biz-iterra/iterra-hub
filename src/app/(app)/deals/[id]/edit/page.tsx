@@ -83,7 +83,6 @@ export default async function DealEditPage({
   type MasterItem = { id: string; name: string };
   type StageItem = { id: string; name: string; pipeline_type_id: string };
   type StatusItem = { id: string; name: string; pipeline_type_id: string };
-  type AccountItem = { id: string; account_code: string | null; name: string };
 
   const masters = {
     pipelineTypes: ((pipelineTypesResult.data ?? []) as MasterItem[]).map(

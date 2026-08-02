@@ -127,17 +127,12 @@ function onBlur(
 export function LeadEditClient({
   lead,
   masters,
-  currentUser,
 }: {
   lead: LeadDetail;
   masters: Masters;
-  currentUser: { id: string; full_name: string; role: string };
 }) {
   const router = useRouter();
   const { showToast } = useToast();
-
-  const isManagerOrAbove =
-    currentUser.role === "manager" || currentUser.role === "admin";
 
   // 昇格済みフラグ（いずれかの promoted_* が存在する）
   const isPromoted = !!(
@@ -189,13 +184,7 @@ export function LeadEditClient({
     small_segment_id: lead.small_segment_id ?? "",
     lead_source_id: lead.lead_source_id ?? "",
     account_type_id: getInitialAccountTypeId(),
-    owner_user_id: lead.owner_user_id ?? currentUser.id,
   });
-
-  // 副担当（主担当と別管理）
-  const [subOwnerUserIds, setSubOwnerUserIds] = useState<string[]>(
-    () => (lead.sub_owners ?? []).map((o) => o.user_id)
-  );
 
   const [saving, setSaving] = useState(false);
   // フィールド単位のエラー（従業員数・資本金の形式不正などの事前検証、
@@ -252,21 +241,6 @@ export function LeadEditClient({
 
   const handleStageChange = (nextId: string) => {
     setValues((v) => ({ ...v, stage_id: nextId, status_id: "" }));
-  };
-
-  // 主担当変更時: 新主担当が副担当に含まれていたら自動除外
-  const handleOwnerChange = (newOwnerId: string) => {
-    set("owner_user_id", newOwnerId);
-    setSubOwnerUserIds((prev) => prev.filter((id) => id !== newOwnerId));
-  };
-
-  // 副担当チェックボックス操作
-  const handleSubOwnerToggle = (userId: string, checked: boolean) => {
-    if (checked) {
-      setSubOwnerUserIds((prev) => [...prev, userId]);
-    } else {
-      setSubOwnerUserIds((prev) => prev.filter((id) => id !== userId));
-    }
   };
 
   // 企業名入力時: account_type_id が未選択なら法人（slug: corporate）を自動設定
@@ -348,8 +322,6 @@ export function LeadEditClient({
       capital: capitalNum,
       large_segment_id: values.large_segment_id || null,
       small_segment_id: values.small_segment_id || null,
-      owner_user_id: values.owner_user_id || undefined,
-      sub_owner_user_ids: subOwnerUserIds,
       contact_last_name: values.contact_last_name || null,
       contact_middle_name: values.contact_middle_name || null,
       contact_first_name: values.contact_first_name || null,
@@ -1111,84 +1083,7 @@ export function LeadEditClient({
               </p>
             )}
           </div>
-          <div>
-            <label style={styles.label}>社内担当者（主）*</label>
-            <select
-              style={styles.input}
-              value={values.owner_user_id}
-              onChange={(e) => handleOwnerChange(e.target.value)}
-              disabled={!isManagerOrAbove}
-              onFocus={onFocus}
-              onBlur={onBlur}
-            >
-              {masters.owners.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-            {!isManagerOrAbove && (
-              <p style={styles.helpText}>member は自分のみ担当者に設定できます</p>
-            )}
-          </div>
-        </div>
-        {/* 副担当 Multi-select */}
-        <div>
-          <label style={styles.label}>社内担当者（副）</label>
-          {masters.owners.filter((u) => u.value !== values.owner_user_id).length === 0 ? (
-            <p style={styles.helpText}>主担当以外のユーザーがいません</p>
-          ) : (
-            <div
-              style={{
-                display: "flex",
-                flexWrap: "wrap",
-                gap: "0.5rem",
-                padding: "0.5rem 0.75rem",
-                border: "1px solid var(--color-border-default)",
-                borderRadius: "var(--radius-input)",
-                backgroundColor: "#fff",
-              }}
-            >
-              {masters.owners
-                .filter((u) => u.value !== values.owner_user_id)
-                .map((u) => {
-                  const checked = subOwnerUserIds.includes(u.value);
-                  return (
-                    <label
-                      key={u.value}
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: "0.375rem",
-                        padding: "0.25rem 0.625rem",
-                        borderRadius: "var(--radius-badge)",
-                        backgroundColor: checked
-                          ? "rgba(60,63,88,0.12)"
-                          : "var(--color-sumi100)",
-                        color: checked ? "var(--color-terra)" : "var(--color-sumi600)",
-                        fontSize: "0.8125rem",
-                        fontWeight: checked ? 600 : 400,
-                        cursor: "pointer",
-                        border: checked
-                          ? "1px solid rgba(60,63,88,0.25)"
-                          : "1px solid transparent",
-                        transition: "background-color 0.15s, color 0.15s",
-                        userSelect: "none",
-                      }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={(e) => handleSubOwnerToggle(u.value, e.target.checked)}
-                        style={{ accentColor: "var(--color-terra)", width: "0.875rem", height: "0.875rem" }}
-                      />
-                      {u.label}
-                    </label>
-                  );
-                })}
-            </div>
-          )}
-          <p style={styles.helpText}>副担当者を複数選択できます（任意）</p>
+          {/* 社内担当者（主・副）は別レコードへの紐づけなので詳細ページで直す */}
         </div>
       </div>
 

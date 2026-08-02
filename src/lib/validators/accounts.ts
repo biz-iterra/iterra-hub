@@ -9,14 +9,8 @@ export const createAccountSchema = z.object({
   description: z.string().max(1000).nullable().optional(),
   lead_source_id: uuidString().nullable().optional(),
   owner_user_id: uuidString().nullable().optional(),
-  // 適格請求書発行事業者の登録番号。取引の主体に紐づく情報なので取引先が持つ
-  invoice_registration_number: z
-    .string()
-    .regex(/^T\d{13}$/, "登録番号は T + 13 桁で入力してください")
-    .nullable()
-    .optional()
-    .or(z.literal("").transform(() => null)),
-  invoice_registered: z.boolean().optional(),
+  // 適格請求書発行事業者の登録番号は事業者情報（companies）が持つ。
+  // 取引先は紐づく事業者情報のものを読み取りで見せるだけ（20260802000005）
 });
 
 export const updateAccountSchema = createAccountSchema

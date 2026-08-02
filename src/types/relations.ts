@@ -286,7 +286,8 @@ export type AccountRoleTypeWithPipeline = Row<"account_role_types"> & {
 
 /** accounts.ts の getAccounts に対応 */
 export type AccountWithRelations = Row<"accounts"> & {
-  company: NamedRef | null;
+  /** インボイス登録番号は事業者情報が正本。取引先では読み取りだけ（20260802000005） */
+  company: (NamedRef & Ref<"companies", "invoice_registration_number">) | null;
   /** slug は AccountTypeBadge の色分けに使う */
   account_type: (NamedRef & Ref<"account_types", "slug">) | null;
   account_status: ColoredRef | null;

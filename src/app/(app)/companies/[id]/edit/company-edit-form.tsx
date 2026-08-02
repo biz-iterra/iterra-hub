@@ -219,6 +219,11 @@ export function CompanyEditForm({
     setValues((v) => ({ ...v, [key]: value }));
   };
 
+  // 個人事業主は法人番号を持たないので、法人番号の欄と実在確認を出さない
+  const isSoleProprietor =
+    masters.corporateTypes.find((o) => o.value === values.corporate_type_id)?.label ===
+    "個人事業主";
+
   // 法人番号（13桁数字）を入力したらインボイス番号を T+法人番号 で自動補完。既に入力があれば上書きしない。
   const onCorporateNumberChange = (raw: string) => {
     setValues((v) => {
@@ -355,18 +360,21 @@ export function CompanyEditForm({
                 ))}
               </select>
             </div>
-            <div>
-              <label style={styles.label}>法人番号（13桁）</label>
-              <input
-                type="text"
-                style={styles.input}
-                placeholder="1234567890123"
-                value={values.corporate_number}
-                onChange={(e) => onCorporateNumberChange(e.target.value)}
-                onFocus={onFocus}
-                onBlur={onBlur}
-              />
-            </div>
+            {/* 個人事業主は法人番号を持たない。インボイス登録番号は別途入力できる */}
+            {!isSoleProprietor && (
+              <div>
+                <label style={styles.label}>法人番号（13桁）</label>
+                <input
+                  type="text"
+                  style={styles.input}
+                  placeholder="1234567890123"
+                  value={values.corporate_number}
+                  onChange={(e) => onCorporateNumberChange(e.target.value)}
+                  onFocus={onFocus}
+                  onBlur={onBlur}
+                />
+              </div>
+            )}
             <div>
               <label style={styles.label}>ステータス *</label>
               <select

@@ -165,6 +165,11 @@ export function CompanyNewForm({ masters }: { masters: Masters }) {
     setValues((v) => ({ ...v, [key]: value }));
   };
 
+  // 個人事業主は法人番号を持たないので、法人番号の欄を出さない
+  const isSoleProprietor =
+    masters.corporateTypes.find((o) => o.value === values.corporate_type_id)?.label ===
+    "個人事業主";
+
   // 会社名に法人格の綴りが含まれていれば法人格を選んでおく。
   // 既に選ばれていれば触らない（人が選んだ値を上書きしない）。
   // 保存時にも Server Action 側で同じ補完をするので、ここは確認のための先出し。
@@ -310,18 +315,21 @@ export function CompanyNewForm({ masters }: { masters: Masters }) {
                 ))}
               </select>
             </div>
-            <div>
-              <label style={styles.label}>法人番号（13桁）</label>
-              <input
-                type="text"
-                style={styles.input}
-                placeholder="1234567890123"
-                value={values.corporate_number}
-                onChange={(e) => onCorporateNumberChange(e.target.value)}
-                onFocus={onFocus}
-                onBlur={onBlur}
-              />
-            </div>
+            {/* 個人事業主は法人番号を持たない。インボイス登録番号は別途入力できる */}
+            {!isSoleProprietor && (
+              <div>
+                <label style={styles.label}>法人番号（13桁）</label>
+                <input
+                  type="text"
+                  style={styles.input}
+                  placeholder="1234567890123"
+                  value={values.corporate_number}
+                  onChange={(e) => onCorporateNumberChange(e.target.value)}
+                  onFocus={onFocus}
+                  onBlur={onBlur}
+                />
+              </div>
+            )}
             <div>
               <label style={styles.label}>ステータス *</label>
               <select

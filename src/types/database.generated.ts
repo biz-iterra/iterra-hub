@@ -401,8 +401,6 @@ export type Database = {
           deletion_reason: string | null
           description: string | null
           id: string
-          invoice_registered: boolean
-          invoice_registration_number: string | null
           last_updated_by: string | null
           lead_source_id: string | null
           name: string
@@ -422,8 +420,6 @@ export type Database = {
           deletion_reason?: string | null
           description?: string | null
           id?: string
-          invoice_registered?: boolean
-          invoice_registration_number?: string | null
           last_updated_by?: string | null
           lead_source_id?: string | null
           name: string
@@ -443,8 +439,6 @@ export type Database = {
           deletion_reason?: string | null
           description?: string | null
           id?: string
-          invoice_registered?: boolean
-          invoice_registration_number?: string | null
           last_updated_by?: string | null
           lead_source_id?: string | null
           name?: string
@@ -6051,6 +6045,10 @@ export type Database = {
         Args: { p_contact_id: string }
         Returns: number
       }
+      expand_corporate_abbreviations: {
+        Args: { p_name: string }
+        Returns: string
+      }
       find_contact_by_email: { Args: { p_email: string }; Returns: string }
       get_user_role: { Args: never; Returns: string }
       import_eight_leads: {
@@ -6132,6 +6130,10 @@ export type Database = {
           p_subject: string
           p_to_emails?: string[]
         }
+        Returns: string
+      }
+      resolve_corporate_type_id: {
+        Args: { p_company_name: string }
         Returns: string
       }
       resolve_lead_company_size: {

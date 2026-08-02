@@ -74,12 +74,21 @@ export async function verifyCompany(
 
   const { data: company, error: fetchErr } = await supabase
     .from("companies")
-    .select("id, name, corporate_number")
+    .select("id, name, corporate_number, corporate_type:corporate_types(name)")
     .eq("id", companyId)
     .is("deleted_at", null)
     .single();
 
   if (fetchErr || !company) return { data: null, error: "法人情報が見つかりません" };
+
+  // 個人事業主は法人番号を持たないので、国税庁の台帳には載らない。
+  // 商号検索で同名の法人に当たってしまうため、照合そのものを行わない
+  if (company.corporate_type?.name === "個人事業主") {
+    return {
+      data: null,
+      error: "個人事業主は法人番号を持たないため、実在確認の対象外です",
+    };
+  }
 
   // 所在地は住所マスタ側にある。照合には主住所を使う
   const { data: primaryAddress } = await supabase
@@ -246,11 +255,29 @@ export async function verifyCompaniesBatch(
 
   const safeLimit = Math.min(Math.max(1, limit), 100);
 
+  // 個人事業主は法人番号を持たず国税庁の台帳に載らないので、対象から外す。
+  // 残すと毎回「該当なし」で枠を食い潰し、法人の確認が進まなくなる
+  const { data: soleProprietor } = await supabase
+    .from("corporate_types")
+    .select("id")
+    .eq("name", "個人事業主")
+    .is("deleted_at", null)
+    .maybeSingle();
+
   // 未確認（verified_at IS NULL）を先に、次に確認が古いものから
-  const { data: targets, error } = await supabase
+  let targetQuery = supabase
     .from("companies")
     .select("id")
-    .is("deleted_at", null)
+    .is("deleted_at", null);
+
+  if (soleProprietor) {
+    // 法人格が未設定のものは対象に残す（法人かもしれないため）
+    targetQuery = targetQuery.or(
+      `corporate_type_id.is.null,corporate_type_id.neq.${soleProprietor.id}`
+    );
+  }
+
+  const { data: targets, error } = await targetQuery
     .order("verified_at", { ascending: true, nullsFirst: true })
     .limit(safeLimit);
 

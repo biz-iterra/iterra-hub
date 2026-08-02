@@ -98,6 +98,9 @@ export default async function CompanyDetailPage({
   const activeContacts =
     company.contacts?.filter((c) => c.deleted_at === null) ?? [];
 
+  // 個人事業主は法人番号を持たず、国税庁の台帳にも載らない
+  const isSoleProprietor = company.corporate_types?.name === "個人事業主";
+
   const industryLabel = company.industry_classifications
     ? [
         company.industry_classifications.major_name,
@@ -166,7 +169,9 @@ export default async function CompanyDetailPage({
               <InfoField label="会社名" value={company.name} />
               <InfoField label="フリガナ" value={company.name_kana} />
               <InfoField label="代表者名" value={company.representative_name} />
-              <InfoField label="法人番号" value={company.corporate_number} />
+              {!isSoleProprietor && (
+                <InfoField label="法人番号" value={company.corporate_number} />
+              )}
               <InfoField
                 label="担当者"
                 value={
@@ -198,7 +203,9 @@ export default async function CompanyDetailPage({
               <InfoField
                 label="最終確認"
                 value={
-                  company.verified_at
+                  isSoleProprietor
+                    ? "対象外（個人事業主）"
+                    : company.verified_at
                     ? `${formatDate(company.verified_at)}（${
                         company.verification_source === "houjin_bangou_api"
                           ? "法人番号API"

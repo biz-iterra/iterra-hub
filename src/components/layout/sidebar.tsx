@@ -95,7 +95,8 @@ const navGroups: NavGroup[] = [
         href: "/companies",
         icon: Building2,
         nested: true,
-        description: "取引先の法的情報（登記・インボイス）",
+        // 契約前の相手も個人事業主も入るので「取引先の」とは限らない
+        description: "事業者の法的情報（登記・インボイス）",
       },
       {
         label: "連絡先",

@@ -56,7 +56,7 @@ export async function getAccounts(
   let query = supabase
     .from("accounts")
     .select(
-      `*, company:companies(id, name), account_type:account_types(id, name, slug), account_status:account_statuses(id, name, color), account_roles(id, assigned_by_contract, role_type:account_role_types(id, code, name, color, sort_order)), owner:crm_users!accounts_owner_user_id_fkey(id, full_name)`,
+      `*, company:companies(id, name, invoice_registration_number), account_type:account_types(id, name, slug), account_status:account_statuses(id, name, color), account_roles(id, assigned_by_contract, role_type:account_role_types(id, code, name, color, sort_order)), owner:crm_users!accounts_owner_user_id_fkey(id, full_name)`,
       { count: "exact" }
     )
     .is("deleted_at", null)
@@ -93,7 +93,7 @@ export async function getAccount(id: string): Promise<ActionResult<AccountDetail
   const { data, error } = await supabase
     .from("accounts")
     .select(
-      `*, company:companies(id, name), account_type:account_types(id, name, slug), account_status:account_statuses(id, name, color), account_roles(id, assigned_by_contract, role_type:account_role_types(id, code, name, color, sort_order)), lead_source:lead_sources(id, name), owner:crm_users!accounts_owner_user_id_fkey(id, full_name), contacts:account_contacts(id, role, contact:contacts(id, contact_code, last_name, first_name, department, job_title, deleted_at, company:companies!contacts_company_id_fkey(id, name))), deals(id, deal_code, name, amount, deal_stage:deal_stages(name), deal_status:deal_statuses(name))`
+      `*, company:companies(id, name, invoice_registration_number), account_type:account_types(id, name, slug), account_status:account_statuses(id, name, color), account_roles(id, assigned_by_contract, role_type:account_role_types(id, code, name, color, sort_order)), lead_source:lead_sources(id, name), owner:crm_users!accounts_owner_user_id_fkey(id, full_name), contacts:account_contacts(id, role, contact:contacts(id, contact_code, last_name, first_name, department, job_title, deleted_at, company:companies!contacts_company_id_fkey(id, name))), deals(id, deal_code, name, amount, deal_stage:deal_stages(name), deal_status:deal_statuses(name))`
     )
     .eq("id", id)
     .single();

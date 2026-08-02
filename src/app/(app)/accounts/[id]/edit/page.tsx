@@ -71,7 +71,6 @@ export default async function AccountEditPage({
     lead_source_id: string | null;
     owner_user_id: string | null;
     description: string | null;
-    invoice_registration_number: string | null;
   } | null;
 
   // 区分は中間テーブル経由なので、フォームの値とは別に渡す

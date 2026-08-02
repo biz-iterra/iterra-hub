@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getCompany } from "@/actions/companies";
 import { getCorporateTypes, getLeadSources, getCompanyStatuses } from "@/actions/masters";
 import { getCurrentUser } from "@/actions/users";
+import { getCompanyFinancialInfo } from "@/actions/financial-info";
 import { CompanyEditForm } from "./company-edit-form";
 import { getEntityAddresses } from "@/actions/entity-addresses";
 
@@ -37,7 +38,7 @@ export default async function CompanyEditPage({
     );
   }
 
-  const [companyResult, corporateTypesResult, leadSourcesResult, companyStatusesResult, meResult, addressesResult] =
+  const [companyResult, corporateTypesResult, leadSourcesResult, companyStatusesResult, meResult, addressesResult, financialResult] =
     await Promise.all([
       getCompany(id),
       getCorporateTypes(),
@@ -45,6 +46,7 @@ export default async function CompanyEditPage({
       getCompanyStatuses(),
       getCurrentUser(),
       getEntityAddresses("company", id),
+      getCompanyFinancialInfo(id),
     ]);
 
   const company = companyResult.data;
@@ -96,6 +98,8 @@ export default async function CompanyEditPage({
       isAdmin={isAdmin}
       domains={company.company_domains ?? []}
       addresses={addressesResult.data ?? []}
+      // manager 未満は取得自体が拒否される。その場合は欄ごと出さない
+      financialInfo={financialResult.data}
     />
   );
 }

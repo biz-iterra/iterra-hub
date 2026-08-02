@@ -1100,6 +1100,18 @@ UIは `pipeline_types.slug` をキーにしたレジストリパターンで拡�
 - CREATE/UPDATE/DELETE: admin のみ
 - READ: manager/admin のみ（機密情報のため）
 
+**索引（20260802000019）:**
+| 索引 | 目的 |
+|---|---|
+| `idx_financial_info_company` | 事業者ごとに引く（`deleted_at IS NULL` の部分索引） |
+| `uq_financial_info_primary_company` | 事業者ごとに主口座は 1 つ。振込先が二重に「主」になるとどちらへ払うのか決まらない |
+
+**画面:** 事業者情報の編集ページに `FinancialInfoEditor`、詳細ページに読み取りを置く。
+住所と同じく本体の保存とは切り離してその場で反映する。**manager 未満には
+`getCompanyFinancialInfo` が拒否を返し、欄ごと出さない**（口座番号を含むため）。
+主口座の付け替え・削除時の繰り上げは Server Action 側で面倒を見る
+（`src/actions/financial-info.ts`）。
+
 ---
 
 ### D04: other_addresses（追加住所）

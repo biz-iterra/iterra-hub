@@ -1104,6 +1104,10 @@ export function LeadDetailClient({
         <div style={sectionStackStyle}>
           {/* ① 企業情報セクション */}
           <DetailSection title="企業情報" icon={Building2}>
+            {/*
+              取り込んだ時点の記録。会社そのものの情報は事業者情報が正本なので、
+              直すときは上のリンクから移る（リード編集では触れない）。
+            */}
             <div style={{ ...styles.grid2, marginBottom: "1rem" }}>
               <Field label="会社名" value={lead.company_name} />
               <Field label="フリガナ" value={lead.company_name_kana} />
@@ -1148,6 +1152,7 @@ export function LeadDetailClient({
           </DetailSection>
 
           {/* ② 担当者情報セクション */}
+          {/* 人そのものの情報は連絡先が正本。ここは取り込んだ時点の記録 */}
           <DetailSection title="担当者情報" icon={Users}>
             <div style={{ ...styles.grid3, marginBottom: "1rem" }}>
               <Field label="姓" value={lead.contact_last_name} />

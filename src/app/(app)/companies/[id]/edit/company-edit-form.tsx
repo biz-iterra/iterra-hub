@@ -10,6 +10,8 @@ import { useToast } from "@/components/ui/toast";
 import { isFieldValidationError } from "@/lib/errors";
 import { formContainerStyle } from "@/lib/layout";
 import { AddressesEditor } from "@/components/common/AddressesEditor";
+import { FinancialInfoEditor } from "@/components/companies/FinancialInfoEditor";
+import type { FinancialInfoRow } from "@/actions/financial-info";
 import type { EntityAddress } from "@/types/relations";
 import {
   CompanyDomainsSection,
@@ -181,10 +183,13 @@ export function CompanyEditForm({
   isAdmin,
   domains,
   addresses,
+  financialInfo,
 }: {
   company: CompanyData;
   masters: Masters;
   isAdmin: boolean;
+  /** manager 未満には渡さない（null なら欄ごと出さない） */
+  financialInfo: FinancialInfoRow[] | null;
   domains: CompanyDomainRow[];
   /** 住所マスタ経由。本体の保存とは独立して増減させる */
   addresses: EntityAddress[];
@@ -485,6 +490,25 @@ export function CompanyEditForm({
             />
           </div>
         </div>
+
+        {/*
+          金融機関情報。振込先は事業者に付くので、インボイス登録番号と同じくここに置く。
+          口座番号を含むため、閲覧は manager 以上・変更は admin だけ。
+        */}
+        {financialInfo !== null && (
+          <div style={styles.card}>
+            <h2 style={styles.sectionTitle}>金融機関情報</h2>
+            <p style={{ color: "var(--color-sumi600)", fontSize: "0.75rem", margin: "0 0 0.75rem 0" }}>
+              振込先の口座。複数登録でき、★ が主口座です。
+              追加・削除はこの場で反映されます（下の「保存」を待ちません）。
+            </p>
+            <FinancialInfoEditor
+              companyId={company.id}
+              rows={financialInfo}
+              editable={isAdmin}
+            />
+          </div>
+        )}
 
         {/* メモ */}
         <div style={styles.card}>

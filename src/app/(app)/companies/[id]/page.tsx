@@ -1,6 +1,8 @@
 import { getCompany, updateCompany } from "@/actions/companies";
 import { getCrmUsers, getCurrentUser } from "@/actions/users";
 import { RelationField } from "@/components/ui/RelationField";
+import { getCompanyFinancialInfo } from "@/actions/financial-info";
+import { accountTypeLabel } from "@/lib/validators/financial-info";
 import { getEntityAddresses } from "@/actions/entity-addresses";
 import { AddressList } from "@/components/common/AddressesEditor";
 import Link from "next/link";
@@ -9,8 +11,10 @@ import {
   Briefcase,
   Building2,
   FileText,
+  Landmark,
   Layers,
   Mail,
+  Star,
   Pencil,
   StickyNote,
   Users,
@@ -75,12 +79,20 @@ export default async function CompanyDetailPage({
     );
   }
 
-  const [{ data: company, error }, { data: addressRows }, { data: users }, { data: me }] =
+  const [
+    { data: company, error },
+    { data: addressRows },
+    { data: users },
+    { data: me },
+    { data: financialInfo },
+  ] =
     await Promise.all([
       getCompany(id),
       getEntityAddresses("company", id),
       getCrmUsers(),
       getCurrentUser(),
+      // 口座番号を含むので manager 未満には返らない（null になる）
+      getCompanyFinancialInfo(id),
     ]);
   const addresses = addressRows ?? [];
 
@@ -362,6 +374,67 @@ export default async function CompanyDetailPage({
               />
             </div>
           </DetailSection>
+
+          {/* 振込先。口座番号を含むので manager 以上にだけ出す */}
+          {financialInfo !== null && (
+            <DetailSection title="金融機関情報" icon={Landmark}>
+              {financialInfo.length === 0 ? (
+                <p
+                  style={{
+                    color: "var(--color-sumi400)",
+                    fontSize: "0.875rem",
+                    margin: 0,
+                  }}
+                >
+                  登録されていません
+                </p>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                  {financialInfo.map((fi) => (
+                    <div
+                      key={fi.id}
+                      style={{
+                        borderBottom: "1px solid var(--color-border-default)",
+                        paddingBottom: "0.5rem",
+                      }}
+                    >
+                      <span
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "0.375rem",
+                          fontSize: "0.875rem",
+                          fontWeight: 600,
+                          color: "var(--color-text-title)",
+                        }}
+                      >
+                        {fi.is_primary && (
+                          <Star size={12} style={{ color: "var(--color-terra)" }} />
+                        )}
+                        {fi.bank_name}
+                        {fi.branch_name && ` ${fi.branch_name}`}
+                      </span>
+                      <div
+                        style={{
+                          color: "var(--color-sumi600)",
+                          fontSize: "0.8125rem",
+                          marginTop: "0.125rem",
+                        }}
+                      >
+                        {[
+                          accountTypeLabel(fi.account_type),
+                          fi.account_number,
+                          fi.account_holder_kana ?? fi.account_holder,
+                        ]
+                          .filter(Boolean)
+                          .join(" / ") || "—"}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </DetailSection>
+          )}
 
           {company.internal_memo && (
             <DetailSection title="メモ" icon={StickyNote}>

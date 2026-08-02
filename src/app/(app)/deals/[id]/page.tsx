@@ -33,7 +33,7 @@ import { DetailSection } from "@/components/ui/DetailSection";
 import { InfoField } from "@/components/ui/InfoField";
 import { EntityLink } from "@/components/ui/EntityLink";
 import { getDealCounterparty } from "@/lib/deal-counterparty";
-import { LabelBadge, ContractMethodBadge, PipelineBadge, StageBadge, StatusBadge } from "@/components/ui/badges";
+import { ContractMethodBadge, PipelineBadge, StageBadge, StatusBadge } from "@/components/ui/badges";
 import { detailContainerStyle, detailGridStyle, fieldGridStyle, sectionStackStyle } from "@/lib/layout";
 
 function formatDate(date: string | null | undefined): string {

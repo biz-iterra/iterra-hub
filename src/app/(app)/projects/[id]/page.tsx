@@ -3,8 +3,6 @@ import {
   updateProject,
   addProjectMember,
   removeProjectMember,
-  addDealProject,
-  removeDealProject,
 } from "@/actions/projects";
 import { getDeals } from "@/actions/deals";
 import { RelationListSection } from "@/components/ui/RelationListSection";
@@ -12,8 +10,8 @@ import { ProjectDealsSection } from "./project-deals-section";
 import { getCrmUsers, getCurrentUser } from "@/actions/users";
 import { RelationField } from "@/components/ui/RelationField";
 import Link from "next/link";
-import { ArrowLeft, ArrowUpRight, FolderKanban, Users, Handshake, Pencil, StickyNote } from "lucide-react";
-import { ProjectStatusBadge, PipelineBadge, StageBadge } from "@/components/ui/badges";
+import { ArrowLeft, FolderKanban, Users, Pencil, StickyNote } from "lucide-react";
+import { ProjectStatusBadge } from "@/components/ui/badges";
 import { DetailSection } from "@/components/ui/DetailSection";
 import { InfoField } from "@/components/ui/InfoField";
 import { detailContainerStyle, detailGridStyle, fieldGridStyle, sectionStackStyle } from "@/lib/layout";
@@ -91,7 +89,6 @@ export default async function ProjectDetailPage({
     .map((dp) => dp.deal)
     .filter((d): d is ProjectDeal => d !== null && d.deleted_at === null);
   const members = project.project_members ?? [];
-  const totalAmount = deals.reduce((sum, d) => sum + (d.amount ?? 0), 0);
 
   // 紐づけの付け替え。プロジェクトの中身をいじるのは manager 以上
   const canEdit = me?.role === "manager" || me?.role === "admin";
@@ -113,20 +110,7 @@ export default async function ProjectDetailPage({
     return { error: saveError };
   }
 
-  async function addDeal(dealId: string) {
-    "use server";
-    const { error: saveError } = await addDealProject({
-      deal_id: dealId,
-      project_id: id,
-    });
-    return { error: saveError };
-  }
 
-  async function removeDeal(dealId: string) {
-    "use server";
-    const { error: saveError } = await removeDealProject(dealId, id);
-    return { error: saveError };
-  }
 
   return (
     <div style={detailContainerStyle}>

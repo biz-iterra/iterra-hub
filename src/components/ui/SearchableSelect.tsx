@@ -140,15 +140,12 @@ export function SearchableSelect({
   const visible = candidates.slice(0, MAX_VISIBLE);
   const overflow = candidates.length - visible.length;
 
-  // 絞り込むたびに先頭へ戻す。前の位置に残ると Enter で意図しないものを選ぶ
-  useEffect(() => setHighlight(0), [query, open]);
-
   // 打つたびにサーバーへ投げる。1 文字ごとに叩かないよう少し待つ
   useEffect(() => {
     if (!searchKind || !open) return;
     let alive = true;
-    setSearching(true);
     const timer = setTimeout(() => {
+      setSearching(true);
       searchLookupOptions(searchKind, query)
         .then((rows) => {
           if (alive) setRemote(rows);
@@ -190,6 +187,7 @@ export function SearchableSelect({
       e.preventDefault();
       if (!open) {
         setOpen(true);
+        setHighlight(0);
         return;
       }
       const delta = e.key === "ArrowDown" ? 1 : -1;
@@ -231,9 +229,13 @@ export function SearchableSelect({
         placeholder={selectedLabel || placeholder}
         onChange={(e) => {
           setQuery(e.target.value);
+          setHighlight(0);
           if (!open) setOpen(true);
         }}
-        onFocus={() => setOpen(true)}
+        onFocus={() => {
+          setOpen(true);
+          setHighlight(0);
+        }}
         onKeyDown={onKeyDown}
         onFocusCapture={(e) => {
           e.currentTarget.style.borderColor = "var(--color-border-focus)";

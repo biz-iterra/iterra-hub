@@ -23,10 +23,12 @@ const pathLabels: Record<string, string> = {
   "/contracts": "契約",
   "/talents": "タレント",
   "/projects": "プロジェクト",
-  // サイドバーと画面内の戻りリンクは「マスタ・取込」。パンくずだけ「管理」だった
-  "/admin": "マスタ・取込",
+  // サイドバーと画面内の戻りリンクに合わせる
+  "/admin": "各種設定",
   "/admin/deleted": "削除済みレコード",
-  "/admin/members": "社内メンバー",
+  "/admin/members": "メンバー管理",
+  "/admin/logs": "ログ",
+  "/admin/leads/import": "インポート",
   "/profile": "プロフィール設定",
 };
 

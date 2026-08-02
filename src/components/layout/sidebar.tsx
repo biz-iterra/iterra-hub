@@ -21,6 +21,9 @@ import {
   MessageSquare,
   TrendingUp,
   PhoneCall,
+  UsersRound,
+  Upload,
+  ScrollText,
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -151,7 +154,35 @@ const navGroups: NavGroup[] = [
   {
     label: "管理",
     items: [
-      { label: "マスタ・取込", href: "/admin", icon: Settings, roles: ["admin"] },
+      {
+        label: "各種設定",
+        href: "/admin",
+        icon: Settings,
+        roles: ["admin"],
+        description: "マスタの管理",
+      },
+      {
+        label: "メンバー管理",
+        href: "/admin/members",
+        icon: UsersRound,
+        roles: ["admin"],
+        description: "CRM を使う人の追加・停止",
+      },
+      {
+        label: "インポート",
+        href: "/admin/leads/import",
+        icon: Upload,
+        roles: ["admin"],
+        description: "Eight 名刺データの取込",
+      },
+      // ログは自分の操作を追えるよう admin 限定にしない。
+      // 参照できる範囲は RLS が決める（manager 以上は全件、他は自分の変更のみ）
+      {
+        label: "ログ",
+        href: "/admin/logs",
+        icon: ScrollText,
+        description: "データの変更履歴",
+      },
     ],
   },
 ];

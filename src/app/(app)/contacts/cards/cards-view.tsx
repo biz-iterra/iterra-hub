@@ -34,6 +34,13 @@ function personName(
   return [p.last_name, p.first_name].filter(Boolean).join(" ");
 }
 
+/** 列幅を固定しているので、あふれた分は省略する */
+const clip = {
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap" as const,
+};
+
 /**
  * 名刺の一覧。
  *
@@ -169,7 +176,16 @@ export function BusinessCardsView({ initialData }: { initialData: CardsData }) {
             boxShadow: "var(--elevation-low)",
           }}
         >
-          <table className="w-full text-sm" style={{ tableLayout: "auto" }}>
+          <table className="w-full text-sm" style={{ tableLayout: "fixed" }}>
+            {/* 部署・役職は長くなりがちで、放っておくと他の列を潰す。
+                比率を決めて、あふれる分は省略する（全文は title で読める） */}
+            <colgroup>
+              <col style={{ width: "25%" }} />
+              <col style={{ width: "20%" }} />
+              <col style={{ width: "20%" }} />
+              <col style={{ width: "25%" }} />
+              <col style={{ width: "10%" }} />
+            </colgroup>
             <thead>
               <tr style={{ backgroundColor: "var(--color-sumi50)" }}>
                 {["連絡先", "所属", "部署・役職", "紹介者", "登録日"].map(
@@ -186,7 +202,17 @@ export function BusinessCardsView({ initialData }: { initialData: CardsData }) {
               </tr>
             </thead>
             <tbody>
-              {items.map((card) => (
+              {items.map((card) => {
+                // 省略されたときに全文を title で読めるようにするため、先に組み立てる
+                const company = card.company?.name ?? card.company_name_raw ?? "";
+                const position = [card.department, card.job_title]
+                  .filter(Boolean)
+                  .join(" ・ ");
+                const referral = card.referrer
+                  ? personName(card.referrer)
+                  : (card.referral_memo ?? "");
+
+                return (
                 <tr
                   key={card.id}
                   className="transition-colors cursor-pointer hover:bg-[var(--color-bg-hover)]"
@@ -195,7 +221,7 @@ export function BusinessCardsView({ initialData }: { initialData: CardsData }) {
                     card.contact && router.push(`/contacts/${card.contact.id}`)
                   }
                 >
-                  <td className="px-4 py-3 whitespace-nowrap">
+                  <td className="px-4 py-3" style={clip}>
                     <span style={{ color: "var(--color-text-title)" }}>
                       {personName(card.contact)}
                     </span>
@@ -216,18 +242,19 @@ export function BusinessCardsView({ initialData }: { initialData: CardsData }) {
                   </td>
                   <td
                     className="px-4 py-3"
-                    style={{ color: "var(--color-text-list)" }}
+                    style={{ ...clip, color: "var(--color-text-list)" }}
+                    title={company}
                   >
-                    {card.company?.name ?? card.company_name_raw ?? "—"}
+                    {company || "—"}
                   </td>
                   <td
                     className="px-4 py-3"
-                    style={{ color: "var(--color-sumi600)" }}
+                    style={{ ...clip, color: "var(--color-sumi600)" }}
+                    title={position}
                   >
-                    {[card.department, card.job_title].filter(Boolean).join(" ・ ") ||
-                      "—"}
+                    {position || "—"}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3" style={clip} title={referral}>
                     {card.referrer ? (
                       <span style={{ color: "var(--color-text-list)" }}>
                         {personName(card.referrer)}
@@ -241,13 +268,14 @@ export function BusinessCardsView({ initialData }: { initialData: CardsData }) {
                     )}
                   </td>
                   <td
-                    className="px-4 py-3 whitespace-nowrap"
-                    style={{ color: "var(--color-sumi600)" }}
+                    className="px-4 py-3"
+                    style={{ ...clip, color: "var(--color-sumi600)" }}
                   >
                     {formatDate(card.source_registered_on)}
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>

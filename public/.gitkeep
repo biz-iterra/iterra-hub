@@ -1,0 +1,3 @@
+# Next.js の standalone 出力は public を含まないため、Dockerfile が
+# `COPY /app/public ./public` で個別にコピーしている。
+# 中身が空でもディレクトリが無いとビルドが落ちるので、この目印を残す。

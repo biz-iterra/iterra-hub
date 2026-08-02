@@ -22,11 +22,9 @@ type AccountData = {
   updated_at?: string | null;
   id: string;
   name: string;
-  company_id: string | null;
   account_type_id: string | null;
   account_status_id: string | null;
   lead_source_id: string | null;
-  owner_user_id: string | null;
   description: string | null;
 };
 
@@ -34,8 +32,6 @@ type Masters = {
   accountTypes: SelectOption[];
   accountStatuses: SelectOption[];
   leadSources: SelectOption[];
-  companies: SelectOption[];
-  owners: SelectOption[];
 };
 
 const styles = {
@@ -176,11 +172,9 @@ export function AccountEditForm({
   const { showToast } = useToast();
   const [values, setValues] = useState({
     name: account.name ?? "",
-    company_id: account.company_id ?? "",
     account_type_id: account.account_type_id ?? "",
     account_status_id: account.account_status_id ?? "",
     lead_source_id: account.lead_source_id ?? "",
-    owner_user_id: account.owner_user_id ?? "",
     description: account.description ?? "",
   });
   const [saving, setSaving] = useState(false);
@@ -198,11 +192,9 @@ export function AccountEditForm({
 
     const payload: Record<string, unknown> = {
       name: values.name,
-      company_id: values.company_id || null,
       account_type_id: values.account_type_id || null,
       account_status_id: values.account_status_id || undefined,
       lead_source_id: values.lead_source_id || null,
-      owner_user_id: values.owner_user_id || null,
       description: values.description || null,
       // 楽観ロック: 編集開始時点の updated_at を送り、他者更新があれば競合として弾く
       expected_updated_at: account.updated_at ?? undefined,
@@ -271,23 +263,7 @@ export function AccountEditForm({
                 onBlur={onBlur}
               />
             </div>
-            <div>
-              <label style={styles.label}>事業者情報</label>
-              <select
-                style={styles.input}
-                value={values.company_id}
-                onChange={(e) => set("company_id", e.target.value)}
-                onFocus={onFocus}
-                onBlur={onBlur}
-              >
-                <option value="">-- 選択 --</option>
-                {masters.companies.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {/* 事業者情報と担当者は別レコードへの紐づけなので詳細ページで直す */}
             <div>
               <label style={styles.label}>種別</label>
               <select
@@ -334,23 +310,6 @@ export function AccountEditForm({
               >
                 <option value="">-- 選択 --</option>
                 {masters.leadSources.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label style={styles.label}>担当者</label>
-              <select
-                style={styles.input}
-                value={values.owner_user_id}
-                onChange={(e) => set("owner_user_id", e.target.value)}
-                onFocus={onFocus}
-                onBlur={onBlur}
-              >
-                <option value="">-- 選択 --</option>
-                {masters.owners.map((o) => (
                   <option key={o.value} value={o.value}>
                     {o.label}
                   </option>

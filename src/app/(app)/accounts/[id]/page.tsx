@@ -1,4 +1,8 @@
-import { getAccount } from "@/actions/accounts";
+import { getAccount, updateAccount } from "@/actions/accounts";
+import { getCompanies } from "@/actions/companies";
+import { getCrmUsers, getCurrentUser } from "@/actions/users";
+import { buildCompanyOptions } from "@/lib/company-options";
+import { RelationField } from "@/components/ui/RelationField";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -104,7 +108,18 @@ export default async function AccountDetailPage({
     );
   }
 
-  const { data: account, error } = await getAccount(id);
+  const [
+    { data: account, error },
+    { data: companiesResult },
+    { data: users },
+    { data: me },
+  ] = await Promise.all([
+    getAccount(id),
+    // 紐づけの付け替え用。編集ページと同じ範囲を出す
+    getCompanies({ perPage: 1000 }),
+    getCrmUsers(),
+    getCurrentUser(),
+  ]);
   const a = account;
 
   if (error || !a) {
@@ -130,6 +145,21 @@ export default async function AccountDetailPage({
       .filter((c) => c && c.deleted_at === null) ?? [];
 
   const deals = a.deals ?? [];
+
+  // 紐づけの付け替え。編集ページ側からは外してあり、ここが唯一の入口になる
+  const canEdit = me?.role === "admin" || a.owner_user_id === me?.id;
+  const companyOptions = buildCompanyOptions(companiesResult?.rows ?? [], a.company);
+  const ownerOptions = (users ?? []).map((u) => ({ value: u.id, label: u.full_name }));
+
+  /** 楽観ロックに使う updated_at は、この画面を出した時点の値で閉じ込める */
+  async function saveRelation(field: "company_id" | "owner_user_id", value: string | null) {
+    "use server";
+    const { error: saveError } = await updateAccount(id, {
+      [field]: value,
+      expected_updated_at: a?.updated_at ?? undefined,
+    });
+    return { error: saveError };
+  }
 
   return (
     <div style={detailContainerStyle}>
@@ -187,16 +217,28 @@ export default async function AccountDetailPage({
               style={fieldGridStyle}
             >
               <InfoField label="取引先名" value={a.name} />
-              <InfoField label="担当者" value={a.owner?.full_name} />
-              <InfoField
+              {/* 担当者と事業者情報は別レコードへの紐づけ。ここで直す */}
+              <RelationField
+                label="担当者"
+                value={a.owner_user_id}
+                display={a.owner?.full_name ?? null}
+                options={ownerOptions}
+                action={saveRelation.bind(null, "owner_user_id")}
+                editable={canEdit}
+              />
+              <RelationField
                 label="事業者情報"
-                value={
+                value={a.company_id}
+                display={
                   a.company ? (
                     <EntityLink href={`/companies/${a.company.id}`}>
                       {a.company.name}
                     </EntityLink>
                   ) : null
                 }
+                options={companyOptions}
+                action={saveRelation.bind(null, "company_id")}
+                editable={canEdit}
               />
               <InfoField label="説明" value={a.description} full />
             </div>

@@ -1,13 +1,11 @@
 import Link from "next/link";
 import { getAccount, getAccountRoleTypes } from "@/actions/accounts";
-import { buildCompanyOptions } from "@/lib/company-options";
 import {
   getAccountTypes,
   getAccountStatuses,
   getLeadSources,
 } from "@/actions/masters";
-import { getCompanies } from "@/actions/companies";
-import { getCrmUsers, getCurrentUser } from "@/actions/users";
+import { getCurrentUser } from "@/actions/users";
 import { AccountEditForm } from "./account-edit-form";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -47,8 +45,6 @@ export default async function AccountEditPage({
     accountTypesResult,
     accountStatusesResult,
     leadSourcesResult,
-    companiesResult,
-    usersResult,
     meResult,
     roleTypesResult,
   ] = await Promise.all([
@@ -56,8 +52,6 @@ export default async function AccountEditPage({
     getAccountTypes(),
     getAccountStatuses(),
     getLeadSources(),
-    getCompanies({ perPage: 1000 }),
-    getCrmUsers(),
     getCurrentUser(),
     getAccountRoleTypes(),
   ]);
@@ -123,14 +117,6 @@ export default async function AccountEditPage({
     leadSources: ((leadSourcesResult.data ?? []) as MasterItem[]).map((l) => ({
       value: l.id,
       label: l.name,
-    })),
-    companies: buildCompanyOptions(
-      companiesResult.data?.rows ?? [],
-      accountResult.data?.company ?? null
-    ),
-    owners: (usersResult.data ?? []).map((u) => ({
-      value: u.id,
-      label: u.full_name,
     })),
   };
 

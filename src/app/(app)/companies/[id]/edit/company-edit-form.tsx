@@ -28,8 +28,6 @@ type CompanyData = {
   corporate_type_id: string | null;
   company_status_id: string | null;
   lead_source_id: string | null;
-  owner_user_id: string | null;
-  primary_contact_id: string | null;
   corporate_number: string | null;
   invoice_registration_number: string | null;
   phone: string | null;
@@ -42,8 +40,6 @@ type Masters = {
   corporateTypes: SelectOption[];
   leadSources: SelectOption[];
   companyStatuses: SelectOption[];
-  owners: SelectOption[];
-  linkedContacts: SelectOption[];
 };
 
 const PREFECTURES = [
@@ -202,8 +198,6 @@ export function CompanyEditForm({
     corporate_type_id: company.corporate_type_id ?? "",
     company_status_id: company.company_status_id ?? "",
     lead_source_id: company.lead_source_id ?? "",
-    owner_user_id: company.owner_user_id ?? "",
-    primary_contact_id: company.primary_contact_id ?? "",
     corporate_number: company.corporate_number ?? "",
     invoice_registration_number: company.invoice_registration_number ?? "",
     phone: company.phone ?? "",
@@ -255,8 +249,6 @@ export function CompanyEditForm({
       corporate_type_id: values.corporate_type_id || null,
       company_status_id: values.company_status_id,
       lead_source_id: values.lead_source_id || null,
-      owner_user_id: values.owner_user_id || null,
-      primary_contact_id: values.primary_contact_id || null,
       corporate_number: values.corporate_number || null,
       invoice_registered: !!values.invoice_registration_number,
       invoice_registration_number: values.invoice_registration_number || null,
@@ -417,41 +409,7 @@ export function CompanyEditForm({
                 ))}
               </select>
             </div>
-            <div>
-              <label style={styles.label}>担当者</label>
-              <select
-                style={styles.input}
-                value={values.primary_contact_id}
-                onChange={(e) => set("primary_contact_id", e.target.value)}
-                onFocus={onFocus}
-                onBlur={onBlur}
-              >
-                <option value="">-- 選択 --</option>
-                {masters.linkedContacts.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </select>
-              {masters.linkedContacts.length === 0 && (
-                <p style={{ color: "var(--color-sumi500)", fontSize: "0.75rem", margin: "0.25rem 0 0 0" }}>
-                  この事業者情報に紐づく連絡先がまだありません
-                </p>
-              )}
-            </div>
-            <div>
-              <label style={styles.label}>社内担当者</label>
-              <select
-                style={styles.input}
-                value={values.owner_user_id}
-                onChange={(e) => set("owner_user_id", e.target.value)}
-                onFocus={onFocus}
-                onBlur={onBlur}
-              >
-                <option value="">-- 選択 --</option>
-                {masters.owners.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </select>
-            </div>
+            {/* 担当者と社内担当者は別レコードへの紐づけなので詳細ページで直す */}
           </div>
         </div>
 

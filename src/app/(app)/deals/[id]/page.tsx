@@ -1,4 +1,7 @@
-import { getDeal } from "@/actions/deals";
+import { getDeal, updateDeal } from "@/actions/deals";
+import { getAccounts } from "@/actions/accounts";
+import { getCrmUsers, getCurrentUser } from "@/actions/users";
+import { RelationField } from "@/components/ui/RelationField";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -107,7 +110,14 @@ export default async function DealDetailPage({
     );
   }
 
-  const { data: deal, error } = await getDeal(id);
+  const [{ data: deal, error }, { data: accountsResult }, { data: users }, { data: me }] =
+    await Promise.all([
+      getDeal(id),
+      // 紐づけの付け替え用。編集ページと同じ範囲を出す
+      getAccounts({ perPage: 1000 }),
+      getCrmUsers(),
+      getCurrentUser(),
+    ]);
 
   if (error || !deal) {
     return (
@@ -121,6 +131,24 @@ export default async function DealDetailPage({
         </Link>
       </div>
     );
+  }
+
+  // 紐づけの付け替え。編集ページ側からは外してあり、ここが唯一の入口になる
+  const canEdit = me?.role === "admin" || deal.owner_user_id === me?.id;
+  const accountOptions = (accountsResult?.rows ?? []).map((a) => ({
+    value: a.id,
+    label: a.account_code ? `${a.account_code} ${a.name}` : a.name,
+  }));
+  const ownerOptions = (users ?? []).map((u) => ({ value: u.id, label: u.full_name }));
+
+  /** 楽観ロックに使う updated_at は、この画面を出した時点の値で閉じ込める */
+  async function saveRelation(field: "account_id" | "owner_user_id", value: string | null) {
+    "use server";
+    const { error: saveError } = await updateDeal(id, {
+      [field]: value,
+      expected_updated_at: deal?.updated_at ?? undefined,
+    });
+    return { error: saveError };
   }
 
   const services = deal.deal_services ?? [];
@@ -184,11 +212,25 @@ export default async function DealDetailPage({
                 label="金額"
                 value={formatCurrency(deal.amount)}
               />
-              <InfoField label="担当者" value={deal.owner?.full_name} />
-              <InfoField
+              <RelationField
+                label="担当者"
+                value={deal.owner_user_id}
+                display={deal.owner?.full_name ?? null}
+                options={ownerOptions}
+                action={saveRelation.bind(null, "owner_user_id")}
+                editable={canEdit}
+              />
+              <RelationField
                 label="取引先"
                 full
-                value={
+                value={deal.account_id}
+                nullable={false}
+                // 取引先は契約成立時に作られる。まだ無い商談で選ばせると
+                // 契約前に取引先が増えてしまうので、その場合は案内だけ出す
+                editable={canEdit && Boolean(deal.account_id)}
+                options={accountOptions}
+                action={saveRelation.bind(null, "account_id")}
+                display={
                   deal.account ? (
                     <EntityLink href={`/accounts/${deal.account.id}`}>
                       {deal.account.name}

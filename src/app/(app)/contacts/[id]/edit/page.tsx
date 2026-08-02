@@ -1,9 +1,7 @@
 import Link from "next/link";
 import { getContact } from "@/actions/contacts";
 import { getContactStatuses, getLeadSources } from "@/actions/masters";
-import { getCompanies } from "@/actions/companies";
-import { buildCompanyOptions } from "@/lib/company-options";
-import { getCrmUsers, getCurrentUser } from "@/actions/users";
+import { getCurrentUser } from "@/actions/users";
 import { ContactEditForm } from "./contact-edit-form";
 import { getEntityAddresses } from "@/actions/entity-addresses";
 
@@ -19,14 +17,12 @@ type ContactRecord = {
   first_name_kana: string | null;
   contact_status_id: string | null;
   contact_type: string | null;
-  company_id: string | null;
   department: string | null;
   job_title: string | null;
   birth_date: string | null;
   blood_type: "A" | "B" | "AB" | "O" | null;
   lead_source_id: string | null;
   line_user_id: string | null;
-  owner_user_id: string | null;
   internal_memo: string | null;
 };
 
@@ -64,16 +60,12 @@ export default async function ContactEditPage({
     contactResult,
     contactStatusesResult,
     leadSourcesResult,
-    companiesResult,
-    usersResult,
     meResult,
     addressesResult,
   ] = await Promise.all([
     getContact(id),
     getContactStatuses(),
     getLeadSources(),
-    getCompanies({ perPage: 1000 }),
-    getCrmUsers(),
     getCurrentUser(),
     getEntityAddresses("contact", id),
   ]);
@@ -103,7 +95,6 @@ export default async function ContactEditPage({
   }
 
   type MasterItem = { id: string; name: string };
-  type CompanyItem = { id: string; name: string };
 
   const masters = {
     contactStatuses: ((contactStatusesResult.data ?? []) as MasterItem[]).map((s) => ({
@@ -114,11 +105,6 @@ export default async function ContactEditPage({
       value: l.id,
       label: l.name,
     })),
-    companies: buildCompanyOptions(
-      (companiesResult.data?.rows ?? []) as CompanyItem[],
-      contactResult.data?.company ?? null
-    ),
-    owners: (usersResult.data ?? []).map((u) => ({ value: u.id, label: u.full_name })),
   };
 
   const isAdmin = meResult.data?.role === "admin";

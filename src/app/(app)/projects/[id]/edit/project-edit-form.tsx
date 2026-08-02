@@ -21,7 +21,6 @@ type ProjectData = {
   project_status_id: string;
   start_date: string | null;
   end_date: string | null;
-  owner_user_id: string | null;
   internal_memo: string | null;
 };
 
@@ -132,12 +131,10 @@ function onBlur(e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTM
 export function ProjectEditForm({
   project,
   statuses,
-  owners,
   isAdmin,
 }: {
   project: ProjectData;
   statuses: SelectOption[];
-  owners: SelectOption[];
   isAdmin: boolean;
 }) {
   const router = useRouter();
@@ -148,7 +145,6 @@ export function ProjectEditForm({
     project_status_id: project.project_status_id,
     start_date: project.start_date ?? "",
     end_date: project.end_date ?? "",
-    owner_user_id: project.owner_user_id ?? "",
     internal_memo: project.internal_memo ?? "",
   });
   const [saving, setSaving] = useState(false);
@@ -169,7 +165,6 @@ export function ProjectEditForm({
       project_status_id: values.project_status_id,
       start_date: values.start_date || null,
       end_date: values.end_date || null,
-      owner_user_id: values.owner_user_id || null,
       internal_memo: values.internal_memo || null,
       // 楽観ロック: 編集開始時点の updated_at を送り、他者更新があれば競合として弾く
       expected_updated_at: project.updated_at ?? undefined,
@@ -264,23 +259,7 @@ export function ProjectEditForm({
                 ))}
               </select>
             </div>
-            <div>
-              <label style={styles.label}>責任者</label>
-              <select
-                style={styles.input}
-                value={values.owner_user_id}
-                onChange={(e) => set("owner_user_id", e.target.value)}
-                onFocus={onFocus}
-                onBlur={onBlur}
-              >
-                <option value="">-- 選択 --</option>
-                {owners.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {/* 責任者は別レコードへの紐づけなので詳細ページで直す */}
             <div>
               <label style={styles.label}>開始日</label>
               <input

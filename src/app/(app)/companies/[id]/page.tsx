@@ -1,4 +1,6 @@
-import { getCompany } from "@/actions/companies";
+import { getCompany, updateCompany } from "@/actions/companies";
+import { getCrmUsers, getCurrentUser } from "@/actions/users";
+import { RelationField } from "@/components/ui/RelationField";
 import { getEntityAddresses } from "@/actions/entity-addresses";
 import { AddressList } from "@/components/common/AddressesEditor";
 import Link from "next/link";
@@ -73,10 +75,13 @@ export default async function CompanyDetailPage({
     );
   }
 
-  const [{ data: company, error }, { data: addressRows }] = await Promise.all([
-    getCompany(id),
-    getEntityAddresses("company", id),
-  ]);
+  const [{ data: company, error }, { data: addressRows }, { data: users }, { data: me }] =
+    await Promise.all([
+      getCompany(id),
+      getEntityAddresses("company", id),
+      getCrmUsers(),
+      getCurrentUser(),
+    ]);
   const addresses = addressRows ?? [];
 
   if (error || !company) {
@@ -91,6 +96,23 @@ export default async function CompanyDetailPage({
         </Link>
       </div>
     );
+  }
+
+  // 紐づけの付け替え。編集ページ側からは外してあり、ここが唯一の入口になる
+  const canEdit = me?.role === "admin" || company.owner_user_id === me?.id;
+  const ownerOptions = (users ?? []).map((u) => ({ value: u.id, label: u.full_name }));
+
+  /** 楽観ロックに使う updated_at は、この画面を出した時点の値で閉じ込める */
+  async function saveRelation(
+    field: "primary_contact_id" | "owner_user_id",
+    value: string | null
+  ) {
+    "use server";
+    const { error: saveError } = await updateCompany(id, {
+      [field]: value,
+      expected_updated_at: company?.updated_at ?? undefined,
+    });
+    return { error: saveError };
   }
 
   const activeAccounts =
@@ -172,9 +194,11 @@ export default async function CompanyDetailPage({
               {!isSoleProprietor && (
                 <InfoField label="法人番号" value={company.corporate_number} />
               )}
-              <InfoField
+              {/* 担当者と社内担当者は別レコードへの紐づけ。ここで直す */}
+              <RelationField
                 label="担当者"
-                value={
+                value={company.primary_contact_id}
+                display={
                   company.primary_contact ? (
                     <EntityLink href={`/contacts/${company.primary_contact.id}`}>
                       {company.primary_contact.last_name}{" "}
@@ -182,8 +206,24 @@ export default async function CompanyDetailPage({
                     </EntityLink>
                   ) : null
                 }
+                // 会社側の窓口なので、その会社に紐づく連絡先だけから選ぶ
+                options={activeContacts.map((c) => ({
+                  value: c.id,
+                  label:
+                    `${c.last_name ?? ""} ${c.first_name ?? ""}`.trim() +
+                    (c.contact_code ? ` (${c.contact_code})` : ""),
+                }))}
+                action={saveRelation.bind(null, "primary_contact_id")}
+                editable={canEdit}
               />
-              <InfoField label="社内担当者" value={company.crm_users?.full_name} />
+              <RelationField
+                label="社内担当者"
+                value={company.owner_user_id}
+                display={company.crm_users?.full_name ?? null}
+                options={ownerOptions}
+                action={saveRelation.bind(null, "owner_user_id")}
+                editable={canEdit}
+              />
             </div>
             {/* 所在地は住所マスタから。本社・支店・請求先を並べる */}
             <div style={{ marginTop: "1rem" }}>

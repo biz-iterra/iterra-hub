@@ -18,13 +18,9 @@ type ContractData = {
   id: string;
   contract_name: string | null;
   contract_code: string | null;
-  deal_id: string | null;
   contract_method: string | null;
   contract_type_id: string | null;
   counterparty_type: string | null;
-  counterparty_company_id: string | null;
-  counterparty_contact_id: string | null;
-  counterparty_manager_id: string | null;
   contract_content: string | null;
   sent_date: string | null;
   signback_date: string | null;
@@ -35,15 +31,10 @@ type ContractData = {
   auto_renewal: boolean | null;
   original_document_url: string | null;
   contract_url: string | null;
-  registered_by: string | null;
 };
 
 type Masters = {
   contractTypes: SelectOption[];
-  deals: SelectOption[];
-  companies: SelectOption[];
-  contacts: SelectOption[];
-  users: SelectOption[];
 };
 
 const styles = {
@@ -195,14 +186,10 @@ export function ContractEditForm({
   const router = useRouter();
   const { showToast } = useToast();
   const [values, setValues] = useState({
-    deal_id: contract.deal_id ?? "",
     contract_method: contract.contract_method ?? "",
     contract_type_id: contract.contract_type_id ?? "",
     contract_name: contract.contract_name ?? "",
     counterparty_type: contract.counterparty_type ?? "",
-    counterparty_company_id: contract.counterparty_company_id ?? "",
-    counterparty_contact_id: contract.counterparty_contact_id ?? "",
-    counterparty_manager_id: contract.counterparty_manager_id ?? "",
     contract_content: contract.contract_content ?? "",
     sent_date: contract.sent_date ?? "",
     signback_date: contract.signback_date ?? "",
@@ -213,7 +200,6 @@ export function ContractEditForm({
     auto_renewal: Boolean(contract.auto_renewal),
     original_document_url: contract.original_document_url ?? "",
     contract_url: contract.contract_url ?? "",
-    registered_by: contract.registered_by ?? "",
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -231,14 +217,7 @@ export function ContractEditForm({
     setSaving(true);
     setError(null);
 
-    if (!values.deal_id) {
-      setError("商談は必須です");
-      setSaving(false);
-      return;
-    }
-
     const payload: Record<string, unknown> = {
-      deal_id: values.deal_id,
       contract_method:
         values.contract_method === ""
           ? null
@@ -249,9 +228,6 @@ export function ContractEditForm({
         values.counterparty_type === ""
           ? null
           : (values.counterparty_type as "company" | "individual"),
-      counterparty_company_id: values.counterparty_company_id || null,
-      counterparty_contact_id: values.counterparty_contact_id || null,
-      counterparty_manager_id: values.counterparty_manager_id || null,
       contract_content: values.contract_content || null,
       sent_date: values.sent_date || null,
       signback_date: values.signback_date || null,
@@ -262,7 +238,6 @@ export function ContractEditForm({
       auto_renewal: values.auto_renewal,
       original_document_url: values.original_document_url || null,
       contract_url: values.contract_url || null,
-      registered_by: values.registered_by || null,
       // 楽観ロック: 編集開始時点の updated_at を送り、他者更新があれば競合として弾く
       expected_updated_at: contract.updated_at ?? undefined,
     };
@@ -318,24 +293,7 @@ export function ContractEditForm({
         <div style={styles.card}>
           <h2 style={styles.sectionTitle}>基本情報</h2>
           <div style={styles.grid}>
-            <div>
-              <label style={styles.label}>商談 *</label>
-              <select
-                style={styles.input}
-                value={values.deal_id}
-                onChange={(e) => set("deal_id", e.target.value)}
-                required
-                onFocus={onFocus}
-                onBlur={onBlur}
-              >
-                <option value="">-- 選択 --</option>
-                {masters.deals.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {/* 商談は別レコードへの紐づけなので詳細ページで直す */}
             <div>
               <label style={styles.label}>契約書名</label>
               <input
@@ -416,63 +374,7 @@ export function ContractEditForm({
                 ))}
               </select>
             </div>
-            <div>
-              <label style={styles.label}>相手先の事業者情報</label>
-              <select
-                style={styles.input}
-                value={values.counterparty_company_id}
-                onChange={(e) =>
-                  set("counterparty_company_id", e.target.value)
-                }
-                onFocus={onFocus}
-                onBlur={onBlur}
-              >
-                <option value="">-- 選択 --</option>
-                {masters.companies.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label style={styles.label}>相手先の連絡先（個人）</label>
-              <select
-                style={styles.input}
-                value={values.counterparty_contact_id}
-                onChange={(e) =>
-                  set("counterparty_contact_id", e.target.value)
-                }
-                onFocus={onFocus}
-                onBlur={onBlur}
-              >
-                <option value="">-- 選択 --</option>
-                {masters.contacts.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label style={styles.label}>先方窓口担当</label>
-              <select
-                style={styles.input}
-                value={values.counterparty_manager_id}
-                onChange={(e) =>
-                  set("counterparty_manager_id", e.target.value)
-                }
-                onFocus={onFocus}
-                onBlur={onBlur}
-              >
-                <option value="">-- 選択 --</option>
-                {masters.contacts.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {/* 相手先の紐づけ（事業者情報・連絡先・窓口担当）は詳細ページで直す */}
           </div>
         </div>
 
@@ -591,23 +493,7 @@ export function ContractEditForm({
                 onBlur={onBlur}
               />
             </div>
-            <div>
-              <label style={styles.label}>登録者</label>
-              <select
-                style={styles.input}
-                value={values.registered_by}
-                onChange={(e) => set("registered_by", e.target.value)}
-                onFocus={onFocus}
-                onBlur={onBlur}
-              >
-                <option value="">-- 選択 --</option>
-                {masters.users.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {/* 登録者は別レコードへの紐づけなので詳細ページで直す */}
           </div>
         </div>
 

@@ -5,8 +5,7 @@ import {
   getDealStages,
   getDealStatuses,
 } from "@/actions/masters";
-import { getAccounts } from "@/actions/accounts";
-import { getCrmUsers, getCurrentUser } from "@/actions/users";
+import { getCurrentUser } from "@/actions/users";
 import { DealEditForm } from "./deal-edit-form";
 import { DealProjectsSection } from "./deal-projects-section";
 import { formContainerStyle } from "@/lib/layout";
@@ -48,16 +47,12 @@ export default async function DealEditPage({
     pipelineTypesResult,
     dealStagesResult,
     dealStatusesResult,
-    accountsResult,
-    usersResult,
     meResult,
   ] = await Promise.all([
     getDeal(id),
     getPipelineTypes(),
     getDealStages(),
     getDealStatuses(),
-    getAccounts({ perPage: 1000 }),
-    getCrmUsers(),
     getCurrentUser(),
   ]);
 
@@ -106,16 +101,6 @@ export default async function DealEditPage({
         pipeline_type_id: s.pipeline_type_id,
       })
     ),
-    accounts: (
-      ((accountsResult.data?.rows ?? []) as AccountItem[])
-    ).map((a) => ({
-      value: a.id,
-      label: a.account_code ? `${a.account_code} ${a.name}` : a.name,
-    })),
-    owners: (usersResult.data ?? []).map((u) => ({
-      value: u.id,
-      label: u.full_name,
-    })),
   };
 
   const isAdmin = meResult.data?.role === "admin";
@@ -130,8 +115,6 @@ export default async function DealEditPage({
           deal_stage_id: deal.deal_stage_id,
           deal_status_id: deal.deal_status_id,
           amount: deal.amount,
-          account_id: deal.account_id,
-          owner_user_id: deal.owner_user_id,
           contract_name: deal.contract_name,
           application_date: deal.application_date,
           review_completed_date: deal.review_completed_date,

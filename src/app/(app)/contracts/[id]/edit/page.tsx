@@ -1,11 +1,7 @@
 import Link from "next/link";
 import { getContract } from "@/actions/contracts";
 import { getContractTypes } from "@/actions/masters";
-import { getDeals } from "@/actions/deals";
-import { getCompanies } from "@/actions/companies";
-import { getContacts } from "@/actions/contacts";
-import { buildCompanyOptions } from "@/lib/company-options";
-import { getCrmUsers, getCurrentUser } from "@/actions/users";
+import { getCurrentUser } from "@/actions/users";
 import { ArrowLeft } from "lucide-react";
 import { ContractEditForm } from "./contract-edit-form";
 
@@ -79,17 +75,9 @@ export default async function ContractEditPage({
   const [
     contractResult,
     contractTypesResult,
-    dealsResult,
-    companiesResult,
-    contactsResult,
-    usersResult,
   ] = await Promise.all([
     getContract(id),
     getContractTypes(),
-    getDeals({ perPage: 1000 }),
-    getCompanies({ perPage: 1000 }),
-    getContacts({ perPage: 1000 }),
-    getCrmUsers(),
   ]);
 
   const contract = contractResult.data;
@@ -121,48 +109,17 @@ export default async function ContractEditPage({
   }
 
   type MasterItem = { id: string; name: string };
-  type DealItem = { id: string; deal_code: string; name: string };
-  type CompanyItem = { id: string; name: string };
-  type ContactItem = {
-    id: string;
-    last_name: string | null;
-    first_name: string | null;
-  };
 
   const contractTypes = ((contractTypesResult.data ?? []) as MasterItem[]).map(
     (t) => ({ value: t.id, label: t.name })
   );
-  const deals = ((dealsResult.data?.rows ?? []) as DealItem[]).map((d) => ({
-    value: d.id,
-    label: `${d.deal_code} ${d.name}`,
-  }));
-  const companies = buildCompanyOptions(
-    (companiesResult.data?.rows ?? []) as CompanyItem[],
-    contractResult.data?.counterparty_company ?? null
-  );
-  const contacts = ((contactsResult.data?.rows ?? []) as ContactItem[]).map(
-    (c) => ({
-      value: c.id,
-      label: `${c.last_name ?? ""} ${c.first_name ?? ""}`.trim() || "(無名)",
-    })
-  );
-  const users = (usersResult.data ?? []).map((u) => ({
-    value: u.id,
-    label: u.full_name,
-  }));
 
   const isAdmin = role === "admin";
 
   return (
     <ContractEditForm
       contract={contract}
-      masters={{
-        contractTypes,
-        deals,
-        companies,
-        contacts,
-        users,
-      }}
+      masters={{ contractTypes }}
       isAdmin={isAdmin}
     />
   );

@@ -1,4 +1,6 @@
-import { getProject } from "@/actions/projects";
+import { getProject, updateProject } from "@/actions/projects";
+import { getCrmUsers, getCurrentUser } from "@/actions/users";
+import { RelationField } from "@/components/ui/RelationField";
 import Link from "next/link";
 import { ArrowLeft, ArrowUpRight, FolderKanban, Users, Handshake, Pencil, StickyNote } from "lucide-react";
 import { ProjectStatusBadge, PipelineBadge, StageBadge } from "@/components/ui/badges";
@@ -36,7 +38,11 @@ export default async function ProjectDetailPage({
     );
   }
 
-  const { data: project, error } = await getProject(id);
+  const [{ data: project, error }, { data: users }, { data: me }] = await Promise.all([
+    getProject(id),
+    getCrmUsers(),
+    getCurrentUser(),
+  ]);
   if (error || !project) {
     return (
       <div style={{ padding: "2rem" }}>
@@ -133,7 +139,22 @@ export default async function ProjectDetailPage({
               <InfoField label="ステータス" value={project.project_status?.name} />
               <InfoField label="開始日" value={project.start_date} />
               <InfoField label="終了予定日" value={project.end_date} />
-              <InfoField label="責任者" value={project.owner?.full_name} />
+              {/* 責任者は別レコードへの紐づけ。ここで直す（変更は manager 以上） */}
+              <RelationField
+                label="責任者"
+                value={project.owner_user_id}
+                display={project.owner?.full_name ?? null}
+                options={(users ?? []).map((u) => ({ value: u.id, label: u.full_name }))}
+                action={async (value: string | null) => {
+                  "use server";
+                  const { error: saveError } = await updateProject(id, {
+                    owner_user_id: value,
+                    expected_updated_at: project?.updated_at ?? undefined,
+                  });
+                  return { error: saveError };
+                }}
+                editable={me?.role === "manager" || me?.role === "admin"}
+              />
               <InfoField
                 label="作成日"
                 value={project.created_at ? new Date(project.created_at).toLocaleDateString("ja-JP") : null}

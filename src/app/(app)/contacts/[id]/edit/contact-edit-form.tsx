@@ -30,22 +30,18 @@ type ContactData = {
   first_name_kana: string | null;
   contact_status_id: string | null;
   contact_type: string | null;
-  company_id: string | null;
   department: string | null;
   job_title: string | null;
   birth_date: string | null;
   blood_type: "A" | "B" | "AB" | "O" | null;
   lead_source_id: string | null;
   line_user_id: string | null;
-  owner_user_id: string | null;
   internal_memo: string | null;
 };
 
 type Masters = {
   contactStatuses: SelectOption[];
   leadSources: SelectOption[];
-  companies: SelectOption[];
-  owners: SelectOption[];
 };
 
 type ContactType = "" | "individual" | "corporate_rep" | "employee" | "other";
@@ -229,14 +225,12 @@ export function ContactEditForm({
     first_name_kana: contact.first_name_kana ?? "",
     contact_status_id: contact.contact_status_id ?? "",
     contact_type: (contact.contact_type ?? "") as ContactType,
-    company_id: contact.company_id ?? "",
     department: contact.department ?? "",
     job_title: contact.job_title ?? "",
     birth_date: contact.birth_date ?? "",
     blood_type: (contact.blood_type ?? "") as BloodType,
     lead_source_id: contact.lead_source_id ?? "",
     line_user_id: contact.line_user_id ?? "",
-    owner_user_id: contact.owner_user_id ?? "",
     internal_memo: contact.internal_memo ?? "",
   });
   const [saving, setSaving] = useState(false);
@@ -261,14 +255,12 @@ export function ContactEditForm({
       first_name_kana: values.first_name_kana || null,
       contact_status_id: values.contact_status_id,
       contact_type: values.contact_type || null,
-      company_id: values.company_id || null,
       department: values.department || null,
       job_title: values.job_title || null,
       birth_date: values.birth_date || null,
       blood_type: values.blood_type || null,
       lead_source_id: values.lead_source_id || null,
       line_user_id: values.line_user_id || null,
-      owner_user_id: values.owner_user_id || null,
       internal_memo: values.internal_memo || null,
       // 楽観ロック: 編集開始時点の updated_at を送り、他者更新があれば競合として弾く
       expected_updated_at: contact.updated_at ?? undefined,
@@ -458,36 +450,7 @@ export function ContactEditForm({
                 ))}
               </select>
             </div>
-            <div>
-              <label style={styles.label}>所属事業者情報</label>
-              <select
-                style={styles.input}
-                value={values.company_id}
-                onChange={(e) => set("company_id", e.target.value)}
-                onFocus={onFocus}
-                onBlur={onBlur}
-              >
-                <option value="">-- 選択 --</option>
-                {masters.companies.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label style={styles.label}>担当者</label>
-              <select
-                style={styles.input}
-                value={values.owner_user_id}
-                onChange={(e) => set("owner_user_id", e.target.value)}
-                onFocus={onFocus}
-                onBlur={onBlur}
-              >
-                <option value="">-- 選択 --</option>
-                {masters.owners.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </select>
-            </div>
+            {/* 所属事業者情報と担当者は別レコードへの紐づけなので詳細ページで直す */}
             <div>
               <label style={styles.label}>部署</label>
               <input

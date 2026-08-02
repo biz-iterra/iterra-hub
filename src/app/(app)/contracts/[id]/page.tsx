@@ -1,4 +1,10 @@
-import { getContract } from "@/actions/contracts";
+import { getContract, updateContract } from "@/actions/contracts";
+import { getDeals } from "@/actions/deals";
+import { getCompanies } from "@/actions/companies";
+import { getContacts } from "@/actions/contacts";
+import { getCrmUsers } from "@/actions/users";
+import { buildCompanyOptions } from "@/lib/company-options";
+import { RelationField } from "@/components/ui/RelationField";
 import { getCurrentUser } from "@/actions/users";
 import Link from "next/link";
 import {
@@ -54,9 +60,21 @@ export default async function ContractDetailPage({
     );
   }
 
-  const [{ data: contract, error }, meResult] = await Promise.all([
+  const [
+    { data: contract, error },
+    meResult,
+    { data: dealsResult },
+    { data: companiesResult },
+    { data: contactsResult },
+    { data: users },
+  ] = await Promise.all([
     getContract(id),
     getCurrentUser(),
+    // 紐づけの付け替え用。編集ページと同じ範囲を出す
+    getDeals({ perPage: 1000 }),
+    getCompanies({ perPage: 1000 }),
+    getContacts({ perPage: 1000 }),
+    getCrmUsers(),
   ]);
   const role = meResult.data?.role ?? null;
   const isManagerOrAbove = role === "manager" || role === "admin";
@@ -82,6 +100,40 @@ export default async function ContractDetailPage({
         </Link>
       </div>
     );
+  }
+
+  // 紐づけの付け替え。編集ページ側からは外してあり、ここが唯一の入口になる。
+  // 契約は manager 以上しか触れない
+  const dealOptions = (dealsResult?.rows ?? []).map((d) => ({
+    value: d.id,
+    label: `${d.deal_code} ${d.name}`,
+  }));
+  const companyOptions = buildCompanyOptions(
+    companiesResult?.rows ?? [],
+    contract.counterparty_company ?? null
+  );
+  const contactOptions = (contactsResult?.rows ?? []).map((c) => ({
+    value: c.id,
+    label: `${c.last_name ?? ""} ${c.first_name ?? ""}`.trim() || "(無名)",
+  }));
+  const userOptions = (users ?? []).map((u) => ({ value: u.id, label: u.full_name }));
+
+  /** 楽観ロックに使う updated_at は、この画面を出した時点の値で閉じ込める */
+  async function saveRelation(
+    field:
+      | "deal_id"
+      | "counterparty_company_id"
+      | "counterparty_contact_id"
+      | "counterparty_manager_id"
+      | "registered_by",
+    value: string | null
+  ) {
+    "use server";
+    const { error: saveError } = await updateContract(id, {
+      [field]: value,
+      expected_updated_at: contract?.updated_at ?? undefined,
+    });
+    return { error: saveError };
   }
 
   return (
@@ -178,15 +230,21 @@ export default async function ContractDetailPage({
 
           {/* 商談情報カード */}
           <DetailSection title="商談情報" icon={Handshake}>
-            <InfoField
+            <RelationField
               label="商談"
-              value={
+              value={contract.deal_id}
+              // 契約は必ず商談にぶら下がる。外せないので選び替えだけ
+              nullable={false}
+              display={
                 contract.deal ? (
                   <EntityLink href={`/deals/${contract.deal.id}`}>
                     {contract.deal.deal_code} {contract.deal.name}
                   </EntityLink>
                 ) : null
               }
+              options={dealOptions}
+              action={saveRelation.bind(null, "deal_id")}
+              editable={isManagerOrAbove}
             />
           </DetailSection>
 
@@ -202,9 +260,10 @@ export default async function ContractDetailPage({
 
               {contract.counterparty_type === "corporate" ? (
                 <>
-                  <InfoField
+                  <RelationField
                     label="事業者情報"
-                    value={
+                    value={contract.counterparty_company_id}
+                    display={
                       contract.counterparty_company ? (
                         <EntityLink
                           href={`/companies/${contract.counterparty_company.id}`}
@@ -213,20 +272,28 @@ export default async function ContractDetailPage({
                         </EntityLink>
                       ) : null
                     }
+                    options={companyOptions}
+                    action={saveRelation.bind(null, "counterparty_company_id")}
+                    editable={isManagerOrAbove}
                   />
-                  <InfoField
+                  <RelationField
                     label="契約担当者"
-                    value={
+                    value={contract.counterparty_manager_id}
+                    display={
                       contract.counterparty_manager
                         ? `${contract.counterparty_manager.last_name} ${contract.counterparty_manager.first_name}`
                         : null
                     }
+                    options={contactOptions}
+                    action={saveRelation.bind(null, "counterparty_manager_id")}
+                    editable={isManagerOrAbove}
                   />
                 </>
               ) : (
-                <InfoField
+                <RelationField
                   label="連絡先"
-                  value={
+                  value={contract.counterparty_contact_id}
+                  display={
                     contract.counterparty_contact ? (
                       <EntityLink
                         href={`/contacts/${contract.counterparty_contact.id}`}
@@ -236,6 +303,9 @@ export default async function ContractDetailPage({
                       </EntityLink>
                     ) : null
                   }
+                  options={contactOptions}
+                  action={saveRelation.bind(null, "counterparty_contact_id")}
+                  editable={isManagerOrAbove}
                 />
               )}
             </div>
@@ -315,9 +385,13 @@ export default async function ContractDetailPage({
                 label="自動更新"
                 value={contract.auto_renewal ? "あり" : "なし"}
               />
-              <InfoField
+              <RelationField
                 label="登録者"
-                value={contract.registered_user?.full_name}
+                value={contract.registered_by}
+                display={contract.registered_user?.full_name ?? null}
+                options={userOptions}
+                action={saveRelation.bind(null, "registered_by")}
+                editable={isManagerOrAbove}
               />
             </div>
           </DetailSection>

@@ -1,5 +1,5 @@
 import { getProject, getProjectStatuses } from "@/actions/projects";
-import { getCrmUsers, getCurrentUser } from "@/actions/users";
+import { getCurrentUser } from "@/actions/users";
 import Link from "next/link";
 import { ProjectEditForm } from "./project-edit-form";
 import { ProjectMembersSection } from "../project-members-section";
@@ -26,10 +26,9 @@ export default async function EditProjectPage({
     );
   }
 
-  const [projectRes, statusesRes, usersRes, currentUserRes] = await Promise.all([
+  const [projectRes, statusesRes, currentUserRes] = await Promise.all([
     getProject(id),
     getProjectStatuses(),
-    getCrmUsers(),
     getCurrentUser(),
   ]);
 
@@ -57,7 +56,6 @@ export default async function EditProjectPage({
       <ProjectEditForm
         project={project}
         statuses={(statusesRes.data ?? []).map((s) => ({ value: s.id, label: s.name }))}
-        owners={(usersRes.data ?? []).map((u) => ({ value: u.id, label: u.full_name }))}
         isAdmin={currentUserRes.data?.role === "admin"}
       />
       <div

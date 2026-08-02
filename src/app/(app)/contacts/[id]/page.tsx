@@ -1,4 +1,8 @@
-import { getContact } from "@/actions/contacts";
+import { getContact, updateContact } from "@/actions/contacts";
+import { getCompanies } from "@/actions/companies";
+import { getCrmUsers, getCurrentUser } from "@/actions/users";
+import { buildCompanyOptions } from "@/lib/company-options";
+import { RelationField } from "@/components/ui/RelationField";
 import { getContactEmailMessages } from "@/actions/email-sync";
 import { EmailHistorySection } from "@/components/contacts/EmailHistorySection";
 import { BusinessCardsSection } from "@/components/contacts/BusinessCardsSection";
@@ -101,11 +105,18 @@ export default async function ContactDetailPage({
     { data: emailMessagesRaw },
     { data: addressRows },
     { data: referredRows },
+    { data: companiesResult },
+    { data: users },
+    { data: me },
   ] = await Promise.all([
     getContact(id),
     getContactEmailMessages(id),
     getEntityAddresses("contact", id),
     getReferredContacts(id),
+    // 紐づけの付け替え用。編集ページと同じ範囲を出す
+    getCompanies({ perPage: 1000 }),
+    getCrmUsers(),
+    getCurrentUser(),
   ]);
   const emailMessages = emailMessagesRaw ?? [];
   const addresses = addressRows ?? [];
@@ -124,6 +135,22 @@ export default async function ContactDetailPage({
         </Link>
       </div>
     );
+  }
+
+  // 紐づけの付け替え。編集ページ側からは外してあり、ここが唯一の入口になる。
+  // 権限は updateContact でも見ているが、押せない方が分かりやすいので出し分ける
+  const canEdit = me?.role === "admin" || c.owner_user_id === me?.id;
+  const companyOptions = buildCompanyOptions(companiesResult?.rows ?? [], c.company);
+  const ownerOptions = (users ?? []).map((u) => ({ value: u.id, label: u.full_name }));
+
+  /** 楽観ロックに使う updated_at は、この画面を出した時点の値で閉じ込める */
+  async function saveRelation(field: "company_id" | "owner_user_id", value: string | null) {
+    "use server";
+    const { error: saveError } = await updateContact(id, {
+      [field]: value,
+      expected_updated_at: c?.updated_at ?? undefined,
+    });
+    return { error: saveError };
   }
 
   const emails = c.contact_emails ?? [];
@@ -265,15 +292,28 @@ export default async function ContactDetailPage({
                   c.contact_type ? contactTypeLabel[c.contact_type] ?? "—" : "—"
                 }
               />
-              <InfoField
+              {/* 所属と担当は別レコードへの紐づけ。全体保存に紛れないようここで直す */}
+              <RelationField
                 label="所属事業者情報"
-                value={
+                value={c.company_id}
+                display={
                   c.company ? (
                     <EntityLink href={`/companies/${c.company.id}`}>
                       {c.company.name}
                     </EntityLink>
                   ) : null
                 }
+                options={companyOptions}
+                action={saveRelation.bind(null, "company_id")}
+                editable={canEdit}
+              />
+              <RelationField
+                label="担当者"
+                value={c.owner_user_id}
+                display={c.owner?.full_name ?? null}
+                options={ownerOptions}
+                action={saveRelation.bind(null, "owner_user_id")}
+                editable={canEdit}
               />
               {/* いつからこの状態かが分からないと、休眠・退職の判断が追えない */}
               <InfoField

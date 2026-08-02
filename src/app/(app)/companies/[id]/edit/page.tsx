@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getCompany } from "@/actions/companies";
 import { getCorporateTypes, getLeadSources, getCompanyStatuses } from "@/actions/masters";
-import { getCrmUsers, getCurrentUser } from "@/actions/users";
+import { getCurrentUser } from "@/actions/users";
 import { CompanyEditForm } from "./company-edit-form";
 import { getEntityAddresses } from "@/actions/entity-addresses";
 
@@ -37,13 +37,12 @@ export default async function CompanyEditPage({
     );
   }
 
-  const [companyResult, corporateTypesResult, leadSourcesResult, companyStatusesResult, usersResult, meResult, addressesResult] =
+  const [companyResult, corporateTypesResult, leadSourcesResult, companyStatusesResult, meResult, addressesResult] =
     await Promise.all([
       getCompany(id),
       getCorporateTypes(),
       getLeadSources(),
       getCompanyStatuses(),
-      getCrmUsers(),
       getCurrentUser(),
       getEntityAddresses("company", id),
     ]);
@@ -73,21 +72,6 @@ export default async function CompanyEditPage({
   }
 
   type MasterItem = { id: string; name: string };
-  type CompanyContact = {
-    id: string;
-    contact_code: string | null;
-    last_name: string | null;
-    first_name: string | null;
-    deleted_at: string | null;
-  };
-  const linkedContacts = (((company as { contacts?: CompanyContact[] }).contacts ?? [])
-    .filter((c) => c.deleted_at == null))
-    .map((c) => ({
-      value: c.id,
-      label: `${c.last_name ?? ""} ${c.first_name ?? ""}`.trim()
-        + (c.contact_code ? ` (${c.contact_code})` : ""),
-    }));
-
   const masters = {
     corporateTypes: ((corporateTypesResult.data ?? []) as MasterItem[]).map((t) => ({
       value: t.id,
@@ -101,8 +85,6 @@ export default async function CompanyEditPage({
       value: s.id,
       label: s.name,
     })),
-    owners: (usersResult.data ?? []).map((u) => ({ value: u.id, label: u.full_name })),
-    linkedContacts,
   };
 
   const isAdmin = meResult.data?.role === "admin";

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Save } from "lucide-react";
 import { createAccount } from "@/actions/accounts";
 import { useToast } from "@/components/ui/toast";
+import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { isFieldValidationError } from "@/lib/errors";
 import { formContainerStyle } from "@/lib/layout";
 
@@ -224,20 +225,14 @@ export function AccountNewForm({ masters }: { masters: Masters }) {
             </div>
             <div>
               <label style={styles.label}>事業者情報</label>
-              <select
-                style={styles.input}
+              <SearchableSelect
                 value={values.company_id}
-                onChange={(e) => set("company_id", e.target.value)}
-                onFocus={onFocus}
-                onBlur={onBlur}
-              >
-                <option value="">-- 選択 --</option>
-                {masters.companies.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
+                onChange={(v) => set("company_id", v)}
+                options={masters.companies}
+                nullable={true}
+                searchKind="company"
+                ariaLabel="事業者情報"
+              />
             </div>
             <div>
               <label style={styles.label}>種別</label>

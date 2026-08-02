@@ -305,6 +305,7 @@ export default async function ContactDetailPage({
                   ) : null
                 }
                 options={companyOptions}
+                searchKind="company"
                 action={saveRelation.bind(null, "company_id")}
                 editable={canEdit}
               />

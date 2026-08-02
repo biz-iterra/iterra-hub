@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Save } from "lucide-react";
 import { createContract } from "@/actions/contracts";
 import { useToast } from "@/components/ui/toast";
+import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { isFieldValidationError } from "@/lib/errors";
 import { formContainerStyle } from "@/lib/layout";
 
@@ -264,21 +265,14 @@ export function ContractNewForm({ masters }: { masters: Masters }) {
           <div style={styles.grid}>
             <div>
               <label style={styles.label}>商談 *</label>
-              <select
-                style={styles.input}
+              <SearchableSelect
                 value={values.deal_id}
-                onChange={(e) => set("deal_id", e.target.value)}
-                required
-                onFocus={onFocus}
-                onBlur={onBlur}
-              >
-                <option value="">-- 選択 --</option>
-                {masters.deals.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
+                onChange={(v) => set("deal_id", v)}
+                options={masters.deals}
+                nullable={false}
+                searchKind="deal"
+                ariaLabel="商談"
+              />
             </div>
             <div>
               <label style={styles.label}>契約書名</label>
@@ -362,60 +356,36 @@ export function ContractNewForm({ masters }: { masters: Masters }) {
             </div>
             <div>
               <label style={styles.label}>相手先の事業者情報</label>
-              <select
-                style={styles.input}
+              <SearchableSelect
                 value={values.counterparty_company_id}
-                onChange={(e) =>
-                  set("counterparty_company_id", e.target.value)
-                }
-                onFocus={onFocus}
-                onBlur={onBlur}
-              >
-                <option value="">-- 選択 --</option>
-                {masters.companies.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
+                onChange={(v) => set("counterparty_company_id", v)}
+                options={masters.companies}
+                nullable={true}
+                searchKind="company"
+                ariaLabel="相手先の事業者情報"
+              />
             </div>
             <div>
               <label style={styles.label}>相手先の連絡先(個人)</label>
-              <select
-                style={styles.input}
+              <SearchableSelect
                 value={values.counterparty_contact_id}
-                onChange={(e) =>
-                  set("counterparty_contact_id", e.target.value)
-                }
-                onFocus={onFocus}
-                onBlur={onBlur}
-              >
-                <option value="">-- 選択 --</option>
-                {masters.contacts.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
+                onChange={(v) => set("counterparty_contact_id", v)}
+                options={masters.contacts}
+                nullable={true}
+                searchKind="contact"
+                ariaLabel="相手先の連絡先"
+              />
             </div>
             <div>
               <label style={styles.label}>先方窓口担当</label>
-              <select
-                style={styles.input}
+              <SearchableSelect
                 value={values.counterparty_manager_id}
-                onChange={(e) =>
-                  set("counterparty_manager_id", e.target.value)
-                }
-                onFocus={onFocus}
-                onBlur={onBlur}
-              >
-                <option value="">-- 選択 --</option>
-                {masters.contacts.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
+                onChange={(v) => set("counterparty_manager_id", v)}
+                options={masters.contacts}
+                nullable={true}
+                searchKind="contact"
+                ariaLabel="先方窓口担当"
+              />
             </div>
           </div>
         </div>

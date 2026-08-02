@@ -6,6 +6,8 @@ import { Plus, X } from "lucide-react";
 
 import { EntityLink } from "@/components/ui/EntityLink";
 import { useToast } from "@/components/ui/toast";
+import { SearchableSelect } from "@/components/ui/SearchableSelect";
+import type { LookupKind } from "@/actions/lookup";
 import type { RelationOption } from "@/components/ui/RelationField";
 
 /**
@@ -42,6 +44,8 @@ export interface RelationListSectionProps {
   editable?: boolean;
   /** 相手が 1 件も無いときの案内 */
   emptyOptionsMessage?: string;
+  /** 候補が多くて配りきれないものは、打った文字でサーバーから引く */
+  searchKind?: LookupKind;
 };
 
 const styles = {
@@ -161,6 +165,7 @@ export function RelationListSection({
   onRemove,
   editable = true,
   emptyOptionsMessage = "追加できる相手がありません",
+  searchKind,
 }: RelationListSectionProps) {
   const router = useRouter();
   const { showToast } = useToast();
@@ -244,20 +249,17 @@ export function RelationListSection({
               <p style={styles.empty}>{emptyOptionsMessage}</p>
             ) : (
               <>
-                <select
+                <SearchableSelect
                   value={draft}
-                  onChange={(e) => setDraft(e.target.value)}
+                  onChange={setDraft}
+                  options={options}
+                  // 足す相手を選ぶ欄なので「未設定」は要らない
+                  nullable={false}
                   disabled={busy}
                   autoFocus
-                  style={styles.select}
-                >
-                  <option value="">-- 選択 --</option>
-                  {options.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
+                  ariaLabel={label}
+                  searchKind={searchKind}
+                />
                 {extra && (
                   <select
                     value={draftExtra}

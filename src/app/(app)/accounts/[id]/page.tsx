@@ -261,6 +261,7 @@ export default async function AccountDetailPage({
                   ) : null
                 }
                 options={companyOptions}
+                searchKind="company"
                 action={saveRelation.bind(null, "company_id")}
                 editable={canEdit}
               />
@@ -389,6 +390,7 @@ export default async function AccountDetailPage({
                 options: ACCOUNT_CONTACT_ROLES,
                 defaultValue: "other",
               }}
+              searchKind="contact"
               onAdd={addContact}
               onRemove={removeContact}
               editable={canEdit}

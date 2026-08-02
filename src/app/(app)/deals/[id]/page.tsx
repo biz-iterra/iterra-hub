@@ -290,6 +290,7 @@ export default async function DealDetailPage({
                 // 契約前に取引先が増えてしまうので、その場合は案内だけ出す
                 editable={canEdit && Boolean(deal.account_id)}
                 options={accountOptions}
+                searchKind="account"
                 action={saveRelation.bind(null, "account_id")}
                 display={
                   deal.account ? (
@@ -417,6 +418,7 @@ export default async function DealDetailPage({
                   value: pj.id,
                   label: pj.project_code ? `${pj.project_code} ${pj.name}` : pj.name,
                 }))}
+              searchKind="project"
               onAdd={addProject}
               onRemove={removeProject}
               editable={canEdit}

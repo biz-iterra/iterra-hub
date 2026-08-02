@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, type CSSProperties, type FocusEvent, type ReactNode } from "react";
+import { useState, type CSSProperties, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Pencil, X } from "lucide-react";
 
 import { useToast } from "@/components/ui/toast";
+import { SearchableSelect } from "@/components/ui/SearchableSelect";
+import type { LookupKind } from "@/actions/lookup";
 
 /**
  * 他のレコードへの紐づけを、詳細ページの項目そのままで付け替えるための欄。
@@ -36,6 +38,8 @@ export interface RelationFieldProps {
   full?: boolean;
   /** 権限が無いときは鉛筆を出さない */
   editable?: boolean;
+  /** 候補が多くて配りきれないものは、打った文字でサーバーから引く */
+  searchKind?: LookupKind;
 }
 
 const styles = {
@@ -81,17 +85,6 @@ const styles = {
     alignItems: "center",
     gap: "0.375rem",
   } as CSSProperties,
-  select: {
-    border: "1px solid var(--color-border-default)",
-    borderRadius: "var(--radius-input)",
-    padding: "0.375rem 0.5rem",
-    minWidth: 0,
-    flex: 1,
-    fontSize: "0.875rem",
-    outline: "none",
-    backgroundColor: "#fff",
-    fontFamily: "inherit",
-  } as CSSProperties,
   save: {
     display: "inline-flex",
     alignItems: "center",
@@ -122,16 +115,6 @@ const styles = {
   } as CSSProperties,
 };
 
-function onFocus(e: FocusEvent<HTMLSelectElement>) {
-  e.currentTarget.style.borderColor = "var(--color-border-focus)";
-  e.currentTarget.style.boxShadow = "0 0 0 3px var(--color-focus-ring)";
-}
-
-function onBlur(e: FocusEvent<HTMLSelectElement>) {
-  e.currentTarget.style.borderColor = "var(--color-border-default)";
-  e.currentTarget.style.boxShadow = "none";
-}
-
 export function RelationField({
   label,
   display,
@@ -142,6 +125,7 @@ export function RelationField({
   action,
   full = false,
   editable = true,
+  searchKind,
 }: RelationFieldProps) {
   const router = useRouter();
   const { showToast } = useToast();
@@ -202,22 +186,18 @@ export function RelationField({
 
       {editing ? (
         <div style={styles.editRow}>
-          <select
+          <SearchableSelect
             value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onFocus={onFocus}
-            onBlur={onBlur}
+            onChange={setDraft}
+            options={options}
+            // 必須の紐づけでも、まだ入っていない間は空を選べないと詰む
+            nullable={nullable || !value}
+            emptyOptionLabel={emptyOptionLabel}
             disabled={saving}
             autoFocus
-            style={styles.select}
-          >
-            {(nullable || !value) && <option value="">{emptyOptionLabel}</option>}
-            {options.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
+            ariaLabel={label}
+            searchKind={searchKind}
+          />
           <button
             type="button"
             onClick={save}

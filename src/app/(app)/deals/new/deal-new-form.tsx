@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Save } from "lucide-react";
 import { createDeal } from "@/actions/deals";
 import { useToast } from "@/components/ui/toast";
+import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { isFieldValidationError } from "@/lib/errors";
 import { calculateDefaultCloseDate } from "@/lib/deals/expected-close-date";
 import { formContainerStyle } from "@/lib/layout";
@@ -327,21 +328,14 @@ export function DealNewForm({ masters }: { masters: Masters }) {
             </div>
             <div>
               <label style={styles.label}>取引先 *</label>
-              <select
-                style={styles.input}
+              <SearchableSelect
                 value={values.account_id}
-                onChange={(e) => set("account_id", e.target.value)}
-                required
-                onFocus={onFocus}
-                onBlur={onBlur}
-              >
-                <option value="">-- 選択 --</option>
-                {masters.accounts.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
+                onChange={(v) => set("account_id", v)}
+                options={masters.accounts}
+                nullable={false}
+                searchKind="account"
+                ariaLabel="取引先"
+              />
             </div>
             <div>
               <label style={styles.label}>担当者</label>

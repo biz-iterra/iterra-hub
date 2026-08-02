@@ -9,6 +9,7 @@ import { addDealProject, removeDealProject } from "@/actions/projects";
 import { DetailSection } from "@/components/ui/DetailSection";
 import { PipelineBadge, StageBadge } from "@/components/ui/badges";
 import { useToast } from "@/components/ui/toast";
+import { SearchableSelect } from "@/components/ui/SearchableSelect";
 
 /**
  * プロジェクトに紐づく商談。
@@ -225,30 +226,16 @@ export function ProjectDealsSection({
               marginTop: "0.75rem",
             }}
           >
-            <select
+            <SearchableSelect
               value={draft}
-              onChange={(e) => setDraft(e.target.value)}
+              onChange={setDraft}
+              options={options}
+              nullable={false}
               disabled={busy}
               autoFocus
-              style={{
-                flex: 1,
-                minWidth: 0,
-                border: "1px solid var(--color-border-default)",
-                borderRadius: "var(--radius-input)",
-                padding: "0.375rem 0.5rem",
-                fontSize: "0.875rem",
-                backgroundColor: "#fff",
-                outline: "none",
-                fontFamily: "inherit",
-              }}
-            >
-              <option value="">-- 選択 --</option>
-              {options.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
+              ariaLabel="紐づける商談"
+              searchKind="deal"
+            />
             <button
               type="button"
               onClick={add}

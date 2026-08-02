@@ -243,6 +243,7 @@ export default async function ContractDetailPage({
                 ) : null
               }
               options={dealOptions}
+              searchKind="deal"
               action={saveRelation.bind(null, "deal_id")}
               editable={isManagerOrAbove}
             />
@@ -273,6 +274,7 @@ export default async function ContractDetailPage({
                       ) : null
                     }
                     options={companyOptions}
+                    searchKind="company"
                     action={saveRelation.bind(null, "counterparty_company_id")}
                     editable={isManagerOrAbove}
                   />
@@ -285,6 +287,7 @@ export default async function ContractDetailPage({
                         : null
                     }
                     options={contactOptions}
+                    searchKind="contact"
                     action={saveRelation.bind(null, "counterparty_manager_id")}
                     editable={isManagerOrAbove}
                   />
@@ -304,6 +307,7 @@ export default async function ContractDetailPage({
                     ) : null
                   }
                   options={contactOptions}
+                  searchKind="contact"
                   action={saveRelation.bind(null, "counterparty_contact_id")}
                   editable={isManagerOrAbove}
                 />

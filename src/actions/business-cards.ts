@@ -2,6 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { DEFAULT_PAGE_SIZE } from "@/lib/constants/pagination";
+import type {
+  BusinessCardListRow,
+  Paged,
+  ReferredCardRow,
+} from "@/types/relations";
 
 /**
  * 名刺。
@@ -92,6 +98,102 @@ export async function updateBusinessCardReferral(
 
   revalidatePath(`/contacts/${auth.contactId}`);
   return { data: null, error: null };
+}
+
+/**
+ * 名刺の一覧。
+ *
+ * 名刺は連絡先詳細でしか見えず、紹介者の確認・修正に連絡先を 1 件ずつ
+ * 開く必要があった。横断で見るための入口。
+ *
+ * 検索は連絡先の氏名で引く。名刺は「誰の名刺か」で探すのが自然で、
+ * 会社から辿るなら事業者情報の一覧がある。
+ */
+export async function getBusinessCards(params?: {
+  search?: string;
+  /** 紹介者の有無で絞る。未設定の名刺を洗い出すのに使う */
+  referrer?: "with" | "without";
+  page?: number;
+  perPage?: number;
+}): Promise<ActionResult<Paged<BusinessCardListRow>>> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { data: null, error: "認証が必要です" };
+
+  const page = params?.page ?? 1;
+  const perPage = params?.perPage ?? DEFAULT_PAGE_SIZE;
+  const from = (page - 1) * perPage;
+
+  const search = params?.search?.trim();
+
+  // 参照できる範囲は RLS が決める。氏名で絞るときだけ内部結合にする
+  const contactJoin = search
+    ? "contact:contacts!business_cards_contact_id_fkey!inner(id, last_name, first_name)"
+    : "contact:contacts!business_cards_contact_id_fkey(id, last_name, first_name)";
+
+  let query = supabase
+    .from("business_cards")
+    .select(
+      `id, company_name_raw, department, job_title, source, source_registered_on, is_primary, referral_memo, ${contactJoin}, company:companies!business_cards_company_id_fkey(id, name), referrer:contacts!business_cards_referrer_contact_id_fkey(id, last_name, first_name)`,
+      { count: "exact" }
+    );
+
+  if (search) {
+    query = query.or(
+      `last_name.ilike.%${search}%,first_name.ilike.%${search}%`,
+      { referencedTable: "contact" }
+    );
+  }
+  if (params?.referrer === "with") {
+    query = query.not("referrer_contact_id", "is", null);
+  }
+  if (params?.referrer === "without") {
+    query = query.is("referrer_contact_id", null);
+  }
+
+  const { data, error, count } = await query
+    .order("created_at", { ascending: false })
+    .range(from, from + perPage - 1);
+
+  if (error) return { data: null, error: error.message };
+
+  return {
+    data: {
+      rows: (data ?? []) as unknown as BusinessCardListRow[],
+      total: count ?? 0,
+    },
+    error: null,
+  };
+}
+
+/**
+ * ある連絡先が紹介した相手。
+ *
+ * 紹介は名刺に紐づくので、同じ人を別の場面で紹介していれば複数行になる。
+ * 「紹介数が多い人」「紹介からの案件発生率」といった分析の入口にもなるが、
+ * **集計は CRM では持たない**（別のアプリで扱う方針）。
+ */
+export async function getReferredContacts(
+  contactId: string
+): Promise<ActionResult<ReferredCardRow[]>> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { data: null, error: "認証が必要です" };
+
+  const { data, error } = await supabase
+    .from("business_cards")
+    .select(
+      `id, company_name_raw, referral_memo, source_registered_on, contact:contacts!business_cards_contact_id_fkey(id, last_name, first_name), company:companies!business_cards_company_id_fkey(id, name)`
+    )
+    .eq("referrer_contact_id", contactId)
+    .order("created_at", { ascending: false });
+
+  if (error) return { data: null, error: error.message };
+  return { data: (data ?? []) as unknown as ReferredCardRow[], error: null };
 }
 
 /**

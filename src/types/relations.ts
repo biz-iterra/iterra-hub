@@ -144,6 +144,35 @@ export type BusinessCardRef = Ref<
   referrer: Ref<"contacts", "id" | "last_name" | "first_name"> | null;
 };
 
+/** 名刺一覧の 1 行（business-cards.ts の getBusinessCards に対応） */
+export type BusinessCardListRow = Ref<
+  "business_cards",
+  | "id"
+  | "company_name_raw"
+  | "department"
+  | "job_title"
+  | "source"
+  | "source_registered_on"
+  | "is_primary"
+  | "referral_memo"
+> & {
+  contact: Ref<"contacts", "id" | "last_name" | "first_name"> | null;
+  company: NamedRef | null;
+  referrer: Ref<"contacts", "id" | "last_name" | "first_name"> | null;
+};
+
+/**
+ * ある連絡先が紹介した相手（business-cards.ts の getReferredContacts に対応）。
+ * 紹介は名刺に紐づくので、同じ人を別の場面で紹介していれば複数行になる。
+ */
+export type ReferredCardRow = Ref<
+  "business_cards",
+  "id" | "company_name_raw" | "referral_memo" | "source_registered_on"
+> & {
+  contact: Ref<"contacts", "id" | "last_name" | "first_name"> | null;
+  company: NamedRef | null;
+};
+
 /**
  * 住所の紐付け 1 件（entity_addresses + addresses）。
  * 連絡先・事業者情報・取引先のいずれからも同じ形で扱う。

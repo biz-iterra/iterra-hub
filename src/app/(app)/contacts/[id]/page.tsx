@@ -2,6 +2,8 @@ import { getContact } from "@/actions/contacts";
 import { getContactEmailMessages } from "@/actions/email-sync";
 import { EmailHistorySection } from "@/components/contacts/EmailHistorySection";
 import { BusinessCardsSection } from "@/components/contacts/BusinessCardsSection";
+import { ReferredContactsSection } from "@/components/contacts/ReferredContactsSection";
+import { getReferredContacts } from "@/actions/business-cards";
 import { AddressList } from "@/components/common/AddressesEditor";
 import { getEntityAddresses } from "@/actions/entity-addresses";
 import Link from "next/link";
@@ -94,14 +96,20 @@ export default async function ContactDetailPage({
     );
   }
 
-  const [{ data: contact, error }, { data: emailMessagesRaw }, { data: addressRows }] =
-    await Promise.all([
-      getContact(id),
-      getContactEmailMessages(id),
-      getEntityAddresses("contact", id),
-    ]);
+  const [
+    { data: contact, error },
+    { data: emailMessagesRaw },
+    { data: addressRows },
+    { data: referredRows },
+  ] = await Promise.all([
+    getContact(id),
+    getContactEmailMessages(id),
+    getEntityAddresses("contact", id),
+    getReferredContacts(id),
+  ]);
   const emailMessages = emailMessagesRaw ?? [];
   const addresses = addressRows ?? [];
+  const referred = referredRows ?? [];
   const c = contact;
 
   if (error || !c) {
@@ -248,6 +256,9 @@ export default async function ContactDetailPage({
 
           {/* 所属は名刺ごとの情報。どれを現在の所属とするかは人が選ぶ */}
           <BusinessCardsSection cards={c.business_cards ?? []} contactId={c.id} />
+
+          {/* 紹介した相手。名刺に持つ紹介者の逆引き（0 件なら出さない） */}
+          <ReferredContactsSection rows={referred} />
 
           <DetailSection title="連絡先" icon={Mail}>
             <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>

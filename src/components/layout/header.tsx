@@ -33,6 +33,7 @@ const segmentLabels: Record<string, string> = {
   deleted: "削除済み",
   candidates: "連絡先の候補",
   "merge-candidates": "統合候補",
+  cards: "名刺",
   import: "取込",
   // /admin/leads/import の中間セグメント。単体のページは無いが英語のまま出ていた
   leads: "リード",

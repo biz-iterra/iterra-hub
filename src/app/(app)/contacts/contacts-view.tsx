@@ -3,7 +3,15 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, Mail, Phone, Building2, Briefcase, Merge } from "lucide-react";
+import {
+  Plus,
+  Mail,
+  Phone,
+  Building2,
+  Briefcase,
+  Merge,
+  CreditCard,
+} from "lucide-react";
 import { getContacts } from "@/actions/contacts";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { FilterSelect } from "@/components/ui/FilterSelect";
@@ -276,6 +284,30 @@ export function ContactsView({
             統合候補 {mergeCandidateCount} 件
           </Link>
         )}
+        {/* 名刺は連絡先詳細にしか出ないので、横断で見る入口をここに置く */}
+        <Link
+          href="/contacts/cards"
+          className="hover:bg-[var(--color-bg-hover)]"
+          style={{
+            marginLeft:
+              pendingCandidateCount > 0 || mergeCandidateCount > 0
+                ? undefined
+                : "auto",
+            marginRight: "0.75rem",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "0.375rem",
+            color: "var(--color-sumi600)",
+            fontSize: "0.8125rem",
+            fontWeight: 500,
+            textDecoration: "none",
+            padding: "0.375rem 0.625rem",
+            borderRadius: "var(--radius-sm)",
+          }}
+        >
+          <CreditCard size={14} />
+          名刺
+        </Link>
         <Link
           href="/contacts/new"
           className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white transition-colors"

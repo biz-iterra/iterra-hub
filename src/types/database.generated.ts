@@ -3332,6 +3332,7 @@ export type Database = {
           last_edited_by_user_id: string | null
           lead_id: string
           note: string | null
+          updated_at: string
         }
         Insert: {
           activity_type_id?: string | null
@@ -3346,6 +3347,7 @@ export type Database = {
           last_edited_by_user_id?: string | null
           lead_id: string
           note?: string | null
+          updated_at?: string
         }
         Update: {
           activity_type_id?: string | null
@@ -3360,6 +3362,7 @@ export type Database = {
           last_edited_by_user_id?: string | null
           lead_id?: string
           note?: string | null
+          updated_at?: string
         }
         Relationships: [
           {

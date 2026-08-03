@@ -306,39 +306,6 @@ INSERT INTO lead_customer_activity_types (code, name, sort_order) VALUES
   ('email_open',         'メール開封',            7),
   ('email_click',        'メール内リンククリック', 8);
 
--- ============================================================
--- M26: lead_score_rules（加点ルールマスタ）
--- condition_value_id は各マスタから SELECT で取得
--- NOTE: lead_source の 'web_form' slug を "フォーム流入" として使用
--- ============================================================
-INSERT INTO lead_score_rules (category, condition_type, condition_value_id, score_delta, description, sort_order) VALUES
-  -- attribute / company_size
-  ('attribute', 'company_size', (SELECT id FROM lead_company_sizes WHERE code = 'enterprise'), 15, 'エンタープライズ企業',  1),
-  ('attribute', 'company_size', (SELECT id FROM lead_company_sizes WHERE code = 'mid'),        10, '中堅企業',             2),
-  ('attribute', 'company_size', (SELECT id FROM lead_company_sizes WHERE code = 'smb'),         5, '中小企業',             3),
-  -- attribute / large_segment
-  ('attribute', 'large_segment', (SELECT id FROM lead_large_segments WHERE code = 'manufacturing'), 10, '製造業セグメント',    4),
-  ('attribute', 'large_segment', (SELECT id FROM lead_large_segments WHERE code = 'it_saas'),       10, 'IT・SaaSセグメント', 5),
-  -- attribute / lead_source（web_form = フォーム流入）
-  ('attribute', 'lead_source', (SELECT id FROM lead_sources WHERE slug = 'web_form'), 15, 'フォーム流入', 6),
-  -- stage / stage
-  ('stage', 'stage', (SELECT id FROM lead_stages WHERE slug = 'nurturing'),     10, '育成ステージ到達',       7),
-  ('stage', 'stage', (SELECT id FROM lead_stages WHERE slug = 'qualification'), 20, '選定ステージ到達',       8),
-  ('stage', 'stage', (SELECT id FROM lead_stages WHERE slug = 'sales'),         30, 'Salesステージ到達',      9),
-  ('stage', 'stage', (SELECT id FROM lead_stages WHERE slug = 'opportunity'),   40, 'Opportunity到達',       10),
-  -- status / call_status
-  ('status', 'call_status', (SELECT id FROM lead_call_statuses WHERE code = 'material_sent'), 10, '資料送付済み', 11),
-  ('status', 'call_status', (SELECT id FROM lead_call_statuses WHERE code = 'promising'),     25, '見込み判定',   12),
-  ('status', 'call_status', (SELECT id FROM lead_call_statuses WHERE code = 'appointment'),   40, 'アポ獲得',     13),
-  -- interest / customer_activity_type
-  ('interest', 'customer_activity_type', (SELECT id FROM lead_customer_activity_types WHERE code = 'event_attend'),      15, 'イベント参加',      14),
-  ('interest', 'customer_activity_type', (SELECT id FROM lead_customer_activity_types WHERE code = 'seminar_attend'),    10, 'セミナー参加',      15),
-  ('interest', 'customer_activity_type', (SELECT id FROM lead_customer_activity_types WHERE code = 'webinar_attend'),    10, 'ウェビナー参加',    16),
-  ('interest', 'customer_activity_type', (SELECT id FROM lead_customer_activity_types WHERE code = 'material_download'), 10, '資料ダウンロード',  17),
-  ('interest', 'customer_activity_type', (SELECT id FROM lead_customer_activity_types WHERE code = 'form_submit'),       20, '問合せフォーム送信',18),
-  ('interest', 'customer_activity_type', (SELECT id FROM lead_customer_activity_types WHERE code = 'website_visit'),      3, 'サイト訪問',        19),
-  ('interest', 'customer_activity_type', (SELECT id FROM lead_customer_activity_types WHERE code = 'email_open'),         2, 'メール開封',        20),
-  ('interest', 'customer_activity_type', (SELECT id FROM lead_customer_activity_types WHERE code = 'email_click'),        5, 'メールクリック',    21);
 
 -- ============================================================
 -- M14: リード 大セグメント（実運用データ）
@@ -392,6 +359,48 @@ INSERT INTO lead_call_statuses (id, code, name, color, sort_order) VALUES
   ('b4000000-0000-0000-0000-000000000008', 'material_sent', '資料送付',     '#EAB308', 8),   -- warm
   ('b4000000-0000-0000-0000-000000000009', 'promising',     '見込み',       '#F97316', 9),   -- hot
   ('b4000000-0000-0000-0000-000000000010', 'appointment',   'アポ',         '#F97316', 10);  -- hot
+
+-- ============================================================
+-- M26: lead_score_rules（加点ルールマスタ）
+-- condition_value_id は各マスタから SELECT で取得
+-- NOTE: lead_source の 'web_form' slug を "フォーム流入" として使用
+--
+-- **このブロックは必ず全マスタの後ろに置くこと。**
+-- seed は上から順に流れる 1 本の SQL なので、参照先より前に置くと
+-- サブクエリが空テーブルを引いて condition_value_id が NULL で入る。
+-- NULL の行は recalculate_lead_score() の評価対象外になるため、
+-- エラーも出ないまま「その条件が一生加点されない」状態になる。
+-- 実際に M14（大セグメント）と M16（架電ステータス）より前に置かれており、
+-- 5 ルールが NULL のまま本番まで到達していた（2026-08-03 に修正）。
+-- ============================================================
+INSERT INTO lead_score_rules (category, condition_type, condition_value_id, score_delta, description, sort_order) VALUES
+  -- attribute / company_size
+  ('attribute', 'company_size', (SELECT id FROM lead_company_sizes WHERE code = 'enterprise'), 15, 'エンタープライズ企業',  1),
+  ('attribute', 'company_size', (SELECT id FROM lead_company_sizes WHERE code = 'mid'),        10, '中堅企業',             2),
+  ('attribute', 'company_size', (SELECT id FROM lead_company_sizes WHERE code = 'smb'),         5, '中小企業',             3),
+  -- attribute / large_segment
+  ('attribute', 'large_segment', (SELECT id FROM lead_large_segments WHERE code = 'manufacturing'), 10, '製造業セグメント',    4),
+  ('attribute', 'large_segment', (SELECT id FROM lead_large_segments WHERE code = 'it_saas'),       10, 'IT・SaaSセグメント', 5),
+  -- attribute / lead_source（web_form = フォーム流入）
+  ('attribute', 'lead_source', (SELECT id FROM lead_sources WHERE slug = 'web_form'), 15, 'フォーム流入', 6),
+  -- stage / stage
+  ('stage', 'stage', (SELECT id FROM lead_stages WHERE slug = 'nurturing'),     10, '育成ステージ到達',       7),
+  ('stage', 'stage', (SELECT id FROM lead_stages WHERE slug = 'qualification'), 20, '選定ステージ到達',       8),
+  ('stage', 'stage', (SELECT id FROM lead_stages WHERE slug = 'sales'),         30, 'Salesステージ到達',      9),
+  ('stage', 'stage', (SELECT id FROM lead_stages WHERE slug = 'opportunity'),   40, 'Opportunity到達',       10),
+  -- status / call_status
+  ('status', 'call_status', (SELECT id FROM lead_call_statuses WHERE code = 'material_sent'), 10, '資料送付済み', 11),
+  ('status', 'call_status', (SELECT id FROM lead_call_statuses WHERE code = 'promising'),     25, '見込み判定',   12),
+  ('status', 'call_status', (SELECT id FROM lead_call_statuses WHERE code = 'appointment'),   40, 'アポ獲得',     13),
+  -- interest / customer_activity_type
+  ('interest', 'customer_activity_type', (SELECT id FROM lead_customer_activity_types WHERE code = 'event_attend'),      15, 'イベント参加',      14),
+  ('interest', 'customer_activity_type', (SELECT id FROM lead_customer_activity_types WHERE code = 'seminar_attend'),    10, 'セミナー参加',      15),
+  ('interest', 'customer_activity_type', (SELECT id FROM lead_customer_activity_types WHERE code = 'webinar_attend'),    10, 'ウェビナー参加',    16),
+  ('interest', 'customer_activity_type', (SELECT id FROM lead_customer_activity_types WHERE code = 'material_download'), 10, '資料ダウンロード',  17),
+  ('interest', 'customer_activity_type', (SELECT id FROM lead_customer_activity_types WHERE code = 'form_submit'),       20, '問合せフォーム送信',18),
+  ('interest', 'customer_activity_type', (SELECT id FROM lead_customer_activity_types WHERE code = 'website_visit'),      3, 'サイト訪問',        19),
+  ('interest', 'customer_activity_type', (SELECT id FROM lead_customer_activity_types WHERE code = 'email_open'),         2, 'メール開封',        20),
+  ('interest', 'customer_activity_type', (SELECT id FROM lead_customer_activity_types WHERE code = 'email_click'),        5, 'メールクリック',    21);
 
 -- ============================================================
 -- S01/S02: インサイドセールスパイプラインの deal_stages / deal_statuses は

@@ -3,7 +3,6 @@
 import { useRef, useState, useTransition } from "react";
 import { kanbanColorFrom, type KanbanColor } from "@/lib/kanban-color";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
   LayoutGrid,
   List,
@@ -11,6 +10,7 @@ import {
   ChevronDown,
   AlertTriangle,
   CalendarDays,
+  Handshake,
 } from "lucide-react";
 import { getDealsForKanban, getDeals, moveDealCard } from "@/actions/deals";
 import { StageBadge, StatusBadge } from "@/components/ui/badges";
@@ -18,6 +18,7 @@ import { getDealCounterpartyLabel } from "@/lib/deal-counterparty";
 import { FilterGroup, FilterClearButton } from "@/components/ui/FilterGroup";
 import { FilterSelect } from "@/components/ui/FilterSelect";
 import { SearchInput } from "@/components/ui/SearchInput";
+import { DataTable } from "@/components/ui/DataTable";
 import { Pagination } from "@/components/ui/Pagination";
 import { useToast } from "@/components/ui/toast";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants/pagination";
@@ -1093,155 +1094,94 @@ function KanbanView({
 
 // ---------- テーブルビュー ----------
 function TableView({ data }: { data: ListData }) {
-  const router = useRouter();
-
-  if (!data || data.rows.length === 0) {
-    return (
-      <div
-        className="p-8 text-center text-sm"
-        style={{
-          backgroundColor: "#fff",
-          borderRadius: "var(--radius-card)",
-          boxShadow: "var(--elevation-low)",
-          color: "var(--color-sumi500)",
-        }}
-      >
-        商談がありません
-      </div>
-    );
-  }
-
   return (
-    <div
-      className="overflow-x-auto no-scrollbar"
-      style={{
-        backgroundColor: "#fff",
-        borderRadius: "var(--radius-card)",
-        boxShadow: "var(--elevation-low)",
-      }}
-    >
-      <table className="w-full text-sm" style={{ tableLayout: "auto" }}>
-        <colgroup>
-          <col style={{ minWidth: "200px" }} />
-          <col style={{ width: "130px" }} />
-          <col style={{ width: "130px" }} />
-          <col style={{ width: "120px" }} />
-          <col style={{ width: "120px" }} />
-          <col style={{ minWidth: "180px" }} />
-          <col style={{ width: "120px" }} />
-          <col style={{ width: "150px" }} />
-        </colgroup>
-        <thead>
-          <tr style={{ backgroundColor: "var(--color-sumi50)" }}>
-            {[
-              "取引名",
-              "ステージ",
-              "ステータス",
-              "クローズ予定日",
-              "金額",
-              "取引先",
-              "担当者",
-              "最終更新日",
-            ].map((label, i) => (
-              <th
-                key={label}
-                className={`px-4 py-3 font-semibold text-xs whitespace-nowrap ${
-                  i === 4 ? "text-right" : "text-left"
-                }`}
-                style={{ color: "var(--color-sumi600)" }}
-              >
-                {label}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {data.rows.map((deal) => (
-            <tr
-              key={deal.id}
-              className="transition-colors cursor-pointer"
-              style={{
-                borderBottom: "1px solid var(--color-border-default)",
-              }}
-              onMouseEnter={(e) =>
-                (e.currentTarget.style.backgroundColor = "var(--color-bg-hover)")
-              }
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.backgroundColor = "transparent")
-              }
-              onClick={() => router.push(`/deals/${deal.id}`)}
+    <DataTable<DealWithRelations>
+      items={data?.rows ?? []}
+      getKey={(deal) => deal.id}
+      getHref={(deal) => `/deals/${deal.id}`}
+      emptyIcon={Handshake}
+      emptyMessage="商談がありません"
+      columns={[
+        {
+          label: "取引名",
+          card: "title",
+          className: "min-w-[200px]",
+          render: (deal) => (
+            <Link
+              href={`/deals/${deal.id}`}
+              className="font-medium"
+              style={{ color: "var(--color-text-list)" }}
+              onClick={(e) => e.stopPropagation()}
             >
-              <td className="px-4 py-3">
-                <Link
-                  href={`/deals/${deal.id}`}
-                  className="font-medium"
-                  style={{ color: "var(--color-text-list)" }}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {deal.name}
-                </Link>
-              </td>
-              <td className="px-4 py-3 whitespace-nowrap">
-                <StageBadge
-                  name={deal.deal_stage?.name}
-                  color={deal.deal_stage?.color}
-                  sortOrder={deal.deal_stage?.sort_order}
-                />
-              </td>
-              <td className="px-4 py-3 whitespace-nowrap">
-                <StatusBadge
-                  name={deal.deal_status?.name}
-                  color={deal.deal_status?.color}
-                  sortOrder={deal.deal_status?.sort_order}
-                />
-              </td>
-              {(() => {
-                const due = getDueInfo(deal);
-                return (
-                  <td
-                    className="px-4 py-3 whitespace-nowrap"
-                    style={{
-                      color: due ? due.color : "var(--color-text-list)",
-                      fontWeight: due?.severe ? 600 : 400,
-                    }}
-                  >
-                    {deal.expected_close_date
-                      ? new Date(deal.expected_close_date).toLocaleDateString(
-                          "ja-JP"
-                        )
-                      : "—"}
-                  </td>
-                );
-              })()}
-              <td
-                className="px-4 py-3 text-right font-mono whitespace-nowrap"
-                style={{ color: "var(--color-text-list)" }}
+              {deal.name}
+            </Link>
+          ),
+        },
+        {
+          label: "ステージ",
+          card: "meta",
+          className: "w-[130px] whitespace-nowrap",
+          render: (deal) => (
+            <StageBadge
+              name={deal.deal_stage?.name}
+              color={deal.deal_stage?.color}
+              sortOrder={deal.deal_stage?.sort_order}
+            />
+          ),
+        },
+        {
+          label: "ステータス",
+          card: "meta",
+          className: "w-[130px] whitespace-nowrap",
+          render: (deal) => (
+            <StatusBadge
+              name={deal.deal_status?.name}
+              color={deal.deal_status?.color}
+              sortOrder={deal.deal_status?.sort_order}
+            />
+          ),
+        },
+        {
+          /* 期限が近い・過ぎたものは色と太さで目立たせる */
+          label: "クローズ予定日",
+          className: "w-[120px] whitespace-nowrap",
+          render: (deal) => {
+            const due = getDueInfo(deal);
+            return (
+              <span
+                style={{
+                  color: due ? due.color : "var(--color-text-list)",
+                  fontWeight: due?.severe ? 600 : 400,
+                }}
               >
-                {formatAmount(deal.amount)}
-              </td>
-              <td
-                className="px-4 py-3 truncate"
-                style={{ color: "var(--color-text-list)", maxWidth: "220px" }}
-                title={getDealCounterpartyLabel(deal)}
-              >
-                {getDealCounterpartyLabel(deal) || "—"}
-              </td>
-              <td
-                className="px-4 py-3 whitespace-nowrap"
-                style={{ color: "var(--color-text-list)" }}
-              >
-                {deal.owner?.full_name ?? "—"}
-              </td>
-              <td
-                className="px-4 py-3 text-xs whitespace-nowrap"
-                style={{ color: "var(--color-text-list)" }}
-              >
-                {formatDateTime(deal.updated_at)}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+                {deal.expected_close_date
+                  ? new Date(deal.expected_close_date).toLocaleDateString("ja-JP")
+                  : "—"}
+              </span>
+            );
+          },
+        },
+        {
+          label: "金額",
+          className: "w-[120px] text-right font-mono whitespace-nowrap",
+          render: (deal) => formatAmount(deal.amount),
+        },
+        {
+          label: "取引先",
+          className: "min-w-[180px] max-w-[220px] truncate",
+          render: (deal) => getDealCounterpartyLabel(deal) || "—",
+        },
+        {
+          label: "担当者",
+          className: "w-[120px] whitespace-nowrap",
+          render: (deal) => deal.owner?.full_name ?? "—",
+        },
+        {
+          label: "最終更新日",
+          className: "w-[150px] text-xs whitespace-nowrap",
+          render: (deal) => formatDateTime(deal.updated_at),
+        },
+      ]}
+    />
   );
 }

@@ -9,7 +9,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import { isFieldValidationError } from "@/lib/errors";
 import type { Row } from "@/types/relations";
-import { formContainerStyle } from "@/lib/layout";
+import { formActionsClass, formContainerClass, fieldGridClass } from "@/lib/layout";
 
 const styles = {
   card: {
@@ -36,7 +36,7 @@ const styles = {
     backgroundColor: "#fff",
     fontFamily: "inherit",
   } as CSSProperties,
-  grid2: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" } as CSSProperties,
+  grid2: fieldGridClass,
   btnPrimary: {
     display: "inline-flex",
     alignItems: "center",
@@ -159,7 +159,7 @@ export function CampaignEditClient({
   };
 
   return (
-    <div style={formContainerStyle}>
+    <div className={formContainerClass}>
       {/* 削除確認ダイアログ */}
       <ConfirmDialog
         open={deleteOpen}
@@ -262,7 +262,7 @@ export function CampaignEditClient({
               onBlur={onBlur}
             />
           </div>
-          <div style={styles.grid2}>
+          <div className={styles.grid2}>
             <div>
               <label style={styles.label}>種別</label>
               <select
@@ -332,14 +332,7 @@ export function CampaignEditClient({
       </div>
 
       {/* ページ下部にも保存・キャンセルボタン */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "flex-end",
-          gap: "0.75rem",
-          marginTop: "0.5rem",
-        }}
-      >
+      <div className={formActionsClass} style={{ marginTop: "0.5rem" }}>
         <Link href={`/campaigns/${campaign.id}`} style={styles.btnOutline}>
           キャンセル
         </Link>

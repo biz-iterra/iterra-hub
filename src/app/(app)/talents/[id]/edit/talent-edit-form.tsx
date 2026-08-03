@@ -9,7 +9,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import { isFieldValidationError } from "@/lib/errors";
 import type { TalentCareerRow } from "@/types/relations";
-import { formContainerStyle } from "@/lib/layout";
+import { formContainerClass, fieldGridClass, fieldGrid3Class, formFooterClass } from "@/lib/layout";
 
 // ---------- 型 ----------
 
@@ -68,7 +68,7 @@ function emptyCareerForm(nextSortOrder: number): CareerFormValues {
 // ---------- スタイル ----------
 
 const styles = {
-  container: formContainerStyle,
+  container: formContainerClass,
   backLink: {
     display: "inline-flex",
     alignItems: "center",
@@ -227,22 +227,8 @@ const styles = {
     fontSize: "0.875rem",
     margin: "0.75rem 0 0 0",
   } as CSSProperties,
-  footer: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginTop: "1rem",
-  } as CSSProperties,
-  grid: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: "1rem",
-  } as CSSProperties,
-  grid3: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr 1fr",
-    gap: "1rem",
-  } as CSSProperties,
+  grid: fieldGridClass,
+  grid3: fieldGrid3Class,
   careerCard: {
     border: "1px solid var(--color-border-default)",
     borderRadius: "var(--radius-card)",
@@ -335,7 +321,7 @@ function CareerForm({
   return (
     <div style={styles.inlineForm}>
       {/* 1行目: 種別 + 組織 */}
-      <div style={{ ...styles.grid, marginBottom: "0.75rem" }}>
+      <div className={styles.grid} style={{ marginBottom: "0.75rem" }}>
         <div>
           <label style={styles.label}>
             種別 <span style={{ color: "var(--color-error)" }}>*</span>
@@ -372,7 +358,7 @@ function CareerForm({
       </div>
 
       {/* 2行目: 役職・タイトル + 表示順 */}
-      <div style={{ ...styles.grid, marginBottom: "0.75rem" }}>
+      <div className={styles.grid} style={{ marginBottom: "0.75rem" }}>
         <div>
           <label style={styles.label}>役職・タイトル</label>
           <input
@@ -402,7 +388,7 @@ function CareerForm({
       </div>
 
       {/* 3行目: 開始日 + 終了日 + 現在進行中 */}
-      <div style={{ ...styles.grid3, marginBottom: "0.75rem", alignItems: "end" }}>
+      <div className={styles.grid3} style={{ marginBottom: "0.75rem", alignItems: "end" }}>
         <div>
           <label style={styles.label}>開始日</label>
           <input
@@ -722,7 +708,7 @@ export function TalentEditForm({
 
   // ---- レンダリング ----
   return (
-    <div style={styles.container}>
+    <div className={styles.container}>
       <Link
         href={`/talents/${talent.id}`}
         className="hover:bg-[var(--color-bg-hover)]"
@@ -778,7 +764,7 @@ export function TalentEditForm({
         {/* 強み・弱み */}
         <div style={styles.card}>
           <h2 style={styles.sectionTitle}>強み・弱み</h2>
-          <div style={styles.grid}>
+          <div className={styles.grid}>
             <div>
               <label style={styles.label}>強み</label>
               <textarea
@@ -834,7 +820,7 @@ export function TalentEditForm({
           <p style={styles.hint}>{values.overall_assessment.length} / 3000 文字</p>
         </div>
 
-        <div style={styles.footer}>
+        <div className={formFooterClass}>
           <div>
             {isAdmin && (
               <button

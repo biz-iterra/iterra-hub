@@ -1,13 +1,13 @@
 "use client";
 
 import { getProjects } from "@/actions/projects";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Plus, FolderKanban } from "lucide-react";
 import { ProjectStatusBadge } from "@/components/ui/badges";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { FilterSelect } from "@/components/ui/FilterSelect";
 import { FilterGroup, FilterClearButton } from "@/components/ui/FilterGroup";
+import { DataTable } from "@/components/ui/DataTable";
 import { Pagination } from "@/components/ui/Pagination";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants/pagination";
 import { useState, useTransition } from "react";
@@ -39,7 +39,6 @@ export function ProjectsView({
   statuses: StatusOption[];
   users: CrmUser[];
 }) {
-  const router = useRouter();
   const [data, setData] = useState<ProjectsData>(initialData);
   const [statusId, setStatusId] = useState("");
   const [ownerUserId, setOwnerUserId] = useState("");
@@ -96,15 +95,16 @@ export function ProjectsView({
   const total = data?.total ?? 0;
 
   return (
-    <div className="space-y-6" style={{ padding: "1.5rem" }}>
+    // 余白は (app)/layout.tsx の main が持つ。ここで足すと一覧ごとにずれる
+    <div className="space-y-4 sm:space-y-6">
       {/* ヘッダー */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold" style={{ color: "var(--color-text-title)" }}>
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <h1 className="text-xl sm:text-2xl font-bold" style={{ color: "var(--color-text-title)" }}>
           プロジェクト
         </h1>
         <Link
           href="/projects/new"
-          className="inline-flex items-center gap-2 text-sm font-medium transition-colors"
+          className="inline-flex items-center gap-2 text-sm font-medium transition-colors whitespace-nowrap"
           style={{
             backgroundColor: "var(--color-terra)",
             color: "#fff",
@@ -160,116 +160,72 @@ export function ProjectsView({
         )}
       </FilterGroup>
 
-      {/* テーブル */}
-      <div
-        style={{
-          backgroundColor: "#fff",
-          borderRadius: "var(--radius-card)",
-          boxShadow: "var(--elevation-low)",
-        }}
-      >
-        {items.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-3 py-16">
-            <FolderKanban size={40} style={{ color: "var(--color-sumi600)" }} />
-            <p className="text-sm" style={{ color: "var(--color-sumi600)" }}>
-              プロジェクトがまだありません
-            </p>
-          </div>
-        ) : (
-          <>
-            <div className="overflow-x-auto no-scrollbar">
-              <table className="w-full text-sm" style={{ tableLayout: "auto" }}>
-                <thead>
-                  <tr style={{ backgroundColor: "var(--color-sumi50)" }}>
-                    {["プロジェクト名", "ステータス", "期間", "責任者", "最終更新日"].map(
-                      (label) => (
-                        <th
-                          key={label}
-                          className="px-4 py-3 text-left font-semibold text-xs whitespace-nowrap"
-                          style={{ color: "var(--color-sumi600)" }}
-                        >
-                          {label}
-                        </th>
-                      )
-                    )}
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((p) => (
-                    <tr
-                      key={p.id}
-                      onClick={() => router.push(`/projects/${p.id}`)}
-                      className="cursor-pointer transition-colors"
-                      style={{ borderBottom: "1px solid var(--color-border-default)" }}
-                      onMouseEnter={(e) =>
-                        (e.currentTarget.style.backgroundColor =
-                          "var(--color-bg-hover)")
-                      }
-                      onMouseLeave={(e) =>
-                        (e.currentTarget.style.backgroundColor = "transparent")
-                      }
-                    >
-                      {/* プロジェクト名 */}
-                      <td className="px-4 py-3">
-                        <Link
-                          href={`/projects/${p.id}`}
-                          className="font-medium"
-                          style={{ color: "var(--color-text-list)" }}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          {p.name}
-                        </Link>
-                      </td>
-                      {/* ステータス */}
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <ProjectStatusBadge
-                          name={p.project_status?.name}
-                          color={p.project_status?.color}
-                          sortOrder={p.project_status?.sort_order}
-                          seed={p.project_status?.id}
-                        />
-                      </td>
-                      {/* 期間 */}
-                      <td
-                        className="px-4 py-3 text-xs whitespace-nowrap"
-                        style={{ color: "var(--color-text-list)" }}
-                      >
-                        {p.start_date ?? "—"}
-                        {" 〜 "}
-                        {p.end_date ?? "—"}
-                      </td>
-                      {/* 責任者 */}
-                      <td
-                        className="px-4 py-3 whitespace-nowrap"
-                        style={{ color: "var(--color-text-list)" }}
-                      >
-                        {p.owner?.full_name ?? "—"}
-                      </td>
-                      {/* 最終更新日 */}
-                      <td
-                        className="px-4 py-3 text-xs whitespace-nowrap"
-                        style={{ color: "var(--color-text-list)" }}
-                      >
-                        {formatDateTime(p.updated_at)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* ページネーション */}
-            <div style={{ padding: "0.75rem 1rem", borderTop: "1px solid var(--color-border-default)" }}>
-              <Pagination
-                page={page}
-                totalCount={total}
-                pageSize={PER_PAGE}
-                onPageChange={handlePageChange}
+      {/* 一覧（md 未満はカード） */}
+      <DataTable
+        items={items}
+        getKey={(p) => p.id}
+        getHref={(p) => `/projects/${p.id}`}
+        emptyIcon={FolderKanban}
+        emptyMessage="プロジェクトがまだありません"
+        columns={[
+          {
+            label: "プロジェクト名",
+            card: "title",
+            render: (p) => (
+              <Link
+                href={`/projects/${p.id}`}
+                className="font-medium"
+                style={{ color: "var(--color-text-list)" }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {p.name}
+              </Link>
+            ),
+          },
+          {
+            label: "ステータス",
+            card: "meta",
+            className: "whitespace-nowrap",
+            render: (p) => (
+              <ProjectStatusBadge
+                name={p.project_status?.name}
+                color={p.project_status?.color}
+                sortOrder={p.project_status?.sort_order}
+                seed={p.project_status?.id}
               />
-            </div>
-          </>
-        )}
-      </div>
+            ),
+          },
+          {
+            label: "期間",
+            className: "text-xs whitespace-nowrap",
+            render: (p) => (
+              <>
+                {p.start_date ?? "—"}
+                {" 〜 "}
+                {p.end_date ?? "—"}
+              </>
+            ),
+          },
+          {
+            label: "責任者",
+            className: "whitespace-nowrap",
+            render: (p) => p.owner?.full_name ?? "—",
+          },
+          {
+            label: "最終更新日",
+            className: "text-xs whitespace-nowrap",
+            render: (p) => formatDateTime(p.updated_at),
+          },
+        ]}
+      />
+
+      {/* ページネーション */}
+      <Pagination
+        page={page}
+        totalCount={total}
+        pageSize={PER_PAGE}
+        onPageChange={handlePageChange}
+      />
     </div>
   );
 }

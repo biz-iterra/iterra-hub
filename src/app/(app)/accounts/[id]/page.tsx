@@ -24,7 +24,7 @@ import { DetailSection } from "@/components/ui/DetailSection";
 import { InfoField } from "@/components/ui/InfoField";
 import { EntityLink } from "@/components/ui/EntityLink";
 import { LabelBadge } from "@/components/ui/badges";
-import { detailContainerStyle, detailGridStyle, fieldGridStyle, sectionStackStyle } from "@/lib/layout";
+import { detailContainerClass, detailGridClass, fieldGridClass, sectionStackClass, tableScrollClass } from "@/lib/layout";
 
 /** ステータス更新日の表示。時刻までは要らないので日付だけ出す */
 function formatDate(value: string | null | undefined): string {
@@ -186,7 +186,7 @@ export default async function AccountDetailPage({
   }
 
   return (
-    <div style={detailContainerStyle}>
+    <div className={detailContainerClass}>
       {/* ---- Header ---- */}
       <div style={{ marginBottom: "1.5rem" }}>
         <Link href="/accounts" style={{ ...backLinkStyle, marginBottom: "0.75rem" }}>
@@ -232,13 +232,13 @@ export default async function AccountDetailPage({
 
       {/* ---- 8:2 Grid ---- */}
       <div
-        style={detailGridStyle}
+        className={detailGridClass}
       >
         {/* ======== Left ======== */}
-        <div style={sectionStackStyle}>
+        <div className={sectionStackClass}>
           <DetailSection title="基本情報" icon={Briefcase}>
             <div
-              style={fieldGridStyle}
+              className={fieldGridClass}
             >
               <InfoField label="取引先名" value={a.name} />
               {/* 担当者と事業者情報は別レコードへの紐づけ。ここで直す */}
@@ -271,7 +271,7 @@ export default async function AccountDetailPage({
 
           <DetailSection title="属性情報" icon={Layers}>
             <div
-              style={fieldGridStyle}
+              className={fieldGridClass}
             >
               <InfoField label="種別" value={a.account_type?.name} />
               <InfoField label="ステータス" value={a.account_status?.name} />
@@ -321,7 +321,8 @@ export default async function AccountDetailPage({
 
           <DetailSection title="商談一覧" icon={Handshake}>
             {deals.length > 0 ? (
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <div className={tableScrollClass}>
+              <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "36rem" }}>
                 <thead>
                   <tr>
                     <th style={thStyle}>コード</th>
@@ -347,6 +348,7 @@ export default async function AccountDetailPage({
                   ))}
                 </tbody>
               </table>
+              </div>
             ) : (
               <p
                 style={{
@@ -362,7 +364,7 @@ export default async function AccountDetailPage({
         </div>
 
         {/* ======== Right ======== */}
-        <div style={sectionStackStyle}>
+        <div className={sectionStackClass}>
           {/*
             この取引先の窓口。契約を登録すると商談の相手担当者が主担当として
             自動で入る。以降に窓口が増えたり役割が変わったりしたときは

@@ -3,12 +3,12 @@
 import { getContracts } from "@/actions/contracts";
 import { FileText, Plus } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState, useEffect, useCallback, useTransition } from "react";
 import { ContractMethodBadge } from "@/components/ui/badges";
 import { FilterGroup, FilterClearButton } from "@/components/ui/FilterGroup";
 import { FilterSelect } from "@/components/ui/FilterSelect";
 import { SearchInput } from "@/components/ui/SearchInput";
+import { DataTable } from "@/components/ui/DataTable";
 import { Pagination } from "@/components/ui/Pagination";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants/pagination";
 import type { ContractWithRelations } from "@/types/relations";
@@ -66,7 +66,6 @@ const CONTRACT_METHOD_OPTIONS = [
 // Component
 // ---------------------------------------------------------------------------
 export function ContractsView({ initialData, isManagerOrAbove, contractTypes }: Props) {
-  const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
   const [rows, setRows] = useState<ContractRow[]>(initialData?.rows ?? []);
@@ -246,199 +245,88 @@ export function ContractsView({ initialData, isManagerOrAbove, contractTypes }: 
         )}
       </FilterGroup>
 
-      {/* Card */}
-      <div
-        style={{
-          backgroundColor: "#fff",
-          borderRadius: "var(--radius-card)",
-          boxShadow: "var(--elevation-low)",
-          overflow: "hidden",
-        }}
-      >
-        {/* Table */}
-        {rows.length === 0 ? (
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: "4rem 1rem",
-              gap: "0.75rem",
-            }}
-          >
-            <FileText size={48} style={{ color: "var(--color-sumi300)" }} />
-            <p
-              style={{
-                fontSize: "0.875rem",
-                color: "var(--color-sumi600)",
-                margin: 0,
-              }}
-            >
-              契約がまだありません
-            </p>
-          </div>
-        ) : (
-          <>
-            <div className="overflow-x-auto no-scrollbar">
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <colgroup>
-                  <col style={{ minWidth: "200px" }} />
-                  <col style={{ width: "90px" }} />
-                  <col style={{ width: "130px" }} />
-                  <col style={{ minWidth: "160px" }} />
-                  <col style={{ width: "110px" }} />
-                  <col style={{ width: "110px" }} />
-                  <col style={{ width: "120px" }} />
-                  <col style={{ width: "150px" }} />
-                </colgroup>
-                <thead>
-                  <tr
-                    style={{
-                      backgroundColor: "var(--color-sumi50)",
-                      fontSize: "0.75rem",
-                      fontWeight: 600,
-                      color: "var(--color-sumi700)",
-                      textAlign: "left",
-                    }}
-                  >
-                    <th style={{ padding: "0.75rem 1rem" }}>契約書名</th>
-                    <th style={{ padding: "0.75rem 1rem" }}>契約方法</th>
-                    <th style={{ padding: "0.75rem 1rem" }}>契約種別</th>
-                    <th style={{ padding: "0.75rem 1rem" }}>商談</th>
-                    <th style={{ padding: "0.75rem 1rem" }}>契約開始日</th>
-                    <th style={{ padding: "0.75rem 1rem" }}>契約終了日</th>
-                    <th style={{ padding: "0.75rem 1rem" }}>登録者</th>
-                    <th style={{ padding: "0.75rem 1rem" }}>最終更新日</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((row) => (
-                    <tr
-                      key={row.id}
-                      className="transition-colors cursor-pointer"
-                      style={{
-                        borderBottom: "1px solid var(--color-border-default)",
-                        fontSize: "0.875rem",
-                      }}
-                      onMouseEnter={(e) =>
-                        (e.currentTarget.style.backgroundColor = "var(--color-bg-hover)")
-                      }
-                      onMouseLeave={(e) =>
-                        (e.currentTarget.style.backgroundColor = "transparent")
-                      }
-                      onClick={() => router.push(`/contracts/${row.id}`)}
-                    >
-                      {/* 契約書名 */}
-                      <td style={{ padding: "0.75rem 1rem" }}>
-                        <Link
-                          href={`/contracts/${row.id}`}
-                          style={{
-                            fontWeight: 600,
-                            color: "var(--color-text-list)",
-                            textDecoration: "none",
-                          }}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          {row.contract_name}
-                        </Link>
-                      </td>
-                      {/* 契約方法 */}
-                      <td style={{ padding: "0.75rem 1rem", whiteSpace: "nowrap" }}>
-                        <ContractMethodBadge method={row.contract_method} />
-                      </td>
-                      {/* 契約種別 */}
-                      <td
-                        style={{
-                          padding: "0.75rem 1rem",
-                          color: "var(--color-text-list)",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {row.contract_type?.name ?? "—"}
-                      </td>
-                      {/* 商談 */}
-                      <td
-                        style={{
-                          padding: "0.75rem 1rem",
-                          color: "var(--color-text-list)",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {row.deal ? (
-                          <Link
-                            href={`/deals/${row.deal.id}`}
-                            style={{ color: "var(--color-text-list)", textDecoration: "none" }}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            {row.deal.name}
-                          </Link>
-                        ) : (
-                          "—"
-                        )}
-                      </td>
-                      {/* 契約開始日 */}
-                      <td
-                        style={{
-                          padding: "0.75rem 1rem",
-                          fontSize: "0.8125rem",
-                          color: "var(--color-text-list)",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {formatDate(row.start_date)}
-                      </td>
-                      {/* 契約終了日 */}
-                      <td
-                        style={{
-                          padding: "0.75rem 1rem",
-                          fontSize: "0.8125rem",
-                          color: "var(--color-text-list)",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {formatDate(row.end_date)}
-                      </td>
-                      {/* 登録者 */}
-                      <td
-                        style={{
-                          padding: "0.75rem 1rem",
-                          color: "var(--color-text-list)",
-                          whiteSpace: "nowrap",
-                          fontSize: "0.8125rem",
-                        }}
-                      >
-                        {row.registered_user?.full_name ?? "—"}
-                      </td>
-                      {/* 最終更新日 */}
-                      <td
-                        style={{
-                          padding: "0.75rem 1rem",
-                          fontSize: "0.8125rem",
-                          color: "var(--color-text-list)",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {formatDateTime(row.updated_at)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+      {/* 一覧（md 未満はカード） */}
+      <DataTable
+        items={rows}
+        getKey={(row) => row.id}
+        getHref={(row) => `/contracts/${row.id}`}
+        emptyIcon={FileText}
+        emptyMessage="契約がまだありません"
+        columns={[
+          {
+            label: "契約書名",
+            card: "title",
+            className: "min-w-[200px]",
+            render: (row) => (
+              <Link
+                href={`/contracts/${row.id}`}
+                style={{
+                  fontWeight: 600,
+                  color: "var(--color-text-list)",
+                  textDecoration: "none",
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {row.contract_name}
+              </Link>
+            ),
+          },
+          {
+            label: "契約方法",
+            card: "meta",
+            className: "whitespace-nowrap",
+            render: (row) => <ContractMethodBadge method={row.contract_method} />,
+          },
+          {
+            label: "契約種別",
+            className: "whitespace-nowrap",
+            render: (row) => row.contract_type?.name ?? "—",
+          },
+          {
+            label: "商談",
+            className: "whitespace-nowrap",
+            render: (row) =>
+              row.deal ? (
+                <Link
+                  href={`/deals/${row.deal.id}`}
+                  style={{ color: "var(--color-text-list)", textDecoration: "none" }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {row.deal.name}
+                </Link>
+              ) : (
+                "—"
+              ),
+          },
+          {
+            label: "契約開始日",
+            className: "text-xs whitespace-nowrap",
+            render: (row) => formatDate(row.start_date),
+          },
+          {
+            label: "契約終了日",
+            className: "text-xs whitespace-nowrap",
+            render: (row) => formatDate(row.end_date),
+          },
+          {
+            label: "登録者",
+            className: "text-xs whitespace-nowrap",
+            render: (row) => row.registered_user?.full_name ?? "—",
+          },
+          {
+            label: "最終更新日",
+            className: "text-xs whitespace-nowrap",
+            render: (row) => formatDateTime(row.updated_at),
+          },
+        ]}
+      />
 
-            {/* Pagination */}
-            <div style={{ padding: "0.75rem 1.5rem", borderTop: "1px solid var(--color-border-default)" }}>
-              <Pagination
-                page={page}
-                totalCount={totalCount}
-                pageSize={PER_PAGE}
-                onPageChange={(p) => setPage(p)}
-              />
-            </div>
-          </>
-        )}
-      </div>
+      <Pagination
+        page={page}
+        totalCount={totalCount}
+        pageSize={PER_PAGE}
+        onPageChange={(p) => setPage(p)}
+      />
     </div>
   );
 }

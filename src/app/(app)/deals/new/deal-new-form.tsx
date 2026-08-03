@@ -9,7 +9,7 @@ import { useToast } from "@/components/ui/toast";
 import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { isFieldValidationError } from "@/lib/errors";
 import { calculateDefaultCloseDate } from "@/lib/deals/expected-close-date";
-import { formContainerStyle } from "@/lib/layout";
+import { formContainerClass, fieldGridClass, formActionsClass } from "@/lib/layout";
 
 type SelectOption = { value: string; label: string };
 type PipelineOption = SelectOption & { default_close_months: number | null };
@@ -25,7 +25,7 @@ type Masters = {
 };
 
 const styles = {
-  container: formContainerStyle,
+  container: formContainerClass,
   backLink: {
     display: "inline-flex",
     alignItems: "center",
@@ -62,11 +62,7 @@ const styles = {
     fontWeight: 600,
     margin: "0 0 1rem 0",
   } as CSSProperties,
-  grid: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: "1rem",
-  } as CSSProperties,
+  grid: fieldGridClass,
   label: {
     display: "block",
     fontSize: "0.75rem",
@@ -115,13 +111,6 @@ const styles = {
     color: "var(--color-sumi500)",
     fontSize: "0.75rem",
     margin: "0.375rem 0 0 0",
-  } as CSSProperties,
-  footer: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "flex-end",
-    gap: "0.75rem",
-    marginTop: "1rem",
   } as CSSProperties,
 };
 
@@ -267,7 +256,7 @@ export function DealNewForm({ masters }: { masters: Masters }) {
   };
 
   return (
-    <div style={styles.container}>
+    <div className={styles.container}>
       <Link
         href="/deals"
         className="hover:bg-[var(--color-bg-hover)]"
@@ -290,7 +279,7 @@ export function DealNewForm({ masters }: { masters: Masters }) {
         {/* 基本情報 */}
         <div style={styles.card}>
           <h2 style={styles.sectionTitle}>基本情報</h2>
-          <div style={styles.grid}>
+          <div className={styles.grid}>
             <div style={{ gridColumn: "1 / -1" }}>
               <label style={styles.label}>取引名 *</label>
               <input
@@ -360,7 +349,7 @@ export function DealNewForm({ masters }: { masters: Masters }) {
         {/* パイプライン */}
         <div style={styles.card}>
           <h2 style={styles.sectionTitle}>パイプライン</h2>
-          <div style={styles.grid}>
+          <div className={styles.grid}>
             <div>
               <label style={styles.label}>パイプライン *</label>
               <select
@@ -424,7 +413,7 @@ export function DealNewForm({ masters }: { masters: Masters }) {
         {/* 日程 */}
         <div style={styles.card}>
           <h2 style={styles.sectionTitle}>日程</h2>
-          <div style={styles.grid}>
+          <div className={styles.grid}>
             <div>
               <label style={styles.label}>申請日</label>
               <input
@@ -466,7 +455,7 @@ export function DealNewForm({ masters }: { masters: Masters }) {
 
         {error && <p style={styles.error}>{error}</p>}
 
-        <div style={styles.footer}>
+        <div className={formActionsClass}>
           <Link
             href="/deals"
             style={{ ...styles.btnOutline, textDecoration: "none" }}

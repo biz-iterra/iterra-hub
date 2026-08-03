@@ -8,7 +8,7 @@ import { updateDeal, deleteDeal } from "@/actions/deals";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import { isFieldValidationError } from "@/lib/errors";
-import { formContainerStyle } from "@/lib/layout";
+import { formContainerClass, fieldGridClass, formFooterClass } from "@/lib/layout";
 
 type SelectOption = { value: string; label: string };
 type StageOption = SelectOption & { pipeline_type_id: string };
@@ -38,7 +38,7 @@ type Masters = {
 };
 
 const styles = {
-  container: formContainerStyle,
+  container: formContainerClass,
   backLink: {
     display: "inline-flex",
     alignItems: "center",
@@ -75,11 +75,7 @@ const styles = {
     fontWeight: 600,
     margin: "0 0 1rem 0",
   } as CSSProperties,
-  grid: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: "1rem",
-  } as CSSProperties,
+  grid: fieldGridClass,
   label: {
     display: "block",
     fontSize: "0.75rem",
@@ -136,12 +132,6 @@ const styles = {
     color: "var(--color-error)",
     fontSize: "0.875rem",
     margin: "0.75rem 0 0 0",
-  } as CSSProperties,
-  footer: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginTop: "1rem",
   } as CSSProperties,
 };
 
@@ -281,7 +271,7 @@ export function DealEditForm({
   };
 
   return (
-    <div style={styles.container}>
+    <div className={styles.container}>
       <Link
         href={`/deals/${deal.id}`}
         className="hover:bg-[var(--color-bg-hover)]"
@@ -304,7 +294,7 @@ export function DealEditForm({
         {/* 基本情報 */}
         <div style={styles.card}>
           <h2 style={styles.sectionTitle}>基本情報</h2>
-          <div style={styles.grid}>
+          <div className={styles.grid}>
             <div style={{ gridColumn: "1 / -1" }}>
               <label style={styles.label}>取引名 *</label>
               <input
@@ -347,7 +337,7 @@ export function DealEditForm({
         {/* パイプライン */}
         <div style={styles.card}>
           <h2 style={styles.sectionTitle}>パイプライン</h2>
-          <div style={styles.grid}>
+          <div className={styles.grid}>
             <div>
               <label style={styles.label}>パイプライン *</label>
               <select
@@ -411,7 +401,7 @@ export function DealEditForm({
         {/* 日程 */}
         <div style={styles.card}>
           <h2 style={styles.sectionTitle}>日程</h2>
-          <div style={styles.grid}>
+          <div className={styles.grid}>
             <div>
               <label style={styles.label}>申請日</label>
               <input
@@ -461,7 +451,7 @@ export function DealEditForm({
 
         {error && <p style={styles.error}>{error}</p>}
 
-        <div style={styles.footer}>
+        <div className={formFooterClass}>
           <div>
             {isAdmin && (
               <button

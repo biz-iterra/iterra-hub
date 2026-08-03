@@ -17,6 +17,7 @@ import { LeadProgressBoard } from "@/components/leads/LeadProgressBoard";
 import { StageBadge, StatusBadge, TemperatureBadge } from "@/components/ui/badges";
 import { Pagination } from "@/components/ui/Pagination";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants/pagination";
+import { tableScrollClass } from "@/lib/layout";
 import type { LeadListRow, Paged } from "@/types/relations";
 
 type ProgressView = "kanban" | "list" | "board";
@@ -148,7 +149,7 @@ export function LeadProgressWorkspace({
 
       {view === "list" && (
         <>
-          <div style={styles.tableCard} className="no-scrollbar">
+          <div style={styles.tableCard} className={tableScrollClass}>
             <table className="w-full text-sm">
               <thead>
                 <tr style={{ backgroundColor: "var(--color-sumi50)" }}>

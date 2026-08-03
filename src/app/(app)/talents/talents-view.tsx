@@ -2,11 +2,11 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { UserCircle, Plus } from "lucide-react";
 import { getTalents } from "@/actions/talents";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { FilterGroup, FilterClearButton } from "@/components/ui/FilterGroup";
+import { DataTable } from "@/components/ui/DataTable";
 import { Pagination } from "@/components/ui/Pagination";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants/pagination";
 import type { TalentSkillWithSkill, TalentWithRelations } from "@/types/relations";
@@ -56,7 +56,6 @@ const PER_PAGE = DEFAULT_PAGE_SIZE;
 // Component
 // ---------------------------------------------------------------------------
 export function TalentsView({ initialData }: Props) {
-  const router = useRouter();
   const [data, setData] = useState(initialData);
   const [keyword, setKeyword] = useState("");
   const [page, setPage] = useState(1);
@@ -102,16 +101,16 @@ export function TalentsView({ initialData }: Props) {
   return (
     <div>
       {/* ヘッダー */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between flex-wrap gap-3 mb-4 sm:mb-6">
         <h1
-          className="text-2xl font-bold"
+          className="text-xl sm:text-2xl font-bold"
           style={{ color: "var(--color-text-title)" }}
         >
           タレント
         </h1>
         <Link
           href="/talents/new"
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white transition-colors"
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white transition-colors whitespace-nowrap"
           style={{
             backgroundColor: "var(--color-terra)",
             borderRadius: "var(--radius-button)",
@@ -147,148 +146,95 @@ export function TalentsView({ initialData }: Props) {
         )}
       </FilterGroup>
 
-      {/* テーブル */}
-      {items.length === 0 ? (
-        <div
-          className="p-10 text-center text-sm"
-          style={{
-            backgroundColor: "#fff",
-            borderRadius: "var(--radius-card)",
-            boxShadow: "var(--elevation-low)",
-            color: "var(--color-sumi500)",
-          }}
-        >
-          <UserCircle
-            size={48}
-            style={{ color: "var(--color-sumi300)", margin: "0 auto 0.75rem" }}
-          />
-          タレントが見つかりません
-        </div>
-      ) : (
-        <div
-          className="overflow-x-auto no-scrollbar"
-          style={{
-            backgroundColor: "#fff",
-            borderRadius: "var(--radius-card)",
-            boxShadow: "var(--elevation-low)",
-          }}
-        >
-          <table className="w-full text-sm" style={{ tableLayout: "auto" }}>
-            <thead>
-              <tr style={{ backgroundColor: "var(--color-sumi50)" }}>
-                {[
-                  "連絡先名",
-                  "総合評価",
-                  "スキル",
-                  "部署・役職",
-                  "最終更新日",
-                ].map((label) => (
-                  <th
-                    key={label}
-                    className="px-4 py-3 text-left font-semibold text-xs whitespace-nowrap"
-                    style={{ color: "var(--color-sumi600)" }}
-                  >
-                    {label}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((row) => {
-                const topSkills = getTopSkills(row.talent_skills ?? []);
-                return (
-                  <tr
-                    key={row.id}
-                    className="transition-colors cursor-pointer"
-                    style={{ borderBottom: "1px solid var(--color-border-default)" }}
-                    onMouseEnter={(e) =>
-                      (e.currentTarget.style.backgroundColor = "var(--color-bg-hover)")
-                    }
-                    onMouseLeave={(e) =>
-                      (e.currentTarget.style.backgroundColor = "transparent")
-                    }
-                    onClick={() => router.push(`/talents/${row.id}`)}
-                  >
-                    {/* 連絡先名 */}
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <Link
-                        href={`/talents/${row.id}`}
-                        className="font-medium"
-                        style={{ color: "var(--color-text-list)" }}
-                        onClick={(e) => e.stopPropagation()}
+      {/* 一覧（md 未満はカード） */}
+      <DataTable
+        items={items}
+        getKey={(row) => row.id}
+        getHref={(row) => `/talents/${row.id}`}
+        emptyIcon={UserCircle}
+        emptyMessage="タレントが見つかりません"
+        columns={[
+          {
+            label: "連絡先名",
+            card: "title",
+            className: "whitespace-nowrap",
+            render: (row) => (
+              <Link
+                href={`/talents/${row.id}`}
+                className="font-medium"
+                style={{ color: "var(--color-text-list)" }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {row.contact
+                  ? `${row.contact.last_name} ${row.contact.first_name}`
+                  : "—"}
+              </Link>
+            ),
+          },
+          {
+            label: "総合評価",
+            render: (row) => (
+              <span style={{ fontSize: "0.8125rem" }}>
+                {truncate(row.overall_assessment, 35)}
+              </span>
+            ),
+          },
+          {
+            label: "スキル",
+            render: (row) => {
+              const topSkills = getTopSkills(row.talent_skills ?? []);
+              return (
+                <div style={{ display: "flex", gap: "0.375rem", flexWrap: "wrap" }}>
+                  {topSkills.length === 0 ? (
+                    <span style={{ color: "var(--color-text-list)" }}>—</span>
+                  ) : (
+                    topSkills.map((s) => (
+                      <span
+                        key={s.id}
+                        style={{
+                          display: "inline-block",
+                          borderRadius: "var(--radius-badge)",
+                          padding: "0.125rem 0.5rem",
+                          fontSize: "0.75rem",
+                          fontWeight: 600,
+                          whiteSpace: "nowrap",
+                          ...(s.proficiency_level >= 4
+                            ? { backgroundColor: "var(--color-sage)", color: "#fff" }
+                            : {
+                                backgroundColor: "var(--color-sumi100)",
+                                color: "var(--color-sumi700)",
+                              }),
+                        }}
                       >
-                        {row.contact
-                          ? `${row.contact.last_name} ${row.contact.first_name}`
-                          : "—"}
-                      </Link>
-                    </td>
-                    {/* 総合評価 */}
-                    <td
-                      className="px-4 py-3"
-                      style={{
-                        color: "var(--color-text-list)",
-                        fontSize: "0.8125rem",
-                        maxWidth: "20rem",
-                      }}
-                    >
-                      {truncate(row.overall_assessment, 35)}
-                    </td>
-                    {/* スキル */}
-                    <td className="px-4 py-3">
-                      <div style={{ display: "flex", gap: "0.375rem", flexWrap: "wrap" }}>
-                        {topSkills.length === 0 ? (
-                          <span style={{ color: "var(--color-text-list)" }}>—</span>
-                        ) : (
-                          topSkills.map((s) => (
-                            <span
-                              key={s.id}
-                              style={{
-                                display: "inline-block",
-                                borderRadius: "var(--radius-badge)",
-                                padding: "0.125rem 0.5rem",
-                                fontSize: "0.75rem",
-                                fontWeight: 600,
-                                whiteSpace: "nowrap",
-                                ...(s.proficiency_level >= 4
-                                  ? { backgroundColor: "var(--color-sage)", color: "#fff" }
-                                  : {
-                                      backgroundColor: "var(--color-sumi100)",
-                                      color: "var(--color-sumi700)",
-                                    }),
-                              }}
-                            >
-                              {s.skill?.name ?? "（不明なスキル）"} Lv.
-                              {s.proficiency_level}
-                            </span>
-                          ))
-                        )}
-                      </div>
-                    </td>
-                    {/* 部署・役職 */}
-                    <td
-                      className="px-4 py-3 whitespace-nowrap"
-                      style={{ color: "var(--color-text-list)", fontSize: "0.8125rem" }}
-                    >
-                      {row.contact?.department || row.contact?.job_title
-                        ? [row.contact.department, row.contact.job_title]
-                            .filter(Boolean)
-                            .join(" / ")
-                        : "—"}
-                    </td>
-                    {/* 最終更新日 */}
-                    <td
-                      className="px-4 py-3 text-xs whitespace-nowrap"
-                      style={{ color: "var(--color-text-list)" }}
-                    >
-                      {formatDateTime(row.updated_at)}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+                        {s.skill?.name ?? "（不明なスキル）"} Lv.
+                        {s.proficiency_level}
+                      </span>
+                    ))
+                  )}
+                </div>
+              );
+            },
+          },
+          {
+            label: "部署・役職",
+            className: "whitespace-nowrap",
+            render: (row) => (
+              <span style={{ fontSize: "0.8125rem" }}>
+                {row.contact?.department || row.contact?.job_title
+                  ? [row.contact.department, row.contact.job_title]
+                      .filter(Boolean)
+                      .join(" / ")
+                  : "—"}
+              </span>
+            ),
+          },
+          {
+            label: "最終更新日",
+            className: "text-xs whitespace-nowrap",
+            render: (row) => formatDateTime(row.updated_at),
+          },
+        ]}
+      />
 
       {/* ページネーション */}
       <Pagination

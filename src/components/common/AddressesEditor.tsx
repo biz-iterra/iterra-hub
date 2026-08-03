@@ -14,6 +14,7 @@ import {
   type AddressOwnerType,
 } from "@/actions/entity-addresses";
 import type { EntityAddress } from "@/types/relations";
+import { autoGridClass } from "@/lib/layout";
 
 /**
  * 住所の増減。連絡先・事業者情報・取引先で共通で使う。
@@ -291,7 +292,7 @@ function AddressFields({
 }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "0.625rem" }}>
-      <div style={styles.grid}>
+      <div className={autoGridClass}>
         <div>
           <label style={styles.label}>種別</label>
           <select
@@ -463,11 +464,6 @@ const styles = {
     justifyContent: "flex-end",
     gap: "0.5rem",
     marginTop: "0.75rem",
-  } as CSSProperties,
-  grid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-    gap: "0.625rem",
   } as CSSProperties,
   label: {
     display: "block",

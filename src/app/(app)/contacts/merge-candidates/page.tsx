@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { getMergeCandidates } from "@/actions/contact-merge";
-import { detailContainerStyle } from "@/lib/layout";
+import { detailContainerClass } from "@/lib/layout";
 import { DetectAllButton, MergeCandidatesView } from "./merge-candidates-view";
 
 /**
@@ -15,7 +15,7 @@ export default async function MergeCandidatesPage() {
   const { data, error } = await getMergeCandidates("pending");
 
   return (
-    <div style={detailContainerStyle}>
+    <div className={detailContainerClass}>
       <div style={{ marginBottom: "1.5rem" }}>
         <Link
           href="/contacts"

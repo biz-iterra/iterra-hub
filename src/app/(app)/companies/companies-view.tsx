@@ -2,10 +2,10 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Plus, Building2 } from "lucide-react";
 import { getCompanies } from "@/actions/companies";
 import { StatusBadge } from "@/components/ui/badges";
+import { DataTable } from "@/components/ui/DataTable";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { FilterSelect } from "@/components/ui/FilterSelect";
 import { FilterGroup, FilterClearButton } from "@/components/ui/FilterGroup";
@@ -42,7 +42,6 @@ export function CompaniesView({
   corporateTypes,
   users,
 }: CompaniesViewProps) {
-  const router = useRouter();
   const [data, setData] = useState<CompaniesData>(initialData);
   const [statusFilter, setStatusFilter] = useState("");
   const [corporateTypeFilter, setCorporateTypeFilter] = useState("");
@@ -104,16 +103,16 @@ export function CompaniesView({
   return (
     <div>
       {/* ヘッダー */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between flex-wrap gap-3 mb-4 sm:mb-6">
         <h1
-          className="text-2xl font-bold"
+          className="text-xl sm:text-2xl font-bold"
           style={{ color: "var(--color-text-title)" }}
         >
           事業者情報
         </h1>
         <Link
           href="/companies/new"
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white transition-colors"
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white transition-colors whitespace-nowrap"
           style={{
             backgroundColor: "var(--color-terra)",
             borderRadius: "var(--radius-button)",
@@ -167,113 +166,61 @@ export function CompaniesView({
         )}
       </FilterGroup>
 
-      {/* テーブル */}
-      {items.length === 0 ? (
-        <div
-          className="flex flex-col items-center justify-center gap-3 py-16"
-          style={{
-            backgroundColor: "#fff",
-            borderRadius: "var(--radius-card)",
-            boxShadow: "var(--elevation-low)",
-          }}
-        >
-          <Building2 size={40} style={{ color: "var(--color-sumi600)" }} />
-          <p className="text-sm" style={{ color: "var(--color-sumi600)" }}>
-            事業者情報が見つかりません
-          </p>
-        </div>
-      ) : (
-        <div
-          className="overflow-x-auto no-scrollbar"
-          style={{
-            backgroundColor: "#fff",
-            borderRadius: "var(--radius-card)",
-            boxShadow: "var(--elevation-low)",
-          }}
-        >
-          <table className="w-full text-sm" style={{ tableLayout: "auto" }}>
-            <thead>
-              <tr style={{ backgroundColor: "var(--color-sumi50)" }}>
-                {["会社名", "ステータス", "法人格", "代表電話", "担当者", "最終更新日"].map(
-                  (label) => (
-                    <th
-                      key={label}
-                      className="px-4 py-3 text-left font-semibold text-xs whitespace-nowrap"
-                      style={{ color: "var(--color-sumi600)" }}
-                    >
-                      {label}
-                    </th>
-                  )
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((company) => (
-                <tr
-                  key={company.id}
-                  className="transition-colors cursor-pointer"
-                  style={{ borderBottom: "1px solid var(--color-border-default)" }}
-                  onMouseEnter={(e) =>
-                    (e.currentTarget.style.backgroundColor = "var(--color-bg-hover)")
-                  }
-                  onMouseLeave={(e) =>
-                    (e.currentTarget.style.backgroundColor = "transparent")
-                  }
-                  onClick={() => router.push(`/companies/${company.id}`)}
-                >
-                  {/* 会社名 */}
-                  <td className="px-4 py-3">
-                    <Link
-                      href={`/companies/${company.id}`}
-                      className="font-medium"
-                      style={{ color: "var(--color-text-list)" }}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {company.name}
-                    </Link>
-                  </td>
-                  {/* ステータス */}
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <StatusBadge
-                      name={company.company_status?.name}
-                      color={company.company_status?.color}
-                      seed={company.company_status?.id}
-                    />
-                  </td>
-                  {/* 法人格 */}
-                  <td
-                    className="px-4 py-3 whitespace-nowrap"
-                    style={{ color: "var(--color-text-list)" }}
-                  >
-                    {company.corporate_types?.name ?? "—"}
-                  </td>
-                  {/* 代表電話 */}
-                  <td
-                    className="px-4 py-3"
-                    style={{ color: "var(--color-text-list)" }}
-                  >
-                    {company.phone ?? "—"}
-                  </td>
-                  {/* 担当者 */}
-                  <td
-                    className="px-4 py-3 whitespace-nowrap"
-                    style={{ color: "var(--color-text-list)" }}
-                  >
-                    {company.crm_users?.full_name ?? "—"}
-                  </td>
-                  {/* 最終更新日 */}
-                  <td
-                    className="px-4 py-3 text-xs whitespace-nowrap"
-                    style={{ color: "var(--color-text-list)" }}
-                  >
-                    {formatDateTime(company.updated_at)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      {/* 一覧（md 未満はカード） */}
+      <DataTable
+        items={items}
+        getKey={(company) => company.id}
+        getHref={(company) => `/companies/${company.id}`}
+        emptyIcon={Building2}
+        emptyMessage="事業者情報が見つかりません"
+        columns={[
+          {
+            label: "会社名",
+            card: "title",
+            render: (company) => (
+              <Link
+                href={`/companies/${company.id}`}
+                className="font-medium"
+                style={{ color: "var(--color-text-list)" }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {company.name}
+              </Link>
+            ),
+          },
+          {
+            label: "ステータス",
+            card: "meta",
+            className: "whitespace-nowrap",
+            render: (company) => (
+              <StatusBadge
+                name={company.company_status?.name}
+                color={company.company_status?.color}
+                seed={company.company_status?.id}
+              />
+            ),
+          },
+          {
+            label: "法人格",
+            className: "whitespace-nowrap",
+            render: (company) => company.corporate_types?.name ?? "—",
+          },
+          {
+            label: "代表電話",
+            render: (company) => company.phone ?? "—",
+          },
+          {
+            label: "担当者",
+            className: "whitespace-nowrap",
+            render: (company) => company.crm_users?.full_name ?? "—",
+          },
+          {
+            label: "最終更新日",
+            className: "text-xs whitespace-nowrap",
+            render: (company) => formatDateTime(company.updated_at),
+          },
+        ]}
+      />
 
       {/* ページネーション */}
       <Pagination

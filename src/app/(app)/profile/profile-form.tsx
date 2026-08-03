@@ -9,7 +9,7 @@ import { InfoField } from "@/components/ui/InfoField";
 import { LabelBadge } from "@/components/ui/badges";
 import { useToast } from "@/components/ui/toast";
 import type { CrmUserRole } from "@/types/enums";
-import { formContainerStyle } from "@/lib/layout";
+import { formContainerClass, fieldGridClass, formActionsClass } from "@/lib/layout";
 
 type CurrentUser = {
   id: string;
@@ -26,7 +26,7 @@ const ROLE_LABELS: Record<CrmUserRole, string> = {
 };
 
 const styles = {
-  container: formContainerStyle,
+  container: formContainerClass,
   title: {
     color: "var(--color-text-title)",
     fontSize: "1.5rem",
@@ -49,11 +49,7 @@ const styles = {
     alignItems: "center",
     gap: "0.5rem",
   } as CSSProperties,
-  grid: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: "1rem",
-  } as CSSProperties,
+  grid: fieldGridClass,
   label: {
     display: "block",
     fontSize: "0.75rem",
@@ -88,11 +84,6 @@ const styles = {
     color: "var(--color-error)",
     fontSize: "0.875rem",
     margin: "0.75rem 0 0 0",
-  } as CSSProperties,
-  footer: {
-    display: "flex",
-    justifyContent: "flex-end",
-    marginTop: "1rem",
   } as CSSProperties,
 };
 
@@ -174,14 +165,14 @@ export function ProfileForm({ user }: { user: CurrentUser }) {
   const roleKey = (user.role as CrmUserRole) in ROLE_LABELS ? (user.role as CrmUserRole) : "member";
 
   return (
-    <div style={styles.container}>
+    <div className={styles.container}>
       <h1 style={styles.title}>プロフィール設定</h1>
 
       {/* 基本情報 */}
       <form onSubmit={handleSaveProfile}>
         <div style={styles.card}>
           <h2 style={styles.sectionTitle}>基本情報</h2>
-          <div style={styles.grid}>
+          <div className={styles.grid}>
             <InfoField label="メールアドレス" value={user.email} />
             <InfoField label="ロール" value={<LabelBadge name={ROLE_LABELS[roleKey]} />} />
             <div>
@@ -199,7 +190,7 @@ export function ProfileForm({ user }: { user: CurrentUser }) {
             </div>
           </div>
 
-          <div style={styles.footer}>
+          <div className={formActionsClass}>
             <button type="submit" style={styles.btnPrimary} disabled={savingProfile}>
               <Save size={14} />
               {savingProfile ? "保存中..." : "保存"}
@@ -215,7 +206,7 @@ export function ProfileForm({ user }: { user: CurrentUser }) {
             <KeyRound size={16} />
             パスワード変更
           </h2>
-          <div style={styles.grid}>
+          <div className={styles.grid}>
             <div>
               <label style={styles.label}>新しいパスワード *</label>
               <input
@@ -246,7 +237,7 @@ export function ProfileForm({ user }: { user: CurrentUser }) {
 
           {passwordError && <p style={styles.error}>{passwordError}</p>}
 
-          <div style={styles.footer}>
+          <div className={formActionsClass}>
             <button type="submit" style={styles.btnPrimary} disabled={savingPassword}>
               <KeyRound size={14} />
               {savingPassword ? "変更中..." : "パスワードを変更"}

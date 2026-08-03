@@ -14,7 +14,7 @@ import { ArrowLeft, FolderKanban, Users, Pencil, StickyNote } from "lucide-react
 import { ProjectStatusBadge } from "@/components/ui/badges";
 import { DetailSection } from "@/components/ui/DetailSection";
 import { InfoField } from "@/components/ui/InfoField";
-import { detailContainerStyle, detailGridStyle, fieldGridStyle, sectionStackStyle } from "@/lib/layout";
+import { detailContainerClass, detailGridClass, fieldGridClass, sectionStackClass } from "@/lib/layout";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -113,7 +113,7 @@ export default async function ProjectDetailPage({
 
 
   return (
-    <div style={detailContainerStyle}>
+    <div className={detailContainerClass}>
       <div style={{ marginBottom: "1.5rem" }}>
         <Link
           href="/projects"
@@ -163,10 +163,10 @@ export default async function ProjectDetailPage({
       </div>
 
       {/* 上段: 基本情報（左）+ メンバー（右） */}
-      <div style={{ ...detailGridStyle, marginBottom: "1.5rem" }}>
-        <div style={{ ...sectionStackStyle, minWidth: 0 }}>
+      <div className={detailGridClass} style={{ marginBottom: "1.5rem" }}>
+        <div className={sectionStackClass}>
           <DetailSection title="基本情報" icon={FolderKanban}>
-            <div style={fieldGridStyle}>
+            <div className={fieldGridClass}>
               <InfoField label="プロジェクト名" value={project.name} />
               <InfoField label="ステータス" value={project.project_status?.name} />
               <InfoField label="開始日" value={project.start_date} />
@@ -212,7 +212,7 @@ export default async function ProjectDetailPage({
           )}
         </div>
 
-        <div style={{ ...sectionStackStyle, minWidth: 0 }}>
+        <div className={sectionStackClass}>
           {/* メンバーは crm_users への紐づけ。編集ページから移した */}
           <DetailSection title={`メンバー（${members.length}名）`} icon={Users}>
             <RelationListSection

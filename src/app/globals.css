@@ -44,3 +44,297 @@ body::-webkit-scrollbar,
     height: 0 !important;
   }
 }
+
+/* ==========================================================================
+   レイアウト（レスポンシブ）
+
+   画面の大半がインライン style で組まれており、style 属性にはメディアクエリを
+   書けない。ページをまたいで使うレイアウトはここにクラスとして持ち、
+   ページ側は className で参照する。対応する定数は src/lib/layout.ts。
+
+   すべてモバイルファーストで書く（狭い方が既定、min-width で広げる）。
+   境界は Tailwind v4 の既定に合わせる: sm 640 / md 768 / lg 1024。
+   ========================================================================== */
+@layer components {
+  /*
+   * ページコンテナ。
+   * 余白は (app)/layout.tsx の main が持つため、ここでは padding を入れない。
+   * 詳細とフォームで幅を変えたくなったときに片方だけ動かせるよう、
+   * 値が同じでもクラスは分けておく。
+   */
+  .page-container-detail,
+  .page-container-form {
+    width: 100%;
+    max-width: 1280px;
+    margin: 0 auto;
+  }
+
+  /*
+   * 詳細ページ本文の 2 カラム。右カラムには関連エンティティの一覧が入る。
+   *
+   * 比率は 8:2。右に最小幅を与えているのは、法人名や氏名が長いときに
+   * 関連リストが潰れて読めなくなるのを防ぐため。
+   * 左の minmax(0, …) は、中の表がはみ出したときにグリッドが押し広げられて
+   * 右カラムが消えるのを防ぐ。
+   *
+   * lg 未満では 1 カラムに落とす。280px の最小幅を保ったまま 2 カラムを
+   * 維持すると、タブレット幅で本文が読めない細さになるため。
+   */
+  .detail-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.25rem;
+    align-items: start;
+  }
+  @media (min-width: 1024px) {
+    .detail-grid {
+      grid-template-columns: minmax(0, 8fr) minmax(280px, 2fr);
+      gap: 1.5rem;
+    }
+  }
+
+  /*
+   * セクション内の項目グリッド。
+   * ページをまたいでラベルの位置が合うよう、全セクションを同じ列数で揃える。
+   * メモ・URL・説明のような長い値は InfoField の full で全幅にする。
+   */
+  .field-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
+  }
+  @media (min-width: 640px) {
+    .field-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  /* 3 列版。氏名やフリガナのように短い値が並ぶ行で使う */
+  .field-grid-3 {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
+  }
+  @media (min-width: 640px) {
+    .field-grid-3 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  @media (min-width: 1024px) {
+    .field-grid-3 {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  /*
+   * 幅に応じて列数が変わるグリッド。
+   * 項目数が可変で、列の意味が固定されていないもの（住所・財務情報・
+   * SNS アカウント・取込結果の集計など）に使う。
+   */
+  .auto-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+    gap: 0.75rem;
+  }
+
+  /*
+   * DetailSection を縦に積むときの間隔。
+   * DetailSection は見出しがカードの外にあるため、セクション間が狭いと
+   * 見出しが直前のカードに属して見える。見出し下の余白より広く取る。
+   */
+  .section-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    /* detail-grid の子として置かれるため、中身がはみ出しても列を押し広げない */
+    min-width: 0;
+  }
+
+  /*
+   * ページ見出しの行（コード・タイトル・編集ボタン）。
+   * 狭幅では折り返す。タイトルが長いときにボタンが画面外へ出るのを防ぐ。
+   */
+  .page-header-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  /*
+   * 一覧上部の検索・フィルタ行。
+   * 狭幅では縦積みにし、各コントロールを全幅にする。
+   * 横並びのまま縮めると select が読めない幅まで潰れるため。
+   */
+  .filter-bar {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: stretch;
+  }
+  /* 縦積みのときは各コントロールを全幅にする。中途半端な幅の select は読みにくい */
+  @media (max-width: 639px) {
+    .filter-bar > * {
+      width: 100%;
+      justify-content: center;
+      /*
+       * 縦積みでは flex-basis が高さの指定として効く。
+       * 横並び用の伸縮指定が残っていると入力欄が縦に伸びるため止める
+       */
+      flex: none;
+      align-self: stretch;
+    }
+  }
+  @media (min-width: 640px) {
+    .filter-bar {
+      flex-direction: row;
+      flex-wrap: wrap;
+      /* ラベル付きの select と、ラベルの無いボタンの下端を揃える */
+      align-items: flex-end;
+    }
+  }
+
+  /*
+   * 「主となる情報 / 補助情報 / 操作」の 3 列で並べる行。
+   * md 未満では縦積みにする。操作ボタンが潰れて押せなくなるのを防ぐ。
+   */
+  .entry-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.75rem;
+    align-items: start;
+    padding: 0.875rem 0;
+    border-bottom: 1px solid var(--color-border-default);
+  }
+  @media (min-width: 768px) {
+    .entry-row {
+      grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) auto;
+      gap: 1rem;
+      align-items: center;
+    }
+  }
+
+  /*
+   * フォームの操作ボタン行（保存・キャンセル・削除）。
+   * 狭幅では縦積みの全幅ボタンにする。指で押せる幅を確保するため。
+   */
+  .form-actions {
+    display: flex;
+    flex-direction: column-reverse;
+    gap: 0.75rem;
+  }
+  .form-actions > * {
+    width: 100%;
+    justify-content: center;
+  }
+  @media (min-width: 640px) {
+    .form-actions {
+      flex-direction: row;
+      justify-content: flex-end;
+      align-items: center;
+    }
+    .form-actions > * {
+      width: auto;
+    }
+  }
+
+  /*
+   * フォーム下部の操作行。左に削除、右に保存・キャンセルを置く。
+   * sm 未満では縦積みにする。並び順を逆にしているのは、
+   * 削除（DOM では先頭）を末尾に回して押し間違いを避けるため。
+   */
+  .form-footer {
+    display: flex;
+    flex-direction: column-reverse;
+    align-items: stretch;
+    gap: 0.75rem;
+    margin-top: 1rem;
+  }
+  /*
+   * 縦積みでは、左右のまとまり（削除／保存・キャンセル）を行として扱い、
+   * その中のボタンを均等に伸ばす。指で押せる幅を確保するため
+   */
+  .form-footer > * {
+    display: flex;
+    justify-content: center;
+    gap: 0.75rem;
+  }
+  .form-footer > * > * {
+    flex: 1;
+    justify-content: center;
+  }
+  @media (min-width: 640px) {
+    .form-footer {
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .form-footer > * {
+      justify-content: flex-start;
+    }
+    .form-footer > * > * {
+      flex: none;
+    }
+  }
+
+  /*
+   * 表の横スクロール領域。
+   * スクロールバーは全体で非表示にしているため、続きがあることを
+   * 右端のグラデーションで示す。スクロール末尾では消える。
+   */
+  .table-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    background:
+      linear-gradient(to right, var(--color-bg-surface) 30%, transparent) left / 2rem 100% no-repeat,
+      linear-gradient(to left, var(--color-bg-surface) 30%, transparent) right / 2rem 100% no-repeat,
+      linear-gradient(to right, rgba(60, 63, 88, 0.1), transparent) left / 0.75rem 100% no-repeat,
+      linear-gradient(to left, rgba(60, 63, 88, 0.1), transparent) right / 0.75rem 100% no-repeat;
+    background-attachment: local, local, scroll, scroll;
+  }
+
+  /*
+   * タップ領域。狭幅では 44px 四方を確保する（iOS ヒューマンインターフェース
+   * ガイドラインの最小値）。アイコンだけのボタンが押しにくくなるのを防ぐ。
+   */
+  @media (max-width: 767px) {
+    .tap-target {
+      min-width: 44px;
+      min-height: 44px;
+    }
+  }
+
+  /*
+   * サイドバーのドロワー（lg 未満）。
+   *
+   * 閉じている間は画面外へ寄せているだけなので、そのままだとキーボードの
+   * フォーカスが見えない項目に入ってしまう。visibility で外す。
+   * transition に含めているため、消えるのは閉じ切ってから。
+   */
+  .nav-drawer {
+    /*
+     * 幅はここで持つ。Tailwind の w-* ユーティリティに任せると、
+     * flex アイテムとしての自動最小サイズや他の width 指定と competing して
+     * 折りたたみ幅が効かないことがある
+     */
+    width: 16rem;
+    transition:
+      transform 0.2s ease,
+      visibility 0.2s,
+      width 0.2s ease;
+  }
+  @media (max-width: 1023px) {
+    .nav-drawer[data-open="false"] {
+      visibility: hidden;
+    }
+  }
+  @media (min-width: 1024px) {
+    .nav-drawer {
+      width: 14rem;
+    }
+    /* 折りたたみ時はアイコンだけの幅にする */
+    .nav-drawer[data-collapsed="true"] {
+      width: 4rem;
+    }
+  }
+}

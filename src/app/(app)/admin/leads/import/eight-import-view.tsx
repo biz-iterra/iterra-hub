@@ -14,6 +14,7 @@ import {
 import { ToneBadge } from "@/components/ui/badges";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
+import { tableScrollClass } from "@/lib/layout";
 import {
   commitEightImport,
   dryRunEightImport,
@@ -557,7 +558,7 @@ export function EightImportView({
                   <div style={{ ...styles.sub, marginBottom: "0.5rem" }}>
                     先頭 {preview.samples.length} 件の確認
                   </div>
-                  <div style={{ overflowX: "auto" }}>
+                  <div className={tableScrollClass}>
                     <table style={{ width: "100%", borderCollapse: "collapse" }}>
                       <thead>
                         <tr>
@@ -701,7 +702,7 @@ export function EightImportView({
         {batches.length === 0 ? (
           <p style={styles.sub}>まだ取込の記録はありません。</p>
         ) : (
-          <div style={{ overflowX: "auto" }}>
+          <div className={tableScrollClass}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr>

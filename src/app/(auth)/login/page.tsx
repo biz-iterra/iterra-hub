@@ -44,7 +44,7 @@ function LoginForm() {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center"
+      className="min-h-screen flex items-center justify-center px-4 py-8"
       style={{ backgroundColor: "var(--color-bg-default)" }}
     >
       <div className="w-full max-w-sm">

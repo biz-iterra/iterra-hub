@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type CSSProperties } from "react";
+import { formActionsClass } from "@/lib/layout";
 
 export type ConfirmDialogProps = {
   open: boolean;
@@ -31,6 +32,9 @@ const styles = {
     maxWidth: 440,
     width: "100%",
     padding: "1.5rem",
+    // 画面の低い端末で、長い確認文が下のボタンごと画面外へ出るのを防ぐ
+    maxHeight: "calc(100vh - 2rem)",
+    overflowY: "auto",
   } as CSSProperties,
   title: {
     color: "var(--color-text-title)",
@@ -46,11 +50,6 @@ const styles = {
     // 何が起きるかを行ごとに分けて書けるようにする。
     // 改行を含まないメッセージの見え方は変わらない
     whiteSpace: "pre-line",
-  } as CSSProperties,
-  footer: {
-    display: "flex",
-    gap: "0.75rem",
-    justifyContent: "flex-end",
   } as CSSProperties,
   btnOutline: {
     backgroundColor: "transparent",
@@ -123,7 +122,7 @@ function ConfirmDialogInner({
         <h2 style={styles.title}>{title}</h2>
         <p style={styles.message}>{message}</p>
         {error && <p style={styles.error}>{error}</p>}
-        <div style={styles.footer}>
+        <div className={formActionsClass}>
           <button type="button" style={styles.btnOutline} onClick={onClose} disabled={loading}>
             {cancelLabel}
           </button>

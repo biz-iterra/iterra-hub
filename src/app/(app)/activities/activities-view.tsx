@@ -8,6 +8,7 @@ import { EntityLink } from "@/components/ui/EntityLink";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { FilterSelect } from "@/components/ui/FilterSelect";
 import { FilterGroup, FilterClearButton } from "@/components/ui/FilterGroup";
+import { DataTable } from "@/components/ui/DataTable";
 import { Pagination } from "@/components/ui/Pagination";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants/pagination";
 import {
@@ -96,7 +97,7 @@ export function ActivitiesView({
   return (
     <div>
       <div className="flex items-center justify-between mb-2">
-        <h1 className="text-2xl font-bold" style={{ color: "var(--color-text-title)" }}>
+        <h1 className="text-xl sm:text-2xl font-bold" style={{ color: "var(--color-text-title)" }}>
           アクティビティ
         </h1>
         <span className="text-sm" style={{ color: "var(--color-sumi500)" }}>
@@ -151,102 +152,64 @@ export function ActivitiesView({
         )}
       </FilterGroup>
 
-      {rows.length === 0 ? (
-        <div
-          className="flex flex-col items-center justify-center gap-3 py-16"
-          style={{
-            backgroundColor: "#fff",
-            borderRadius: "var(--radius-card)",
-            boxShadow: "var(--elevation-low)",
-          }}
-        >
-          <Activity size={40} style={{ color: "var(--color-sumi600)" }} />
-          <p className="text-sm" style={{ color: "var(--color-sumi600)" }}>
-            アクティビティが見つかりません
-          </p>
-        </div>
-      ) : (
-        <div
-          className="overflow-x-auto no-scrollbar"
-          style={{
-            backgroundColor: "#fff",
-            borderRadius: "var(--radius-card)",
-            boxShadow: "var(--elevation-low)",
-          }}
-        >
-          <table className="w-full text-sm" style={{ tableLayout: "auto" }}>
-            <thead>
-              <tr style={{ backgroundColor: "var(--color-sumi50)" }}>
-                {["日時", "種別", "結果", "内容", "相手先", "担当者"].map((label) => (
-                  <th
-                    key={label}
-                    className="px-4 py-3 text-left font-semibold text-xs whitespace-nowrap"
-                    style={{ color: "var(--color-sumi600)" }}
-                  >
-                    {label}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr
-                  key={`${row.source_kind}:${row.id}`}
-                  style={{ borderBottom: "1px solid var(--color-border-default)" }}
-                >
-                  <td
-                    className="px-4 py-3 text-xs whitespace-nowrap"
-                    style={{ color: "var(--color-text-list)" }}
-                  >
-                    {formatOccurredAt(row.occurred_at, row.has_time)}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <ActivityTypeBadge
-                      name={row.activity_name}
-                      color={row.activity_color}
-                    />
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    {/* 社内対応の架電結果。他の記録元では空 */}
-                    <StatusBadge
-                      name={row.outcome_name}
-                      color={row.outcome_color}
-                      seed={row.outcome_name}
-                    />
-                  </td>
-                  <td
-                    className="px-4 py-3"
-                    style={{
-                      color: "var(--color-text-list)",
-                      maxWidth: "22rem",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                    title={row.detail ?? undefined}
-                  >
-                    {row.detail || "—"}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <EntityLink
-                      href={activityEntityHref(row.entity_type, row.entity_id)}
-                      compact
-                    >
-                      {row.entity_label}
-                    </EntityLink>
-                  </td>
-                  <td
-                    className="px-4 py-3 whitespace-nowrap"
-                    style={{ color: "var(--color-text-list)" }}
-                  >
-                    {row.actor_name || "—"}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      {/* 一覧（md 未満はカード） */}
+      <DataTable
+        items={rows}
+        getKey={(row) => `${row.source_kind}:${row.id}`}
+        emptyIcon={Activity}
+        emptyMessage="アクティビティが見つかりません"
+        columns={[
+          {
+            label: "日時",
+            className: "text-xs whitespace-nowrap",
+            render: (row) => formatOccurredAt(row.occurred_at, row.has_time),
+          },
+          {
+            label: "種別",
+            card: "meta",
+            className: "whitespace-nowrap",
+            render: (row) => (
+              <ActivityTypeBadge name={row.activity_name} color={row.activity_color} />
+            ),
+          },
+          {
+            label: "結果",
+            className: "whitespace-nowrap",
+            render: (row) => (
+              /* 社内対応の架電結果。他の記録元では空 */
+              <StatusBadge
+                name={row.outcome_name}
+                color={row.outcome_color}
+                seed={row.outcome_name}
+              />
+            ),
+          },
+          {
+            /* 表では 1 行に収めて省略する。カードでは折り返して全文を出す */
+            label: "内容",
+            card: "title",
+            className: "max-w-[22rem] overflow-hidden text-ellipsis whitespace-nowrap",
+            render: (row) => row.detail || "—",
+          },
+          {
+            label: "相手先",
+            className: "whitespace-nowrap",
+            render: (row) => (
+              <EntityLink
+                href={activityEntityHref(row.entity_type, row.entity_id)}
+                compact
+              >
+                {row.entity_label}
+              </EntityLink>
+            ),
+          },
+          {
+            label: "担当者",
+            className: "whitespace-nowrap",
+            render: (row) => row.actor_name || "—",
+          },
+        ]}
+      />
 
       <Pagination
         page={page}

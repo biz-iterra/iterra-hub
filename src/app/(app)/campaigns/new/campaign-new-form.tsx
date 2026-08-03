@@ -7,10 +7,10 @@ import { ArrowLeft, Save } from "lucide-react";
 import { createCampaign } from "@/actions/campaigns";
 import { useToast } from "@/components/ui/toast";
 import { isFieldValidationError } from "@/lib/errors";
-import { formContainerStyle } from "@/lib/layout";
+import { formContainerClass, fieldGridClass, formActionsClass } from "@/lib/layout";
 
 const styles = {
-  container: formContainerStyle,
+  container: formContainerClass,
   backLink: {
     display: "inline-flex",
     alignItems: "center",
@@ -39,7 +39,7 @@ const styles = {
     backgroundColor: "#fff",
     fontFamily: "inherit",
   } as CSSProperties,
-  grid2: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" } as CSSProperties,
+  grid2: fieldGridClass,
   btnPrimary: {
     display: "inline-flex",
     alignItems: "center",
@@ -63,13 +63,6 @@ const styles = {
     color: "var(--color-text-body)",
   } as CSSProperties,
   error: { color: "var(--color-error)", fontSize: "0.875rem", margin: "0.75rem 0 0 0" } as CSSProperties,
-  footer: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "flex-end",
-    gap: "0.75rem",
-    marginTop: "1rem",
-  } as CSSProperties,
 };
 
 function onFocus(e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {
@@ -136,7 +129,7 @@ export function CampaignNewForm() {
   };
 
   return (
-    <div style={styles.container}>
+    <div className={styles.container}>
       <Link
         href="/campaigns"
         className="hover:bg-[var(--color-bg-hover)]"
@@ -163,7 +156,7 @@ export function CampaignNewForm() {
               <label style={styles.label}>キャンペーン名 *</label>
               <input type="text" style={styles.input} value={values.name} onChange={(e) => set("name", e.target.value)} required onFocus={onFocus} onBlur={onBlur} />
             </div>
-            <div style={styles.grid2}>
+            <div className={styles.grid2}>
               <div>
                 <label style={styles.label}>種別 *</label>
                 <select
@@ -222,7 +215,7 @@ export function CampaignNewForm() {
 
         {error && <p style={styles.error}>{error}</p>}
 
-        <div style={styles.footer}>
+        <div className={formActionsClass}>
           <Link href="/campaigns" style={{ ...styles.btnOutline, textDecoration: "none" }}>
             キャンセル
           </Link>

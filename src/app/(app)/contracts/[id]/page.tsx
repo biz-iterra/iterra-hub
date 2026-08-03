@@ -22,7 +22,7 @@ import { DetailSection } from "@/components/ui/DetailSection";
 import { InfoField } from "@/components/ui/InfoField";
 import { ExternalLinkText } from "@/components/ui/ExternalLinkText";
 import { EntityLink } from "@/components/ui/EntityLink";
-import { detailContainerStyle, detailGridStyle, fieldGridStyle, sectionStackStyle } from "@/lib/layout";
+import { detailContainerClass, detailGridClass, fieldGridClass, sectionStackClass } from "@/lib/layout";
 
 function formatDate(value: string | null | undefined): string {
   if (!value) return "—";
@@ -138,7 +138,7 @@ export default async function ContractDetailPage({
   }
 
   return (
-    <div style={detailContainerStyle}>
+    <div className={detailContainerClass}>
       {/* ヘッダー */}
       <div style={{ marginBottom: "1.5rem" }}>
         <Link
@@ -210,14 +210,14 @@ export default async function ContractDetailPage({
 
       {/* 2カラム */}
       <div
-        style={detailGridStyle}
+        className={detailGridClass}
       >
         {/* 左カラム */}
-        <div style={sectionStackStyle}>
+        <div className={sectionStackClass}>
           {/* 基本情報カード */}
           <DetailSection title="基本情報" icon={FileText}>
             <div
-              style={fieldGridStyle}
+              className={fieldGridClass}
             >
               <InfoField label="契約書名" value={contract.contract_name} />
               <InfoField
@@ -253,7 +253,7 @@ export default async function ContractDetailPage({
           {/* 契約相手先カード */}
           <DetailSection title="契約相手先" icon={Building2}>
             <div
-              style={fieldGridStyle}
+              className={fieldGridClass}
             >
               <InfoField
                 label="契約相手先区分"
@@ -332,7 +332,7 @@ export default async function ContractDetailPage({
         </div>
 
         {/* 右カラム */}
-        <div style={sectionStackStyle}>
+        <div className={sectionStackClass}>
           {/* 日程カード */}
           <DetailSection title="日程" icon={Calendar}>
             <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>

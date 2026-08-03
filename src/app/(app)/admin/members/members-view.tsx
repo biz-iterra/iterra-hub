@@ -15,7 +15,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ToneBadge } from "@/components/ui/badges";
 import { useToast } from "@/components/ui/toast";
 import { isFieldValidationError } from "@/lib/errors";
-import { detailContainerStyle } from "@/lib/layout";
+import { detailContainerClass, fieldGridClass, tableScrollClass, formActionsClass } from "@/lib/layout";
 
 const ROLE_LABELS: Record<string, string> = {
   admin: "管理者",
@@ -135,7 +135,7 @@ export function MembersView({ members }: { members: MemberRow[] }) {
   }
 
   return (
-    <div style={detailContainerStyle}>
+    <div className={detailContainerClass}>
       <Link
         href="/admin"
         className="hover:bg-[var(--color-bg-hover)]"
@@ -172,7 +172,7 @@ export function MembersView({ members }: { members: MemberRow[] }) {
             （個別に要る場合は本人がパスワード再設定を行ってください）。
           </p>
 
-          <div style={styles.grid}>
+          <div className={styles.grid}>
             <div>
               <label style={styles.label}>メールアドレス *</label>
               <input
@@ -221,7 +221,7 @@ export function MembersView({ members }: { members: MemberRow[] }) {
 
           {error && <p style={styles.error}>{error}</p>}
 
-          <div style={styles.formActions}>
+          <div className={formActionsClass}>
             <button type="submit" style={styles.btnPrimary} disabled={saving}>
               {saving ? "追加中..." : "追加する"}
             </button>
@@ -241,8 +241,13 @@ export function MembersView({ members }: { members: MemberRow[] }) {
         </form>
       )}
 
-      <div style={styles.tableCard}>
-        <table className="w-full text-sm" style={{ tableLayout: "fixed" }}>
+      {/*
+        行内で編集するため、カード表示には切り替えず横スクロールのままにする。
+        列を畳むと入力欄が縦に散らばって、どの行を編集しているのか追えなくなる。
+        スクロールできることは table-scroll の端のグラデーションで示す
+      */}
+      <div style={styles.tableCard} className={tableScrollClass}>
+        <table className="w-full text-sm min-w-[52rem]" style={{ tableLayout: "fixed" }}>
           <colgroup>
             <col style={{ width: "20%" }} />
             <col style={{ width: "26%" }} />
@@ -462,11 +467,7 @@ const styles = {
     margin: "0 0 1rem 0",
     lineHeight: 1.6,
   } as CSSProperties,
-  grid: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: "1rem",
-  } as CSSProperties,
+  grid: fieldGridClass,
   label: {
     display: "block",
     fontSize: "0.75rem",
@@ -488,11 +489,6 @@ const styles = {
     color: "var(--color-error)",
     fontSize: "0.8125rem",
     margin: "0.75rem 0 0 0",
-  } as CSSProperties,
-  formActions: {
-    display: "flex",
-    gap: "0.5rem",
-    marginTop: "1rem",
   } as CSSProperties,
   tableCard: {
     backgroundColor: "#fff",

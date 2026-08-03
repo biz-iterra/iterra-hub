@@ -8,9 +8,10 @@ import { getChangeLogs, type ChangeLogRow } from "@/actions/change-logs";
 import { ToneBadge } from "@/components/ui/badges";
 import { FilterGroup, FilterClearButton } from "@/components/ui/FilterGroup";
 import { FilterSelect } from "@/components/ui/FilterSelect";
+import { DataTable } from "@/components/ui/DataTable";
 import { Pagination } from "@/components/ui/Pagination";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants/pagination";
-import { detailContainerStyle } from "@/lib/layout";
+import { detailContainerClass } from "@/lib/layout";
 import type { Paged } from "@/types/relations";
 
 /**
@@ -114,7 +115,7 @@ export function ChangeLogsView({
   const rows = data?.rows ?? [];
 
   return (
-    <div style={detailContainerStyle}>
+    <div className={detailContainerClass}>
       <Link href="/admin" className="hover:bg-[var(--color-bg-hover)]" style={styles.backLink}>
         <ArrowLeft size={14} />
         各種設定
@@ -155,59 +156,48 @@ export function ChangeLogsView({
         {isPending && <span style={styles.loading}>読み込み中...</span>}
       </FilterGroup>
 
-      <div style={styles.card} className="no-scrollbar">
-        <table className="w-full text-sm" style={{ tableLayout: "fixed" }}>
-          <colgroup>
-            <col style={{ width: "14%" }} />
-            <col style={{ width: "8%" }} />
-            <col style={{ width: "46%" }} />
-            <col style={{ width: "16%" }} />
-            <col style={{ width: "16%" }} />
-          </colgroup>
-          <thead>
-            <tr style={{ backgroundColor: "var(--color-sumi50)" }}>
-              {["対象", "操作", "変更内容", "変更者", "日時"].map((label) => (
-                <th key={label} style={styles.th}>
-                  {label}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.length === 0 ? (
-              <tr>
-                <td colSpan={5} style={styles.empty}>
-                  記録がありません
-                </td>
-              </tr>
-            ) : (
-              rows.map((log) => {
-                const op = OPERATION_LABELS[log.operation] ?? {
-                  label: log.operation,
-                  tone: "info" as const,
-                };
-                const detail = describeChange(log.changed_fields);
-
-                return (
-                  <tr key={log.id} style={styles.tr}>
-                    <td style={styles.td}>
-                      {TABLE_LABELS[log.table_name] ?? log.table_name}
-                    </td>
-                    <td style={styles.td}>
-                      <ToneBadge tone={op.tone}>{op.label}</ToneBadge>
-                    </td>
-                    <td style={styles.td} title={detail}>
-                      {detail}
-                    </td>
-                    <td style={styles.td}>{log.changed_by?.full_name ?? "—"}</td>
-                    <td style={styles.td}>{formatDateTime(log.changed_at)}</td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
+      {/* 一覧（md 未満はカード） */}
+      <DataTable
+        items={rows}
+        getKey={(log) => log.id}
+        emptyMessage="記録がありません"
+        fixedLayout
+        columns={[
+          {
+            label: "対象",
+            card: "title",
+            className: "w-[14%]",
+            render: (log) => TABLE_LABELS[log.table_name] ?? log.table_name,
+          },
+          {
+            label: "操作",
+            card: "meta",
+            className: "w-[8%]",
+            render: (log) => {
+              const op = OPERATION_LABELS[log.operation] ?? {
+                label: log.operation,
+                tone: "info" as const,
+              };
+              return <ToneBadge tone={op.tone}>{op.label}</ToneBadge>;
+            },
+          },
+          {
+            label: "変更内容",
+            className: "w-[46%]",
+            render: (log) => describeChange(log.changed_fields),
+          },
+          {
+            label: "変更者",
+            className: "w-[16%]",
+            render: (log) => log.changed_by?.full_name ?? "—",
+          },
+          {
+            label: "日時",
+            className: "w-[16%]",
+            render: (log) => formatDateTime(log.changed_at),
+          },
+        ]}
+      />
 
       <Pagination
         page={page}

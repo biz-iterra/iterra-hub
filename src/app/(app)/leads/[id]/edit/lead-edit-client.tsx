@@ -14,7 +14,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import { isFieldValidationError } from "@/lib/errors";
 import type { LeadDetail } from "@/types/relations";
-import { formContainerStyle } from "@/lib/layout";
+import { formActionsClass, formContainerClass, fieldGridClass, fieldGrid3Class } from "@/lib/layout";
 
 type SelectOption = { value: string; label: string };
 type StatusOption = SelectOption & { stage_id: string };
@@ -66,8 +66,8 @@ const styles = {
     color: "var(--color-sumi500)",
     marginTop: "0.25rem",
   } as CSSProperties,
-  grid2: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" } as CSSProperties,
-  grid3: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "1rem" } as CSSProperties,
+  grid2: fieldGridClass,
+  grid3: fieldGrid3Class,
   btnPrimary: {
     display: "inline-flex",
     alignItems: "center",
@@ -360,7 +360,7 @@ export function LeadEditClient({
   };
 
   return (
-    <div style={formContainerStyle}>
+    <div className={formContainerClass}>
       {/* 削除確認ダイアログ */}
       <ConfirmDialog
         open={deleteOpen}
@@ -539,7 +539,7 @@ export function LeadEditClient({
         >
           進捗
         </h2>
-        <div style={{ ...styles.grid2, marginBottom: "1rem" }}>
+        <div className={styles.grid2} style={{ marginBottom: "1rem" }}>
           <div>
             <label style={styles.label}>ステージ</label>
             <select
@@ -642,7 +642,7 @@ export function LeadEditClient({
         >
           リード属性
         </h2>
-        <div style={{ ...styles.grid3, marginBottom: "1rem" }}>
+        <div className={styles.grid3} style={{ marginBottom: "1rem" }}>
           <div>
             <label style={styles.label}>大分類セグメント</label>
             <select
@@ -699,7 +699,7 @@ export function LeadEditClient({
             </select>
           </div>
         </div>
-        <div style={{ ...styles.grid3, marginBottom: "1rem" }}>
+        <div className={styles.grid3} style={{ marginBottom: "1rem" }}>
           <div>
             <label style={styles.label}>事業者種別</label>
             <select
@@ -731,14 +731,7 @@ export function LeadEditClient({
       </div>
 
       {/* ページ下部にも保存・キャンセルボタン */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "flex-end",
-          gap: "0.75rem",
-          marginTop: "0.5rem",
-        }}
-      >
+      <div className={formActionsClass} style={{ marginTop: "0.5rem" }}>
         <Link href={`/leads/${lead.id}`} style={styles.btnOutline}>
           キャンセル
         </Link>
@@ -820,11 +813,6 @@ function PromoteConfirmDialog({
     fontSize: "0.875rem",
     color: "var(--color-text-body)",
   };
-  const footerStyle: CSSProperties = {
-    display: "flex",
-    gap: "0.75rem",
-    justifyContent: "flex-end",
-  };
   const btnOutlineStyle: CSSProperties = {
     backgroundColor: "transparent",
     border: "1px solid var(--color-border-default)",
@@ -876,7 +864,7 @@ function PromoteConfirmDialog({
             {error}
           </p>
         )}
-        <div style={footerStyle}>
+        <div className={formActionsClass}>
           <button type="button" style={btnOutlineStyle} onClick={onClose} disabled={loading}>
             キャンセル
           </button>

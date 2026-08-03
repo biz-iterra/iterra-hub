@@ -7,7 +7,7 @@ import { ArrowLeft, Save } from "lucide-react";
 import { createLead } from "@/actions/leads";
 import { useToast } from "@/components/ui/toast";
 import { isFieldValidationError } from "@/lib/errors";
-import { formContainerStyle } from "@/lib/layout";
+import { formContainerClass, fieldGridClass, fieldGrid3Class, formActionsClass } from "@/lib/layout";
 
 type SelectOption = { value: string; label: string };
 type StatusOption = SelectOption & { stage_id: string };
@@ -30,7 +30,7 @@ type Masters = {
 type CurrentUser = { id: string; full_name: string; role: string };
 
 const styles = {
-  container: formContainerStyle,
+  container: formContainerClass,
   backLink: {
     display: "inline-flex",
     alignItems: "center",
@@ -49,8 +49,8 @@ const styles = {
     marginBottom: "1.5rem",
   } as CSSProperties,
   sectionTitle: { color: "var(--color-text-title)", fontSize: "1rem", fontWeight: 600, margin: "0 0 1rem 0" } as CSSProperties,
-  grid2: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" } as CSSProperties,
-  grid3: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "1rem" } as CSSProperties,
+  grid2: fieldGridClass,
+  grid3: fieldGrid3Class,
   label: { display: "block", fontSize: "0.75rem", fontWeight: 600, color: "var(--color-sumi700)", marginBottom: "0.25rem" } as CSSProperties,
   input: {
     border: "1px solid var(--color-border-default)",
@@ -86,13 +86,6 @@ const styles = {
     color: "var(--color-text-body)",
   } as CSSProperties,
   error: { color: "var(--color-error)", fontSize: "0.875rem", margin: "0.75rem 0 0 0" } as CSSProperties,
-  footer: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "flex-end",
-    gap: "0.75rem",
-    marginTop: "1rem",
-  } as CSSProperties,
 };
 
 function onFocus(e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {
@@ -302,7 +295,7 @@ export function LeadNewForm({
   };
 
   return (
-    <div style={styles.container}>
+    <div className={styles.container}>
       <Link
         href="/leads"
         className="hover:bg-[var(--color-bg-hover)]"
@@ -358,7 +351,7 @@ export function LeadNewForm({
         {/* ① 進捗セクション */}
         <div style={styles.card}>
           <h2 style={styles.sectionTitle}>進捗</h2>
-          <div style={{ ...styles.grid2, marginBottom: "1rem" }}>
+          <div className={styles.grid2} style={{ marginBottom: "1rem" }}>
             <div>
               <label style={styles.label}>ステージ *</label>
               <select
@@ -442,7 +435,7 @@ export function LeadNewForm({
         {/* ② 企業情報セクション */}
         <div style={styles.card}>
           <h2 style={styles.sectionTitle}>企業情報</h2>
-          <div style={{ ...styles.grid2, marginBottom: "1rem" }}>
+          <div className={styles.grid2} style={{ marginBottom: "1rem" }}>
             <div>
               <label style={styles.label}>会社名</label>
               <input
@@ -522,7 +515,7 @@ export function LeadNewForm({
           <p style={{ ...styles.helpText, marginBottom: "1rem" }}>
             企業規模は資本金と従業員数から自動判定されます。スコアは保存後に自動計算されます。
           </p>
-          <div style={styles.grid3}>
+          <div className={styles.grid3}>
             <div>
               <label style={styles.label}>従業員数</label>
               <input
@@ -574,7 +567,7 @@ export function LeadNewForm({
         {/* ③ 担当者情報セクション */}
         <div style={styles.card}>
           <h2 style={styles.sectionTitle}>担当者情報</h2>
-          <div style={{ ...styles.grid3, marginBottom: "1rem" }}>
+          <div className={styles.grid3} style={{ marginBottom: "1rem" }}>
             <div>
               <label style={styles.label}>姓</label>
               <input
@@ -612,7 +605,7 @@ export function LeadNewForm({
               />
             </div>
           </div>
-          <div style={{ ...styles.grid3, marginBottom: "1rem" }}>
+          <div className={styles.grid3} style={{ marginBottom: "1rem" }}>
             <div>
               <label style={styles.label}>姓（カナ）</label>
               <input
@@ -650,7 +643,7 @@ export function LeadNewForm({
               />
             </div>
           </div>
-          <div style={{ ...styles.grid2, marginBottom: "1rem" }}>
+          <div className={styles.grid2} style={{ marginBottom: "1rem" }}>
             <div>
               <label style={styles.label}>部署</label>
               <input
@@ -676,7 +669,7 @@ export function LeadNewForm({
               />
             </div>
           </div>
-          <div style={styles.grid2}>
+          <div className={styles.grid2}>
             <div>
               <label style={styles.label}>メール</label>
               <input
@@ -707,7 +700,7 @@ export function LeadNewForm({
         {/* ④ リード属性セクション */}
         <div style={styles.card}>
           <h2 style={styles.sectionTitle}>リード属性</h2>
-          <div style={{ ...styles.grid3, marginBottom: "1rem" }}>
+          <div className={styles.grid3} style={{ marginBottom: "1rem" }}>
             <div>
               <label style={styles.label}>大分類セグメント</label>
               <select
@@ -764,7 +757,7 @@ export function LeadNewForm({
               </select>
             </div>
           </div>
-          <div style={styles.grid3}>
+          <div className={styles.grid3}>
             <div>
               <label style={styles.label}>事業者種別 *</label>
               <select
@@ -866,7 +859,7 @@ export function LeadNewForm({
 
         {error && <p style={styles.error}>{error}</p>}
 
-        <div style={styles.footer}>
+        <div className={formActionsClass}>
           <Link
             href="/leads"
             style={{ ...styles.btnOutline, textDecoration: "none" }}

@@ -2,13 +2,13 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { Plus } from "lucide-react";
+import { Plus, Megaphone } from "lucide-react";
 import { getCampaigns } from "@/actions/campaigns";
 import { CampaignTypeBadge, CampaignStatusBadge } from "@/components/ui/badges";
 import { FilterGroup, FilterClearButton } from "@/components/ui/FilterGroup";
 import { FilterSelect } from "@/components/ui/FilterSelect";
 import { SearchInput } from "@/components/ui/SearchInput";
+import { DataTable } from "@/components/ui/DataTable";
 import { Pagination } from "@/components/ui/Pagination";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants/pagination";
 import type { Paged, Row } from "@/types/relations";
@@ -31,7 +31,6 @@ export function CampaignsView({
   initialData: Paged<Row<"campaigns">> | null;
   currentUserRole: string;
 }) {
-  const router = useRouter();
   const [data, setData] = useState(initialData);
   const [typeFilter, setTypeFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -91,14 +90,14 @@ export function CampaignsView({
   return (
     <div>
       {/* ヘッダー */}
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold" style={{ color: "var(--color-text-title)" }}>
+      <div className="flex items-center justify-between flex-wrap gap-3 mb-4 sm:mb-6">
+        <h1 className="text-xl sm:text-2xl font-bold" style={{ color: "var(--color-text-title)" }}>
           キャンペーン
         </h1>
         {isManagerOrAbove && (
           <Link
             href="/campaigns/new"
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white transition-colors"
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white transition-colors whitespace-nowrap"
             style={{
               backgroundColor: "var(--color-terra)",
               borderRadius: "var(--radius-button)",
@@ -166,94 +165,60 @@ export function CampaignsView({
         )}
       </FilterGroup>
 
-      {/* テーブル */}
-      {items.length === 0 ? (
-        <div
-          className="p-10 text-center text-sm"
-          style={{
-            backgroundColor: "#fff",
-            borderRadius: "var(--radius-card)",
-            boxShadow: "var(--elevation-low)",
-            color: "var(--color-sumi500)",
-          }}
-        >
-          キャンペーンが見つかりません
-        </div>
-      ) : (
-        <div
-          className="overflow-x-auto no-scrollbar"
-          style={{
-            backgroundColor: "#fff",
-            borderRadius: "var(--radius-card)",
-            boxShadow: "var(--elevation-low)",
-          }}
-        >
-          <table className="w-full text-sm" style={{ tableLayout: "auto" }}>
-            <thead>
-              <tr style={{ backgroundColor: "var(--color-sumi50)" }}>
-                {["キャンペーン名", "ステータス", "種別", "期間", "最終更新日"].map((label) => (
-                  <th
-                    key={label}
-                    className="px-4 py-3 text-left font-semibold text-xs whitespace-nowrap"
-                    style={{ color: "var(--color-sumi600)" }}
-                  >
-                    {label}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((campaign) => (
-                <tr
-                  key={campaign.id}
-                  className="transition-colors cursor-pointer"
-                  style={{ borderBottom: "1px solid var(--color-border-default)" }}
-                  onMouseEnter={(e) =>
-                    (e.currentTarget.style.backgroundColor = "var(--color-bg-hover)")
-                  }
-                  onMouseLeave={(e) =>
-                    (e.currentTarget.style.backgroundColor = "transparent")
-                  }
-                  onClick={() => router.push(`/campaigns/${campaign.id}`)}
-                >
-                  {/* キャンペーン名 */}
-                  <td className="px-4 py-3">
-                    <Link
-                      href={`/campaigns/${campaign.id}`}
-                      style={{ color: "var(--color-text-list)", fontWeight: 500, textDecoration: "none" }}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {campaign.name}
-                    </Link>
-                  </td>
-                  {/* ステータス */}
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <CampaignStatusBadge status={campaign.status} />
-                  </td>
-                  {/* 種別 */}
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <CampaignTypeBadge type={campaign.type} />
-                  </td>
-                  {/* 期間 */}
-                  <td className="px-4 py-3 text-xs whitespace-nowrap" style={{ color: "var(--color-text-list)" }}>
-                    {campaign.start_date
-                      ? new Date(campaign.start_date).toLocaleDateString("ja-JP")
-                      : "—"}
-                    {" 〜 "}
-                    {campaign.end_date
-                      ? new Date(campaign.end_date).toLocaleDateString("ja-JP")
-                      : "—"}
-                  </td>
-                  {/* 最終更新日 */}
-                  <td className="px-4 py-3 text-xs whitespace-nowrap" style={{ color: "var(--color-text-list)" }}>
-                    {formatDateTime(campaign.updated_at)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      {/* 一覧（md 未満はカード） */}
+      <DataTable
+        items={items}
+        getKey={(campaign) => campaign.id}
+        getHref={(campaign) => `/campaigns/${campaign.id}`}
+        emptyIcon={Megaphone}
+        emptyMessage="キャンペーンが見つかりません"
+        columns={[
+          {
+            label: "キャンペーン名",
+            card: "title",
+            render: (campaign) => (
+              <Link
+                href={`/campaigns/${campaign.id}`}
+                style={{ color: "var(--color-text-list)", fontWeight: 500, textDecoration: "none" }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {campaign.name}
+              </Link>
+            ),
+          },
+          {
+            label: "ステータス",
+            card: "meta",
+            className: "whitespace-nowrap",
+            render: (campaign) => <CampaignStatusBadge status={campaign.status} />,
+          },
+          {
+            label: "種別",
+            className: "whitespace-nowrap",
+            render: (campaign) => <CampaignTypeBadge type={campaign.type} />,
+          },
+          {
+            label: "期間",
+            className: "text-xs whitespace-nowrap",
+            render: (campaign) => (
+              <>
+                {campaign.start_date
+                  ? new Date(campaign.start_date).toLocaleDateString("ja-JP")
+                  : "—"}
+                {" 〜 "}
+                {campaign.end_date
+                  ? new Date(campaign.end_date).toLocaleDateString("ja-JP")
+                  : "—"}
+              </>
+            ),
+          },
+          {
+            label: "最終更新日",
+            className: "text-xs whitespace-nowrap",
+            render: (campaign) => formatDateTime(campaign.updated_at),
+          },
+        ]}
+      />
       {/* ページネーション */}
       <Pagination
         page={page}

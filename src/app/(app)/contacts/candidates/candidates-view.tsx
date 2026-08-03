@@ -9,7 +9,7 @@ import {
 } from "@/actions/email-sync";
 import { DetailSection } from "@/components/ui/DetailSection";
 import { useToast } from "@/components/ui/toast";
-import { detailContainerStyle } from "@/lib/layout";
+import { detailContainerClass, entryRowClass } from "@/lib/layout";
 import type { EmailCandidateWithCompany } from "@/types/relations";
 
 type CandidateRow = EmailCandidateWithCompany;
@@ -35,14 +35,6 @@ const styles = {
     color: "var(--color-sumi600)",
     lineHeight: 1.7,
     margin: "0.5rem 0 1.5rem 0",
-  } as CSSProperties,
-  row: {
-    display: "grid",
-    gridTemplateColumns: "minmax(0, 2fr) minmax(0, 1fr) auto",
-    gap: "1rem",
-    alignItems: "center",
-    padding: "0.875rem 0",
-    borderBottom: "1px solid var(--color-border-default)",
   } as CSSProperties,
   email: {
     fontFamily: "monospace",
@@ -140,7 +132,7 @@ export function CandidatesView({
   }
 
   return (
-    <div style={detailContainerStyle}>
+    <div className={detailContainerClass}>
       <Link href="/contacts" style={styles.backLink}>
         <ArrowLeft size={16} />
         連絡先一覧
@@ -178,7 +170,7 @@ export function CandidatesView({
             {rows.map((row) => {
               const name = names[row.id] ?? { last: "", first: "" };
               return (
-                <div key={row.id} style={styles.row}>
+                <div key={row.id} className={entryRowClass}>
                   <div>
                     <div style={styles.email}>{row.email_address}</div>
                     <div style={styles.sub}>

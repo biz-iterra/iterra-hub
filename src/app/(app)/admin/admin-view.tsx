@@ -35,6 +35,7 @@ import {
   getLeadScoreThresholds,
 } from "@/actions/masters";
 import type { LeadScoreRuleWithRefCheck, Row } from "@/types/relations";
+import { tableScrollClass } from "@/lib/layout";
 
 /** スコアリング管理タブで扱うマスタ行 */
 type LeadScoreRule = LeadScoreRuleWithRefCheck;
@@ -484,7 +485,7 @@ function SimpleMasterTab({
       </div>
 
       {/* Table */}
-      <div style={{ overflowX: "auto" }}>
+      <div className={tableScrollClass}>
         <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
           <colgroup>
             {fields.map((f) => (
@@ -1221,7 +1222,7 @@ function LeadScoreRulesTab({ scoreMasters }: { scoreMasters?: ScoreRuleMasters }
         </button>
       </div>
 
-      <div style={{ overflowX: "auto" }}>
+      <div className={tableScrollClass}>
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
             <tr>
@@ -1424,7 +1425,7 @@ function LeadScoreThresholdsTab({ leadTemperatures }: { leadTemperatures: Master
         スコア帯と温度感マスタを紐付けるルールです。変更はDBマイグレーションで管理してください。
       </p>
 
-      <div style={{ overflowX: "auto" }}>
+      <div className={tableScrollClass}>
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
             <tr>
@@ -1551,6 +1552,8 @@ function GroupTabButton({
         borderBottomColor: isActive ? "var(--color-terra)" : "transparent",
         cursor: "pointer",
         whiteSpace: "nowrap",
+        // 横スクロールさせる前提。縮ませると余白が潰れて押しにくくなる
+        flexShrink: 0,
         transition: "color 0.15s, border-color 0.15s",
       }}
     >
@@ -1589,6 +1592,8 @@ function MasterTabButton({
         borderBottomColor: isActive ? "var(--color-terra)" : "transparent",
         cursor: "pointer",
         whiteSpace: "nowrap",
+        // 横スクロールさせる前提。縮ませると余白が潰れて押しにくくなる
+        flexShrink: 0,
         transition: "color 0.15s, border-color 0.15s",
       }}
     >

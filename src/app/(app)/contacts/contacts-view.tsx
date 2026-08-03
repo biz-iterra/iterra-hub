@@ -2,7 +2,6 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
   Plus,
   Mail,
@@ -11,11 +10,13 @@ import {
   Briefcase,
   Merge,
   CreditCard,
+  Users,
 } from "lucide-react";
 import { getContacts } from "@/actions/contacts";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { FilterSelect } from "@/components/ui/FilterSelect";
 import { FilterGroup, FilterClearButton } from "@/components/ui/FilterGroup";
+import { DataTable } from "@/components/ui/DataTable";
 import { Pagination } from "@/components/ui/Pagination";
 import { EntityLink } from "@/components/ui/EntityLink";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants/pagination";
@@ -169,7 +170,6 @@ export function ContactsView({
   pendingCandidateCount,
   mergeCandidateCount,
 }: Props) {
-  const router = useRouter();
   const [data, setData] = useState(initialData);
   const [statusFilter, setStatusFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
@@ -233,7 +233,7 @@ export function ContactsView({
       {/* ヘッダー */}
       <div className="flex items-center justify-between mb-6">
         <h1
-          className="text-2xl font-bold"
+          className="text-xl sm:text-2xl font-bold"
           style={{ color: "var(--color-text-title)" }}
         >
           連絡先
@@ -364,142 +364,100 @@ export function ContactsView({
         )}
       </FilterGroup>
 
-      {/* テーブル */}
-      {items.length === 0 ? (
-        <div
-          className="p-10 text-center text-sm"
-          style={{
-            backgroundColor: "#fff",
-            borderRadius: "var(--radius-card)",
-            boxShadow: "var(--elevation-low)",
-            color: "var(--color-sumi500)",
-          }}
-        >
-          連絡先が見つかりません
-        </div>
-      ) : (
-        <div
-          className="overflow-x-auto no-scrollbar"
-          style={{
-            backgroundColor: "#fff",
-            borderRadius: "var(--radius-card)",
-            boxShadow: "var(--elevation-low)",
-          }}
-        >
-          <table className="w-full text-sm" style={{ tableLayout: "auto" }}>
-            <thead>
-              <tr style={{ backgroundColor: "var(--color-sumi50)" }}>
-                {[
-                  "氏名",
-                  "ステータス",
-                  "種別",
-                  "所属",
-                  "メール",
-                  "電話",
-                  "担当者",
-                  "最終更新日",
-                ].map((label) => (
-                  <th
-                    key={label}
-                    className="px-4 py-3 text-left font-semibold text-xs whitespace-nowrap"
-                    style={{ color: "var(--color-sumi600)" }}
-                  >
-                    {label}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((row) => (
-                <tr
-                  key={row.id}
-                  className="transition-colors cursor-pointer"
-                  style={{ borderBottom: "1px solid var(--color-border-default)" }}
-                  onMouseEnter={(e) =>
-                    (e.currentTarget.style.backgroundColor = "var(--color-bg-hover)")
-                  }
-                  onMouseLeave={(e) =>
-                    (e.currentTarget.style.backgroundColor = "transparent")
-                  }
-                  onClick={() => router.push(`/contacts/${row.id}`)}
-                >
-                  {/* 氏名 */}
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <Link
-                      href={`/contacts/${row.id}`}
-                      className="font-medium"
-                      style={{ color: "var(--color-text-list)" }}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {row.last_name} {row.first_name}
-                    </Link>
-                  </td>
-                  {/* ステータス */}
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <StatusBadge
-                      name={row.contact_status?.name}
-                      color={row.contact_status?.color}
-                      seed={row.contact_status?.id}
-                    />
-                  </td>
-                  {/* 種別 */}
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <ContactTypeBadge type={row.contact_type} />
-                  </td>
-                  {/* 所属（事業者情報 / 取引先を 1 列に統合） */}
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <AffiliationCell row={row} />
-                  </td>
-                  {/* メール */}
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <span
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: "0.25rem",
-                        color: "var(--color-text-list)",
-                        fontSize: "0.8125rem",
-                      }}
-                    >
-                      <Mail size={14} style={{ flexShrink: 0 }} />
-                      {getPrimaryEmail(row.contact_emails)}
-                    </span>
-                  </td>
-                  {/* 電話 */}
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <span
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: "0.25rem",
-                        color: "var(--color-text-list)",
-                        fontSize: "0.8125rem",
-                      }}
-                    >
-                      <Phone size={14} style={{ flexShrink: 0 }} />
-                      {getPrimaryPhone(row.contact_phones)}
-                    </span>
-                  </td>
-                  {/* 担当者 */}
-                  <td
-                    className="px-4 py-3 whitespace-nowrap"
-                    style={{ color: "var(--color-text-list)", fontSize: "0.8125rem" }}
-                  >
-                    {row.owner?.full_name ?? "—"}
-                  </td>
-                  {/* 最終更新日 */}
-                  <td
-                    className="px-4 py-3 text-xs whitespace-nowrap"
-                    style={{ color: "var(--color-text-list)" }}
-                  >
-                    {formatDateTime(row.updated_at)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      {/* 一覧（md 未満はカード） */}
+      <DataTable
+        items={items}
+        getKey={(row) => row.id}
+        getHref={(row) => `/contacts/${row.id}`}
+        emptyIcon={Users}
+        emptyMessage="連絡先が見つかりません"
+        columns={[
+          {
+            label: "氏名",
+            card: "title",
+            className: "whitespace-nowrap",
+            render: (row) => (
+              <Link
+                href={`/contacts/${row.id}`}
+                className="font-medium"
+                style={{ color: "var(--color-text-list)" }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {row.last_name} {row.first_name}
+              </Link>
+            ),
+          },
+          {
+            label: "ステータス",
+            card: "meta",
+            className: "whitespace-nowrap",
+            render: (row) => (
+              <StatusBadge
+                name={row.contact_status?.name}
+                color={row.contact_status?.color}
+                seed={row.contact_status?.id}
+              />
+            ),
+          },
+          {
+            label: "種別",
+            className: "whitespace-nowrap",
+            render: (row) => <ContactTypeBadge type={row.contact_type} />,
+          },
+          {
+            /* 所属（事業者情報 / 取引先を 1 列に統合） */
+            label: "所属",
+            className: "whitespace-nowrap",
+            render: (row) => <AffiliationCell row={row} />,
+          },
+          {
+            label: "メール",
+            className: "whitespace-nowrap",
+            render: (row) => (
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "0.25rem",
+                  color: "var(--color-text-list)",
+                  fontSize: "0.8125rem",
+                }}
+              >
+                <Mail size={14} style={{ flexShrink: 0 }} />
+                {getPrimaryEmail(row.contact_emails)}
+              </span>
+            ),
+          },
+          {
+            label: "電話",
+            className: "whitespace-nowrap",
+            render: (row) => (
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "0.25rem",
+                  color: "var(--color-text-list)",
+                  fontSize: "0.8125rem",
+                }}
+              >
+                <Phone size={14} style={{ flexShrink: 0 }} />
+                {getPrimaryPhone(row.contact_phones)}
+              </span>
+            ),
+          },
+          {
+            label: "担当者",
+            className: "whitespace-nowrap",
+            render: (row) => row.owner?.full_name ?? "—",
+          },
+          {
+            label: "最終更新日",
+            className: "text-xs whitespace-nowrap",
+            render: (row) => formatDateTime(row.updated_at),
+          },
+        ]}
+      />
 
       {/* ページネーション */}
       <Pagination

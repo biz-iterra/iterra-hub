@@ -2,13 +2,13 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Plus, Briefcase } from "lucide-react";
 import { getAccounts } from "@/actions/accounts";
 import { AccountTypeBadge, LabelBadge, StatusBadge } from "@/components/ui/badges";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { FilterSelect } from "@/components/ui/FilterSelect";
 import { FilterGroup, FilterClearButton } from "@/components/ui/FilterGroup";
+import { DataTable } from "@/components/ui/DataTable";
 import { Pagination } from "@/components/ui/Pagination";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants/pagination";
 import type { AccountWithRelations, Paged } from "@/types/relations";
@@ -43,7 +43,6 @@ export function AccountsView({
   accountTypes,
   users,
 }: AccountsViewProps) {
-  const router = useRouter();
   const [data, setData] = useState<AccountsData>(initialData);
   const [statusFilter, setStatusFilter] = useState("");
   const [accountTypeFilter, setAccountTypeFilter] = useState("");
@@ -105,16 +104,16 @@ export function AccountsView({
   return (
     <div>
       {/* ヘッダー */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between flex-wrap gap-3 mb-4 sm:mb-6">
         <h1
-          className="text-2xl font-bold"
+          className="text-xl sm:text-2xl font-bold"
           style={{ color: "var(--color-text-title)" }}
         >
           取引先
         </h1>
         <Link
           href="/accounts/new"
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white transition-colors"
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white transition-colors whitespace-nowrap"
           style={{
             backgroundColor: "var(--color-terra)",
             borderRadius: "var(--radius-button)",
@@ -168,142 +167,93 @@ export function AccountsView({
         )}
       </FilterGroup>
 
-      {/* テーブル */}
-      {rows.length === 0 ? (
-        <div
-          className="flex flex-col items-center justify-center gap-3 py-16"
-          style={{
-            backgroundColor: "#fff",
-            borderRadius: "var(--radius-card)",
-            boxShadow: "var(--elevation-low)",
-          }}
-        >
-          <Briefcase size={40} style={{ color: "var(--color-sumi600)" }} />
-          <p className="text-sm" style={{ color: "var(--color-sumi600)" }}>
-            取引先が見つかりません
-          </p>
-        </div>
-      ) : (
-        <div
-          className="overflow-x-auto no-scrollbar"
-          style={{
-            backgroundColor: "#fff",
-            borderRadius: "var(--radius-card)",
-            boxShadow: "var(--elevation-low)",
-          }}
-        >
-          <table className="w-full text-sm" style={{ tableLayout: "auto" }}>
-            <thead>
-              <tr style={{ backgroundColor: "var(--color-sumi50)" }}>
-                {/*
-                  種別（法人／個人事業主）は取引先名セル内のバッジで示す。
-                  区分（顧客／仕入れ先など）は複数付くため独立した列にする。
-                */}
-                {["取引先名", "ステータス", "区分", "会社名", "担当者", "最終更新日"].map(
-                  (label) => (
-                    <th
-                      key={label}
-                      className="px-4 py-3 text-left font-semibold text-xs whitespace-nowrap"
-                      style={{ color: "var(--color-sumi600)" }}
-                    >
-                      {label}
-                    </th>
-                  )
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((account) => (
-                <tr
-                  key={account.id}
-                  className="transition-colors cursor-pointer"
-                  style={{ borderBottom: "1px solid var(--color-border-default)" }}
-                  onMouseEnter={(e) =>
-                    (e.currentTarget.style.backgroundColor = "var(--color-bg-hover)")
-                  }
-                  onMouseLeave={(e) =>
-                    (e.currentTarget.style.backgroundColor = "transparent")
-                  }
-                  onClick={() => router.push(`/accounts/${account.id}`)}
+      {/* 一覧（md 未満はカード） */}
+      <DataTable
+        items={rows}
+        getKey={(account) => account.id}
+        getHref={(account) => `/accounts/${account.id}`}
+        emptyIcon={Briefcase}
+        emptyMessage="取引先が見つかりません"
+        columns={[
+          {
+            /*
+              種別（法人／個人事業主）は取引先名セル内のバッジで示す。
+              区分（顧客／仕入れ先など）は複数付くため独立した列にする。
+            */
+            label: "取引先名",
+            card: "title",
+            render: (account) => (
+              <span className="inline-flex items-center gap-2 flex-wrap">
+                <Link
+                  href={`/accounts/${account.id}`}
+                  className="font-medium"
+                  style={{ color: "var(--color-text-list)" }}
+                  onClick={(e) => e.stopPropagation()}
                 >
-                  {/* 取引先名（+ 種別バッジ） */}
-                  <td className="px-4 py-3">
-                    <span className="inline-flex items-center gap-2">
-                      <Link
-                        href={`/accounts/${account.id}`}
-                        className="font-medium"
-                        style={{ color: "var(--color-text-list)" }}
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {account.name}
-                      </Link>
-                      {/* 種別未設定の行にダッシュを出さないよう、値がある時だけ描画する */}
-                      {account.account_type && (
-                        <AccountTypeBadge
-                          name={account.account_type.name}
-                          slug={account.account_type.slug}
+                  {account.name}
+                </Link>
+                {/* 種別未設定の行にダッシュを出さないよう、値がある時だけ描画する */}
+                {account.account_type && (
+                  <AccountTypeBadge
+                    name={account.account_type.name}
+                    slug={account.account_type.slug}
+                  />
+                )}
+              </span>
+            ),
+          },
+          {
+            label: "ステータス",
+            card: "meta",
+            className: "whitespace-nowrap",
+            render: (account) => (
+              <StatusBadge
+                name={account.account_status?.name}
+                color={account.account_status?.color}
+                seed={account.account_status?.id}
+              />
+            ),
+          },
+          {
+            label: "区分",
+            render: (account) =>
+              account.account_roles && account.account_roles.length > 0 ? (
+                <span className="inline-flex flex-wrap items-center gap-1">
+                  {[...account.account_roles]
+                    .sort(
+                      (a, b) =>
+                        (a.role_type?.sort_order ?? 0) - (b.role_type?.sort_order ?? 0)
+                    )
+                    .map((r) =>
+                      r.role_type ? (
+                        <LabelBadge
+                          key={r.id}
+                          name={r.role_type.name}
+                          color={r.role_type.color}
                         />
-                      )}
-                    </span>
-                  </td>
-                  {/* ステータス */}
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <StatusBadge
-                      name={account.account_status?.name}
-                      color={account.account_status?.color}
-                      seed={account.account_status?.id}
-                    />
-                  </td>
-                  {/* 区分（複数） */}
-                  <td className="px-4 py-3">
-                    {account.account_roles && account.account_roles.length > 0 ? (
-                      <span className="inline-flex flex-wrap items-center gap-1">
-                        {[...account.account_roles]
-                          .sort(
-                            (a, b) =>
-                              (a.role_type?.sort_order ?? 0) - (b.role_type?.sort_order ?? 0)
-                          )
-                          .map((r) =>
-                            r.role_type ? (
-                              <LabelBadge
-                                key={r.id}
-                                name={r.role_type.name}
-                                color={r.role_type.color}
-                              />
-                            ) : null
-                          )}
-                      </span>
-                    ) : (
-                      <span style={{ color: "var(--color-sumi400)" }}>—</span>
+                      ) : null
                     )}
-                  </td>
-                  {/* 会社名 */}
-                  <td
-                    className="px-4 py-3"
-                    style={{ color: "var(--color-text-list)" }}
-                  >
-                    {account.company?.name ?? "—"}
-                  </td>
-                  {/* 担当者 */}
-                  <td
-                    className="px-4 py-3 whitespace-nowrap"
-                    style={{ color: "var(--color-text-list)" }}
-                  >
-                    {account.owner?.full_name ?? "—"}
-                  </td>
-                  {/* 最終更新日 */}
-                  <td
-                    className="px-4 py-3 text-xs whitespace-nowrap"
-                    style={{ color: "var(--color-text-list)" }}
-                  >
-                    {formatDateTime(account.updated_at)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+                </span>
+              ) : (
+                <span style={{ color: "var(--color-sumi400)" }}>—</span>
+              ),
+          },
+          {
+            label: "会社名",
+            render: (account) => account.company?.name ?? "—",
+          },
+          {
+            label: "担当者",
+            className: "whitespace-nowrap",
+            render: (account) => account.owner?.full_name ?? "—",
+          },
+          {
+            label: "最終更新日",
+            className: "text-xs whitespace-nowrap",
+            render: (account) => formatDateTime(account.updated_at),
+          },
+        ]}
+      />
 
       {/* ページネーション */}
       <Pagination

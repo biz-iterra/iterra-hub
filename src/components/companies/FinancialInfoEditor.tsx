@@ -13,6 +13,7 @@ import {
   type FinancialInfoRow,
 } from "@/actions/financial-info";
 import { ACCOUNT_TYPES, accountTypeLabel } from "@/lib/validators/financial-info";
+import { autoGridClass } from "@/lib/layout";
 
 /**
  * 金融機関情報（振込先の口座）の増減。
@@ -97,11 +98,6 @@ const styles = {
     color: "var(--color-sumi500)",
     cursor: "pointer",
     padding: 0,
-  } as CSSProperties,
-  grid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(11rem, 1fr))",
-    gap: "0.75rem",
   } as CSSProperties,
   label: {
     display: "block",
@@ -190,7 +186,7 @@ function Fields({
     onChange({ ...draft, [key]: value });
 
   return (
-    <div style={styles.grid}>
+    <div className={autoGridClass}>
       <div>
         <label style={styles.label}>金融機関名 *</label>
         <input

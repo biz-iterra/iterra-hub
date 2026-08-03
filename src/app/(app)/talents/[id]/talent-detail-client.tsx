@@ -29,10 +29,10 @@ import type {
   TalentAchievementWithMaster,
 } from "@/lib/validators/talent-classification";
 import {
-  detailContainerStyle,
-  detailGridStyle,
-  fieldGridStyle,
-  sectionStackStyle,
+  detailContainerClass,
+  detailGridClass,
+  fieldGridClass,
+  sectionStackClass,
 } from "@/lib/layout";
 
 type Tab = "basic" | "skills" | "job_type" | "career";
@@ -267,7 +267,7 @@ function JobTypeTabContent({
   const matchedSystems = profile.systems.filter((s) => s.matched);
 
   return (
-    <div style={sectionStackStyle}>
+    <div className={sectionStackClass}>
       {/* ── 系統サマリ ── */}
       <DetailSection title="系統（System）" icon={Award}>
 
@@ -585,14 +585,8 @@ function JobTypeTabContent({
             >
               実績を追加
             </div>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr auto auto",
-                gap: "0.5rem",
-                alignItems: "end",
-              }}
-            >
+            {/* 狭幅では入力とボタンを縦に積む。横 3 列のままだと select が潰れる */}
+            <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] gap-2 items-stretch sm:items-end">
               <div>
                 <select
                   value={addCode}
@@ -740,7 +734,7 @@ export function TalentDetailClient({
   };
 
   return (
-    <div style={detailContainerStyle}>
+    <div className={detailContainerClass}>
       {/* ヘッダー */}
       <div style={{ marginBottom: "1.5rem" }}>
         <Link
@@ -859,10 +853,10 @@ export function TalentDetailClient({
       {/* ===== 基本性質タブ ===== */}
       {activeTab === "basic" && (
         <div
-          style={detailGridStyle}
+          className={detailGridClass}
         >
           {/* 左カラム */}
-          <div style={sectionStackStyle}>
+          <div className={sectionStackClass}>
             {/* 診断結果（自動）カード */}
             {(numberDiagnosis?.strengths ||
               numberDiagnosis?.weaknesses ||
@@ -932,7 +926,7 @@ export function TalentDetailClient({
                       )}
                     </div>
                     <div
-                      style={fieldGridStyle}
+                      className={fieldGridClass}
                     >
                       {numberDiagnosis?.strengths && (
                         <InfoField label="強み"
@@ -980,7 +974,7 @@ export function TalentDetailClient({
                       )}
                     </div>
                     <div
-                      style={fieldGridStyle}
+                      className={fieldGridClass}
                     >
                       {constellation?.characteristics && (
                         <InfoField label="特徴"
@@ -1053,13 +1047,7 @@ export function TalentDetailClient({
                   </span>
                 }
               >
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: "1.5rem",
-                  }}
-                >
+                <div className={fieldGridClass} style={{ gap: "1.5rem" }}>
                   <div>
                     <div
                       style={{
@@ -1142,7 +1130,7 @@ export function TalentDetailClient({
           </div>
 
           {/* 右カラム */}
-          <div style={sectionStackStyle}>
+          <div className={sectionStackClass}>
             {/* 連絡先情報カード */}
             <DetailSection
               title="連絡先情報"
@@ -1312,7 +1300,7 @@ export function TalentDetailClient({
 
       {/* ===== スキルタブ ===== */}
       {activeTab === "skills" && (
-        <div style={sectionStackStyle}>
+        <div className={sectionStackClass}>
           {sortedSkills.length === 0 ? (
             <div
               style={{
@@ -1411,7 +1399,7 @@ export function TalentDetailClient({
 
       {/* ===== 経歴タブ ===== */}
       {activeTab === "career" && (
-        <div style={sectionStackStyle}>
+        <div className={sectionStackClass}>
           {careers.length === 0 ? (
             <div
               style={{

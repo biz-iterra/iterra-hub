@@ -23,7 +23,7 @@ import { DetailSection } from "@/components/ui/DetailSection";
 import { InfoField } from "@/components/ui/InfoField";
 import { ExternalLinkText } from "@/components/ui/ExternalLinkText";
 import { EntityLink } from "@/components/ui/EntityLink";
-import { detailContainerStyle, detailGridStyle, fieldGridStyle, sectionStackStyle } from "@/lib/layout";
+import { detailContainerClass, detailGridClass, fieldGridClass, sectionStackClass } from "@/lib/layout";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -147,7 +147,7 @@ export default async function CompanyDetailPage({
     : null;
 
   return (
-    <div style={detailContainerStyle}>
+    <div className={detailContainerClass}>
       {/* ---- Header ---- */}
       <div style={{ marginBottom: "1.5rem" }}>
         <Link href="/companies" style={{ ...backLinkStyle, marginBottom: "0.75rem" }}>
@@ -193,13 +193,13 @@ export default async function CompanyDetailPage({
 
       {/* ---- 8:2 Grid ---- */}
       <div
-        style={detailGridStyle}
+        className={detailGridClass}
       >
         {/* ======== Left ======== */}
-        <div style={sectionStackStyle}>
+        <div className={sectionStackClass}>
           <DetailSection title="基本情報" icon={Building2}>
             <div
-              style={fieldGridStyle}
+              className={fieldGridClass}
             >
               <InfoField label="会社名" value={company.name} />
               <InfoField label="フリガナ" value={company.name_kana} />
@@ -246,7 +246,7 @@ export default async function CompanyDetailPage({
 
           <DetailSection title="属性情報" icon={Layers}>
             <div
-              style={fieldGridStyle}
+              className={fieldGridClass}
             >
               <InfoField label="法人格" value={company.corporate_types?.name} />
               <InfoField label="業種" value={industryLabel} />
@@ -283,7 +283,7 @@ export default async function CompanyDetailPage({
 
           <DetailSection title="連絡先" icon={Mail}>
             <div
-              style={fieldGridStyle}
+              className={fieldGridClass}
             >
               <InfoField label="代表電話" value={company.phone} />
               <InfoField label="FAX" value={company.fax} />
@@ -333,7 +333,7 @@ export default async function CompanyDetailPage({
 
           <DetailSection title="インボイス" icon={FileText}>
             <div
-              style={fieldGridStyle}
+              className={fieldGridClass}
             >
               <InfoField
                 label="登録有無"
@@ -415,7 +415,7 @@ export default async function CompanyDetailPage({
         </div>
 
         {/* ======== Right ======== */}
-        <div style={sectionStackStyle}>
+        <div className={sectionStackClass}>
           <DetailSection title="取引先一覧" icon={Briefcase}>
             {activeAccounts.length > 0 ? (
               <div

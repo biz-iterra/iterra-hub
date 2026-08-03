@@ -1,7 +1,9 @@
 "use client";
 
-import { type ReactNode, type CSSProperties } from "react";
+import { type ReactNode } from "react";
 import { RotateCcw } from "lucide-react";
+import { filterBarClass } from "@/lib/layout";
+import { cn } from "@/lib/utils";
 
 export interface FilterGroupProps {
   children: ReactNode;
@@ -9,20 +11,15 @@ export interface FilterGroupProps {
 }
 
 /**
- * フィルタコントロール（FilterSelect / SearchInput 等）を横並びで配置するコンテナ。
- * - モバイル: flex-wrap で折り返し
- * - 各子要素が自身の flex-basis / min-width を保持しつつ伸縮
+ * フィルタコントロール（FilterSelect / SearchInput 等）を配置するコンテナ。
+ * - sm 未満: 縦積み。各コントロールが全幅になる
+ * - sm 以上: flex-wrap で横並び。折り返しつつ下端を揃える
+ *
+ * 実体は globals.css の .filter-bar。
  */
-const groupStyle: CSSProperties = {
-  display: "flex",
-  flexWrap: "wrap",
-  alignItems: "flex-end",
-  gap: "0.5rem",
-};
-
 export function FilterGroup({ children, className }: FilterGroupProps) {
   return (
-    <div style={groupStyle} className={className} role="group" aria-label="絞り込み">
+    <div className={cn(filterBarClass, className)} role="group" aria-label="絞り込み">
       {children}
     </div>
   );

@@ -2,7 +2,7 @@ import { getCurrentUser } from "@/actions/users";
 import { getMyGmailConnections, getGmailSetupStatus } from "@/actions/email-sync";
 import { ProfileForm } from "./profile-form";
 import { GmailConnectionsSection } from "@/components/profile/GmailConnectionsSection";
-import { formContainerStyle } from "@/lib/layout";
+import { formContainerClass } from "@/lib/layout";
 
 export default async function ProfilePage({
   searchParams,
@@ -19,7 +19,7 @@ export default async function ProfilePage({
 
   if (error || !currentUser) {
     return (
-      <div style={formContainerStyle}>
+      <div className={formContainerClass}>
         <p style={{ color: "var(--color-error)" }}>
           {error ?? "ユーザー情報の取得に失敗しました"}
         </p>
@@ -30,7 +30,7 @@ export default async function ProfilePage({
   return (
     <>
       <ProfileForm user={currentUser} />
-      <div style={formContainerStyle}>
+      <div className={formContainerClass}>
         <GmailConnectionsSection
           connections={connections.data ?? []}
           configured={setup.data?.configured ?? false}

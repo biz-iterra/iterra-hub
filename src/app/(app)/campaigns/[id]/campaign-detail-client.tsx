@@ -32,7 +32,7 @@ import type {
   Row,
   UnassignedLeadRow,
 } from "@/types/relations";
-import { detailContainerStyle, fieldGridStyle } from "@/lib/layout";
+import { detailContainerClass, fieldGridClass, tableScrollClass } from "@/lib/layout";
 
 type Tab = "basic" | "leads";
 
@@ -63,7 +63,7 @@ const styles = {
     lineHeight: 1.5,
     margin: 0,
   } as CSSProperties,
-  grid2: fieldGridStyle,
+  grid2: fieldGridClass,
   btnPrimary: {
     display: "inline-flex",
     alignItems: "center",
@@ -438,7 +438,7 @@ export function CampaignDetailClient({
   };
 
   return (
-    <div style={detailContainerStyle}>
+    <div className={detailContainerClass}>
       {/* モーダル */}
       {showModal && (
         <AttachLeadsModal
@@ -533,7 +533,7 @@ export function CampaignDetailClient({
       {activeTab === "basic" && (
         <div>
           <DetailSection title="基本情報" icon={Megaphone}>
-            <div style={styles.grid2}>
+            <div className={styles.grid2}>
               <InfoField label="キャンペーン名" value={campaign.name} full />
               <InfoField
                 label="種別"
@@ -594,7 +594,7 @@ export function CampaignDetailClient({
               icon={UserSearch}
             >
               <div
-                className="overflow-x-auto no-scrollbar"
+                className={tableScrollClass}
                 style={{ borderRadius: "var(--radius-sm)", border: "1px solid var(--color-border-default)" }}
               >
                 <table className="w-full text-sm">

@@ -33,7 +33,7 @@ import { InfoField } from "@/components/ui/InfoField";
 import { ExternalLinkText } from "@/components/ui/ExternalLinkText";
 import { LabelBadge } from "@/components/ui/badges";
 import { EntityLink } from "@/components/ui/EntityLink";
-import { detailContainerStyle, detailGridStyle, fieldGridStyle, sectionStackStyle } from "@/lib/layout";
+import { detailContainerClass, detailGridClass, fieldGridClass, sectionStackClass } from "@/lib/layout";
 
 function formatDate(date: string | null | undefined): string {
   if (!date) return "—";
@@ -173,7 +173,7 @@ export default async function ContactDetailPage({
   const talentCareers = talent?.talent_careers ?? [];
 
   return (
-    <div style={detailContainerStyle}>
+    <div className={detailContainerClass}>
       {/* ---- Header ---- */}
       <div style={{ marginBottom: "1.5rem" }}>
         <Link href="/contacts" style={{ ...backLinkStyle, marginBottom: "0.75rem" }}>
@@ -220,13 +220,13 @@ export default async function ContactDetailPage({
 
       {/* ---- 8:2 Grid ---- */}
       <div
-        style={detailGridStyle}
+        className={detailGridClass}
       >
         {/* ======== Left ======== */}
-        <div style={sectionStackStyle}>
+        <div className={sectionStackClass}>
           <DetailSection title="基本情報" icon={User}>
             <div
-              style={fieldGridStyle}
+              className={fieldGridClass}
             >
               <InfoField label="姓" value={c.last_name} />
               <InfoField label="名" value={c.first_name} />
@@ -307,7 +307,7 @@ export default async function ContactDetailPage({
 
           <DetailSection title="属性情報" icon={Layers}>
             <div
-              style={fieldGridStyle}
+              className={fieldGridClass}
             >
               <InfoField label="ステータス" value={c.contact_status?.name} />
               <InfoField
@@ -367,7 +367,7 @@ export default async function ContactDetailPage({
         </div>
 
         {/* ======== Right ======== */}
-        <div style={sectionStackStyle}>
+        <div className={sectionStackClass}>
           {/* 人物の特性。business 情報ではないので本文から分けて右に置く */}
           <DetailSection title="プロファイル" icon={Sparkles}>
             <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
@@ -455,7 +455,7 @@ export default async function ContactDetailPage({
                   <InfoField label="性格分析メモ" value={talent.personality_memo} />
                 )}
                 {(talent.custom_strengths || talent.custom_weaknesses) && (
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+                  <div className={fieldGridClass}>
                     <InfoField label="強み" value={talent.custom_strengths} />
                     <InfoField label="弱み" value={talent.custom_weaknesses} />
                   </div>

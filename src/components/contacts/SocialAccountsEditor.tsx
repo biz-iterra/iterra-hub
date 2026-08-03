@@ -13,6 +13,7 @@ import {
   type SocialService,
 } from "@/actions/contact-social-accounts";
 import { buildSocialDmUrl } from "@/lib/social-links";
+import { autoGridClass } from "@/lib/layout";
 
 /**
  * SNS・チャットの連絡口の増減。
@@ -86,11 +87,6 @@ const styles = {
     borderRadius: "var(--radius-card)",
     padding: "0.75rem",
     marginTop: "0.5rem",
-  } as CSSProperties,
-  grid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(11rem, 1fr))",
-    gap: "0.75rem",
   } as CSSProperties,
   label: {
     display: "block",
@@ -176,7 +172,7 @@ function Fields({
 
   return (
     <>
-      <div style={styles.grid}>
+      <div className={autoGridClass}>
         <div>
           <label style={styles.label}>サービス *</label>
           <select

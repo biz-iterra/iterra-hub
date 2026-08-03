@@ -10,6 +10,7 @@ import { DetailSection } from "@/components/ui/DetailSection";
 import { PipelineBadge, StageBadge } from "@/components/ui/badges";
 import { useToast } from "@/components/ui/toast";
 import { SearchableSelect } from "@/components/ui/SearchableSelect";
+import { tableScrollClass } from "@/lib/layout";
 
 /**
  * プロジェクトに紐づく商談。
@@ -133,7 +134,7 @@ export function ProjectDealsSection({
       }
     >
       {deals.length > 0 ? (
-        <div style={{ overflowX: "auto" }}>
+        <div className={tableScrollClass}>
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr>

@@ -26,6 +26,7 @@ export function Pagination({ page, totalCount, pageSize, onPageChange }: Props) 
     justifyContent: "center",
     width: "2rem",
     height: "2rem",
+    flexShrink: 0,
     borderRadius: "var(--radius-button)",
     border: "1px solid var(--color-border-default)",
     backgroundColor: "var(--color-bg-default)",
@@ -49,7 +50,7 @@ export function Pagination({ page, totalCount, pageSize, onPageChange }: Props) 
 
   return (
     <div
-      className="flex items-center justify-between mt-4"
+      className="flex flex-col sm:flex-row items-center justify-between gap-2 mt-4"
       style={{ fontSize: "0.875rem", color: "var(--color-text-body)" }}
     >
       <span style={{ color: "var(--color-sumi600)" }}>
@@ -61,6 +62,7 @@ export function Pagination({ page, totalCount, pageSize, onPageChange }: Props) 
           disabled={!canPrev}
           style={canPrev ? btn : btnDisabled}
           aria-label="先頭ページ"
+          className="tap-target"
           onMouseEnter={canPrev ? handleMouseEnter : undefined}
           onMouseLeave={canPrev ? handleMouseLeave : undefined}
         >
@@ -71,6 +73,7 @@ export function Pagination({ page, totalCount, pageSize, onPageChange }: Props) 
           disabled={!canPrev}
           style={canPrev ? btn : btnDisabled}
           aria-label="前ページ"
+          className="tap-target"
           onMouseEnter={canPrev ? handleMouseEnter : undefined}
           onMouseLeave={canPrev ? handleMouseLeave : undefined}
         >
@@ -84,6 +87,7 @@ export function Pagination({ page, totalCount, pageSize, onPageChange }: Props) 
           disabled={!canNext}
           style={canNext ? btn : btnDisabled}
           aria-label="次ページ"
+          className="tap-target"
           onMouseEnter={canNext ? handleMouseEnter : undefined}
           onMouseLeave={canNext ? handleMouseLeave : undefined}
         >
@@ -94,6 +98,7 @@ export function Pagination({ page, totalCount, pageSize, onPageChange }: Props) 
           disabled={!canNext}
           style={canNext ? btn : btnDisabled}
           aria-label="末尾ページ"
+          className="tap-target"
           onMouseEnter={canNext ? handleMouseEnter : undefined}
           onMouseLeave={canNext ? handleMouseLeave : undefined}
         >

@@ -24,6 +24,7 @@ import {
   UsersRound,
   Upload,
   ScrollText,
+  X,
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -190,7 +191,16 @@ const navGroups: NavGroup[] = [
 /** 選択中の判定で「より深いパスの項目」を探すために使う */
 const allHrefs = navGroups.flatMap((g) => g.items.map((i) => i.href));
 
-export function Sidebar({ userRole = "admin" }: { userRole?: CrmUserRole }) {
+export function Sidebar({
+  userRole = "admin",
+  navOpen = false,
+  onClose,
+}: {
+  userRole?: CrmUserRole;
+  /** lg 未満でドロワーとして開いているか */
+  navOpen?: boolean;
+  onClose?: () => void;
+}) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
 
@@ -214,16 +224,36 @@ export function Sidebar({ userRole = "admin" }: { userRole?: CrmUserRole }) {
   return (
     <aside
       className={cn(
-        "relative flex flex-col h-screen shrink-0 transition-all duration-200",
-        collapsed ? "w-16" : "w-56"
+        // 幅と開閉のアニメーションは globals.css の .nav-drawer が持つ
+        "nav-drawer flex flex-col h-screen shrink-0 overflow-hidden",
+        // lg 未満はドロワー。画面外に置いておき、開いたときだけ滑り込ませる
+        "fixed inset-y-0 left-0",
+        navOpen ? "translate-x-0" : "-translate-x-full",
+        // lg 以上は常設に戻す
+        "lg:static lg:translate-x-0"
       )}
-      style={{ backgroundColor: "var(--color-terra)" }}
+      data-open={navOpen}
+      data-collapsed={collapsed}
+      style={{ backgroundColor: "var(--color-terra)", zIndex: "var(--zindex-drawer)" }}
     >
       {/* Logo */}
-      <div className="flex items-center h-14 px-4">
+      <div className="flex items-center justify-between h-14 px-4">
         <span className="text-white font-bold text-lg tracking-tight">
-          {collapsed ? "I" : "ITERRA CRM"}
+          {/* 折りたたみは lg 以上だけ。ドロワーでは常に正式名称を出す */}
+          <span className={cn(collapsed && "lg:hidden")}>ITERRA CRM</span>
+          {collapsed && <span className="hidden lg:inline">I</span>}
         </span>
+
+        {/* ドロワーを閉じる。常設表示の lg 以上では出さない */}
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="メニューを閉じる"
+          className="tap-target flex items-center justify-center cursor-pointer lg:hidden"
+          style={{ color: "rgba(255,255,255,0.7)" }}
+        >
+          <X size={20} />
+        </button>
       </div>
 
       {/* Navigation */}
@@ -234,27 +264,36 @@ export function Sidebar({ userRole = "admin" }: { userRole?: CrmUserRole }) {
 
           return (
             <div key={group.label} className={cn(groupIndex > 0 && "mt-2")}>
-              {/* Group header — hidden when collapsed */}
-              {!collapsed && (
-                <p
-                  className="px-5 mb-1 text-xs font-semibold uppercase tracking-widest select-none"
-                  style={{ color: "rgba(255,255,255,0.4)" }}
-                >
-                  {group.label}
-                </p>
-              )}
+              {/*
+                Group header。
+                折りたたみはアイコンのみの表示にするため見出しを消すが、
+                折りたたみが効くのは lg 以上。ドロワーでは常に出す
+              */}
+              <p
+                className={cn(
+                  "px-5 mb-1 text-xs font-semibold uppercase tracking-widest select-none",
+                  collapsed && "lg:hidden"
+                )}
+                style={{ color: "rgba(255,255,255,0.4)" }}
+              >
+                {group.label}
+              </p>
 
               <div className="space-y-0.5">
                 {chunkByNesting(visibleItems).map((chunk, chunkIndex) => {
-                  // 折りたたみ時はアイコンのみの表示になるため、字下げ・ガイド線は出さない
-                  const indented = chunk.nested && !collapsed;
+                  const indented = chunk.nested;
                   return (
                     <div
                       key={chunkIndex}
-                      className={cn("space-y-0.5", indented && "ml-5 pl-1")}
+                      className={cn(
+                        "space-y-0.5",
+                        indented && "ml-5 pl-1 border-l",
+                        // 折りたたみ時はアイコンだけが並ぶので、字下げ・ガイド線は消す
+                        indented && collapsed && "lg:ml-0 lg:pl-0 lg:border-l-0"
+                      )}
                       style={
                         indented
-                          ? { borderLeft: "1px solid rgba(255,255,255,0.2)" }
+                          ? { borderColor: "rgba(255,255,255,0.2)" }
                           : undefined
                       }
                     >
@@ -267,7 +306,7 @@ export function Sidebar({ userRole = "admin" }: { userRole?: CrmUserRole }) {
                             className={cn(
                               "flex items-center gap-3 px-3 py-2.5 text-sm transition-colors",
                               indented ? "mr-2" : "mx-2",
-                              collapsed && "justify-center px-0 mx-2"
+                              collapsed && "lg:justify-center lg:px-0 lg:mx-2"
                             )}
                             style={{
                               color: active ? "#fff" : "rgba(255,255,255,0.7)",
@@ -288,7 +327,7 @@ export function Sidebar({ userRole = "admin" }: { userRole?: CrmUserRole }) {
                             title={collapsed ? item.label : item.description}
                           >
                             <item.icon size={indented ? 18 : 20} />
-                            {!collapsed && <span>{item.label}</span>}
+                            <span className={cn(collapsed && "lg:hidden")}>{item.label}</span>
                           </Link>
                         );
                       })}
@@ -301,11 +340,12 @@ export function Sidebar({ userRole = "admin" }: { userRole?: CrmUserRole }) {
         })}
       </nav>
 
-      {/* Collapse toggle */}
+      {/* Collapse toggle。畳める幅がない lg 未満では出さない */}
       <button
         onClick={() => setCollapsed(!collapsed)}
+        aria-label={collapsed ? "サイドバーを広げる" : "サイドバーを畳む"}
         className={cn(
-          "flex items-center h-10 mx-2 mb-3 cursor-pointer transition-colors",
+          "hidden lg:flex items-center h-10 mx-2 mb-3 cursor-pointer transition-colors",
           collapsed ? "justify-center" : "justify-end px-3"
         )}
         style={{

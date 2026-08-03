@@ -2,6 +2,7 @@
 
 import { useRef, type CSSProperties } from "react";
 import { Search, X } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export interface SearchInputProps {
   value: string;
@@ -18,12 +19,15 @@ export function SearchInput({
 }: SearchInputProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
+  /*
+   * 伸縮は style ではなくクラスで持つ。
+   * flex-basis を style で固定すると、フィルタ行が縦積みになる狭幅で
+   * 「基準 12rem」が高さの指定として効き、入力欄が 192px に伸びてしまう。
+   */
   const wrapStyle: CSSProperties = {
     position: "relative",
     display: "flex",
     alignItems: "center",
-    flex: "1 1 12rem",
-    minWidth: "12rem",
   };
 
   const inputStyle: CSSProperties = {
@@ -65,7 +69,10 @@ export function SearchInput({
   };
 
   return (
-    <div style={wrapStyle} className={className}>
+    <div
+      style={wrapStyle}
+      className={cn("w-full sm:flex-[1_1_12rem] sm:min-w-[12rem]", className)}
+    >
       <Search size={15} style={iconStyle} aria-hidden="true" />
       <input
         ref={inputRef}

@@ -42,10 +42,10 @@ import type {
   LeadDetail,
 } from "@/types/relations";
 import {
-  detailContainerStyle,
-  detailGridStyle,
-  fieldGridStyle,
-  sectionStackStyle,
+  detailContainerClass,
+  detailGridClass,
+  fieldGridClass,
+  sectionStackClass,
 } from "@/lib/layout";
 
 /** lead.customer_activities の要素（LEAD_SELECT の customer_activities に対応） */
@@ -116,8 +116,8 @@ const styles = {
     color: "var(--color-sumi500)",
     marginTop: "0.25rem",
   } as CSSProperties,
-  grid2: fieldGridStyle,
-  grid3: fieldGridStyle,
+  grid2: fieldGridClass,
+  grid3: fieldGridClass,
   btnPrimary: {
     display: "inline-flex",
     alignItems: "center",
@@ -919,7 +919,7 @@ export function LeadDetailClient({
   const sumDelta = scoreBreakdowns.reduce((acc, b) => acc + (b.score_delta ?? 0), 0);
 
   return (
-    <div style={detailContainerStyle}>
+    <div className={detailContainerClass}>
       {/* Back */}
       <Link
         href="/leads"
@@ -1103,14 +1103,14 @@ export function LeadDetailClient({
 
       {/* === 基本情報タブ（閲覧専用）=== */}
       {activeTab === "basic" && (
-        <div style={sectionStackStyle}>
+        <div className={sectionStackClass}>
           {/* ① 企業情報セクション */}
           <DetailSection title="企業情報" icon={Building2}>
             {/*
               取り込んだ時点の記録。会社そのものの情報は事業者情報が正本なので、
               直すときは上のリンクから移る（リード編集では触れない）。
             */}
-            <div style={{ ...styles.grid2, marginBottom: "1rem" }}>
+            <div className={styles.grid2} style={{ marginBottom: "1rem" }}>
               <Field label="会社名" value={lead.company_name} />
               <Field label="フリガナ" value={lead.company_name_kana} />
               <Field label="代表者名" value={lead.representative_name} />
@@ -1118,7 +1118,7 @@ export function LeadDetailClient({
               <Field label="代表電話" value={lead.company_phone} />
               <Field label="企業URL" value={<ExternalLinkText value={lead.url} />} />
             </div>
-            <div style={styles.grid3}>
+            <div className={styles.grid3}>
               <Field
                 label="従業員数"
                 value={lead.employee_count != null ? `${lead.employee_count.toLocaleString()} 名` : null}
@@ -1156,21 +1156,21 @@ export function LeadDetailClient({
           {/* ② 担当者情報セクション */}
           {/* 人そのものの情報は連絡先が正本。ここは取り込んだ時点の記録 */}
           <DetailSection title="担当者情報" icon={Users}>
-            <div style={{ ...styles.grid3, marginBottom: "1rem" }}>
+            <div className={styles.grid3} style={{ marginBottom: "1rem" }}>
               <Field label="姓" value={lead.contact_last_name} />
               <Field label="ミドルネーム" value={lead.contact_middle_name} />
               <Field label="名" value={lead.contact_first_name} />
             </div>
-            <div style={{ ...styles.grid3, marginBottom: "1rem" }}>
+            <div className={styles.grid3} style={{ marginBottom: "1rem" }}>
               <Field label="姓（カナ）" value={lead.contact_last_name_kana} />
               <Field label="ミドル（カナ）" value={lead.contact_middle_name_kana} />
               <Field label="名（カナ）" value={lead.contact_first_name_kana} />
             </div>
-            <div style={{ ...styles.grid2, marginBottom: "1rem" }}>
+            <div className={styles.grid2} style={{ marginBottom: "1rem" }}>
               <Field label="部署" value={lead.contact_department} />
               <Field label="役職" value={lead.contact_job_title} />
             </div>
-            <div style={styles.grid2}>
+            <div className={styles.grid2}>
               <Field label="メール" value={lead.contact_email} />
               <Field label="担当者電話" value={lead.contact_phone} />
             </div>
@@ -1178,7 +1178,7 @@ export function LeadDetailClient({
 
           {/* ③ リード属性セクション */}
           <DetailSection title="リード属性" icon={Layers}>
-            <div style={{ ...styles.grid3, marginBottom: "1rem" }}>
+            <div className={styles.grid3} style={{ marginBottom: "1rem" }}>
               <Field
                 label="大分類セグメント"
                 value={lead.large_segment?.name ?? findLabel(masters.largeSegments, lead.large_segment_id)}
@@ -1192,7 +1192,7 @@ export function LeadDetailClient({
                 value={lead.lead_source?.name ?? findLabel(masters.sources, lead.lead_source_id)}
               />
             </div>
-            <div style={styles.grid2}>
+            <div className={styles.grid2}>
               <Field
                 label="事業者種別"
                 value={lead.account_type?.name ?? findLabel(masters.accountTypes, lead.account_type_id)}
@@ -1228,7 +1228,7 @@ export function LeadDetailClient({
 
       {/* === スコアタブ === */}
       {activeTab === "score" && (
-        <div style={sectionStackStyle}>
+        <div className={sectionStackClass}>
           {/* スコアサマリ */}
           <DetailSection title="スコアサマリ" icon={BarChart2}>
             <div style={{ display: "flex", alignItems: "flex-end", gap: "2rem", flexWrap: "wrap" }}>
@@ -1616,10 +1616,7 @@ export function LeadDetailClient({
 
       {/* === 社内対応アクティビティタブ === */}
       {activeTab === "activities" && (
-        <div
-          style={detailGridStyle}
-          className="activities-layout"
-        >
+        <div className={detailGridClass}>
           {/* 左カラム: アクティビティ一覧（アコーディオン） */}
           <div>
             {/* 同上。アコーディオン一覧が続くのでカードで囲まない */}
@@ -1882,12 +1879,6 @@ export function LeadDetailClient({
 
       {/* レスポンシブ: モバイルは縦積み */}
       <style>{`
-        @media (max-width: 640px) {
-          .activities-layout {
-            grid-template-columns: 1fr !important;
-          }
-        }
-
         /* ── 顧客行動: デスクトップはグリッド, モバイル(768px以下)はカード ── */
         .customer-activity-row {
           display: grid;

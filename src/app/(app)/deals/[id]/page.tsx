@@ -34,7 +34,7 @@ import { InfoField } from "@/components/ui/InfoField";
 import { EntityLink } from "@/components/ui/EntityLink";
 import { getDealCounterparty } from "@/lib/deal-counterparty";
 import { ContractMethodBadge, PipelineBadge, StageBadge, StatusBadge } from "@/components/ui/badges";
-import { detailContainerStyle, detailGridStyle, fieldGridStyle, sectionStackStyle } from "@/lib/layout";
+import { detailContainerClass, detailGridClass, fieldGridClass, sectionStackClass, tableScrollClass } from "@/lib/layout";
 
 function formatDate(date: string | null | undefined): string {
   if (!date) return "—";
@@ -217,7 +217,7 @@ export default async function DealDetailPage({
   const activities = deal.deal_activities ?? [];
 
   return (
-    <div style={detailContainerStyle}>
+    <div className={detailContainerClass}>
       {/* ---- Header ---- */}
       <div style={{ marginBottom: "1.5rem" }}>
         <Link
@@ -260,13 +260,13 @@ export default async function DealDetailPage({
 
       {/* ---- 8:2 Grid ---- */}
       <div
-        style={detailGridStyle}
+        className={detailGridClass}
       >
         {/* ======== Left ======== */}
-        <div style={sectionStackStyle}>
+        <div className={sectionStackClass}>
           <DetailSection title="基本情報" icon={FileText}>
             <div
-              style={fieldGridStyle}
+              className={fieldGridClass}
             >
               <InfoField label="取引名" value={deal.name} full />
               <InfoField
@@ -324,7 +324,7 @@ export default async function DealDetailPage({
 
           <DetailSection title="属性情報" icon={Layers}>
             <div
-              style={fieldGridStyle}
+              className={fieldGridClass}
             >
               <InfoField
                 label="パイプライン"
@@ -355,7 +355,7 @@ export default async function DealDetailPage({
 
           <DetailSection title="日程" icon={Calendar}>
             <div
-              style={fieldGridStyle}
+              className={fieldGridClass}
             >
               <InfoField label="申請日" value={formatDate(deal.application_date)} />
               <InfoField
@@ -437,7 +437,7 @@ export default async function DealDetailPage({
                 —
               </p>
             ) : (
-              <div style={{ overflowX: "auto" }}>
+              <div className={tableScrollClass}>
                 <table
                   style={{
                     width: "100%",
@@ -476,7 +476,7 @@ export default async function DealDetailPage({
         </div>
 
         {/* ======== Right ======== */}
-        <div style={sectionStackStyle}>
+        <div className={sectionStackClass}>
           <DetailSection title="アクティビティ" icon={Clock}>
             {activities.length === 0 ? (
               <p

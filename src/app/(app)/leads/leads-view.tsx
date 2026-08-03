@@ -2,12 +2,12 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { Plus, ArrowUpDown } from "lucide-react";
+import { Plus, ArrowUpDown, UserSearch } from "lucide-react";
 import { getLeads } from "@/actions/leads";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { FilterSelect } from "@/components/ui/FilterSelect";
 import { FilterGroup, FilterClearButton } from "@/components/ui/FilterGroup";
+import { DataTable } from "@/components/ui/DataTable";
 import { Pagination } from "@/components/ui/Pagination";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants/pagination";
 import {
@@ -63,7 +63,6 @@ export function LeadsView({
   users,
   // currentUserRole は props 型に残しているが、現状 UI 分岐に使っていないため受け取らない
 }: LeadsViewProps) {
-  const router = useRouter();
   const [data, setData] = useState(initialData);
   const [stageFilter, setStageFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -147,7 +146,7 @@ export function LeadsView({
       {/* ヘッダー */}
       <div className="flex items-center justify-between mb-6">
         <h1
-          className="text-2xl font-bold"
+          className="text-xl sm:text-2xl font-bold"
           style={{ color: "var(--color-text-title)" }}
         >
           リード
@@ -242,154 +241,100 @@ export function LeadsView({
         )}
       </FilterGroup>
 
-      {/* テーブル */}
-      {sortedItems.length === 0 ? (
-        <div
-          className="p-10 text-center text-sm"
-          style={{
-            backgroundColor: "#fff",
-            borderRadius: "var(--radius-card)",
-            boxShadow: "var(--elevation-low)",
-            color: "var(--color-sumi500)",
-          }}
-        >
-          リードが見つかりません
-        </div>
-      ) : (
-        <div
-          className="overflow-x-auto no-scrollbar"
-          style={{
-            backgroundColor: "#fff",
-            borderRadius: "var(--radius-card)",
-            boxShadow: "var(--elevation-low)",
-          }}
-        >
-          <table className="w-full text-sm" style={{ tableLayout: "auto" }}>
-            <thead>
-              <tr style={{ backgroundColor: "var(--color-sumi50)" }}>
-                {[
-                  "リード名",
-                  "ステージ",
-                  "ステータス",
-                  "温度感",
-                  "カテゴリ",
-                  "企業名",
-                  "最終アクティビティ",
-                  "担当者",
-                  "最終更新日",
-                ].map((label) => (
-                  <th
-                    key={label}
-                    className="px-4 py-3 text-left font-semibold text-xs whitespace-nowrap"
-                    style={{ color: "var(--color-sumi600)" }}
-                  >
-                    {label}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {sortedItems.map((lead) => {
-                const category = lead.category as { id: string; code: string; name: string; color: string | null } | null;
-                const temp = lead.temperature as {
-                  code: string;
-                  name: string;
-                } | null;
-                return (
-                  <tr
-                    key={lead.id}
-                    className="transition-colors cursor-pointer"
-                    style={{
-                      borderBottom: "1px solid var(--color-border-default)",
-                    }}
-                    onMouseEnter={(e) =>
-                      (e.currentTarget.style.backgroundColor =
-                        "var(--color-bg-hover)")
-                    }
-                    onMouseLeave={(e) =>
-                      (e.currentTarget.style.backgroundColor = "transparent")
-                    }
-                    onClick={() => router.push(`/leads/${lead.id}`)}
-                  >
-                    {/* リード名 */}
-                    <td className="px-4 py-3">
-                      <Link
-                        href={`/leads/${lead.id}`}
-                        className="font-medium"
-                        style={{ color: "var(--color-text-list)" }}
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {lead.lead_name}
-                      </Link>
-                    </td>
-                    {/* ステージ */}
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <StageBadge
-                        name={lead.stage?.name}
-                        color={lead.stage?.color}
-                        sortOrder={lead.stage?.sort_order}
-                        total={stages.length}
-                      />
-                    </td>
-                    {/* ステータス */}
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <StatusBadge
-                        name={lead.status?.name}
-                        color={lead.status?.color}
-                        sortOrder={lead.status?.sort_order}
-                        total={statuses.length}
-                      />
-                    </td>
-                    {/* 温度感 */}
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      {temp ? (
-                        <TemperatureBadge code={temp.code} name={temp.name} />
-                      ) : (
-                        <span style={{ color: "var(--color-text-list)" }}>—</span>
-                      )}
-                    </td>
-                    {/* カテゴリ */}
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <CategoryBadge name={category?.name} color={category?.color} />
-                    </td>
-                    {/* 企業名 */}
-                    <td
-                      className="px-4 py-3 max-w-[140px] truncate"
-                      style={{ color: "var(--color-text-list)" }}
-                      title={lead.company_name ?? ""}
-                    >
-                      {lead.company_name || (
-                        <span style={{ color: "var(--color-text-list)" }}>—</span>
-                      )}
-                    </td>
-                    {/* 最終アクティビティ */}
-                    <td
-                      className="px-4 py-3 text-xs whitespace-nowrap"
-                      style={{ color: "var(--color-text-list)" }}
-                    >
-                      {formatDate(lead.last_activity_at)}
-                    </td>
-                    {/* 担当者 */}
-                    <td
-                      className="px-4 py-3 whitespace-nowrap"
-                      style={{ color: "var(--color-text-list)" }}
-                    >
-                      {lead.owner?.full_name ?? "—"}
-                    </td>
-                    {/* 最終更新日 */}
-                    <td
-                      className="px-4 py-3 text-xs whitespace-nowrap"
-                      style={{ color: "var(--color-text-list)" }}
-                    >
-                      {formatDateTime(lead.updated_at)}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+      {/* 一覧（md 未満はカード） */}
+      <DataTable
+        items={sortedItems}
+        getKey={(lead) => lead.id}
+        getHref={(lead) => `/leads/${lead.id}`}
+        emptyIcon={UserSearch}
+        emptyMessage="リードが見つかりません"
+        columns={[
+          {
+            label: "リード名",
+            card: "title",
+            render: (lead) => (
+              <Link
+                href={`/leads/${lead.id}`}
+                className="font-medium"
+                style={{ color: "var(--color-text-list)" }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {lead.lead_name}
+              </Link>
+            ),
+          },
+          {
+            label: "ステージ",
+            card: "meta",
+            className: "whitespace-nowrap",
+            render: (lead) => (
+              <StageBadge
+                name={lead.stage?.name}
+                color={lead.stage?.color}
+                sortOrder={lead.stage?.sort_order}
+                total={stages.length}
+              />
+            ),
+          },
+          {
+            label: "ステータス",
+            className: "whitespace-nowrap",
+            render: (lead) => (
+              <StatusBadge
+                name={lead.status?.name}
+                color={lead.status?.color}
+                sortOrder={lead.status?.sort_order}
+                total={statuses.length}
+              />
+            ),
+          },
+          {
+            label: "温度感",
+            className: "whitespace-nowrap",
+            render: (lead) => {
+              const temp = lead.temperature as { code: string; name: string } | null;
+              return temp ? (
+                <TemperatureBadge code={temp.code} name={temp.name} />
+              ) : (
+                <span style={{ color: "var(--color-text-list)" }}>—</span>
+              );
+            },
+          },
+          {
+            label: "カテゴリ",
+            className: "whitespace-nowrap",
+            render: (lead) => {
+              const category = lead.category as
+                | { id: string; code: string; name: string; color: string | null }
+                | null;
+              return <CategoryBadge name={category?.name} color={category?.color} />;
+            },
+          },
+          {
+            label: "企業名",
+            className: "max-w-[140px] truncate",
+            render: (lead) =>
+              lead.company_name || (
+                <span style={{ color: "var(--color-text-list)" }}>—</span>
+              ),
+          },
+          {
+            label: "最終アクティビティ",
+            className: "text-xs whitespace-nowrap",
+            render: (lead) => formatDate(lead.last_activity_at),
+          },
+          {
+            label: "担当者",
+            className: "whitespace-nowrap",
+            render: (lead) => lead.owner?.full_name ?? "—",
+          },
+          {
+            label: "最終更新日",
+            className: "text-xs whitespace-nowrap",
+            render: (lead) => formatDateTime(lead.updated_at),
+          },
+        ]}
+      />
 
       {/* ページネーション */}
       <Pagination

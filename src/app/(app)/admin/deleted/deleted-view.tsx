@@ -10,7 +10,8 @@ import {
 } from "@/actions/deleted";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
-import { detailContainerStyle } from "@/lib/layout";
+import { DataTable } from "@/components/ui/DataTable";
+import { detailContainerClass } from "@/lib/layout";
 
 const ENTITY_LABELS: Record<DeletedEntity, string> = {
   companies: "事業者情報",
@@ -35,7 +36,7 @@ const ENTITIES: DeletedEntity[] = [
 const PER_PAGE = 20;
 
 const styles = {
-  container: detailContainerStyle,
+  container: detailContainerClass,
   backLink: {
     display: "inline-flex",
     alignItems: "center",
@@ -226,7 +227,7 @@ export function DeletedView({
   const totalPages = Math.max(1, Math.ceil(total / PER_PAGE));
 
   return (
-    <div style={styles.container}>
+    <div className={styles.container}>
       <Link
         href="/admin"
         className="hover:bg-[var(--color-bg-hover)]"
@@ -298,56 +299,61 @@ export function DeletedView({
           <div style={styles.empty}>削除済みレコードはありません</div>
         ) : (
           <>
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead>
-                  <tr style={styles.tableHead}>
-                    <th style={styles.th}>コード</th>
-                    <th style={styles.th}>名前</th>
-                    <th style={styles.th}>削除日時</th>
-                    <th style={styles.th}>削除者</th>
-                    <th style={styles.th}>理由</th>
-                    <th style={{ ...styles.th, textAlign: "right" }}>操作</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((r) => {
+            {/* 一覧（md 未満はカード） */}
+            <DataTable
+              items={items}
+              getKey={(r) => r.id as string}
+              emptyMessage="削除済みレコードはありません"
+              columns={[
+                {
+                  label: "コード",
+                  render: (r) => displayCode(active, r) || "-",
+                },
+                {
+                  label: "名前",
+                  card: "title",
+                  render: (r) => displayName(active, r),
+                },
+                {
+                  label: "削除日時",
+                  className: "text-xs",
+                  render: (r) => formatDate(r.deleted_at),
+                },
+                {
+                  label: "削除者",
+                  className: "text-xs",
+                  render: (r) => {
                     const deletedBy = r.deleted_by as string | null;
-                    const deleterName = deletedBy ? userMap[deletedBy] ?? "（不明）" : "-";
-                    const reason = (r.deletion_reason as string | null) ?? "-";
-                    return (
-                      <tr key={r.id as string}>
-                        <td style={{ ...styles.td, ...styles.codeCell }}>
-                          {displayCode(active, r) || "-"}
-                        </td>
-                        <td style={styles.td}>{displayName(active, r)}</td>
-                        <td style={{ ...styles.td, fontSize: "0.75rem", color: "var(--color-sumi600)" }}>
-                          {formatDate(r.deleted_at)}
-                        </td>
-                        <td style={{ ...styles.td, fontSize: "0.75rem" }}>{deleterName}</td>
-                        <td style={{ ...styles.td, fontSize: "0.75rem" }}>{reason}</td>
-                        <td style={{ ...styles.td, textAlign: "right" }}>
-                          <button
-                            type="button"
-                            style={styles.restoreBtn}
-                            onClick={() => setConfirmTarget(r)}
-                            onMouseEnter={(e) =>
-                              (e.currentTarget.style.backgroundColor = "var(--color-bg-hover)")
-                            }
-                            onMouseLeave={(e) =>
-                              (e.currentTarget.style.backgroundColor = "transparent")
-                            }
-                          >
-                            <RotateCcw size={12} />
-                            復元
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                    return deletedBy ? userMap[deletedBy] ?? "（不明）" : "-";
+                  },
+                },
+                {
+                  label: "理由",
+                  className: "text-xs",
+                  render: (r) => (r.deletion_reason as string | null) ?? "-",
+                },
+                {
+                  label: "操作",
+                  className: "text-right",
+                  render: (r) => (
+                    <button
+                      type="button"
+                      style={styles.restoreBtn}
+                      onClick={() => setConfirmTarget(r)}
+                      onMouseEnter={(e) =>
+                        (e.currentTarget.style.backgroundColor = "var(--color-bg-hover)")
+                      }
+                      onMouseLeave={(e) =>
+                        (e.currentTarget.style.backgroundColor = "transparent")
+                      }
+                    >
+                      <RotateCcw size={12} />
+                      復元
+                    </button>
+                  ),
+                },
+              ]}
+            />
 
             {/* ページネーション */}
             <div style={styles.pagination}>

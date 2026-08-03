@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { BookOpen, ChevronDown, LogOut, User, UserCog } from "lucide-react";
+import { BookOpen, ChevronDown, LogOut, Menu, User, UserCog } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { GlobalSearch } from "./global-search";
 
@@ -72,7 +72,16 @@ function getBreadcrumb(pathname: string) {
   return items;
 }
 
-export function Header({ userName }: { userName?: string }) {
+export function Header({
+  userName,
+  onMenuClick,
+  navOpen = false,
+}: {
+  userName?: string;
+  /** lg 未満のドロワーを開く */
+  onMenuClick?: () => void;
+  navOpen?: boolean;
+}) {
   const pathname = usePathname();
   const router = useRouter();
   const breadcrumb = getBreadcrumb(pathname);
@@ -139,14 +148,33 @@ export function Header({ userName }: { userName?: string }) {
 
   return (
     <header
-      className="flex items-center h-14 px-6 shrink-0"
+      className="flex items-center h-14 px-3 sm:px-6 gap-2 shrink-0"
       style={{
         backgroundColor: "#fff",
         borderBottom: "1px solid var(--color-border-default)",
       }}
     >
-      {/* Breadcrumb */}
-      <nav className="flex items-center gap-1.5 text-sm flex-shrink-0">
+      {/* ドロワーを開く。サイドバーが常設になる lg 以上では出さない */}
+      <button
+        type="button"
+        onClick={onMenuClick}
+        aria-label="メニューを開く"
+        aria-expanded={navOpen}
+        className="tap-target lg:hidden flex items-center justify-center flex-shrink-0 cursor-pointer"
+        style={{
+          color: "var(--color-sumi600)",
+          borderRadius: "var(--radius-button)",
+        }}
+      >
+        <Menu size={20} />
+      </button>
+
+      {/*
+        Breadcrumb。
+        md 未満では検索欄に幅を譲るため隠す。詳細ページには「一覧へ戻る」
+        リンクがあり、現在地は各ページの見出しで分かる
+      */}
+      <nav className="hidden md:flex items-center gap-1.5 text-sm flex-shrink-0">
         {breadcrumb.map((item, i) => (
           <span key={item.href} className="flex items-center gap-1.5">
             {i > 0 && (
@@ -168,17 +196,17 @@ export function Header({ userName }: { userName?: string }) {
       </nav>
 
       {/* 横断検索 */}
-      <div className="flex-1 flex justify-center px-4">
+      <div className="flex-1 flex justify-center min-w-0 md:px-4">
         <GlobalSearch />
       </div>
 
       {/* User menu */}
-      <div className="flex items-center gap-2 flex-shrink-0">
+      <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
         <Link
           href="/manual"
           title="マニュアル"
           aria-label="マニュアル"
-          className="flex items-center justify-center flex-shrink-0 transition-colors"
+          className="tap-target flex items-center justify-center flex-shrink-0 transition-colors"
           style={{
             width: "2rem",
             height: "2rem",
@@ -203,7 +231,7 @@ export function Header({ userName }: { userName?: string }) {
             aria-haspopup="menu"
             aria-expanded={menuOpen}
             aria-controls="user-menu-dropdown"
-            className="flex items-center gap-2 cursor-pointer transition-colors"
+            className="tap-target flex items-center justify-center gap-2 cursor-pointer transition-colors"
             style={{
               padding: "0.375rem 0.625rem",
               borderRadius: "var(--radius-button)",
@@ -218,14 +246,16 @@ export function Header({ userName }: { userName?: string }) {
             }}
           >
             <User size={18} style={{ color: "var(--color-sumi500)" }} />
+            {/* 名前と開閉マークは幅を食うので、狭幅ではアイコンだけにする */}
             <span
-              className="text-sm"
+              className="hidden sm:inline text-sm"
               style={{ color: "var(--color-text-list)" }}
             >
               {userName || "ユーザー"}
             </span>
             <ChevronDown
               size={14}
+              className="hidden sm:inline"
               style={{
                 color: "var(--color-sumi400)",
                 transform: menuOpen ? "rotate(180deg)" : "none",

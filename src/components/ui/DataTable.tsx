@@ -2,7 +2,9 @@
 
 import type { ComponentType, ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { nextSortState, parseSort, type SortState } from "@/lib/list-params";
 
 /**
  * 一覧の列定義。
@@ -16,6 +18,12 @@ export type DataColumn<T> = {
   label: string;
   /** セルの中身 */
   render: (row: T) => ReactNode;
+  /**
+   * 並び替えに使う列名（DB のカラム名）。
+   * 指定した列だけ見出しを押して昇順・降順を切り替えられる。
+   * 表示が複数カラムの合成になっている列（所属・スキル等）には付けない
+   */
+  sortKey?: string;
   /**
    * カード表示での扱い。
    *   title  … カードの見出し（1 列だけ指定する）
@@ -40,6 +48,14 @@ type Props<T> = {
   emptyMessage?: string;
   /** 列幅を内容ではなく均等に割る */
   fixedLayout?: boolean;
+  /** 現在の並び順。`sortKey` を持つ列に矢印を出すために使う */
+  sort?: SortState;
+  /**
+   * 並び順が変わったとき。**次の状態そのもの**を受け取る。
+   * 「押すたびに 1 段階進める」判断は DataTable 側で済ませてあるので、
+   * 呼び出し側は受け取った値をそのまま反映すればよい
+   */
+  onSortChange?: (next: SortState) => void;
 };
 
 const surfaceStyle = {
@@ -47,6 +63,60 @@ const surfaceStyle = {
   borderRadius: "var(--radius-card)",
   boxShadow: "var(--elevation-low)",
 } as const;
+
+/**
+ * 並び替えできる見出し。
+ *
+ * 未指定の列は矢印を薄く出して「押せる」ことを伝える。何も出さないと
+ * どの列が並び替えできるのか画面から分からない。
+ */
+function SortableHeader({
+  label,
+  field,
+  sort,
+  onSortChange,
+}: {
+  label: string;
+  field: string;
+  sort: SortState;
+  onSortChange: (next: SortState) => void;
+}) {
+  const active = sort?.field === field;
+  const direction = active ? sort.direction : null;
+  const Icon = direction === "asc" ? ArrowUp : direction === "desc" ? ArrowDown : ChevronsUpDown;
+
+  return (
+    <button
+      type="button"
+      onClick={() => onSortChange(nextSortState(sort, field))}
+      // aria-sort は th 側に付ける決まりなので、ここでは押した結果を文言で伝える
+      aria-label={
+        direction === "asc"
+          ? `${label}（昇順）。押すと降順`
+          : direction === "desc"
+            ? `${label}（降順）。押すと解除`
+            : `${label}。押すと昇順で並び替え`
+      }
+      className="inline-flex items-center gap-1 hover:opacity-70"
+      style={{
+        border: "none",
+        background: "none",
+        padding: 0,
+        margin: 0,
+        font: "inherit",
+        color: active ? "var(--color-text-title)" : "inherit",
+        cursor: "pointer",
+      }}
+    >
+      {label}
+      <Icon
+        size={12}
+        aria-hidden="true"
+        style={{ flexShrink: 0, opacity: active ? 1 : 0.35 }}
+      />
+    </button>
+  );
+}
 
 export function DataTable<T>({
   items,
@@ -56,6 +126,8 @@ export function DataTable<T>({
   emptyIcon: EmptyIcon,
   emptyMessage = "データが見つかりません",
   fixedLayout = false,
+  sort = null,
+  onSortChange,
 }: Props<T>) {
   const router = useRouter();
 
@@ -93,18 +165,39 @@ export function DataTable<T>({
         >
           <thead>
             <tr style={{ backgroundColor: "var(--color-sumi50)" }}>
-              {columns.map((col) => (
-                <th
-                  key={col.label}
-                  className={cn(
-                    "px-4 py-3 text-left font-semibold text-xs whitespace-nowrap",
-                    col.className
-                  )}
-                  style={{ color: "var(--color-sumi600)" }}
-                >
-                  {col.label}
-                </th>
-              ))}
+              {columns.map((col) => {
+                const sortable = col.sortKey && onSortChange;
+                return (
+                  <th
+                    key={col.label}
+                    className={cn(
+                      "px-4 py-3 text-left font-semibold text-xs whitespace-nowrap",
+                      col.className
+                    )}
+                    style={{ color: "var(--color-sumi600)" }}
+                    aria-sort={
+                      col.sortKey && sort?.field === col.sortKey
+                        ? sort.direction === "asc"
+                          ? "ascending"
+                          : "descending"
+                        : sortable
+                          ? "none"
+                          : undefined
+                    }
+                  >
+                    {sortable ? (
+                      <SortableHeader
+                        label={col.label}
+                        field={col.sortKey!}
+                        sort={sort}
+                        onSortChange={onSortChange}
+                      />
+                    ) : (
+                      col.label
+                    )}
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody>
@@ -138,6 +231,38 @@ export function DataTable<T>({
 
       {/* ── md 未満: カード ── */}
       <div className="md:hidden flex flex-col gap-2">
+        {/* カード表示には見出し行が無いので、並び替えは選択式で出す */}
+        {onSortChange && columns.some((c) => c.sortKey) && (
+          <div className="flex items-center gap-2 text-xs">
+            <label htmlFor="datatable-sort" style={{ color: "var(--color-sumi600)" }}>
+              並び替え
+            </label>
+            <select
+              id="datatable-sort"
+              value={sort ? `${sort.field}:${sort.direction}` : ""}
+              onChange={(e) => onSortChange(parseSort(e.target.value))}
+              style={{
+                border: "1px solid var(--color-border-default)",
+                borderRadius: "var(--radius-input)",
+                padding: "0.25rem 0.5rem",
+                backgroundColor: "#fff",
+                fontSize: "0.75rem",
+              }}
+            >
+              <option value="">既定</option>
+              {columns
+                .filter((c) => c.sortKey)
+                .flatMap((c) => [
+                  <option key={`${c.sortKey}:asc`} value={`${c.sortKey}:asc`}>
+                    {c.label}（昇順）
+                  </option>,
+                  <option key={`${c.sortKey}:desc`} value={`${c.sortKey}:desc`}>
+                    {c.label}（降順）
+                  </option>,
+                ])}
+            </select>
+          </div>
+        )}
         {items.map((row) => (
           <div
             key={getKey(row)}

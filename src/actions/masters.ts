@@ -29,6 +29,7 @@ import {
   leadCustomerActivityTypeSchema, leadCustomerActivityTypeUpdateSchema,
   leadScoreRuleSchema, leadScoreRuleUpdateSchema,
 } from "@/lib/validators";
+import { toUserMessage } from "@/lib/db-error";
 import type { z } from "zod";
 import type { Database } from "@/types/database.generated";
 import type {
@@ -85,6 +86,44 @@ const TABLES_WITH_AUDIT_COLUMNS = new Set([
 /** テーブルが監査カラムを持つか判定 */
 function hasAuditColumns(tableName: MasterTableName): boolean {
   return TABLES_WITH_AUDIT_COLUMNS.has(tableName);
+}
+
+/**
+ * テーブル名 → 画面上の名称。DB エラーを日本語に直すときの主語に使う。
+ * 画面のタブ名（TAB_LABELS）と同じ言葉にすること。
+ */
+const MASTER_LABELS: Record<string, string> = {
+  pipeline_types: "パイプライン種別",
+  deal_stages: "商談ステージ",
+  deal_statuses: "商談ステータス",
+  contract_types: "契約種別",
+  corporate_types: "法人格",
+  services: "サービス",
+  lead_sources: "リードソース",
+  account_types: "取引先種別",
+  account_role_types: "取引先区分",
+  account_statuses: "取引先ステータス",
+  contact_statuses: "連絡先ステータス",
+  company_statuses: "事業者情報ステータス",
+  skill_categories: "スキルカテゴリ",
+  skills: "スキル",
+  project_statuses: "プロジェクトステータス",
+  lead_categories: "リードカテゴリ",
+  lead_activity_types: "対応種別",
+  lead_stages: "リードステージ",
+  lead_statuses: "リードステータス",
+  lead_temperatures: "温度感",
+  lead_call_statuses: "コールステータス",
+  lead_large_segments: "大セグメント",
+  lead_small_segments: "小セグメント",
+  lead_company_sizes: "企業規模",
+  lead_customer_activity_types: "顧客行動タイプ",
+  lead_score_rules: "スコアリングルール",
+  lead_score_thresholds: "スコア変換ルール",
+};
+
+function masterLabel(tableName: MasterTableName): string {
+  return MASTER_LABELS[tableName] ?? "マスタ";
 }
 
 async function getAuthenticatedUser() {
@@ -146,7 +185,12 @@ export async function createMasterRecord<K extends MasterTableName>(
 
   const auditCreate = hasAuditColumns(tableName) ? { created_by: user.id } : {};
   const { data, error } = await supabase.from(tableName).insert({ ...(parsed.data as Record<string, unknown>), ...auditCreate }).select().single();
-  if (error) return { data: null, error: error.message };
+  if (error) {
+    return {
+      data: null,
+      error: toUserMessage(error, { entityLabel: masterLabel(tableName), operation: "create" }),
+    };
+  }
   return { data, error: null };
 }
 
@@ -168,7 +212,12 @@ export async function updateMasterRecord<K extends MasterTableName>(
 
   const auditUpdate = hasAuditColumns(tableName) ? { last_updated_by: user.id } : {};
   const { data, error } = await supabase.from(tableName).update({ ...(parsed.data as Record<string, unknown>), ...auditUpdate }).eq("id", id).select().single();
-  if (error) return { data: null, error: error.message };
+  if (error) {
+    return {
+      data: null,
+      error: toUserMessage(error, { entityLabel: masterLabel(tableName), operation: "update" }),
+    };
+  }
   return { data, error: null };
 }
 
@@ -186,7 +235,12 @@ export async function deleteMasterRecord(tableName: MasterTableName, id: string)
     deleted_by: user.id,
     ...auditDelete,
   }).eq("id", id);
-  if (error) return { data: null, error: error.message };
+  if (error) {
+    return {
+      data: null,
+      error: toUserMessage(error, { entityLabel: masterLabel(tableName), operation: "delete" }),
+    };
+  }
   return { data: null, error: null };
 }
 

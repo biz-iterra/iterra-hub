@@ -26,3 +26,20 @@ export function isFieldValidationError(message: string | null | undefined): bool
     message.startsWith(FIELD_ERROR_PREFIX) || message.includes(MASTER_ERROR_KEYWORD)
   );
 }
+
+/**
+ * `[field] 本文` を分解する。
+ *
+ * 入力欄の近くにエラーを出すのに使う。プレフィックスを付けたままトーストに
+ * 流すと `[code] コードを入力してください` のように内部名が利用者へ露出する。
+ * 該当する入力欄が画面に無い場合もあるので、呼び出し側は field 不一致時の
+ * 表示先（フォーム冒頭など）を用意すること。
+ */
+export function parseFieldError(
+  message: string | null | undefined
+): { field: string; message: string } | null {
+  if (!message) return null;
+  const matched = message.match(/^\[([A-Za-z0-9_]+)\]\s*([\s\S]+)$/);
+  if (!matched) return null;
+  return { field: matched[1], message: matched[2].trim() };
+}

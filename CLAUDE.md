@@ -256,3 +256,20 @@ Lead ─取込→ Company + Contact          名刺はリードであると同�
 `src/lib/master-color.ts`）。同じマスタで未使用の色をパレット順に選ぶため、DB に色の無い
 行はできない。パレットは `badges.tsx` の `PROGRESSION_PALETTE` と揃えてあるので、
 色を増やすときは両方を直す。
+
+### RLS ポリシーの書き方（性能）
+
+**引数なしの関数（`auth.uid()` / `is_admin()` / `is_manager_or_above()`）は
+必ずスカラーサブクエリで包む。** 裸で書くとプランナが行ごとの評価を強制し、
+全行で関数が呼ばれる。
+
+```sql
+-- ✗ 行ごとに評価される
+USING (is_manager_or_above() OR owner_user_id = auth.uid())
+-- ✓ InitPlan になりクエリ全体で 1 回
+USING ((SELECT is_manager_or_above()) OR owner_user_id = (SELECT auth.uid()))
+```
+
+leads 3,008 件の一覧で 154ms → 1.76ms（マイグレーション `20260803000021` で
+既存 205 ポリシーを一括変換済み）。**引数ありの関数（`is_lead_accessible(lead_id)` など
+行の値に依存するもの）は包まない。** 意味が変わる。

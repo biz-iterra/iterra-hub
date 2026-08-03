@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useTransition } from "react";
 import Link from "next/link";
 import { UserCircle } from "lucide-react";
 import { getTalents } from "@/actions/talents";
+import { useListView } from "@/hooks/useListView";
+import { LIST_FILTER_KEYS } from "@/lib/list-sort";
 import { SearchInput } from "@/components/ui/SearchInput";
+import { FilterSelect } from "@/components/ui/FilterSelect";
 import { FilterGroup, FilterClearButton } from "@/components/ui/FilterGroup";
 import { DataTable } from "@/components/ui/DataTable";
 import { Pagination } from "@/components/ui/Pagination";
@@ -23,6 +25,8 @@ type TalentRow = TalentWithRelations;
 
 interface Props {
   initialData: { rows: TalentRow[]; total: number } | null;
+  /** ポテンシャルタイプの選択肢（IL+ / PR- など 12 種） */
+  potentialTypes: { type: string; dominantBrain: string | null }[];
 }
 
 // ---------------------------------------------------------------------------
@@ -55,45 +59,24 @@ const PER_PAGE = DEFAULT_PAGE_SIZE;
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
-export function TalentsView({ initialData }: Props) {
-  const [data, setData] = useState(initialData);
-  const [keyword, setKeyword] = useState("");
-  const [page, setPage] = useState(1);
-  const [isPending, startTransition] = useTransition();
-
-  function handleSearch(value: string) {
-    setKeyword(value);
-    setPage(1);
-    startTransition(async () => {
-      const { data: result } = await getTalents({
-        search: value || undefined,
-        perPage: PER_PAGE,
-        page: 1,
-      });
-      setData(result);
+export function TalentsView({ initialData, potentialTypes }: Props) {
+  const { filters, page, sort, setFilter, setPage, setSort, clear, isPending, data } =
+    useListView({
+      filterKeys: LIST_FILTER_KEYS.talents,
+      initialData,
+      load: (state) =>
+        getTalents({
+          search: state.filters.search || undefined,
+          potentialType: state.filters.potentialType || undefined,
+          perPage: PER_PAGE,
+          page: state.page,
+          sortField: state.sort?.field,
+          sortDirection: state.sort?.direction,
+        }),
     });
-  }
 
-  function handleClear() {
-    setKeyword("");
-    setPage(1);
-    startTransition(async () => {
-      const { data: result } = await getTalents({ perPage: PER_PAGE, page: 1 });
-      setData(result);
-    });
-  }
-
-  function handlePageChange(next: number) {
-    setPage(next);
-    startTransition(async () => {
-      const { data: result } = await getTalents({
-        search: keyword || undefined,
-        perPage: PER_PAGE,
-        page: next,
-      });
-      setData(result);
-    });
-  }
+  const keyword = filters.search ?? "";
+  const potentialType = filters.potentialType ?? "";
 
   const items = (data?.rows ?? []) as TalentRow[];
   const totalCount = data?.total ?? 0;
@@ -112,12 +95,22 @@ export function TalentsView({ initialData }: Props) {
 
       {/* フィルター行 */}
       <FilterGroup className="mb-4">
+        <FilterSelect
+          label="ポテンシャルタイプ"
+          value={potentialType}
+          options={potentialTypes.map((t) => ({
+            value: t.type,
+            // 記号だけでは選びにくいので優位脳を添える
+            label: t.dominantBrain ? `${t.type}（${t.dominantBrain}）` : t.type,
+          }))}
+          onChange={(v) => setFilter("potentialType", v)}
+        />
         <SearchInput
           value={keyword}
           placeholder="氏名で検索..."
-          onChange={handleSearch}
+          onChange={(v) => setFilter("search", v)}
         />
-        <FilterClearButton onClear={handleClear} />
+        <FilterClearButton onClear={clear} />
         {isPending && (
           <span
             className="text-xs"
@@ -135,6 +128,8 @@ export function TalentsView({ initialData }: Props) {
         getHref={(row) => `/talents/${row.id}`}
         emptyIcon={UserCircle}
         emptyMessage="タレントが見つかりません"
+        sort={sort}
+        onSortChange={setSort}
         columns={[
           {
             label: "連絡先名",
@@ -151,6 +146,16 @@ export function TalentsView({ initialData }: Props) {
                   ? `${row.contact.last_name} ${row.contact.first_name}`
                   : "—"}
               </Link>
+            ),
+          },
+          {
+            label: "ポテンシャル",
+            card: "meta",
+            className: "whitespace-nowrap",
+            render: (row) => (
+              <span style={{ fontSize: "0.8125rem", fontWeight: 600 }}>
+                {row.contact?.number_diagnosis?.type ?? "—"}
+              </span>
             ),
           },
           {
@@ -212,6 +217,7 @@ export function TalentsView({ initialData }: Props) {
           },
           {
             label: "最終更新日",
+            sortKey: "updated_at",
             className: "text-xs whitespace-nowrap",
             render: (row) => formatDateTime(row.updated_at),
           },
@@ -223,7 +229,7 @@ export function TalentsView({ initialData }: Props) {
         page={page}
         totalCount={totalCount}
         pageSize={PER_PAGE}
-        onPageChange={handlePageChange}
+        onPageChange={setPage}
       />
     </div>
   );

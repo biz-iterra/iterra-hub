@@ -28,33 +28,31 @@ export function SearchInput({
 }: SearchInputProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // 表示は手元の値、確定は遅らせる。打っている最中に外から値を戻されないよう、
-  // 「最後に親へ渡した値」を覚えておいて、それと違うときだけ外の値に従う
-  // （リセット・ブラウザの戻るで条件が変わった場合がこれに当たる）
+  // 表示は手元の値、親への通知は遅らせる。
+  // 打っている最中に外から値を戻されないよう、直前に見た外の値を覚えておき、
+  // それが変わったときだけ手元の値を合わせる（リセットやブラウザの戻り）。
+  // effect ではなくレンダー中に調整するのは React の推奨する形
+  // （props が変わったときの state 調整）で、余分な再描画が挟まらない
   const [draft, setDraft] = useState(value);
-  const committed = useRef(value);
+  const [syncedValue, setSyncedValue] = useState(value);
+  if (value !== syncedValue) {
+    setSyncedValue(value);
+    setDraft(value);
+  }
+
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    if (value !== committed.current) {
-      committed.current = value;
-      setDraft(value);
-    }
-  }, [value]);
-
-  useEffect(() => () => {
-    if (timer.current) clearTimeout(timer.current);
-  }, []);
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    []
+  );
 
   const commit = (next: string, immediate = false) => {
     setDraft(next);
     if (timer.current) clearTimeout(timer.current);
-    const fire = () => {
-      committed.current = next;
-      onChange(next);
-    };
-    if (immediate) fire();
-    else timer.current = setTimeout(fire, DEBOUNCE_MS);
+    if (immediate) onChange(next);
+    else timer.current = setTimeout(() => onChange(next), DEBOUNCE_MS);
   };
 
   /*

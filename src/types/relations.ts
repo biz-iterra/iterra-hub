@@ -537,7 +537,13 @@ export type TalentSkillWithSkill = Ref<
 
 /** talents.ts の TALENT_LIST_SELECT に対応 */
 export type TalentWithRelations = Row<"talents"> & {
-  contact: TalentContactRef | null;
+  contact:
+    | (TalentContactRef &
+        Ref<"contacts", "potential_number"> & {
+          /** ポテンシャルタイプ（IL+ / PR- など）。一覧の列と絞り込みに使う */
+          number_diagnosis: Ref<"number_diagnosis", "number" | "type"> | null;
+        })
+    | null;
   talent_skills: TalentSkillWithSkill[];
 };
 

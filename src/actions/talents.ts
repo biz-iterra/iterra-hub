@@ -16,6 +16,7 @@ import type {
   TalentDetail,
   TalentWithRelations,
 } from "@/types/relations";
+import { resolveListSort, SORT_FIELDS, toOrderArgs, type SortParams } from "@/lib/list-sort";
 import type { z } from "zod";
 
 type ActionResult<T> = { data: T | null; error: string | null };
@@ -90,18 +91,25 @@ async function getSkillTalentId(
   return (data as { talent_id?: string } | null)?.talent_id ?? null;
 }
 
+// contacts は !inner にする。ポテンシャルタイプでの絞り込みが
+// 埋め込みテーブルの列を条件にするため、内部結合でないと効かない。
+// talents.contact_id は NOT NULL なので、内部結合にしても件数は変わらない
 const TALENT_LIST_SELECT = `
   *,
-  contact:contacts(id, contact_code, last_name, first_name, department, job_title),
+  contact:contacts!inner(id, contact_code, last_name, first_name, department, job_title, potential_number, number_diagnosis(number, type)),
   talent_skills(id, proficiency_level, years_experience, skill:skills(id, skill_code, axis, name, system_tags, skill_categories(name)))
 ` as const;
 
 // ---------- 一覧取得 ----------
-export async function getTalents(params?: {
-  search?: string;
-  page?: number;
-  perPage?: number;
-}): Promise<ActionResult<Paged<TalentWithRelations>>> {
+export async function getTalents(
+  params?: {
+    search?: string;
+    page?: number;
+    perPage?: number;
+    /** ポテンシャルタイプ（IL+ / PR- など）。number_diagnosis.type の値 */
+    potentialType?: string;
+  } & SortParams
+): Promise<ActionResult<Paged<TalentWithRelations>>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
@@ -109,17 +117,37 @@ export async function getTalents(params?: {
   const perPage = params?.perPage ?? 20;
   const from = (page - 1) * perPage;
   const to = from + perPage - 1;
+  const sort = resolveListSort(params, SORT_FIELDS.talents, {
+    field: "updated_at",
+    direction: "desc",
+  });
 
   let query = supabase
     .from("talents")
     .select(TALENT_LIST_SELECT, { count: "exact" })
     .is("deleted_at", null)
+    .order(...toOrderArgs(sort))
     .range(from, to);
 
   if (params?.search) {
     query = query.or(
       `contact.last_name.ilike.%${params.search}%,contact.first_name.ilike.%${params.search}%`
     );
+  }
+
+  if (params?.potentialType) {
+    // タイプは 12 種、番号は 1〜60。contacts が持つのは番号なので、
+    // タイプに対応する番号へ展開してから絞り込む
+    const { data: numbers } = await supabase
+      .from("number_diagnosis")
+      .select("number")
+      .eq("type", params.potentialType);
+    const list = (numbers ?? []).map((n) => n.number);
+    // 該当する番号が無いタイプを指定されたら 0 件にする
+    // （空配列を in に渡すと条件が無視されて全件返る）
+    query = list.length > 0
+      ? query.in("contact.potential_number", list)
+      : query.eq("id", "00000000-0000-0000-0000-000000000000");
   }
 
   const { data, error, count } = await query;
@@ -394,4 +422,37 @@ export async function removeTalentCareer(id: string): Promise<ActionResult<null>
 
   if (error) return { data: null, error: error.message };
   return { data: null, error: null };
+}
+
+// ---------- ポテンシャルタイプ一覧 ----------
+/**
+ * 絞り込みの選択肢に使うポテンシャルタイプ（IL+ / PR- など 12 種）。
+ *
+ * number_diagnosis は番号 1〜60 とタイプの対応表なので、タイプで畳んで返す。
+ * 優位脳（左脳 / 右脳）を添えるのは、記号だけでは何を選んでいるか
+ * 分からないため。
+ */
+export async function getPotentialTypes(): Promise<
+  ActionResult<{ type: string; dominantBrain: string | null }[]>
+> {
+  const { supabase, user } = await getAuthenticatedUser();
+  if (!supabase || !user) return { data: null, error: "認証が必要です" };
+
+  const { data, error } = await supabase
+    .from("number_diagnosis")
+    .select("type, dominant_brain")
+    .order("type", { ascending: true });
+
+  if (error) return { data: null, error: error.message };
+
+  const seen = new Map<string, string | null>();
+  for (const row of data ?? []) {
+    if (!row.type || seen.has(row.type)) continue;
+    seen.set(row.type, row.dominant_brain);
+  }
+
+  return {
+    data: [...seen].map(([type, dominantBrain]) => ({ type, dominantBrain })),
+    error: null,
+  };
 }

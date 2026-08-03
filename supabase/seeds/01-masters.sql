@@ -415,3 +415,30 @@ INSERT INTO lead_score_rules (category, condition_type, condition_value_id, scor
 -- 色が未設定の行だけを埋めるので、ここで呼んでも運用中の色は変わらない。
 -- ============================================================
 SELECT apply_default_status_colors();
+
+-- ============================================================
+-- 取引先区分 × パイプラインの紐付け
+--
+-- account_role_types はマイグレーション 20260731000008 で投入されるが、
+-- そこで pipeline_type_id を引くサブクエリは pipeline_types を参照している。
+-- db reset は「マイグレーション → seed」の順で流れるため、
+-- マイグレーション実行時点では上の M01 がまだ入っておらず NULL になる。
+-- pipeline_types を入れた**後**であるここで紐付ける。
+--
+-- これが NULL のままだと ensure_account_on_contract() の区分付与が働かず、
+-- 契約が成立しても取引先に「顧客 / 仕入れ先 / 外注先」が付かない。
+-- 既に seed 投入済みの環境（本番）向けの補正は
+-- 20260803000005_backfill_account_role_type_pipelines.sql にある。
+-- 上書きにならないよう、未設定の行だけを埋める。
+-- ============================================================
+UPDATE account_role_types art
+   SET pipeline_type_id = pt.id
+  FROM pipeline_types pt
+ WHERE art.pipeline_type_id IS NULL
+   AND art.deleted_at IS NULL
+   AND pt.deleted_at IS NULL
+   AND (
+     (art.code = 'customer'      AND pt.slug = 'sales') OR
+     (art.code = 'supplier'      AND pt.slug = 'procurement') OR
+     (art.code = 'subcontractor' AND pt.slug = 'outsourcing')
+   );

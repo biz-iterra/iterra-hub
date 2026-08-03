@@ -7,7 +7,7 @@
 
 トースト規約（全ケース共通の確認事項）:
 - 成功トーストは約 4 秒で自動消滅する
-- エラートーストは自動消滅せず、閉じるボタンでのみ消える
+- エラートーストは約 10 秒で自動消滅する（閉じるボタンでも消せる）
 - フィールド単位のバリデーションエラー（`[field] メッセージ` 形式）はトーストではなくフォーム下にインライン表示される（`isFieldValidationError` で振り分け）
 
 ## 1. 対象範囲
@@ -279,7 +279,7 @@
   3. タブ B で代表者名を「B更新」にして保存する
 - 期待結果
   - タブ B の保存はエラートースト「この事業者情報は他のユーザーによって更新されています。画面を再読み込みしてから保存してください」
-  - エラートーストは自動消滅せず、閉じるボタンでのみ消える
+  - エラートーストは約 10 秒で自動消滅する（閉じるボタンでも消せる）
   - DB の代表者名は「A更新」のまま（B の内容で上書きされない。SQL 検証）
   - タブ B を再読み込みして保存し直すと成功する
 - 自動化: Playwright候補（2 コンテキスト）+ SQL検証
@@ -585,7 +585,7 @@
   2. タブ A で保存 → 成功
   3. タブ B で保存
 - 期待結果
-  - タブ B にエラートースト「この取引先は他のユーザーによって更新されています。画面を再読み込みしてから保存してください」（手動クローズのみ）
+  - タブ B にエラートースト「この取引先は他のユーザーによって更新されています。画面を再読み込みしてから保存してください」（約 10 秒で自動消滅）
   - DB はタブ A の内容のまま（SQL 検証）
 - 自動化: Playwright候補 + SQL検証
 
@@ -674,6 +674,6 @@
 3. **updateCompany のみ owner 不在時のメッセージが露出気味**: manager は RLS で他人のデータを閲覧できるため、編集画面自体は開けてしまい、保存時に初めて「編集する権限がありません」と分かる。UX 上、編集ページ表示時点で読み取り専用にする余地がある（accounts 側も同様）。
 4. ~~getCompany / getAccount が deleted_at を絞っていない~~ **2026-08-03 対応済み**: 一覧に合わせて詳細取得（`getCompany` / `getAccount`）にも `.is("deleted_at", null)` を追加。0 件になると `.single()` がエラーになり、既存の「見つかりません」表示にそのまま乗る（CMP-18 / ACC-14）。**同日追加対応**: `updateCompany` / `updateAccount` 内の owner チェック用の存在確認クエリにも `.is("deleted_at", null)` を追加（`src/actions/companies.ts` の `updateCompany`、`src/actions/accounts.ts` の `updateAccount`）。削除済みレコードへの Server Action 直接呼び出しも既存の「見つかりません」文言で拒否される。
 5. **createAccount に楽観ロック外の重複ガードがない**: 同一 company_id・同一名の取引先を手動で複数作成できる。Account は契約トリガーで自動作成される設計のため、手動経路との二重作成（契約登録前に手で作ってしまい、契約時にもう 1 つできる）を運用でどう防ぐかは仕様として未定義に見える（ACC-15 の結果に依存。トリガー側に既存 Account 再利用のロジックがあるかは contracts 領域で要確認）。
-6. ~~financial_info の更新に楽観ロックがない~~ **2026-08-03 対応済み**: `financial_info` に `updated_at` 列とトリガー（`trg_financial_info_updated_at`）が既にあるため、`updateCompany` と同じパターンで `updateFinancialInfo` に `expected_updated_at` を追加（`src/actions/financial-info.ts`、`src/lib/validators/financial-info.ts`）。0 行更新時は `conflictErrorMessage("この金融機関情報")` を返す。未指定なら従来どおりロックなし（後方互換）。**画面側も同日中に対応済み**: `FinancialInfoRow` と `SELECT_COLUMNS` に `updated_at` を追加し、`FinancialInfoEditor.tsx` の編集保存と「主口座にする」の両方が `expected_updated_at` を送るようにした。競合時は `conflictErrorMessage` がエラートースト（手動クローズのみ）で表示される。
+6. ~~financial_info の更新に楽観ロックがない~~ **2026-08-03 対応済み**: `financial_info` に `updated_at` 列とトリガー（`trg_financial_info_updated_at`）が既にあるため、`updateCompany` と同じパターンで `updateFinancialInfo` に `expected_updated_at` を追加（`src/actions/financial-info.ts`、`src/lib/validators/financial-info.ts`）。0 行更新時は `conflictErrorMessage("この金融機関情報")` を返す。未指定なら従来どおりロックなし（後方互換）。**画面側も同日中に対応済み**: `FinancialInfoRow` と `SELECT_COLUMNS` に `updated_at` を追加し、`FinancialInfoEditor.tsx` の編集保存と「主口座にする」の両方が `expected_updated_at` を送るようにした。競合時は `conflictErrorMessage` がエラートースト（約 10 秒で自動消滅）で表示される。
 7. **verifyCompaniesBatch は manager 以上で実行可能だが、UI は admin 配下のみ**: `/admin` の「実在確認」タブにしか入口がなく、manager は Action を直接呼ばない限り使えない。権限設計（manager 以上）と画面配置（admin のみ）の意図の確認を推奨。
 8. **削除済み事業者のドメイン・住所・口座**: deleteCompany は本体の論理削除のみで、company_domains は残る。削除済み法人のドメインが名刺取込の判定（ドメイン名寄せ）に使われ続ける可能性がある。運用上問題ないかの確認を推奨。

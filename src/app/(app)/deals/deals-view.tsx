@@ -1,6 +1,9 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
+import { useListParams } from "@/hooks/useListParams";
+import { buildListQuery, type SortState } from "@/lib/list-params";
+import { LIST_FILTER_KEYS } from "@/lib/list-sort";
 import { kanbanColorFrom, type KanbanColor } from "@/lib/kanban-color";
 import Link from "next/link";
 import {
@@ -223,22 +226,62 @@ export function DealsView({
   statuses: Status[];
   users: CrmUser[];
 }) {
-  const [view, setView] = useState<"kanban" | "table">("kanban");
-  const [groupBy, setGroupBy] = useState<GroupBy>("stage");
-  const [stageFilter, setStageFilter] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<string | null>(null);
-  const [selectedPipelineId, setSelectedPipelineId] = useState<string | null>(
-    defaultPipelineId
-  );
+  // 表示モード・パイプライン・各フィルタは URL に持つ。
+  // カンバンからも表からも詳細へ入るため、戻ったときに同じ見え方へ戻す
+  const params = useListParams(LIST_FILTER_KEYS.deals);
+  const view: "kanban" | "table" = params.filters.view === "table" ? "table" : "kanban";
+  const groupBy: GroupBy = params.filters.groupBy === "status" ? "status" : "stage";
+  const stageFilter = groupBy === "stage" ? params.filters.kanbanColumn ?? null : null;
+  const statusFilter = groupBy === "status" ? params.filters.kanbanColumn ?? null : null;
+  const selectedPipelineId = params.filters.pipelineId || defaultPipelineId;
+
+  const tableStageFilter = params.filters.stageId ?? "";
+  const tableStatusFilter = params.filters.statusId ?? "";
+  const tableOwnerFilter = params.filters.ownerUserId ?? "";
+  const search = params.filters.search ?? "";
+  const tablePage = params.page;
+
   const [kanbanData, setKanbanData] = useState<KanbanData>(initialKanbanData);
   const [listData, setListData] = useState<ListData>(initialListData);
 
-  // テーブルビュー用フィルタ state
-  const [tableStageFilter, setTableStageFilter] = useState("");
-  const [tableStatusFilter, setTableStatusFilter] = useState("");
-  const [tableOwnerFilter, setTableOwnerFilter] = useState("");
-  const [search, setSearch] = useState("");
-  const [tablePage, setTablePage] = useState(1);
+  // URL の条件が変わったら取り直す。サーバーが描いた分は取り直さない
+  const query = buildListQuery({
+    filters: params.filters,
+    page: params.page,
+    sort: params.sort,
+  });
+  const loadedQuery = useRef<string | null>(query);
+  useEffect(() => {
+    if (loadedQuery.current === query) return;
+    loadedQuery.current = query;
+
+    startTransition(async () => {
+      if (view === "kanban") {
+        if (!selectedPipelineId) return;
+        const { data } = await getDealsForKanban(selectedPipelineId);
+        setKanbanData(data);
+      } else {
+        const { data } = await getDeals({
+          search: search || undefined,
+          stageId: tableStageFilter || undefined,
+          statusId: tableStatusFilter || undefined,
+          ownerUserId: tableOwnerFilter || undefined,
+          perPage: DEFAULT_PAGE_SIZE,
+          page: tablePage,
+        });
+        setListData(data);
+      }
+    });
+    // 条件をまとめた query だけを見る（個々の値は query から導出される）
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query]);
+
+  const setView = (next: "kanban" | "table") => params.setFilter("view", next);
+  const setGroupBy = (next: GroupBy) =>
+    // 分類軸を変えると列の意味が変わるので、列の絞り込みは外す
+    params.setFilters({ groupBy: next, kanbanColumn: "" });
+  const setKanbanColumn = (next: string | null) =>
+    params.setFilter("kanbanColumn", next ?? "");
 
   const [isPending, startTransition] = useTransition();
   const [pipelineOpen, setPipelineOpen] = useState(false);
@@ -332,74 +375,11 @@ export function DealsView({
   }
 
   function handlePipelineChange(pipelineId: string) {
-    setSelectedPipelineId(pipelineId);
     setPipelineOpen(false);
-    setStageFilter(null);
-    setStatusFilter(null);
-    startTransition(async () => {
-      const { data } = await getDealsForKanban(pipelineId);
-      setKanbanData(data);
-    });
+    // パイプラインが変わるとステージ・ステータスの顔ぶれが変わるので絞り込みを外す
+    params.setFilters({ pipelineId, kanbanColumn: "" });
   }
 
-  function fetchTableData(params: {
-    search?: string;
-    stageId?: string;
-    statusId?: string;
-    ownerUserId?: string;
-    page?: number;
-  }) {
-    startTransition(async () => {
-      const { data } = await getDeals({
-        search: params.search || undefined,
-        stageId: params.stageId || undefined,
-        statusId: params.statusId || undefined,
-        ownerUserId: params.ownerUserId || undefined,
-        perPage: DEFAULT_PAGE_SIZE,
-        page: params.page ?? 1,
-      });
-      setListData(data);
-    });
-  }
-
-  function handleTableFilter(
-    key: "search" | "stageId" | "statusId" | "ownerUserId",
-    value: string
-  ) {
-    const next = {
-      search,
-      stageId: tableStageFilter,
-      statusId: tableStatusFilter,
-      ownerUserId: tableOwnerFilter,
-      [key]: value,
-    };
-    if (key === "search") setSearch(value);
-    if (key === "stageId") setTableStageFilter(value);
-    if (key === "statusId") setTableStatusFilter(value);
-    if (key === "ownerUserId") setTableOwnerFilter(value);
-    setTablePage(1);
-    fetchTableData({ ...next, page: 1 });
-  }
-
-  function handleTableClear() {
-    setSearch("");
-    setTableStageFilter("");
-    setTableStatusFilter("");
-    setTableOwnerFilter("");
-    setTablePage(1);
-    fetchTableData({ page: 1 });
-  }
-
-  function handleTablePageChange(next: number) {
-    setTablePage(next);
-    fetchTableData({
-      search: search || undefined,
-      stageId: tableStageFilter || undefined,
-      statusId: tableStatusFilter || undefined,
-      ownerUserId: tableOwnerFilter || undefined,
-      page: next,
-    });
-  }
 
   const selectedPipeline = pipelines.find((p) => p.id === selectedPipelineId);
 
@@ -564,7 +544,7 @@ export function DealsView({
             {groupBy === "stage" && kanbanData?.stages && kanbanData.stages.length > 0 && (
               <select
                 value={stageFilter ?? ""}
-                onChange={(e) => setStageFilter(e.target.value || null)}
+                onChange={(e) => setKanbanColumn(e.target.value || null)}
                 className="text-xs font-medium px-3 py-2"
                 style={{
                   border: "1px solid var(--color-border-default)",
@@ -586,7 +566,7 @@ export function DealsView({
             {groupBy === "status" && kanbanData?.statuses && kanbanData.statuses.length > 0 && (
               <select
                 value={statusFilter ?? ""}
-                onChange={(e) => setStatusFilter(e.target.value || null)}
+                onChange={(e) => setKanbanColumn(e.target.value || null)}
                 className="text-xs font-medium px-3 py-2"
                 style={{
                   border: "1px solid var(--color-border-default)",
@@ -610,9 +590,7 @@ export function DealsView({
             <SearchInput
               value={search}
               placeholder="商談名で検索..."
-              onChange={(v) => {
-                setSearch(v);
-              }}
+onChange={(v) => params.setFilter("search", v)}
             />
           </>
         )}
@@ -634,26 +612,26 @@ export function DealsView({
             label="ステージ"
             value={tableStageFilter}
             options={stages.map((s) => ({ value: s.id, label: s.name }))}
-            onChange={(v) => handleTableFilter("stageId", v)}
+            onChange={(v) => params.setFilter("stageId", v)}
           />
           <FilterSelect
             label="ステータス"
             value={tableStatusFilter}
             options={statuses.map((s) => ({ value: s.id, label: s.name }))}
-            onChange={(v) => handleTableFilter("statusId", v)}
+            onChange={(v) => params.setFilter("statusId", v)}
           />
           <FilterSelect
             label="担当者"
             value={tableOwnerFilter}
             options={users.map((u) => ({ value: u.id, label: u.full_name }))}
-            onChange={(v) => handleTableFilter("ownerUserId", v)}
+            onChange={(v) => params.setFilter("ownerUserId", v)}
           />
           <SearchInput
             value={search}
             placeholder="商談名で検索..."
-            onChange={(v) => handleTableFilter("search", v)}
+            onChange={(v) => params.setFilter("search", v)}
           />
-          <FilterClearButton onClear={handleTableClear} />
+          <FilterClearButton onClear={params.clear} />
           {isPending && (
             <span
               className="text-xs"
@@ -678,12 +656,16 @@ export function DealsView({
         />
       ) : (
         <>
-          <TableView data={listData} />
+          <TableView
+            data={listData}
+            sort={params.sort}
+            onSortChange={params.setSortState}
+          />
           <Pagination
             page={tablePage}
             totalCount={listData?.total ?? 0}
             pageSize={DEFAULT_PAGE_SIZE}
-            onPageChange={handleTablePageChange}
+            onPageChange={params.setPage}
           />
         </>
       )}
@@ -1093,7 +1075,15 @@ function KanbanView({
 }
 
 // ---------- テーブルビュー ----------
-function TableView({ data }: { data: ListData }) {
+function TableView({
+  data,
+  sort,
+  onSortChange,
+}: {
+  data: ListData;
+  sort: SortState;
+  onSortChange: (next: SortState) => void;
+}) {
   return (
     <DataTable<DealWithRelations>
       items={data?.rows ?? []}
@@ -1101,9 +1091,12 @@ function TableView({ data }: { data: ListData }) {
       getHref={(deal) => `/deals/${deal.id}`}
       emptyIcon={Handshake}
       emptyMessage="商談がありません"
+      sort={sort}
+      onSortChange={onSortChange}
       columns={[
         {
           label: "取引名",
+          sortKey: "name",
           card: "title",
           className: "min-w-[200px]",
           render: (deal) => (
@@ -1144,6 +1137,7 @@ function TableView({ data }: { data: ListData }) {
         {
           /* 期限が近い・過ぎたものは色と太さで目立たせる */
           label: "クローズ予定日",
+          sortKey: "expected_close_date",
           className: "w-[120px] whitespace-nowrap",
           render: (deal) => {
             const due = getDueInfo(deal);
@@ -1163,6 +1157,7 @@ function TableView({ data }: { data: ListData }) {
         },
         {
           label: "金額",
+          sortKey: "amount",
           className: "w-[120px] text-right font-mono whitespace-nowrap",
           render: (deal) => formatAmount(deal.amount),
         },
@@ -1178,6 +1173,7 @@ function TableView({ data }: { data: ListData }) {
         },
         {
           label: "最終更新日",
+          sortKey: "updated_at",
           className: "w-[150px] text-xs whitespace-nowrap",
           render: (deal) => formatDateTime(deal.updated_at),
         },

@@ -10,6 +10,7 @@ import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { isFieldValidationError } from "@/lib/errors";
 import { calculateDefaultCloseDate } from "@/lib/deals/expected-close-date";
 import { formContainerClass, fieldGridClass, formActionsClass } from "@/lib/layout";
+import { RequiredMark } from "@/components/ui/RequiredMark";
 
 type SelectOption = { value: string; label: string };
 type PipelineOption = SelectOption & { default_close_months: number | null };
@@ -283,7 +284,7 @@ export function DealNewForm({ masters }: { masters: Masters }) {
           <h2 style={styles.sectionTitle}>基本情報</h2>
           <div className={styles.grid}>
             <div style={{ gridColumn: "1 / -1" }}>
-              <label style={styles.label}>取引名 *</label>
+              <label style={styles.label}>取引名<RequiredMark /></label>
               <input
                 type="text"
                 style={styles.input}
@@ -318,7 +319,7 @@ export function DealNewForm({ masters }: { masters: Masters }) {
               />
             </div>
             <div>
-              <label style={styles.label}>取引先 *</label>
+              <label style={styles.label}>取引先<RequiredMark /></label>
               <SearchableSelect
                 value={values.account_id}
                 onChange={(v) => set("account_id", v)}
@@ -353,7 +354,7 @@ export function DealNewForm({ masters }: { masters: Masters }) {
           <h2 style={styles.sectionTitle}>パイプライン</h2>
           <div className={styles.grid}>
             <div>
-              <label style={styles.label}>パイプライン *</label>
+              <label style={styles.label}>パイプライン<RequiredMark /></label>
               <select
                 style={styles.input}
                 value={values.pipeline_type_id}
@@ -372,7 +373,7 @@ export function DealNewForm({ masters }: { masters: Masters }) {
             </div>
             <div />
             <div>
-              <label style={styles.label}>ステージ *</label>
+              <label style={styles.label}>ステージ<RequiredMark /></label>
               <select
                 style={styles.input}
                 value={values.deal_stage_id}
@@ -391,7 +392,7 @@ export function DealNewForm({ masters }: { masters: Masters }) {
               </select>
             </div>
             <div>
-              <label style={styles.label}>ステータス *</label>
+              <label style={styles.label}>ステータス<RequiredMark /></label>
               <select
                 style={styles.input}
                 value={values.deal_status_id}

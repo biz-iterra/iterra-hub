@@ -208,4 +208,7 @@ export const leadFiltersSchema = z.object({
   keyword: z.string().max(100).optional(),
   page: z.number().int().min(1).default(1),
   perPage: z.number().int().min(1).max(100).default(20),
+  // 並び順は URL 由来。許可された列かどうかは resolveListSort が判定する
+  sortField: z.string().max(64).optional(),
+  sortDirection: z.enum(["asc", "desc"] as const).optional(),
 });

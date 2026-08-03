@@ -91,7 +91,17 @@ ITERRA CRM（顧客関係管理）システム。
 - DB設計は `docs/database-design.md` に基づく。変更時は設計書を先に更新する
 - 操作結果（保存・削除・移動の成否）はトーストで通知する。`useToast()`（`src/components/ui/toast.tsx`）を使う
 - フィールド単位のバリデーションエラー（入力必須・形式不正など、入力箇所に紐づくもの）はインライン表示のまま。トーストにしない
-- エラートーストは自動消滅させない（見落とし防止のため閉じるボタンでのみ消す。success/info は約4秒で自動消滅）
+- **一覧の条件（フィルタ・ページ・並び順）は URL のクエリに置く。** `useListView`
+  （`src/hooks/useListView.ts`）を使い、`page.tsx` は `searchParams` を見て初回取得する。
+  `useState` に置くと詳細から戻ったときに条件が消える。フィルタ名と並び替え可能な列は
+  `src/lib/list-sort.ts` に集約する（Server Action と Server Component の両方が参照するため）
+- **入力必須の印は `RequiredMark`（`src/components/ui/RequiredMark.tsx`）を使う。** ラベル文字列に `*` を直接書かない。
+  どの欄に付けるかの正本は Zod スキーマ（`src/lib/validators/`）。スキーマの必須を変えたらフォームの印も同じ作業内で合わせる
+- トーストは種別ごとの時間で自動消滅する（error は約10秒、success/info は約4秒）。
+  error を長く取るのは読む時間の確保のため。どれも閉じるボタンで即座に消せる
+- **利用者に見えるエラー文言の正本は `docs/error-messages.md`。** 文言を足す・直すときは同書を先に更新する。
+  英語の生エラー（Zod 既定 / Postgres / 外部 API）を画面に出さない。DB エラーは
+  `toUserMessage()`（`src/lib/db-error.ts`）を必ず通してから返す
 
 ### データ整合性の規約（必須遵守）
 
@@ -250,3 +260,25 @@ Lead ─取込→ Company + Contact          名刺はリードであると同�
 ステータス／ステージ系マスタは `color`（`#RRGGBB`）を持ち、表示側は DB の値をそのまま使う。
 画面ごとに sort_order から算出すると同じ値が別の色になるため、**バッジを出す箇所は必ず `color` まで SELECT する**。
 既定色は意味カテゴリで横断統一している（「アクティブ」は取引先でも法人でも同じ色）。
+
+**色を空欄で保存した場合は Server Action が自動で付与する**（`pickDefaultBadgeColor()`,
+`src/lib/master-color.ts`）。同じマスタで未使用の色をパレット順に選ぶため、DB に色の無い
+行はできない。パレットは `badges.tsx` の `PROGRESSION_PALETTE` と揃えてあるので、
+色を増やすときは両方を直す。
+
+### RLS ポリシーの書き方（性能）
+
+**引数なしの関数（`auth.uid()` / `is_admin()` / `is_manager_or_above()`）は
+必ずスカラーサブクエリで包む。** 裸で書くとプランナが行ごとの評価を強制し、
+全行で関数が呼ばれる。
+
+```sql
+-- ✗ 行ごとに評価される
+USING (is_manager_or_above() OR owner_user_id = auth.uid())
+-- ✓ InitPlan になりクエリ全体で 1 回
+USING ((SELECT is_manager_or_above()) OR owner_user_id = (SELECT auth.uid()))
+```
+
+leads 3,008 件の一覧で 154ms → 1.76ms（マイグレーション `20260803000021` で
+既存 205 ポリシーを一括変換済み）。**引数ありの関数（`is_lead_accessible(lead_id)` など
+行の値に依存するもの）は包まない。** 意味が変わる。

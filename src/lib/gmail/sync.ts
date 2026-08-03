@@ -16,6 +16,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getGmailConfig } from "./config";
 import {
   getMessageMetadata,
+  getProfile,
+  isGmailNotFound,
   listAddedMessageIds,
   listMessageIds,
   refreshAccessToken,
@@ -37,6 +39,8 @@ export type SyncResult = {
   recorded: number;
   /** 記録対象外として飛ばした通数 */
   skipped: number;
+  /** Gmail 上に存在せず取得できなかった通数（削除済みなど） */
+  missing: number;
   /** 履歴が失効して全件走査にフォールバックしたか */
   fellBackToFullScan: boolean;
 };
@@ -96,9 +100,22 @@ export async function syncConnection(
 
     let recorded = 0;
     let skipped = 0;
+    let missing = 0;
 
     for (const id of ids.slice(0, MAX_MESSAGES_PER_RUN)) {
-      const meta = await getMessageMetadata(accessToken, id);
+      // 差分履歴に載った後で削除されたメールは 404 になる。
+      // 1 通の欠落で同期全体を止めない（次の同期でも同じ ID で失敗し続けるため）
+      let meta: GmailMessageMeta;
+      try {
+        meta = await getMessageMetadata(accessToken, id);
+      } catch (e) {
+        if (isGmailNotFound(e)) {
+          missing += 1;
+          continue;
+        }
+        throw e;
+      }
+
       const outcome = await recordMessage(admin, conn, meta, {
         ownDomains,
         connectedAddresses,
@@ -122,6 +139,7 @@ export async function syncConnection(
         emailAddress: conn.email_address,
         recorded,
         skipped,
+        missing,
         fellBackToFullScan: fellBack,
       },
       error: null,
@@ -148,20 +166,33 @@ async function collectTargetIds(
   accessToken: string,
   conn: ConnectionRow
 ): Promise<{ ids: string[]; nextHistoryId: string | null; fellBack: boolean }> {
-  const recent = async () => {
+  /**
+   * 直近分の走査。次回から差分同期に戻れるよう historyId を控える。
+   *
+   * historyId は一覧を取る前に読む。後に読むと、その間に届いたメールが
+   * 「取り込み済みの範囲」に入ってしまい、次回の差分でも拾えなくなる。
+   */
+  const recent = async (fellBack: boolean) => {
+    let nextHistoryId: string | null = null;
+    try {
+      nextHistoryId = (await getProfile(accessToken)).historyId;
+    } catch {
+      // 取れなくても取り込み自体は続けられる（次回も直近分の走査になるだけ）
+      nextHistoryId = null;
+    }
     const { ids } = await listMessageIds(accessToken, {
       maxResults: INITIAL_MESSAGE_LIMIT,
     });
-    return ids;
+    return { ids, nextHistoryId, fellBack };
   };
 
   if (!conn.last_synced_at || !conn.last_history_id) {
-    return { ids: await recent(), nextHistoryId: null, fellBack: false };
+    return recent(false);
   }
 
   const history = await listAddedMessageIds(accessToken, conn.last_history_id);
   if (history.expired) {
-    return { ids: await recent(), nextHistoryId: null, fellBack: true };
+    return recent(true);
   }
   return { ids: history.ids, nextHistoryId: history.historyId, fellBack: false };
 }

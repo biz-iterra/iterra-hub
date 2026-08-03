@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useTransition } from "react";
 import Link from "next/link";
 import { Plus, Building2 } from "lucide-react";
 import { getCompanies } from "@/actions/companies";
+import { useListView } from "@/hooks/useListView";
+import { LIST_FILTER_KEYS } from "@/lib/list-sort";
 import { StatusBadge } from "@/components/ui/badges";
 import { DataTable } from "@/components/ui/DataTable";
 import { SearchInput } from "@/components/ui/SearchInput";
@@ -42,60 +43,27 @@ export function CompaniesView({
   corporateTypes,
   users,
 }: CompaniesViewProps) {
-  const [data, setData] = useState<CompaniesData>(initialData);
-  const [statusFilter, setStatusFilter] = useState("");
-  const [corporateTypeFilter, setCorporateTypeFilter] = useState("");
-  const [ownerFilter, setOwnerFilter] = useState("");
-  const [keyword, setKeyword] = useState("");
-  const [page, setPage] = useState(1);
-  const [isPending, startTransition] = useTransition();
-
-  function handleFilter(
-    key: string,
-    value: string,
-    setter: (v: string) => void
-  ) {
-    setter(value);
-    setPage(1);
-    startTransition(async () => {
-      const { data: result } = await getCompanies({
-        statusId: key === "statusId" ? value || undefined : statusFilter || undefined,
-        corporateTypeId: key === "corporateTypeId" ? value || undefined : corporateTypeFilter || undefined,
-        ownerUserId: key === "ownerUserId" ? value || undefined : ownerFilter || undefined,
-        search: key === "search" ? value || undefined : keyword || undefined,
-        perPage: DEFAULT_PAGE_SIZE,
-        page: 1,
-      });
-      setData(result);
+  const { filters, page, sort, setFilter, setPage, setSort, clear, isPending, data } =
+    useListView({
+      filterKeys: LIST_FILTER_KEYS.companies,
+      initialData,
+      load: (state) =>
+        getCompanies({
+          statusId: state.filters.statusId || undefined,
+          corporateTypeId: state.filters.corporateTypeId || undefined,
+          ownerUserId: state.filters.ownerUserId || undefined,
+          search: state.filters.search || undefined,
+          perPage: DEFAULT_PAGE_SIZE,
+          page: state.page,
+          sortField: state.sort?.field,
+          sortDirection: state.sort?.direction,
+        }),
     });
-  }
 
-  function handleClear() {
-    setStatusFilter("");
-    setCorporateTypeFilter("");
-    setOwnerFilter("");
-    setKeyword("");
-    setPage(1);
-    startTransition(async () => {
-      const { data: result } = await getCompanies({ perPage: DEFAULT_PAGE_SIZE, page: 1 });
-      setData(result);
-    });
-  }
-
-  function handlePageChange(next: number) {
-    setPage(next);
-    startTransition(async () => {
-      const { data: result } = await getCompanies({
-        statusId: statusFilter || undefined,
-        corporateTypeId: corporateTypeFilter || undefined,
-        ownerUserId: ownerFilter || undefined,
-        search: keyword || undefined,
-        perPage: DEFAULT_PAGE_SIZE,
-        page: next,
-      });
-      setData(result);
-    });
-  }
+  const statusFilter = filters.statusId ?? "";
+  const corporateTypeFilter = filters.corporateTypeId ?? "";
+  const ownerFilter = filters.ownerUserId ?? "";
+  const keyword = filters.search ?? "";
 
   const items = data?.rows ?? [];
   const total = data?.total ?? 0;
@@ -136,26 +104,26 @@ export function CompaniesView({
           label="ステータス"
           value={statusFilter}
           options={statuses.map((s) => ({ value: s.id, label: s.name }))}
-          onChange={(v) => handleFilter("statusId", v, setStatusFilter)}
+          onChange={(v) => setFilter("statusId", v)}
         />
         <FilterSelect
           label="法人格"
           value={corporateTypeFilter}
           options={corporateTypes.map((c) => ({ value: c.id, label: c.name }))}
-          onChange={(v) => handleFilter("corporateTypeId", v, setCorporateTypeFilter)}
+          onChange={(v) => setFilter("corporateTypeId", v)}
         />
         <FilterSelect
           label="担当者"
           value={ownerFilter}
           options={users.map((u) => ({ value: u.id, label: u.full_name }))}
-          onChange={(v) => handleFilter("ownerUserId", v, setOwnerFilter)}
+          onChange={(v) => setFilter("ownerUserId", v)}
         />
         <SearchInput
           value={keyword}
           placeholder="会社名で検索..."
-          onChange={(v) => handleFilter("search", v, setKeyword)}
+          onChange={(v) => setFilter("search", v)}
         />
-        <FilterClearButton onClear={handleClear} />
+        <FilterClearButton onClear={clear} />
         {isPending && (
           <span
             className="text-xs"
@@ -173,9 +141,12 @@ export function CompaniesView({
         getHref={(company) => `/companies/${company.id}`}
         emptyIcon={Building2}
         emptyMessage="事業者情報が見つかりません"
+        sort={sort}
+        onSortChange={setSort}
         columns={[
           {
             label: "会社名",
+            sortKey: "name",
             card: "title",
             render: (company) => (
               <Link
@@ -216,6 +187,7 @@ export function CompaniesView({
           },
           {
             label: "最終更新日",
+            sortKey: "updated_at",
             className: "text-xs whitespace-nowrap",
             render: (company) => formatDateTime(company.updated_at),
           },
@@ -227,7 +199,7 @@ export function CompaniesView({
         page={page}
         totalCount={total}
         pageSize={DEFAULT_PAGE_SIZE}
-        onPageChange={handlePageChange}
+        onPageChange={setPage}
       />
     </div>
   );

@@ -6296,6 +6296,10 @@ export type Database = {
       purge_soft_deleted_records: { Args: never; Returns: undefined }
       recalculate_all_lead_scores: { Args: never; Returns: number }
       recalculate_lead_score: { Args: { p_lead_id: string }; Returns: number }
+      recalculate_lead_scores_for_batch: {
+        Args: { p_batch_id: string }
+        Returns: number
+      }
       record_business_card: {
         Args: {
           p_actor?: string

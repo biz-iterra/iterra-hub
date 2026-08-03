@@ -8,6 +8,7 @@ import { createCampaign } from "@/actions/campaigns";
 import { useToast } from "@/components/ui/toast";
 import { isFieldValidationError } from "@/lib/errors";
 import { formContainerClass, fieldGridClass, formActionsClass } from "@/lib/layout";
+import { RequiredMark } from "@/components/ui/RequiredMark";
 
 const styles = {
   container: formContainerClass,
@@ -155,12 +156,12 @@ export function CampaignNewForm() {
           <h2 style={{ color: "var(--color-text-title)", fontSize: "1rem", fontWeight: 600, margin: "0 0 1rem 0" }}>基本情報</h2>
           <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
             <div>
-              <label style={styles.label}>キャンペーン名 *</label>
+              <label style={styles.label}>キャンペーン名<RequiredMark /></label>
               <input type="text" style={styles.input} value={values.name} onChange={(e) => set("name", e.target.value)} required onFocus={onFocus} onBlur={onBlur} />
             </div>
             <div className={styles.grid2}>
               <div>
-                <label style={styles.label}>種別 *</label>
+                <label style={styles.label}>種別<RequiredMark /></label>
                 <select
                   style={styles.input}
                   value={values.type}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -11,6 +11,15 @@ export interface SearchInputProps {
   className?: string;
 }
 
+/**
+ * 入力が止まってから親へ伝えるまでの時間。
+ *
+ * 一覧の条件は URL に載せてサーバーから取り直すため、1 文字ごとに伝えると
+ * 打っている途中で再描画が挟まり、入力が取りこぼされる。
+ * 打鍵の間隔より長く、待たされたと感じない程度に置く。
+ */
+const DEBOUNCE_MS = 300;
+
 export function SearchInput({
   value,
   onChange,
@@ -18,6 +27,33 @@ export function SearchInput({
   className,
 }: SearchInputProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // 表示は手元の値、親への通知は遅らせる。
+  // 打っている最中に外から値を戻されないよう、直前に見た外の値を覚えておき、
+  // それが変わったときだけ手元の値を合わせる（リセットやブラウザの戻り）。
+  // effect ではなくレンダー中に調整するのは React の推奨する形
+  // （props が変わったときの state 調整）で、余分な再描画が挟まらない
+  const [draft, setDraft] = useState(value);
+  const [syncedValue, setSyncedValue] = useState(value);
+  if (value !== syncedValue) {
+    setSyncedValue(value);
+    setDraft(value);
+  }
+
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    []
+  );
+
+  const commit = (next: string, immediate = false) => {
+    setDraft(next);
+    if (timer.current) clearTimeout(timer.current);
+    if (immediate) onChange(next);
+    else timer.current = setTimeout(() => onChange(next), DEBOUNCE_MS);
+  };
 
   /*
    * 伸縮は style ではなくクラスで持つ。
@@ -33,7 +69,7 @@ export function SearchInput({
   const inputStyle: CSSProperties = {
     width: "100%",
     paddingLeft: "2.125rem",
-    paddingRight: value ? "2rem" : "0.75rem",
+    paddingRight: draft ? "2rem" : "0.75rem",
     paddingTop: "0.4rem",
     paddingBottom: "0.4rem",
     fontSize: "0.8125rem",
@@ -77,10 +113,10 @@ export function SearchInput({
       <input
         ref={inputRef}
         type="text"
-        value={value}
+        value={draft}
         placeholder={placeholder}
         aria-label={placeholder}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => commit(e.target.value)}
         onFocus={(e) => {
           e.currentTarget.style.boxShadow = "0 0 0 3px var(--color-focus-ring)";
         }}
@@ -89,14 +125,15 @@ export function SearchInput({
         }}
         style={inputStyle}
       />
-      {value && (
+      {draft && (
         <button
           type="button"
           aria-label="検索をクリア"
           style={clearStyle}
           tabIndex={-1}
           onClick={() => {
-            onChange("");
+            // クリアは待たせない。押した結果がすぐ見えないと押し直される
+            commit("", true);
             inputRef.current?.focus();
           }}
           onMouseEnter={(e) => {

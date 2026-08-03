@@ -13,6 +13,7 @@ import { AddressesEditor } from "@/components/common/AddressesEditor";
 import { FinancialInfoEditor } from "@/components/companies/FinancialInfoEditor";
 import type { FinancialInfoRow } from "@/actions/financial-info";
 import type { EntityAddress } from "@/types/relations";
+import { RequiredMark } from "@/components/ui/RequiredMark";
 import {
   CompanyDomainsSection,
   type CompanyDomainRow,
@@ -294,7 +295,7 @@ export function CompanyEditForm({
           <h2 style={styles.sectionTitle}>基本情報</h2>
           <div className={styles.grid}>
             <div>
-              <label style={styles.label}>会社名 *</label>
+              <label style={styles.label}>会社名<RequiredMark /></label>
               <input
                 type="text"
                 style={styles.input}
@@ -361,7 +362,7 @@ export function CompanyEditForm({
               </div>
             )}
             <div>
-              <label style={styles.label}>ステータス *</label>
+              <label style={styles.label}>ステータス<RequiredMark /></label>
               <select
                 style={styles.input}
                 value={values.company_status_id}

@@ -8,6 +8,7 @@ import { createProject } from "@/actions/projects";
 import { useToast } from "@/components/ui/toast";
 import { isFieldValidationError } from "@/lib/errors";
 import { formContainerClass, fieldGridClass, formActionsClass } from "@/lib/layout";
+import { RequiredMark } from "@/components/ui/RequiredMark";
 
 type SelectOption = { value: string; label: string };
 
@@ -179,7 +180,7 @@ export function ProjectNewForm({
           <h2 style={styles.sectionTitle}>基本情報</h2>
           <div className={styles.grid}>
             <div style={{ gridColumn: "1 / -1" }}>
-              <label style={styles.label}>プロジェクト名 *</label>
+              <label style={styles.label}>プロジェクト名<RequiredMark /></label>
               <input
                 type="text"
                 style={styles.input}
@@ -201,7 +202,7 @@ export function ProjectNewForm({
               />
             </div>
             <div>
-              <label style={styles.label}>ステータス *</label>
+              <label style={styles.label}>ステータス<RequiredMark /></label>
               <select
                 style={styles.input}
                 value={values.project_status_id}

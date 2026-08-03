@@ -9,6 +9,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import { isFieldValidationError } from "@/lib/errors";
 import { formContainerClass, fieldGridClass, formFooterClass } from "@/lib/layout";
+import { RequiredMark } from "@/components/ui/RequiredMark";
 
 type SelectOption = { value: string; label: string };
 type StageOption = SelectOption & { pipeline_type_id: string };
@@ -296,7 +297,7 @@ export function DealEditForm({
           <h2 style={styles.sectionTitle}>基本情報</h2>
           <div className={styles.grid}>
             <div style={{ gridColumn: "1 / -1" }}>
-              <label style={styles.label}>取引名 *</label>
+              <label style={styles.label}>取引名<RequiredMark /></label>
               <input
                 type="text"
                 style={styles.input}
@@ -339,7 +340,7 @@ export function DealEditForm({
           <h2 style={styles.sectionTitle}>パイプライン</h2>
           <div className={styles.grid}>
             <div>
-              <label style={styles.label}>パイプライン *</label>
+              <label style={styles.label}>パイプライン<RequiredMark /></label>
               <select
                 style={styles.input}
                 value={values.pipeline_type_id}
@@ -358,7 +359,7 @@ export function DealEditForm({
             </div>
             <div />
             <div>
-              <label style={styles.label}>ステージ *</label>
+              <label style={styles.label}>ステージ<RequiredMark /></label>
               <select
                 style={styles.input}
                 value={values.deal_stage_id}
@@ -377,7 +378,7 @@ export function DealEditForm({
               </select>
             </div>
             <div>
-              <label style={styles.label}>ステータス *</label>
+              <label style={styles.label}>ステータス<RequiredMark /></label>
               <select
                 style={styles.input}
                 value={values.deal_status_id}

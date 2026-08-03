@@ -28,10 +28,19 @@ type ToastContextValue = {
 
 const ToastContext = createContext<ToastContextValue | null>(null);
 
-// success/info の自動消滅までの時間。error は自動消滅させない（見落とし防止）
-const AUTO_DISMISS_MS = 4000;
+// 自動消滅までの時間。error は読む時間が要るので長く取る。
+// 以前は error を消さない仕様だったが、画面に残り続けて操作の邪魔になるため
+// 2026-08-03 に自動消滅へ変更した。閉じるボタンは残してある
+const AUTO_DISMISS_MS: Record<ToastType, number> = {
+  success: 4000,
+  info: 4000,
+  error: 10000,
+};
 // フェードイン/アウトのトランジション時間（prefers-reduced-motion時は0）
 const TRANSITION_MS = 200;
+// 消えるときの縮小率。位置ではなく大きさが変わることで
+// 「閉じた」ことが視野の端でも分かる
+const DISMISS_SCALE = 0.9;
 
 const ICONS: Record<ToastType, typeof CheckCircle2> = {
   success: CheckCircle2,
@@ -73,7 +82,8 @@ const TONE_STYLES: Record<ToastType, { background: string; border: string; color
  * ```
  *
  * - success / info: 約4秒で自動消滅（role="status" aria-live="polite"）
- * - error: 自動消滅させない。閉じるボタンでのみ消える（role="alert" aria-live="assertive"）
+ * - error: 約10秒で自動消滅（role="alert" aria-live="assertive"）。
+ *   読む時間を確保するため長め。どちらも閉じるボタンで即座に消せる
  */
 export function useToast(): ToastContextValue {
   const ctx = useContext(ToastContext);
@@ -127,10 +137,9 @@ function ToastItemView({
     removeTimerRef.current = setTimeout(() => onDismiss(toast.id), TRANSITION_MS);
   }, [onDismiss, toast.id, reducedMotion]);
 
-  // success/info のみ自動消滅。error は閉じるボタンのみ
+  // 種別ごとの時間で自動消滅する。error は長め
   useEffect(() => {
-    if (toast.type === "error") return;
-    const timer = setTimeout(startDismiss, AUTO_DISMISS_MS);
+    const timer = setTimeout(startDismiss, AUTO_DISMISS_MS[toast.type]);
     return () => clearTimeout(timer);
     // startDismiss は toast.id ごとに安定しているため依存に含めない
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -159,7 +168,12 @@ function ToastItemView({
     border: tone.border,
     color: tone.color,
     opacity: visible ? 1 : 0,
-    transform: visible ? "translateY(0)" : "translateY(0.5rem)",
+    // 入るときは下から、消えるときは縮む。同じ transform で両方を賄うため
+    // 初期状態も scale を掛けておく（そうしないと消え際だけ挙動が変わる）
+    transform: visible
+      ? "translateY(0) scale(1)"
+      : `translateY(0.5rem) scale(${DISMISS_SCALE})`,
+    transformOrigin: "bottom right",
     transition: reducedMotion ? "none" : `opacity ${TRANSITION_MS}ms ease, transform ${TRANSITION_MS}ms ease`,
   };
 

@@ -36,6 +36,8 @@ import {
 } from "@/actions/masters";
 import type { LeadScoreRuleWithRefCheck, Row } from "@/types/relations";
 import { tableScrollClass } from "@/lib/layout";
+import { RequiredMark } from "@/components/ui/RequiredMark";
+import { parseFieldError } from "@/lib/errors";
 
 /** スコアリング管理タブで扱うマスタ行 */
 type LeadScoreRule = LeadScoreRuleWithRefCheck;
@@ -46,6 +48,14 @@ type LeadScoreThreshold = Row<"lead_score_thresholds">;
 type FieldDef = {
   key: string;
   label: string;
+  /**
+   * 入力必須。ラベルに `*` を出す。
+   *
+   * 正本は `src/lib/validators/masters.ts` の create スキーマ。
+   * 片方だけ直すと「* が無いのに保存できない欄」ができるので、
+   * スキーマを変えたらここも同じ作業内で合わせる。
+   */
+  required?: boolean;
   type?: "text" | "textarea" | "number" | "select";
   options?: { value: string; label: string }[];
   colorSwatch?: boolean;
@@ -61,6 +71,31 @@ type FieldDef = {
   unit?: string;
 };
 
+/**
+ * code / slug 欄の説明。
+ * DB 側の CHECK 制約（`^[a-z][a-z0-9_]{0,31}$`）と同じ条件を利用者の言葉で書く。
+ * 保存後に変えると seed や連携先の参照が切れるため、その点も伝える。
+ */
+const CODE_HELP_TEXT =
+  "システム内部の識別子。半角英小文字で始め、半角英数字とアンダースコアのみ（32文字以内）。登録後は変更しないこと";
+
+/** バッジ色欄の説明。空欄の意味を明示する（保存時に自動で色が付く） */
+const COLOR_HELP_TEXT =
+  "例: #E53935。空欄で保存すると、このマスタでまだ使っていない色が自動で付きます";
+
+/** 入力欄に紐づくエラーの表示スタイル（トーストではなくインラインで出す） */
+const errorTextStyle: React.CSSProperties = {
+  margin: "0.375rem 0 0",
+  fontSize: "0.75rem",
+  color: "var(--color-error)",
+};
+
+/** 一覧テーブルの「操作」列（編集・削除ボタン）の幅 */
+const ACTION_COLUMN_WIDTH = 140;
+
+/** 幅指定が "auto" の列（定義など長文）に確保したい最低幅 */
+const FLEXIBLE_COLUMN_MIN_WIDTH = 220;
+
 // 一覧テーブルのカラム幅をフィールド内容に応じて算出
 function resolveFieldWidth(f: FieldDef): string {
   if (f.width) return f.width;
@@ -72,6 +107,23 @@ function resolveFieldWidth(f: FieldDef): string {
   if (/(^|_)(slug|code)$/.test(f.key)) return "140px";
   if (f.key === "name") return "220px";
   return "180px";
+}
+
+/**
+ * 一覧テーブルに必要な最低幅。
+ *
+ * `tableLayout: fixed` は幅が足りないと各列を等しく圧縮するため、
+ * 列が増えたタブでは「定義」が 1 文字ずつ縦に折り返して隣の列と重なっていた。
+ * 最低幅を持たせて、足りない場合は table-scroll 側で横スクロールさせる。
+ */
+function resolveTableMinWidth(fields: FieldDef[]): number {
+  const columns = fields.reduce((sum, f) => {
+    const width = resolveFieldWidth(f);
+    if (width === "auto") return sum + FLEXIBLE_COLUMN_MIN_WIDTH;
+    const parsed = Number.parseInt(width, 10);
+    return sum + (Number.isNaN(parsed) ? FLEXIBLE_COLUMN_MIN_WIDTH : parsed);
+  }, 0);
+  return columns + ACTION_COLUMN_WIDTH;
 }
 
 type MasterItem = Record<string, unknown> & { id: string; name: string };
@@ -284,6 +336,7 @@ function FormModal({
   fields,
   initialValues,
   loading,
+  fieldError,
   onSubmit,
   onCancel,
 }: {
@@ -291,6 +344,8 @@ function FormModal({
   fields: FieldDef[];
   initialValues: Record<string, unknown>;
   loading: boolean;
+  /** 保存時に返ったフィールド単位のエラー。該当欄の下に出す */
+  fieldError?: { field: string; message: string } | null;
   onSubmit: (values: Record<string, unknown>) => void;
   onCancel: () => void;
 }) {
@@ -301,14 +356,24 @@ function FormModal({
     onSubmit(values);
   };
 
+  // 入力欄が無いキーのエラー（DB 側の制約など）はフォーム冒頭にまとめて出す
+  const hasMatchingField =
+    fieldError != null && fields.some((f) => f.key === fieldError.field);
+
   return (
     <Modal title={title} onClose={onCancel}>
       <form onSubmit={handleSubmit}>
+        {fieldError && !hasMatchingField && (
+          <p style={errorTextStyle} role="alert">
+            {fieldError.message}
+          </p>
+        )}
         <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
           {fields.map((field) => (
             <div key={field.key}>
               <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 600, color: "var(--color-sumi700)", marginBottom: "0.25rem" }}>
                 {field.label}
+                {field.required && <RequiredMark />}
               </label>
               {field.helpText && (
                 <p style={{ fontSize: "0.75rem", color: "var(--color-sumi500)", marginTop: 0, marginBottom: "0.375rem" }}>
@@ -392,6 +457,11 @@ function FormModal({
                   }}
                 />
               )}
+              {fieldError?.field === field.key && (
+                <p style={errorTextStyle} role="alert">
+                  {fieldError.message}
+                </p>
+              )}
             </div>
           ))}
         </div>
@@ -432,15 +502,39 @@ function SimpleMasterTab({
   const [editItem, setEditItem] = useState<MasterItem | null>(null);
   const [deleteItem, setDeleteItem] = useState<MasterItem | null>(null);
   const [loading, setLoading] = useState(false);
+  // 入力に紐づくエラーはモーダル内に残す。トーストにすると
+  // どの欄を直せばよいか分からないまま消える
+  const [formError, setFormError] = useState<{ field: string; message: string } | null>(null);
+
+  /** 入力エラーならモーダルに留めて表示、それ以外はトースト */
+  const reportError = (message: string) => {
+    const parsed = parseFieldError(message);
+    if (parsed) {
+      setFormError(parsed);
+      return;
+    }
+    showToast({ type: "error", message });
+  };
+
+  const openCreate = () => {
+    setFormError(null);
+    setShowCreate(true);
+  };
+
+  const openEdit = (item: MasterItem) => {
+    setFormError(null);
+    setEditItem(item);
+  };
 
   const handleCreate = async (values: Record<string, unknown>) => {
     setLoading(true);
     const result = await onCreate(values);
     setLoading(false);
     if (result.error) {
-      showToast({ type: "error", message: result.error });
+      reportError(result.error);
       return;
     }
+    setFormError(null);
     showToast({ type: "success", message: `${title}を追加しました` });
     setShowCreate(false);
     onRefresh();
@@ -452,9 +546,10 @@ function SimpleMasterTab({
     const result = await onUpdate(editItem.id, values);
     setLoading(false);
     if (result.error) {
-      showToast({ type: "error", message: result.error });
+      reportError(result.error);
       return;
     }
+    setFormError(null);
     showToast({ type: "success", message: `${title}を保存しました` });
     setEditItem(null);
     onRefresh();
@@ -479,19 +574,26 @@ function SimpleMasterTab({
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
         <h2 style={{ ...styles.title, fontSize: "1rem", fontWeight: 600 }}>{title}</h2>
-        <button style={styles.btnPrimary} onClick={() => setShowCreate(true)}>
+        <button style={styles.btnPrimary} onClick={openCreate}>
           追加
         </button>
       </div>
 
       {/* Table */}
       <div className={tableScrollClass}>
-        <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
+        <table
+          style={{
+            width: "100%",
+            minWidth: resolveTableMinWidth(fields),
+            borderCollapse: "collapse",
+            tableLayout: "fixed",
+          }}
+        >
           <colgroup>
             {fields.map((f) => (
               <col key={f.key} style={{ width: resolveFieldWidth(f) }} />
             ))}
-            <col style={{ width: "140px" }} />
+            <col style={{ width: `${ACTION_COLUMN_WIDTH}px` }} />
           </colgroup>
           <thead>
             <tr>
@@ -576,7 +678,7 @@ function SimpleMasterTab({
                     <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
                       <button
                         style={{ ...styles.btnOutline, ...styles.btnSmall }}
-                        onClick={() => setEditItem(item)}
+                        onClick={() => openEdit(item)}
                       >
                         編集
                       </button>
@@ -602,8 +704,9 @@ function SimpleMasterTab({
           fields={fields}
           initialValues={defaultValues}
           loading={loading}
+          fieldError={formError}
           onSubmit={handleCreate}
-          onCancel={() => setShowCreate(false)}
+          onCancel={() => { setFormError(null); setShowCreate(false); }}
         />
       )}
 
@@ -614,8 +717,9 @@ function SimpleMasterTab({
           fields={fields}
           initialValues={Object.fromEntries(fields.map((f) => [f.key, editItem[f.key]]))}
           loading={loading}
+          fieldError={formError}
           onSubmit={handleUpdate}
-          onCancel={() => setEditItem(null)}
+          onCancel={() => { setFormError(null); setEditItem(null); }}
         />
       )}
 
@@ -692,7 +796,8 @@ function PipelineTab() {
   }, [selectedPipeline, loadStages, loadStatuses]);
 
   const pipelineFields: FieldDef[] = [
-    { key: "name", label: "名前", type: "text" },
+    { key: "slug", label: "スラッグ (例: sales)", required: true, type: "text", helpText: CODE_HELP_TEXT },
+    { key: "name", label: "名前", required: true, type: "text" },
     { key: "definition", label: "定義", type: "textarea" },
     {
       key: "default_close_months",
@@ -706,24 +811,24 @@ function PipelineTab() {
       emptyDisplay: "自動設定しない",
       unit: "ヶ月後",
     },
-    { key: "sort_order", label: "表示順", type: "number" },
+    { key: "sort_order", label: "表示順", type: "number", min: 0 },
   ];
 
   const stageFields: FieldDef[] = [
-    { key: "name", label: "名前", type: "text" },
+    { key: "name", label: "名前", required: true, type: "text" },
     { key: "definition", label: "定義", type: "textarea" },
     { key: "current_situation", label: "現在の状況", type: "textarea" },
-    { key: "sort_order", label: "表示順", type: "number" },
-    { key: "color", label: "バッジ色 (#RRGGBB)", type: "text", colorSwatch: true },
+    { key: "sort_order", label: "表示順", type: "number", min: 0 },
+    { key: "color", label: "バッジ色 (#RRGGBB)", type: "text", colorSwatch: true, helpText: COLOR_HELP_TEXT },
   ];
 
   const stageOptions = stages.map((s) => ({ value: s.id, label: s.name }));
   const statusFields: FieldDef[] = [
-    { key: "name", label: "名前", type: "text" },
+    { key: "name", label: "名前", required: true, type: "text" },
     { key: "definition", label: "定義", type: "textarea" },
     { key: "deal_stage_id", label: "商談ステージ", type: "select", options: stageOptions },
-    { key: "sort_order", label: "表示順", type: "number" },
-    { key: "color", label: "バッジ色 (#RRGGBB)", type: "text", colorSwatch: true },
+    { key: "sort_order", label: "表示順", type: "number", min: 0 },
+    { key: "color", label: "バッジ色 (#RRGGBB)", type: "text", colorSwatch: true, helpText: COLOR_HELP_TEXT },
   ];
 
   if (loadingData) {
@@ -826,15 +931,15 @@ function SkillsTab() {
   }, [selectedCategory, loadSkills]);
 
   const categoryFields: FieldDef[] = [
-    { key: "name", label: "名前", type: "text" },
+    { key: "name", label: "名前", required: true, type: "text" },
     { key: "definition", label: "定義", type: "textarea" },
-    { key: "sort_order", label: "表示順", type: "number" },
+    { key: "sort_order", label: "表示順", type: "number", min: 0 },
   ];
 
   const skillFields: FieldDef[] = [
-    { key: "name", label: "名前", type: "text" },
+    { key: "name", label: "名前", required: true, type: "text" },
     { key: "definition", label: "定義", type: "textarea" },
-    { key: "sort_order", label: "表示順", type: "number" },
+    { key: "sort_order", label: "表示順", type: "number", min: 0 },
   ];
 
   if (loadingData) {
@@ -917,22 +1022,22 @@ function LeadStagesTab() {
   }, [selectedStage, loadStatuses]);
 
   const stageFields: FieldDef[] = [
-    { key: "name", label: "名前", type: "text" },
+    { key: "slug", label: "スラッグ (例: nurturing)", required: true, type: "text", helpText: CODE_HELP_TEXT },
+    { key: "name", label: "名前", required: true, type: "text" },
     { key: "definition", label: "定義", type: "textarea" },
-    { key: "sort_order", label: "表示順", type: "number" },
-    { key: "color", label: "バッジ色 (#RRGGBB)", type: "text", colorSwatch: true },
+    { key: "sort_order", label: "表示順", type: "number", min: 0 },
+    { key: "color", label: "バッジ色 (#RRGGBB)", type: "text", colorSwatch: true, helpText: COLOR_HELP_TEXT },
   ];
 
-  const stageOptions = [
-    { value: "", label: "（未分類）" },
-    ...stages.map((s) => ({ value: s.id, label: s.name })),
-  ];
+  // ステータスはステージに従属する（DB は stage_id NOT NULL）。未分類は作れない
+  const stageOptions = stages.map((s) => ({ value: s.id, label: s.name }));
   const statusFields: FieldDef[] = [
-    { key: "name", label: "名前", type: "text" },
+    { key: "stage_id", label: "リードステージ", required: true, type: "select", options: stageOptions },
+    { key: "code", label: "コード (例: no_prospect)", required: true, type: "text", helpText: CODE_HELP_TEXT },
+    { key: "name", label: "名前", required: true, type: "text" },
     { key: "definition", label: "定義", type: "textarea" },
-    { key: "stage_id", label: "リードステージ", type: "select", options: stageOptions },
-    { key: "sort_order", label: "表示順", type: "number" },
-    { key: "color", label: "バッジ色 (#RRGGBB)", type: "text", colorSwatch: true },
+    { key: "sort_order", label: "表示順", type: "number", min: 0 },
+    { key: "color", label: "バッジ色 (#RRGGBB)", type: "text", colorSwatch: true, helpText: COLOR_HELP_TEXT },
   ];
 
   if (loadingData) {
@@ -1011,18 +1116,18 @@ function LeadSegmentsTab() {
   }, [selectedLarge, loadSmall]);
 
   const largeFields: FieldDef[] = [
-    { key: "name", label: "名前", type: "text" },
+    { key: "code", label: "コード (例: manufacturing)", required: true, type: "text", helpText: CODE_HELP_TEXT },
+    { key: "name", label: "名前", required: true, type: "text" },
     { key: "definition", label: "定義", type: "textarea" },
   ];
 
-  const largeOptions = [
-    { value: "", label: "（未分類）" },
-    ...largeSegments.map((s) => ({ value: s.id, label: s.name })),
-  ];
+  // 小セグメントは大セグメントに従属する（DB は large_segment_id NOT NULL）
+  const largeOptions = largeSegments.map((s) => ({ value: s.id, label: s.name }));
   const smallFields: FieldDef[] = [
-    { key: "name", label: "名前", type: "text" },
+    { key: "large_segment_id", label: "大セグメント", required: true, type: "select", options: largeOptions },
+    { key: "code", label: "コード (例: food_manufacturing)", required: true, type: "text", helpText: CODE_HELP_TEXT },
+    { key: "name", label: "名前", required: true, type: "text" },
     { key: "definition", label: "定義", type: "textarea" },
-    { key: "large_segment_id", label: "大セグメント", type: "select", options: largeOptions },
   ];
 
   if (loadingData) {
@@ -1127,10 +1232,10 @@ function LeadScoreRulesTab({ scoreMasters }: { scoreMasters?: ScoreRuleMasters }
   useEffect(() => { loadRules(); }, [loadRules]);
 
   const formFields: FieldDef[] = [
-    { key: "category", label: "カテゴリ", type: "select", options: CATEGORY_OPTIONS },
-    { key: "condition_type", label: "条件タイプ", type: "select", options: CONDITION_TYPE_OPTIONS },
+    { key: "category", label: "カテゴリ", required: true, type: "select", options: CATEGORY_OPTIONS },
+    { key: "condition_type", label: "条件タイプ", required: true, type: "select", options: CONDITION_TYPE_OPTIONS },
     { key: "condition_value_id", label: "条件値ID（UUID）", type: "text" },
-    { key: "score_delta", label: "加点値（0-100）", type: "number", min: 0 },
+    { key: "score_delta", label: "加点値（0-100）", required: true, type: "number", min: 0 },
     { key: "description", label: "説明", type: "textarea" },
     { key: "sort_order", label: "表示順", type: "number", min: 0 },
   ];
@@ -1803,7 +1908,7 @@ export function AdminView() {
             onDelete={deleteContractType}
             onRefresh={refreshContractTypes}
             fields={[
-              { key: "name", label: "名前", type: "text" },
+              { key: "name", label: "名前", required: true, type: "text" },
               { key: "definition", label: "定義", type: "textarea" },
             ]}
           />
@@ -1818,7 +1923,7 @@ export function AdminView() {
             onDelete={deleteCorporateType}
             onRefresh={refreshCorporateTypes}
             fields={[
-              { key: "name", label: "名前", type: "text" },
+              { key: "name", label: "名前", required: true, type: "text" },
               { key: "definition", label: "定義", type: "textarea" },
             ]}
           />
@@ -1833,9 +1938,9 @@ export function AdminView() {
             onDelete={deleteCompanyStatus}
             onRefresh={refreshCompanyStatuses}
             fields={[
-              { key: "name", label: "名前", type: "text" },
+              { key: "name", label: "名前", required: true, type: "text" },
               { key: "definition", label: "定義", type: "textarea" },
-              { key: "color", label: "バッジ色 (#RRGGBB)", type: "text", colorSwatch: true },
+              { key: "color", label: "バッジ色 (#RRGGBB)", type: "text", colorSwatch: true, helpText: COLOR_HELP_TEXT },
             ]}
           />
         );
@@ -1849,7 +1954,7 @@ export function AdminView() {
             onDelete={deleteService}
             onRefresh={refreshServices}
             fields={[
-              { key: "name", label: "名前", type: "text" },
+              { key: "name", label: "名前", required: true, type: "text" },
               { key: "definition", label: "定義", type: "textarea" },
             ]}
           />
@@ -1864,7 +1969,8 @@ export function AdminView() {
             onDelete={deleteLeadSource}
             onRefresh={refreshLeadSources}
             fields={[
-              { key: "name", label: "名前", type: "text" },
+              { key: "slug", label: "スラッグ (例: eight)", required: true, type: "text", helpText: CODE_HELP_TEXT },
+              { key: "name", label: "名前", required: true, type: "text" },
               { key: "definition", label: "定義", type: "textarea" },
             ]}
           />
@@ -1879,10 +1985,10 @@ export function AdminView() {
             onDelete={deleteLeadCategory}
             onRefresh={refreshLeadCategories}
             fields={[
-              { key: "code", label: "コード (例: inquiry)", type: "text" },
-              { key: "name", label: "名前", type: "text" },
+              { key: "code", label: "コード (例: inquiry)", required: true, type: "text" },
+              { key: "name", label: "名前", required: true, type: "text" },
               { key: "definition", label: "定義", type: "textarea" },
-              { key: "color", label: "カラー (#RRGGBB)", type: "text", colorSwatch: true },
+              { key: "color", label: "バッジ色 (#RRGGBB)", type: "text", colorSwatch: true, helpText: COLOR_HELP_TEXT },
               { key: "sort_order", label: "表示順", type: "number", min: 0 },
             ]}
           />
@@ -1897,7 +2003,8 @@ export function AdminView() {
             onDelete={deleteLeadTemperature}
             onRefresh={refreshLeadTemperatures}
             fields={[
-              { key: "name", label: "名前", type: "text" },
+              { key: "code", label: "コード (例: hot)", required: true, type: "text", helpText: CODE_HELP_TEXT },
+              { key: "name", label: "名前", required: true, type: "text" },
               { key: "definition", label: "定義", type: "textarea" },
               { key: "sort_order", label: "表示順", type: "number", min: 0 },
             ]}
@@ -1913,7 +2020,8 @@ export function AdminView() {
             onDelete={deleteLeadCallStatus}
             onRefresh={refreshLeadCallStatuses}
             fields={[
-              { key: "name", label: "名前", type: "text" },
+              { key: "code", label: "コード (例: connected)", required: true, type: "text", helpText: CODE_HELP_TEXT },
+              { key: "name", label: "名前", required: true, type: "text" },
               { key: "definition", label: "定義", type: "textarea" },
               { key: "sort_order", label: "表示順", type: "number", min: 0 },
             ]}
@@ -1929,10 +2037,10 @@ export function AdminView() {
             onDelete={deleteLeadActivityType}
             onRefresh={refreshLeadActivityTypes}
             fields={[
-              { key: "code", label: "コード (例: call)", type: "text" },
-              { key: "name", label: "名前", type: "text" },
+              { key: "code", label: "コード (例: call)", required: true, type: "text" },
+              { key: "name", label: "名前", required: true, type: "text" },
               { key: "definition", label: "定義", type: "textarea" },
-              { key: "color", label: "カラー (#RRGGBB)", type: "text", colorSwatch: true },
+              { key: "color", label: "バッジ色 (#RRGGBB)", type: "text", colorSwatch: true, helpText: COLOR_HELP_TEXT },
               { key: "sort_order", label: "表示順", type: "number", min: 0 },
             ]}
           />
@@ -1947,7 +2055,7 @@ export function AdminView() {
             onDelete={deleteAccountType}
             onRefresh={refreshAccountTypes}
             fields={[
-              { key: "name", label: "名前", type: "text" },
+              { key: "name", label: "名前", required: true, type: "text" },
               { key: "definition", label: "定義", type: "textarea" },
             ]}
           />
@@ -1964,10 +2072,10 @@ export function AdminView() {
             onDelete={deleteAccountRoleType}
             onRefresh={refreshAccountRoleTypes}
             fields={[
-              { key: "code", label: "コード (例: customer)", type: "text" },
-              { key: "name", label: "名前", type: "text" },
+              { key: "code", label: "コード (例: customer)", required: true, type: "text" },
+              { key: "name", label: "名前", required: true, type: "text" },
               { key: "definition", label: "定義", type: "textarea" },
-              { key: "color", label: "バッジ色 (#RRGGBB)", type: "text", colorSwatch: true },
+              { key: "color", label: "バッジ色 (#RRGGBB)", type: "text", colorSwatch: true, helpText: COLOR_HELP_TEXT },
               { key: "sort_order", label: "表示順", type: "number", min: 0 },
               {
                 // このパイプラインで契約が成立すると、取引先へ自動で付与される
@@ -1992,9 +2100,10 @@ export function AdminView() {
             onDelete={deleteAccountStatus}
             onRefresh={refreshAccountStatuses}
             fields={[
-              { key: "name", label: "名前", type: "text" },
+              { key: "code", label: "コード (例: active)", required: true, type: "text", helpText: CODE_HELP_TEXT },
+              { key: "name", label: "名前", required: true, type: "text" },
               { key: "definition", label: "定義", type: "textarea" },
-              { key: "color", label: "バッジ色 (#RRGGBB)", type: "text", colorSwatch: true },
+              { key: "color", label: "バッジ色 (#RRGGBB)", type: "text", colorSwatch: true, helpText: COLOR_HELP_TEXT },
             ]}
           />
         );
@@ -2008,9 +2117,9 @@ export function AdminView() {
             onDelete={deleteContactStatus}
             onRefresh={refreshContactStatuses}
             fields={[
-              { key: "name", label: "名前", type: "text" },
+              { key: "name", label: "名前", required: true, type: "text" },
               { key: "definition", label: "定義", type: "textarea" },
-              { key: "color", label: "バッジ色 (#RRGGBB)", type: "text", colorSwatch: true },
+              { key: "color", label: "バッジ色 (#RRGGBB)", type: "text", colorSwatch: true, helpText: COLOR_HELP_TEXT },
             ]}
           />
         );
@@ -2024,8 +2133,8 @@ export function AdminView() {
             onDelete={deleteLeadCompanySize}
             onRefresh={refreshLeadCompanySizes}
             fields={[
-              { key: "code", label: "コード", type: "text" },
-              { key: "name", label: "名前", type: "text" },
+              { key: "code", label: "コード", required: true, type: "text" },
+              { key: "name", label: "名前", required: true, type: "text" },
               { key: "min_employees", label: "従業員数（下限）", type: "number", min: 0 },
               { key: "max_employees", label: "従業員数（上限）", type: "number", min: 0 },
               { key: "min_capital", label: "資本金（下限・円）", type: "number", min: 0 },
@@ -2044,8 +2153,8 @@ export function AdminView() {
             onDelete={deleteLeadCustomerActivityType}
             onRefresh={refreshLeadCustomerActivityTypes}
             fields={[
-              { key: "code", label: "コード", type: "text" },
-              { key: "name", label: "名前", type: "text" },
+              { key: "code", label: "コード", required: true, type: "text" },
+              { key: "name", label: "名前", required: true, type: "text" },
               { key: "description", label: "説明", type: "textarea" },
               { key: "sort_order", label: "表示順", type: "number", min: 0 },
             ]}
@@ -2063,10 +2172,10 @@ export function AdminView() {
             onDelete={deleteProjectStatus}
             onRefresh={refreshProjectStatuses}
             fields={[
-              { key: "name", label: "名前", type: "text" },
+              { key: "name", label: "名前", required: true, type: "text" },
               { key: "definition", label: "定義", type: "textarea" },
-              { key: "sort_order", label: "表示順", type: "number" },
-              { key: "color", label: "バッジ色 (#RRGGBB)", type: "text", colorSwatch: true },
+              { key: "sort_order", label: "表示順", type: "number", min: 0 },
+              { key: "color", label: "バッジ色 (#RRGGBB)", type: "text", colorSwatch: true, helpText: COLOR_HELP_TEXT },
             ]}
           />
         );

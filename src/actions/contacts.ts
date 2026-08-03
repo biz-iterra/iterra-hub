@@ -12,6 +12,7 @@ import type {
   Paged,
   Row,
 } from "@/types/relations";
+import { resolveListSort, SORT_FIELDS, toOrderArgs, type SortParams } from "@/lib/list-sort";
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -82,7 +83,7 @@ export async function getContacts(
     statusId?: string;
     contactType?: string;
     ownerUserId?: string;
-  }
+  } & SortParams
 ): Promise<ActionResult<Paged<ContactWithRelations>>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
@@ -91,6 +92,10 @@ export async function getContacts(
   const perPage = params?.perPage ?? 20;
   const from = (page - 1) * perPage;
   const to = from + perPage - 1;
+  const sort = resolveListSort(params, SORT_FIELDS.contacts, {
+    field: "created_at",
+    direction: "desc",
+  });
 
   let query = supabase
     .from("contacts")
@@ -99,7 +104,7 @@ export async function getContacts(
       { count: "exact" }
     )
     .is("deleted_at", null)
-    .order("created_at", { ascending: false })
+    .order(...toOrderArgs(sort))
     .range(from, to);
 
   if (params?.search) {

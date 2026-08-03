@@ -20,6 +20,7 @@ import type {
   SocialService,
 } from "@/actions/contact-social-accounts";
 import type { EntityAddress } from "@/types/relations";
+import { RequiredMark } from "@/components/ui/RequiredMark";
 
 type SelectOption = { value: string; label: string };
 
@@ -334,7 +335,7 @@ export function ContactEditForm({
           <h2 style={styles.sectionTitle}>氏名</h2>
           <div className={fieldGrid3Class}>
             <div>
-              <label style={styles.label}>姓 *</label>
+              <label style={styles.label}>姓<RequiredMark /></label>
               <input
                 type="text"
                 style={styles.input}
@@ -357,7 +358,7 @@ export function ContactEditForm({
               />
             </div>
             <div>
-              <label style={styles.label}>名 *</label>
+              <label style={styles.label}>名<RequiredMark /></label>
               <input
                 type="text"
                 style={styles.input}
@@ -409,7 +410,7 @@ export function ContactEditForm({
           <h2 style={styles.sectionTitle}>基本情報</h2>
           <div className={styles.grid}>
             <div>
-              <label style={styles.label}>ステータス *</label>
+              <label style={styles.label}>ステータス<RequiredMark /></label>
               <select
                 style={styles.input}
                 value={values.contact_status_id}

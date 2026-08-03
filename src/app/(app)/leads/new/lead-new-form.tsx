@@ -8,6 +8,7 @@ import { createLead } from "@/actions/leads";
 import { useToast } from "@/components/ui/toast";
 import { isFieldValidationError } from "@/lib/errors";
 import { formContainerClass, fieldGridClass, fieldGrid3Class, formActionsClass } from "@/lib/layout";
+import { RequiredMark } from "@/components/ui/RequiredMark";
 
 type SelectOption = { value: string; label: string };
 type StatusOption = SelectOption & { stage_id: string };
@@ -334,7 +335,7 @@ export function LeadNewForm({
         <div style={styles.card}>
           <h2 style={styles.sectionTitle}>リード名</h2>
           <div>
-            <label style={styles.label}>リード名 *</label>
+            <label style={styles.label}>リード名<RequiredMark /></label>
             <input
               type="text"
               style={styles.input}
@@ -352,7 +353,7 @@ export function LeadNewForm({
           <h2 style={styles.sectionTitle}>進捗</h2>
           <div className={styles.grid2} style={{ marginBottom: "1rem" }}>
             <div>
-              <label style={styles.label}>ステージ *</label>
+              <label style={styles.label}>ステージ<RequiredMark /></label>
               <select
                 style={styles.input}
                 value={values.stage_id}
@@ -370,7 +371,16 @@ export function LeadNewForm({
               </select>
             </div>
             <div>
-              <label style={styles.label}>ステータス *</label>
+              {/*
+                商談ステージではステータスを持たないため必須にしない。
+                Zod（leadCreateSchema）は status_id を任意にしている。
+                ステージのスラッグを見ないと必須かどうか決まらず、UUID しか
+                持たない Zod 側では判定できないため、条件はここで持つ
+              */}
+              <label style={styles.label}>
+                ステータス
+                {!isOpportunityStage && <RequiredMark />}
+              </label>
               {isOpportunityStage ? (
                 <div
                   style={{
@@ -758,7 +768,7 @@ export function LeadNewForm({
           </div>
           <div className={styles.grid3}>
             <div>
-              <label style={styles.label}>事業者種別 *</label>
+              <label style={styles.label}>事業者種別<RequiredMark /></label>
               <select
                 style={styles.input}
                 value={values.account_type_id}
@@ -776,7 +786,7 @@ export function LeadNewForm({
               </select>
             </div>
             <div>
-              <label style={styles.label}>社内担当者（主）*</label>
+              <label style={styles.label}>社内担当者（主）<RequiredMark /></label>
               <select
                 style={styles.input}
                 value={values.owner_user_id}

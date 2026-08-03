@@ -21,14 +21,14 @@
 ### 実装から確認した仕様の要点（ケースの根拠）
 
 - **スコアは手入力不可。** `recalculate_lead_score`（DB 関数）が `lead_score_rules` を全件評価して加点合算 → 0-100 にクリップ → `lead_score_thresholds` で `temperature_id` を連動更新 → `lead_score_breakdowns` を全置換する。
-- **即時再計算されるのは**: リード作成（`createLead`）・リード更新（`updateLead`）・顧客行動の作成/更新/削除（`createLeadCustomerActivity` / `updateLeadCustomerActivity` / `deleteLeadCustomerActivity`）・Eight 取込 commit（`recalculate_all_lead_scores` 全件）。
+- **即時再計算されるのは**: リード作成（`createLead`）・リード更新（`updateLead`）・顧客行動の作成/更新/削除（`createLeadCustomerActivity` / `updateLeadCustomerActivity` / `deleteLeadCustomerActivity`）・Eight 取込 commit（`recalculate_lead_scores_for_batch`。**そのバッチのリードのみ**。全件だと 3,008 件で約 3.9 秒かかり、リードが増えるほど取込が遅くなるため 2026-08-03 に変更）。
 - **社内対応（lead_activities）の CRUD ではスコアを即時再計算しない**（`src/actions/lead-activities.ts` に再計算呼び出しなし）。call_status / activity_type 条件のルールは週次 pg_cron の全件再計算、または次回のリード更新・顧客行動操作で反映される（仕様として確認済み。LD-13 参照）。
 - **Deal 昇格は `updateLead` 内で自動発火**: 変更後ステージの `auto_promote_to_deal = true` かつ `promoted_deal_id` 未設定のとき `promoteLeadToDeal` を呼ぶ。書き込みは DB 関数 `promote_lead_to_deal`（単一トランザクション・lead 行 FOR UPDATE で二重昇格防止）。
 - **昇格時の作成物**: 法人（account_type slug = corporate / government、または slug 未設定かつ company_name あり）→ Company + Contact(corporate_rep) + Account(見込み) + Deal。個人 → Contact(individual) + Account + Deal。`leads.url` は法人なら companies.website_url、個人なら contacts.website_url へ転記。Lead 段階では既存 Company/Contact への紐付けはしない（常に新規作成。名寄せは取込経路のみ）。
 - **corporate_number**: リード作成・編集時は重複しても**警告のみ**（保存は成功、warnings 配列で返る）。昇格時は**ブロック**（`[corporate_number]` プレフィックス付きエラー）。
 - **ページネーションは 30 件**（`DEFAULT_PAGE_SIZE = 30`。`src/lib/constants/pagination.ts`）。戻り値は `{ rows, total }` 規約。
 - **バッジ色はマスタの `color` カラム**を SELECT してそのまま使う（stage / status / category / temperature）。
-- **エラートーストは手動クローズのみ**（success / info は約 4 秒で自動消滅）。
+- **エラートーストは約 10 秒で自動消滅**（success / info は約 4 秒）。閉じるボタンでも消せる。
 
 自動化区分: `自動(Playwright)` = ブラウザ E2E ／ `自動(API)` = Server Action・Route Handler 直叩き＋SQL 検証 ／ `手動` = 目視確認が必要。
 
@@ -183,7 +183,7 @@
   2. セッション B で（古い expected_updated_at のまま）保存する
 - 期待結果:
   - B の保存が拒否され、エラートースト「このリードは他のユーザーによって更新されています。画面を再読み込みしてから保存してください」が表示される
-  - **エラートーストは自動消滅せず**、閉じるボタンでのみ消える
+  - **エラートーストは約 10 秒で自動消滅する**（閉じるボタンでも消せる）
   - B の変更内容は DB に反映されない（A の値が残る）
 - 自動化区分: 自動(Playwright)
 
@@ -453,7 +453,7 @@
   2. セッション B で（古い `expected_updated_at` のまま）note を編集して保存する
 - 期待結果:
   - B の保存が拒否され、エラートースト「この架電記録は他のユーザーによって更新されています。画面を再読み込みしてから保存してください」が表示される
-  - **エラートーストは自動消滅せず**、閉じるボタンでのみ消える
+  - **エラートーストは約 10 秒で自動消滅する**（閉じるボタンでも消せる）
   - B の変更内容は DB に反映されない（A の値が残る）
 - 自動化区分: 自動(Playwright)
 
@@ -624,7 +624,7 @@
   2. セッション B で（古い `expected_updated_at` のまま）保存する
 - 期待結果:
   - B の保存が拒否され、エラートースト「このキャンペーンは他のユーザーによって更新されています。画面を再読み込みしてから保存してください」が表示される
-  - **エラートーストは自動消滅せず**、閉じるボタンでのみ消える
+  - **エラートーストは約 10 秒で自動消滅する**（閉じるボタンでも消せる）
   - B の変更内容は DB に反映されない（A の値が残る）
 - 自動化区分: 自動(Playwright)
 
@@ -742,7 +742,7 @@
 - 事前条件: (a) 必須列（会社名 / 姓 / 名 / e-mail / 名刺交換日）が欠けた CSV、(b) 空ファイル、(c) ヘッダのみの CSV、(d) 会社名・氏名・メールがすべて空の行を含む CSV、(e) UTF-8 でも Shift_JIS でもないバイト列
 - 手順: それぞれをアップロードして「内容を確認」を押す
 - 期待結果:
-  - (a) エラートースト「Eight の CSV として認識できません。次の列が見つかりませんでした: ...（受信したヘッダ: ...）」— **手動クローズのみ**
+  - (a) エラートースト「Eight の CSV として認識できません。次の列が見つかりませんでした: ...（受信したヘッダ: ...）」— **約 10 秒で自動消滅**
   - (b) 「ファイルが空です」
   - (c) 「データ行がありません（ヘッダ行のみ、または空のファイルです）」
   - (d) エラー行一覧に「N 行目: 会社名・氏名・メールアドレスがすべて空のため、リード名を決められません」と表示され、そのほかの行は取込対象になる
@@ -778,7 +778,8 @@
   - 完了バナー「取込が完了しました 新規 X 件 / 追記 Y 件（/ 取込できなかった行 Z 件）」「名刺 N 枚を記録しました。連絡先の現在の所属は変更していません…」
   - 名寄せは resolve_or_create_company / resolve_or_create_contact 経由（法人番号 > メールドメイン > 住所+名称 > 名称）。ドメイン一致行は新規 Company を作らず既存に紐づく
   - 会社名の略記（`㈱`）は正式表記（`株式会社`）に開かれて保存される
-  - 取込後に全リードのスコアが再計算される（recalculate_all_lead_scores）
+  - 取込後、**このバッチに含まれるリードだけ**スコアが再計算される（`recalculate_lead_scores_for_batch`）。
+    取込対象外のリードの `score` / `score_updated_at` は変化しない（全件再計算は週次 pg_cron が担う）
   - Account は作られない（契約成立まで作らない運用）
   - 取込履歴テーブルに取込日時 / ファイル名 / 文字コード / 行数 / 新規 / 追記 / エラー / 実行者の行が追加される
 - 自動化区分: 自動(Playwright)（SQL 併用）
@@ -849,6 +850,33 @@
 - 手順: commit を実行する
 - 期待結果: 「リードソース Eight が登録されていません」で取込全体が失敗し、部分的な書き込みが残らない。同様に獲得ステージ / ステータス「名刺交換済」/ 対応種別・通電状況「名刺交換」が欠けた場合も対応するメッセージで停止する
 - 自動化区分: 自動(API)
+
+### IMP-10b: 大きい CSV を送っても画面が固まらない
+
+- 対象: `next.config.ts` の `serverActions.bodySizeLimit`、`describeTransportError()`、`runDryRun` / `runCommit` の try/catch/finally
+- 権限: admin
+- 背景: 既定の 1MB を超えると Server Action がサーバー側で例外になる。クライアントが
+  catch していなかったため「確認中」の表示が解除されず、本番で取込が完了できなかった（2026-08-03）
+- 事前条件: 3,000 行の Eight 形式 CSV（実測 1.02MB。生成は `scripts/` 相当の手順か手動）
+- 手順:
+  1. 3,000 行の CSV を選び「内容を確認」を押す
+  2. そのまま「N 件を取り込む」まで進める
+  3. `bodySizeLimit` を一時的に `512kb` に下げて再起動し、同じ CSV で 1. を実行する
+- 期待結果:
+  1. 事前確認が完了し「CSV の行数 3,000 / 登録するリード 3,000」が表示される（**ボタンが処理中のまま止まらない**）
+  2. 取込が完了し、結果バナーが出る
+  3. エラートースト「ファイルが大きすぎて送信できませんでした（{ファイル名} / 1.02MB）。分割して取り込んでください」が出て、
+     「内容を確認」ボタンが押せる状態に戻る（**処理中のまま固まらない**）
+- 自動化区分: 手動（3. は設定変更を伴うためリリース前検証で実施）
+
+### IMP-10c: 通信が切れた後に同じファイルを再送しても重複しない
+
+- 対象: `import_eight_leads` の `source_external_key` 判定
+- 権限: admin
+- 事前条件: IMP-05 取込済み
+- 手順: 同じ CSV をもう一度 commit する
+- 期待結果: リード件数は増えず、すべて「既存に追記」になる（タイムアウト時にやり直して安全であることの担保）
+- 自動化区分: 自動(API)（IMP-06 と同じ経路）
 
 ### IMP-11: 問い合わせ同期 API — 認証と設定ガード
 
@@ -925,7 +953,7 @@
    - `campaigns` の編集フォーム → **2026-08-03 に対応済み。** `CampaignEditClient`
      （`src/app/(app)/campaigns/[id]/edit/campaign-edit-client.tsx`）が読み込んだ
      キャンペーンの `updated_at` を保持し、保存時に `expected_updated_at` として送信するようになった。
-     競合時のエラーはフィールド非依存のためトースト表示（自動消滅しない）。CPN-04 / CPN-04b で検証する
+     競合時のエラーはフィールド非依存のためトースト表示（約 10 秒で自動消滅）。CPN-04 / CPN-04b で検証する
 5. ~~**キャンペーン重複紐付けのエラーが生文言**~~
    **→ 2026-08-03 に修正済み。** 一意制約違反（`23505`）を検出して日本語化した
    （単体: 「このリードは既にキャンペーンに登録されています」／

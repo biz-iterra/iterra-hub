@@ -1,6 +1,8 @@
 "use client";
 
 import { getProjects } from "@/actions/projects";
+import { useListView } from "@/hooks/useListView";
+import { LIST_FILTER_KEYS } from "@/lib/list-sort";
 import Link from "next/link";
 import { Plus, FolderKanban } from "lucide-react";
 import { ProjectStatusBadge } from "@/components/ui/badges";
@@ -10,7 +12,6 @@ import { FilterGroup, FilterClearButton } from "@/components/ui/FilterGroup";
 import { DataTable } from "@/components/ui/DataTable";
 import { Pagination } from "@/components/ui/Pagination";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants/pagination";
-import { useState, useTransition } from "react";
 import type { Paged, ProjectWithRelations } from "@/types/relations";
 
 const PER_PAGE = DEFAULT_PAGE_SIZE;
@@ -41,57 +42,25 @@ export function ProjectsView({
   users: CrmUser[];
   isManagerOrAbove: boolean;
 }) {
-  const [data, setData] = useState<ProjectsData>(initialData);
-  const [statusId, setStatusId] = useState("");
-  const [ownerUserId, setOwnerUserId] = useState("");
-  const [keyword, setKeyword] = useState("");
-  const [page, setPage] = useState(1);
-  const [isPending, startTransition] = useTransition();
-
-  function handleFilter(
-    key: string,
-    value: string,
-    setter: (v: string) => void
-  ) {
-    setter(value);
-    startTransition(async () => {
-      const result = await getProjects({
-        search: key === "search" ? value || undefined : keyword || undefined,
-        statusId: key === "statusId" ? value || undefined : statusId || undefined,
-        ownerUserId:
-          key === "ownerUserId" ? value || undefined : ownerUserId || undefined,
-        page: 1,
-        perPage: PER_PAGE,
-      });
-      setData(result.data);
-      setPage(1);
+  const { filters, page, sort, setFilter, setPage, setSort, clear, isPending, data } =
+    useListView({
+      filterKeys: LIST_FILTER_KEYS.projects,
+      initialData,
+      load: (state) =>
+        getProjects({
+          statusId: state.filters.statusId || undefined,
+          ownerUserId: state.filters.ownerUserId || undefined,
+          search: state.filters.search || undefined,
+          perPage: DEFAULT_PAGE_SIZE,
+          page: state.page,
+          sortField: state.sort?.field,
+          sortDirection: state.sort?.direction,
+        }),
     });
-  }
 
-  function handleClear() {
-    setStatusId("");
-    setOwnerUserId("");
-    setKeyword("");
-    startTransition(async () => {
-      const result = await getProjects({ page: 1, perPage: PER_PAGE });
-      setData(result.data);
-      setPage(1);
-    });
-  }
-
-  function handlePageChange(next: number) {
-    startTransition(async () => {
-      const result = await getProjects({
-        search: keyword || undefined,
-        statusId: statusId || undefined,
-        ownerUserId: ownerUserId || undefined,
-        page: next,
-        perPage: PER_PAGE,
-      });
-      setData(result.data);
-      setPage(next);
-    });
-  }
+  const statusId = filters.statusId ?? "";
+  const ownerUserId = filters.ownerUserId ?? "";
+  const keyword = filters.search ?? "";
 
   const items = data?.rows ?? [];
   const total = data?.total ?? 0;
@@ -153,22 +122,22 @@ export function ProjectsView({
           label="ステータス"
           value={statusId}
           options={statuses.map((s) => ({ value: s.id, label: s.name }))}
-          onChange={(v) => handleFilter("statusId", v, setStatusId)}
+          onChange={(v) => setFilter("statusId", v)}
           placeholder="全ステータス"
         />
         <FilterSelect
           label="責任者"
           value={ownerUserId}
           options={users.map((u) => ({ value: u.id, label: u.full_name }))}
-          onChange={(v) => handleFilter("ownerUserId", v, setOwnerUserId)}
+          onChange={(v) => setFilter("ownerUserId", v)}
           placeholder="全責任者"
         />
         <SearchInput
           value={keyword}
           placeholder="プロジェクト名で検索..."
-          onChange={(v) => handleFilter("search", v, setKeyword)}
+          onChange={(v) => setFilter("search", v)}
         />
-        <FilterClearButton onClear={handleClear} />
+        <FilterClearButton onClear={clear} />
         {isPending && (
           <span
             className="text-xs"
@@ -190,9 +159,12 @@ export function ProjectsView({
         getHref={(p) => `/projects/${p.id}`}
         emptyIcon={FolderKanban}
         emptyMessage="プロジェクトがまだありません"
+        sort={sort}
+        onSortChange={setSort}
         columns={[
           {
             label: "プロジェクト名",
+            sortKey: "name",
             card: "title",
             render: (p) => (
               <Link
@@ -236,6 +208,7 @@ export function ProjectsView({
           },
           {
             label: "最終更新日",
+            sortKey: "updated_at",
             className: "text-xs whitespace-nowrap",
             render: (p) => formatDateTime(p.updated_at),
           },
@@ -247,7 +220,7 @@ export function ProjectsView({
         page={page}
         totalCount={total}
         pageSize={PER_PAGE}
-        onPageChange={handlePageChange}
+        onPageChange={setPage}
       />
     </div>
   );

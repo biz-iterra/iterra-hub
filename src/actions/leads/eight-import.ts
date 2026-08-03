@@ -481,10 +481,13 @@ export async function commitEightImport(
   };
 
   // スコアは名刺交換の活動を含めて再計算する。
-  // 実測 3,809 件で約 2.5 秒。件数が数万規模になったら
-  // 取込対象の lead だけを再計算する形に変えること。
+  // 全件（recalculate_all_lead_scores）だと 3,008 件で約 3.9 秒かかり、
+  // リードが増えるほど取込のたびに遅くなる。今回のバッチ分だけ計算する。
+  // 全件の再計算は週次の pg_cron が担う。
   // 失敗しても取込自体は成立しているのでログのみ
-  const { error: scoreError } = await admin.rpc("recalculate_all_lead_scores");
+  const { error: scoreError } = await admin.rpc("recalculate_lead_scores_for_batch", {
+    p_batch_id: result.batch_id,
+  });
   if (scoreError) {
     console.warn("[commitEightImport] スコア再計算 WARN:", scoreError.message);
   }

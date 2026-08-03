@@ -152,10 +152,50 @@ function describeOAuthError(json: unknown, status: number): string {
 // Gmail API
 // ---------------------------------------------------------------------------
 
+/** Gmail API のエラー。呼び出し側が種類で分岐できるよう status と操作名を持たせる */
+export type GmailApiError = Error & { status: number; operation: string };
+
+/**
+ * Gmail が返す英語のエラーをそのまま画面に出さない。
+ *
+ * 「Requested entity was not found.」のような文言は、利用者にとって
+ * 何が起きたのか・次に何をすればよいのかが分からない。原因ごとに
+ * 対処まで書いた日本語にし、調査のために原文を括弧で添える。
+ */
+function describeGmailError(
+  status: number,
+  detail: string,
+  operation: string
+): string {
+  const suffix = detail ? `（${operation}: ${detail}）` : `（${operation}）`;
+
+  if (status === 401) {
+    return `Gmail の認証が切れています。連携し直してください${suffix}`;
+  }
+  if (status === 403) {
+    if (/rate ?limit|quota|userRateLimitExceeded/i.test(detail)) {
+      return `Gmail API の利用上限に達しました。時間をおいて再度同期してください${suffix}`;
+    }
+    return `Gmail への参照が許可されていません。連携時に求めた権限が付与されているか確認してください${suffix}`;
+  }
+  if (status === 404) {
+    return `対象が Gmail 上に見つかりませんでした。削除された可能性があります${suffix}`;
+  }
+  if (status === 429) {
+    return `Gmail API の利用上限に達しました。時間をおいて再度同期してください${suffix}`;
+  }
+  if (status >= 500) {
+    return `Gmail 側で一時的な障害が発生しています。時間をおいて再度同期してください${suffix}`;
+  }
+  return `Gmail との通信に失敗しました${suffix}`;
+}
+
 async function gmailFetch(
   accessToken: string,
   path: string,
-  query?: Record<string, string | string[] | undefined>
+  query?: Record<string, string | string[] | undefined>,
+  /** エラー文言に出す操作名。どの呼び出しで失敗したか切り分けるために必ず渡す */
+  operation = "Gmail API"
 ): Promise<unknown> {
   const q = new URLSearchParams();
   for (const [k, v] of Object.entries(query ?? {})) {
@@ -171,17 +211,25 @@ async function gmailFetch(
 
   if (!res.ok) {
     const body = await res.json().catch(() => null);
-    const message =
+    const detail =
       (body as { error?: { message?: string } })?.error?.message ?? `HTTP ${res.status}`;
-    const err = new Error(`Gmail API: ${message}`) as Error & { status?: number };
+    const err = new Error(
+      describeGmailError(res.status, detail, operation)
+    ) as GmailApiError;
     err.status = res.status;
+    err.operation = operation;
     throw err;
   }
   return res.json();
 }
 
+/** 404 など、特定のメッセージだけを飛ばしてよいエラーかの判定に使う */
+export function isGmailNotFound(e: unknown): boolean {
+  return (e as { status?: number } | null)?.status === 404;
+}
+
 export async function getProfile(accessToken: string): Promise<GmailProfile> {
-  const json = (await gmailFetch(accessToken, "/profile")) as {
+  const json = (await gmailFetch(accessToken, "/profile", undefined, "アカウント情報の取得")) as {
     emailAddress: string;
     historyId: string;
   };
@@ -196,11 +244,16 @@ export async function listMessageIds(
   accessToken: string,
   params?: { labelIds?: string[]; maxResults?: number; pageToken?: string }
 ): Promise<{ ids: string[]; nextPageToken: string | null }> {
-  const json = (await gmailFetch(accessToken, "/messages", {
-    labelIds: params?.labelIds,
-    maxResults: String(params?.maxResults ?? 100),
-    pageToken: params?.pageToken,
-  })) as {
+  const json = (await gmailFetch(
+    accessToken,
+    "/messages",
+    {
+      labelIds: params?.labelIds,
+      maxResults: String(params?.maxResults ?? 100),
+      pageToken: params?.pageToken,
+    },
+    "メール一覧の取得"
+  )) as {
     messages?: { id: string }[];
     nextPageToken?: string;
   };
@@ -217,10 +270,15 @@ export async function getMessageMetadata(
   accessToken: string,
   id: string
 ): Promise<GmailMessageMeta> {
-  const json = (await gmailFetch(accessToken, `/messages/${id}`, {
-    format: "metadata",
-    metadataHeaders: WANTED_HEADERS,
-  })) as {
+  const json = (await gmailFetch(
+    accessToken,
+    `/messages/${id}`,
+    {
+      format: "metadata",
+      metadataHeaders: WANTED_HEADERS,
+    },
+    "メール本体の取得"
+  )) as {
     id: string;
     threadId: string;
     internalDate: string;
@@ -259,11 +317,16 @@ export async function listAddedMessageIds(
 
   try {
     do {
-      const json = (await gmailFetch(accessToken, "/history", {
-        startHistoryId,
-        historyTypes: "messageAdded",
-        pageToken,
-      })) as {
+      const json = (await gmailFetch(
+        accessToken,
+        "/history",
+        {
+          startHistoryId,
+          historyTypes: "messageAdded",
+          pageToken,
+        },
+        "差分履歴の取得"
+      )) as {
         history?: { messagesAdded?: { message: { id: string } }[] }[];
         historyId?: string;
         nextPageToken?: string;

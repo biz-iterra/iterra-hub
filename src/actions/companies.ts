@@ -18,6 +18,7 @@ import type {
   Paged,
   Row,
 } from "@/types/relations";
+import { resolveListSort, SORT_FIELDS, toOrderArgs, type SortParams } from "@/lib/list-sort";
 
 type ActionResult<T> = { data: T | null; error: string | null };
 
@@ -93,7 +94,7 @@ export async function getCompanies(params?: {
   statusId?: string;
   corporateTypeId?: string;
   ownerUserId?: string;
-}): Promise<ActionResult<Paged<CompanyWithRelations>>> {
+} & SortParams): Promise<ActionResult<Paged<CompanyWithRelations>>> {
   // 参照範囲は RLS が制御するため、ここでロールは使わない
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
@@ -102,6 +103,10 @@ export async function getCompanies(params?: {
   const perPage = params?.perPage ?? 20;
   const from = (page - 1) * perPage;
   const to = from + perPage - 1;
+  const sort = resolveListSort(params, SORT_FIELDS.companies, {
+    field: "sort_key",
+    direction: "asc",
+  });
 
   let query = supabase
     .from("companies")
@@ -109,7 +114,7 @@ export async function getCompanies(params?: {
     .is("deleted_at", null)
     // 法人格を除いた名称の順に並べる（20260802000008）。
     // 件数が多く、登録順では目当ての事業者を辿れないため
-    .order("sort_key", { ascending: true, nullsFirst: false })
+    .order(...toOrderArgs(sort))
     .range(from, to);
 
   const searchPattern = buildIlikePattern(params?.search);

@@ -18,6 +18,7 @@ import type {
   Row,
   UnassignedLeadRow,
 } from "@/types/relations";
+import { resolveListSort, SORT_FIELDS, toOrderArgs } from "@/lib/list-sort";
 
 type ActionResult<T> = { data: T | null; error: string | null };
 
@@ -53,12 +54,16 @@ export async function getCampaigns(
   const { type, status, keyword, page, perPage } = parsed.data;
   const from = (page - 1) * perPage;
   const to = from + perPage - 1;
+  const sort = resolveListSort(parsed.data, SORT_FIELDS.campaigns, {
+    field: "created_at",
+    direction: "desc",
+  });
 
   let query = supabase
     .from("campaigns")
     .select(CAMPAIGN_SELECT, { count: "exact" })
     .is("deleted_at", null)
-    .order("created_at", { ascending: false })
+    .order(...toOrderArgs(sort))
     .range(from, to);
 
   if (type) query = query.eq("type", type);

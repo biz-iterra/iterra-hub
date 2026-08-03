@@ -9,6 +9,7 @@ import { useToast } from "@/components/ui/toast";
 import { detectCorporateType } from "@/lib/company-name";
 import { isFieldValidationError } from "@/lib/errors";
 import { formContainerClass, fieldGridClass, formActionsClass } from "@/lib/layout";
+import { RequiredMark } from "@/components/ui/RequiredMark";
 
 type SelectOption = { value: string; label: string };
 
@@ -252,7 +253,7 @@ export function CompanyNewForm({ masters }: { masters: Masters }) {
           <h2 style={styles.sectionTitle}>基本情報</h2>
           <div className={styles.grid}>
             <div>
-              <label style={styles.label}>会社名 *</label>
+              <label style={styles.label}>会社名<RequiredMark /></label>
               <input
                 type="text"
                 style={styles.input}
@@ -319,7 +320,7 @@ export function CompanyNewForm({ masters }: { masters: Masters }) {
               </div>
             )}
             <div>
-              <label style={styles.label}>ステータス *</label>
+              <label style={styles.label}>ステータス<RequiredMark /></label>
               <select
                 style={styles.input}
                 value={values.company_status_id}

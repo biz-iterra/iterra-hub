@@ -8,6 +8,7 @@ import {
   User,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { ActivitySourceIcon } from "@/components/ui/ActivitySourceIcon";
 import { ActivityTypeBadge } from "@/components/ui/badges";
 import { EntityLink } from "@/components/ui/EntityLink";
 import { activityEntityHref, formatOccurredAt } from "@/lib/activity";
@@ -522,9 +523,12 @@ export default async function DashboardPage() {
                         className="px-3 py-2 text-xs whitespace-nowrap"
                         style={{ color: "var(--color-sumi600)" }}
                       >
-                        {act.occurred_at
-                          ? formatOccurredAt(act.occurred_at, act.has_time)
-                          : "—"}
+                        <span className="inline-flex items-center gap-1.5">
+                          <ActivitySourceIcon sourceKind={act.source_kind} />
+                          {act.occurred_at
+                            ? formatOccurredAt(act.occurred_at, act.has_time)
+                            : "—"}
+                        </span>
                       </td>
                     </tr>
                   ))}

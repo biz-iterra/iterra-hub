@@ -17,6 +17,7 @@ import type {
   Paged,
   Row,
 } from "@/types/relations";
+import { resolveListSort, SORT_FIELDS, toOrderArgs, type SortParams } from "@/lib/list-sort";
 
 type ActionResult<T> = { data: T | null; error: string | null };
 
@@ -45,7 +46,7 @@ export async function getAccounts(
     statusId?: string;
     accountTypeId?: string;
     ownerUserId?: string;
-  }
+  } & SortParams
 ): Promise<ActionResult<Paged<AccountWithRelations>>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
@@ -54,6 +55,10 @@ export async function getAccounts(
   const perPage = params?.perPage ?? 20;
   const from = (page - 1) * perPage;
   const to = from + perPage - 1;
+  const sort = resolveListSort(params, SORT_FIELDS.accounts, {
+    field: "created_at",
+    direction: "desc",
+  });
 
   let query = supabase
     .from("accounts")
@@ -62,7 +67,7 @@ export async function getAccounts(
       { count: "exact" }
     )
     .is("deleted_at", null)
-    .order("created_at", { ascending: false })
+    .order(...toOrderArgs(sort))
     .range(from, to);
 
   const searchPattern = buildIlikePattern(params?.search);

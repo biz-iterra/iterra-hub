@@ -17,6 +17,7 @@ import type {
   Row,
   SortedRef,
 } from "@/types/relations";
+import { resolveListSort, SORT_FIELDS, toOrderArgs, type SortParams } from "@/lib/list-sort";
 
 type ActionResult<T> = { data: T | null; error: string | null };
 
@@ -37,7 +38,7 @@ export async function getProjects(params?: {
   ownerUserId?: string;
   page?: number;
   perPage?: number;
-}): Promise<ActionResult<Paged<ProjectWithRelations>>> {
+} & SortParams): Promise<ActionResult<Paged<ProjectWithRelations>>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
@@ -45,6 +46,10 @@ export async function getProjects(params?: {
   const perPage = params?.perPage ?? 20;
   const from = (page - 1) * perPage;
   const to = from + perPage - 1;
+  const sort = resolveListSort(params, SORT_FIELDS.projects, {
+    field: "created_at",
+    direction: "desc",
+  });
 
   let query = supabase
     .from("projects")
@@ -53,7 +58,7 @@ export async function getProjects(params?: {
       { count: "exact" }
     )
     .is("deleted_at", null)
-    .order("created_at", { ascending: false })
+    .order(...toOrderArgs(sort))
     .range(from, to);
 
   if (params?.search) {

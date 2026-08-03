@@ -1,6 +1,5 @@
 "use client";
 
-import { useState, useTransition } from "react";
 import Link from "next/link";
 import {
   Plus,
@@ -13,6 +12,8 @@ import {
   Users,
 } from "lucide-react";
 import { getContacts } from "@/actions/contacts";
+import { useListView } from "@/hooks/useListView";
+import { LIST_FILTER_KEYS } from "@/lib/list-sort";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { FilterSelect } from "@/components/ui/FilterSelect";
 import { FilterGroup, FilterClearButton } from "@/components/ui/FilterGroup";
@@ -160,6 +161,7 @@ const CONTACT_TYPE_OPTIONS = [
 
 const PER_PAGE = DEFAULT_PAGE_SIZE;
 
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -170,60 +172,36 @@ export function ContactsView({
   pendingCandidateCount,
   mergeCandidateCount,
 }: Props) {
-  const [data, setData] = useState(initialData);
-  const [statusFilter, setStatusFilter] = useState("");
-  const [typeFilter, setTypeFilter] = useState("");
-  const [ownerFilter, setOwnerFilter] = useState("");
-  const [keyword, setKeyword] = useState("");
-  const [page, setPage] = useState(1);
-  const [isPending, startTransition] = useTransition();
-
-  function handleFilter(
-    key: string,
-    value: string,
-    setter: (v: string) => void
-  ) {
-    setter(value);
-    setPage(1);
-    startTransition(async () => {
-      const { data: result } = await getContacts({
-        statusId:    key === "statusId"    ? value || undefined : statusFilter || undefined,
-        contactType: key === "contactType" ? value || undefined : typeFilter   || undefined,
-        ownerUserId: key === "ownerUserId" ? value || undefined : ownerFilter  || undefined,
-        search:      key === "search"      ? value || undefined : keyword      || undefined,
+  const {
+    filters,
+    page,
+    sort,
+    setFilter,
+    setPage,
+    setSort,
+    clear,
+    isPending,
+    data,
+  } = useListView({
+    filterKeys: LIST_FILTER_KEYS.contacts,
+    initialData,
+    load: (state) =>
+      getContacts({
+        statusId: state.filters.statusId || undefined,
+        contactType: state.filters.contactType || undefined,
+        ownerUserId: state.filters.ownerUserId || undefined,
+        search: state.filters.search || undefined,
         perPage: PER_PAGE,
-        page: 1,
-      });
-      setData(result);
-    });
-  }
+        page: state.page,
+        sortField: state.sort?.field,
+        sortDirection: state.sort?.direction,
+      }),
+  });
 
-  function handleClear() {
-    setStatusFilter("");
-    setTypeFilter("");
-    setOwnerFilter("");
-    setKeyword("");
-    setPage(1);
-    startTransition(async () => {
-      const { data: result } = await getContacts({ perPage: PER_PAGE, page: 1 });
-      setData(result);
-    });
-  }
-
-  function handlePageChange(next: number) {
-    setPage(next);
-    startTransition(async () => {
-      const { data: result } = await getContacts({
-        statusId: statusFilter || undefined,
-        contactType: typeFilter || undefined,
-        ownerUserId: ownerFilter || undefined,
-        search: keyword || undefined,
-        perPage: PER_PAGE,
-        page: next,
-      });
-      setData(result);
-    });
-  }
+  const statusFilter = filters.statusId ?? "";
+  const typeFilter = filters.contactType ?? "";
+  const ownerFilter = filters.ownerUserId ?? "";
+  const keyword = filters.search ?? "";
 
   const items = data?.rows ?? [];
   const totalCount = data?.total ?? 0;
@@ -334,26 +312,26 @@ export function ContactsView({
           label="ステータス"
           value={statusFilter}
           options={statuses.map((s) => ({ value: s.id, label: s.name }))}
-          onChange={(v) => handleFilter("statusId", v, setStatusFilter)}
+          onChange={(v) => setFilter("statusId", v)}
         />
         <FilterSelect
           label="種別"
           value={typeFilter}
           options={CONTACT_TYPE_OPTIONS}
-          onChange={(v) => handleFilter("contactType", v, setTypeFilter)}
+          onChange={(v) => setFilter("contactType", v)}
         />
         <FilterSelect
           label="担当者"
           value={ownerFilter}
           options={users.map((u) => ({ value: u.id, label: u.full_name }))}
-          onChange={(v) => handleFilter("ownerUserId", v, setOwnerFilter)}
+          onChange={(v) => setFilter("ownerUserId", v)}
         />
         <SearchInput
           value={keyword}
           placeholder="氏名で検索..."
-          onChange={(v) => handleFilter("search", v, setKeyword)}
+          onChange={(v) => setFilter("search", v)}
         />
-        <FilterClearButton onClear={handleClear} />
+        <FilterClearButton onClear={clear} />
         {isPending && (
           <span
             className="text-xs"
@@ -371,10 +349,13 @@ export function ContactsView({
         getHref={(row) => `/contacts/${row.id}`}
         emptyIcon={Users}
         emptyMessage="連絡先が見つかりません"
+        sort={sort}
+        onSortChange={setSort}
         columns={[
           {
             label: "氏名",
             card: "title",
+            sortKey: "last_name",
             className: "whitespace-nowrap",
             render: (row) => (
               <Link
@@ -453,6 +434,7 @@ export function ContactsView({
           },
           {
             label: "最終更新日",
+            sortKey: "updated_at",
             className: "text-xs whitespace-nowrap",
             render: (row) => formatDateTime(row.updated_at),
           },
@@ -464,7 +446,7 @@ export function ContactsView({
         page={page}
         totalCount={totalCount}
         pageSize={PER_PAGE}
-        onPageChange={handlePageChange}
+        onPageChange={setPage}
       />
     </div>
   );

@@ -29,6 +29,7 @@ import type {
   LeadWithRelations,
   Paged,
 } from "@/types/relations";
+import { resolveListSort, SORT_FIELDS, toOrderArgs } from "@/lib/list-sort";
 
 type ActionResult<T> = { data: T | null; error: string | null };
 
@@ -89,6 +90,10 @@ export async function getLeads(
 
   const from = (page - 1) * perPage;
   const to = from + perPage - 1;
+  const sort = resolveListSort(parsed.data, SORT_FIELDS.leads, {
+    field: "created_at",
+    direction: "desc",
+  });
 
   // v_leads_with_category: deleted_at IS NULL は View 内でフィルタ済み
   let query = supabase
@@ -107,7 +112,7 @@ export async function getLeads(
     `,
       { count: "exact" }
     )
-    .order("created_at", { ascending: false })
+    .order(...toOrderArgs(sort))
     .range(from, to);
 
   if (stage_id) query = query.eq("stage_id", stage_id);

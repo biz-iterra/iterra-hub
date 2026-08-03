@@ -14,6 +14,7 @@ import {
 import { ToneBadge } from "@/components/ui/badges";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
+import { describeTransportError } from "@/lib/errors";
 import { tableScrollClass } from "@/lib/layout";
 import {
   commitEightImport,
@@ -195,34 +196,46 @@ export function EightImportView({
     setLoading("dryrun");
     setResult(null);
 
-    const fd = new FormData();
-    fd.append("file", file);
-    const res = await dryRunEightImport(fd);
-    setLoading(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await dryRunEightImport(fd);
 
-    if (res.error || !res.data) {
-      showToast({ type: "error", message: res.error ?? "内容を確認できませんでした" });
-      return;
+      if (res.error || !res.data) {
+        showToast({ type: "error", message: res.error ?? "内容を確認できませんでした" });
+        return;
+      }
+      setPreview(res.data);
+    } catch (e) {
+      showToast({ type: "error", message: describeTransportError(e, file) });
+    } finally {
+      // finally で必ず解除する。ここが無いと通信断やサーバー側の例外で
+      // Promise が reject したときに「確認中」のまま固まる（本番で発生）
+      setLoading(null);
     }
-    setPreview(res.data);
   };
 
   const runCommit = async (): Promise<{ error: string | null }> => {
     if (!file || !preview) return { error: "取込対象がありません" };
     setLoading("commit");
 
-    const fd = new FormData();
-    fd.append("file", file);
-    fd.append("ownerUserId", ownerUserId);
-    const res = await commitEightImport(fd);
-    setLoading(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("ownerUserId", ownerUserId);
+      const res = await commitEightImport(fd);
 
-    if (res.error || !res.data) {
-      return { error: res.error ?? "取込に失敗しました" };
+      if (res.error || !res.data) {
+        return { error: res.error ?? "取込に失敗しました" };
+      }
+      setResult(res.data);
+      setPreview(null);
+      return { error: null };
+    } catch (e) {
+      return { error: describeTransportError(e, file) };
+    } finally {
+      setLoading(null);
     }
-    setResult(res.data);
-    setPreview(null);
-    return { error: null };
   };
 
   const ownerName = users.find((u) => u.id === ownerUserId)?.full_name ?? "—";

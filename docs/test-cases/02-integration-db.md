@@ -864,6 +864,25 @@ INSERT INTO companies (name, owner_user_id) VALUES
   anon には `public` スキーマのテーブル GRANT を与えていないため、RLS 以前に権限で弾かれる（§1 冒頭）。
   ポリシーが `TO authenticated` であることに加えた二重の防御になっている
 
+### IT-RLS-21: 述語の InitPlan 化で可視範囲が変わらない
+
+- 対象: マイグレーション `20260803000021`（`auth.uid()` / `is_admin()` /
+  `is_manager_or_above()` をスカラーサブクエリで包む変更）
+- 背景: 裸で書くと行ごとに関数が呼ばれ、leads 3,008 件の一覧に 154ms かかっていた。
+  包むと InitPlan になりクエリ全体で 1 回になる（実測 1.76ms）。**結果は変わらない前提**
+  なので、可視範囲が 1 件も変わらないことを毎回確かめる
+- 手順:
+  1. 全 `crm_users` × 主要テーブル（leads / contacts / companies / accounts / deals /
+     contracts / projects / campaigns / talents / financial_info / lead_activities）で
+     `SELECT count(*)` を取り、ロール・ユーザー・テーブル・件数の一覧を作る
+  2. マイグレーションを適用する
+  3. 同じ一覧を取り直して差分を取る
+- 期待結果:
+  - 差分ゼロ。特に member は自分が担当するリードだけ（`lead_owners` の副担当分を含む）
+  - `pg_policies` に裸の `auth.uid()` / `is_admin()` / `is_manager_or_above()` が
+    1 件も残らない（マイグレーション内の検証が失敗すれば適用ごと失敗する）
+- 自動化区分: 自動(API)（psql スクリプト）
+
 ---
 
 ## 6. 整合性チェッククエリ集

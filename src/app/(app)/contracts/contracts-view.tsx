@@ -1,9 +1,10 @@
 "use client";
 
 import { getContracts } from "@/actions/contracts";
+import { useListView } from "@/hooks/useListView";
+import { LIST_FILTER_KEYS } from "@/lib/list-sort";
 import { FileText, Plus } from "lucide-react";
 import Link from "next/link";
-import { useState, useEffect, useCallback, useTransition } from "react";
 import { ContractMethodBadge } from "@/components/ui/badges";
 import { FilterGroup, FilterClearButton } from "@/components/ui/FilterGroup";
 import { FilterSelect } from "@/components/ui/FilterSelect";
@@ -66,75 +67,28 @@ const CONTRACT_METHOD_OPTIONS = [
 // Component
 // ---------------------------------------------------------------------------
 export function ContractsView({ initialData, isManagerOrAbove, contractTypes }: Props) {
-  const [isPending, startTransition] = useTransition();
-
-  const [rows, setRows] = useState<ContractRow[]>(initialData?.rows ?? []);
-  const [totalCount, setTotalCount] = useState(initialData?.total ?? 0);
-  const [search, setSearch] = useState("");
-  const [contractTypeFilter, setContractTypeFilter] = useState("");
-  const [contractMethodFilter, setContractMethodFilter] = useState("");
-  const [page, setPage] = useState(1);
-
-  const fetchData = useCallback(
-    (params: {
-      search: string;
-      contractTypeId: string;
-      contractMethod: string;
-      page: number;
-    }) => {
-      startTransition(async () => {
-        const { data } = await getContracts({
-          search: params.search || undefined,
-          contractTypeId: params.contractTypeId || undefined,
-          contractMethod: params.contractMethod || undefined,
-          page: params.page,
+  const { filters, page, sort, setFilter, setPage, setSort, clear, isPending, data } =
+    useListView({
+      filterKeys: LIST_FILTER_KEYS.contracts,
+      initialData,
+      load: (state) =>
+        getContracts({
+          search: state.filters.search || undefined,
+          contractTypeId: state.filters.typeId || undefined,
+          contractMethod: state.filters.methodId || undefined,
+          page: state.page,
           perPage: PER_PAGE,
-        });
-        if (data) {
-          setRows(data.rows);
-          setTotalCount(data.total);
-        }
-      });
-    },
-    []
-  );
+          sortField: state.sort?.field,
+          sortDirection: state.sort?.direction,
+        }),
+    });
 
-  // debounce search
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setPage(1);
-      fetchData({ search, contractTypeId: contractTypeFilter, contractMethod: contractMethodFilter, page: 1 });
-    }, 300);
-    return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search]);
+  const search = filters.search ?? "";
+  const contractTypeFilter = filters.typeId ?? "";
+  const contractMethodFilter = filters.methodId ?? "";
 
-  // page change
-  useEffect(() => {
-    if (page > 1) fetchData({ search, contractTypeId: contractTypeFilter, contractMethod: contractMethodFilter, page });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page]);
-
-  function handleFilter(key: "contractTypeId" | "contractMethod", value: string) {
-    const next = {
-      search,
-      contractTypeId: contractTypeFilter,
-      contractMethod: contractMethodFilter,
-      [key]: value,
-    };
-    if (key === "contractTypeId") setContractTypeFilter(value);
-    if (key === "contractMethod") setContractMethodFilter(value);
-    setPage(1);
-    fetchData({ ...next, page: 1 });
-  }
-
-  function handleClear() {
-    setSearch("");
-    setContractTypeFilter("");
-    setContractMethodFilter("");
-    setPage(1);
-    fetchData({ search: "", contractTypeId: "", contractMethod: "", page: 1 });
-  }
+  const rows = data?.rows ?? [];
+  const totalCount = data?.total ?? 0;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
@@ -221,20 +175,20 @@ export function ContractsView({ initialData, isManagerOrAbove, contractTypes }: 
           label="契約種別"
           value={contractTypeFilter}
           options={contractTypes.map((t) => ({ value: t.id, label: t.name }))}
-          onChange={(v) => handleFilter("contractTypeId", v)}
+          onChange={(v) => setFilter("typeId", v)}
         />
         <FilterSelect
           label="契約方法"
           value={contractMethodFilter}
           options={CONTRACT_METHOD_OPTIONS}
-          onChange={(v) => handleFilter("contractMethod", v)}
+          onChange={(v) => setFilter("methodId", v)}
         />
         <SearchInput
           value={search}
           placeholder="契約書名で検索..."
-          onChange={(v) => setSearch(v)}
+          onChange={(v) => setFilter("search", v)}
         />
-        <FilterClearButton onClear={handleClear} />
+        <FilterClearButton onClear={clear} />
         {isPending && (
           <span
             className="text-xs"
@@ -252,9 +206,12 @@ export function ContractsView({ initialData, isManagerOrAbove, contractTypes }: 
         getHref={(row) => `/contracts/${row.id}`}
         emptyIcon={FileText}
         emptyMessage="契約がまだありません"
+        sort={sort}
+        onSortChange={setSort}
         columns={[
           {
             label: "契約書名",
+            sortKey: "contract_name",
             card: "title",
             className: "min-w-[200px]",
             render: (row) => (
@@ -300,6 +257,7 @@ export function ContractsView({ initialData, isManagerOrAbove, contractTypes }: 
           },
           {
             label: "契約開始日",
+            sortKey: "contract_date",
             className: "text-xs whitespace-nowrap",
             render: (row) => formatDate(row.start_date),
           },
@@ -315,6 +273,7 @@ export function ContractsView({ initialData, isManagerOrAbove, contractTypes }: 
           },
           {
             label: "最終更新日",
+            sortKey: "updated_at",
             className: "text-xs whitespace-nowrap",
             render: (row) => formatDateTime(row.updated_at),
           },
@@ -325,7 +284,7 @@ export function ContractsView({ initialData, isManagerOrAbove, contractTypes }: 
         page={page}
         totalCount={totalCount}
         pageSize={PER_PAGE}
-        onPageChange={(p) => setPage(p)}
+        onPageChange={setPage}
       />
     </div>
   );

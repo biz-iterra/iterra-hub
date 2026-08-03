@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useTransition } from "react";
 import Link from "next/link";
 import { Plus, Megaphone } from "lucide-react";
 import { getCampaigns } from "@/actions/campaigns";
+import { useListView } from "@/hooks/useListView";
+import { LIST_FILTER_KEYS } from "@/lib/list-sort";
 import { CampaignTypeBadge, CampaignStatusBadge } from "@/components/ui/badges";
 import { FilterGroup, FilterClearButton } from "@/components/ui/FilterGroup";
 import { FilterSelect } from "@/components/ui/FilterSelect";
@@ -31,59 +32,39 @@ export function CampaignsView({
   initialData: Paged<Row<"campaigns">> | null;
   currentUserRole: string;
 }) {
-  const [data, setData] = useState(initialData);
-  const [typeFilter, setTypeFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
-  const [keyword, setKeyword] = useState("");
-  const [page, setPage] = useState(1);
-  const [isPending, startTransition] = useTransition();
+  const { filters, page, sort, setFilter, setPage, setSort, clear, isPending, data } =
+    useListView({
+      filterKeys: LIST_FILTER_KEYS.campaigns,
+      initialData,
+      load: (state) =>
+        getCampaigns({
+          // 種別・ステータスは URL 由来の文字列。想定外の値は Zod が弾く
+          type: (state.filters.type || undefined) as
+            | "generation"
+            | "nurturing"
+            | "qualification"
+            | undefined,
+          status: (state.filters.status || undefined) as
+            | "draft"
+            | "active"
+            | "paused"
+            | "completed"
+            | "cancelled"
+            | undefined,
+          keyword: state.filters.search || undefined,
+          perPage: DEFAULT_PAGE_SIZE,
+          page: state.page,
+          sortField: state.sort?.field,
+          sortDirection: state.sort?.direction,
+        }),
+    });
 
   const isManagerOrAbove =
     currentUserRole === "manager" || currentUserRole === "admin";
 
-  function handleFilter(overrides: Record<string, string | undefined>) {
-    setPage(1);
-    startTransition(async () => {
-      const resolvedType = overrides.type !== undefined ? overrides.type : typeFilter;
-      const resolvedStatus = overrides.status !== undefined ? overrides.status : statusFilter;
-      const resolvedKeyword = overrides.keyword !== undefined ? overrides.keyword : keyword;
-      const params = {
-        type: (resolvedType || undefined) as "generation" | "nurturing" | "qualification" | undefined,
-        status: (resolvedStatus || undefined) as "draft" | "active" | "paused" | "completed" | "cancelled" | undefined,
-        keyword: resolvedKeyword || undefined,
-        perPage: DEFAULT_PAGE_SIZE,
-        page: 1,
-      };
-      const { data: result } = await getCampaigns(params);
-      setData(result);
-    });
-  }
-
-  function handleClear() {
-    setTypeFilter("");
-    setStatusFilter("");
-    setKeyword("");
-    setPage(1);
-    startTransition(async () => {
-      const { data: result } = await getCampaigns({ perPage: DEFAULT_PAGE_SIZE, page: 1 });
-      setData(result);
-    });
-  }
-
-  function handlePageChange(next: number) {
-    setPage(next);
-    startTransition(async () => {
-      const params = {
-        type: (typeFilter || undefined) as "generation" | "nurturing" | "qualification" | undefined,
-        status: (statusFilter || undefined) as "draft" | "active" | "paused" | "completed" | "cancelled" | undefined,
-        keyword: keyword || undefined,
-        perPage: DEFAULT_PAGE_SIZE,
-        page: next,
-      };
-      const { data: result } = await getCampaigns(params);
-      setData(result);
-    });
-  }
+  const typeFilter = filters.type ?? "";
+  const statusFilter = filters.status ?? "";
+  const keyword = filters.search ?? "";
 
   const items = data?.rows ?? [];
 
@@ -126,10 +107,7 @@ export function CampaignsView({
             { value: "nurturing", label: "育成" },
             { value: "qualification", label: "選定" },
           ]}
-          onChange={(v) => {
-            setTypeFilter(v);
-            handleFilter({ type: v });
-          }}
+onChange={(v) => setFilter("type", v)}
         />
         <FilterSelect
           label="ステータス"
@@ -141,20 +119,14 @@ export function CampaignsView({
             { value: "completed", label: "完了" },
             { value: "cancelled", label: "中止" },
           ]}
-          onChange={(v) => {
-            setStatusFilter(v);
-            handleFilter({ status: v });
-          }}
+onChange={(v) => setFilter("status", v)}
         />
         <SearchInput
           value={keyword}
           placeholder="キャンペーン名で検索..."
-          onChange={(v) => {
-            setKeyword(v);
-            handleFilter({ keyword: v });
-          }}
+onChange={(v) => setFilter("search", v)}
         />
-        <FilterClearButton onClear={handleClear} />
+        <FilterClearButton onClear={clear} />
         {isPending && (
           <span
             className="text-xs"
@@ -172,9 +144,12 @@ export function CampaignsView({
         getHref={(campaign) => `/campaigns/${campaign.id}`}
         emptyIcon={Megaphone}
         emptyMessage="キャンペーンが見つかりません"
+        sort={sort}
+        onSortChange={setSort}
         columns={[
           {
             label: "キャンペーン名",
+            sortKey: "name",
             card: "title",
             render: (campaign) => (
               <Link
@@ -214,6 +189,7 @@ export function CampaignsView({
           },
           {
             label: "最終更新日",
+            sortKey: "updated_at",
             className: "text-xs whitespace-nowrap",
             render: (campaign) => formatDateTime(campaign.updated_at),
           },
@@ -224,7 +200,7 @@ export function CampaignsView({
         page={page}
         totalCount={data?.total ?? 0}
         pageSize={DEFAULT_PAGE_SIZE}
-        onPageChange={handlePageChange}
+        onPageChange={setPage}
       />
     </div>
   );

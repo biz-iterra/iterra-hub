@@ -29,6 +29,8 @@ import {
   leadCustomerActivityTypeSchema, leadCustomerActivityTypeUpdateSchema,
   leadScoreRuleSchema, leadScoreRuleUpdateSchema,
 } from "@/lib/validators";
+import { toUserMessage } from "@/lib/db-error";
+import { pickDefaultBadgeColor } from "@/lib/master-color";
 import type { z } from "zod";
 import type { Database } from "@/types/database.generated";
 import type {
@@ -85,6 +87,101 @@ const TABLES_WITH_AUDIT_COLUMNS = new Set([
 /** テーブルが監査カラムを持つか判定 */
 function hasAuditColumns(tableName: MasterTableName): boolean {
   return TABLES_WITH_AUDIT_COLUMNS.has(tableName);
+}
+
+/**
+ * テーブル名 → 画面上の名称。DB エラーを日本語に直すときの主語に使う。
+ * 画面のタブ名（TAB_LABELS）と同じ言葉にすること。
+ */
+const MASTER_LABELS: Record<string, string> = {
+  pipeline_types: "パイプライン種別",
+  deal_stages: "商談ステージ",
+  deal_statuses: "商談ステータス",
+  contract_types: "契約種別",
+  corporate_types: "法人格",
+  services: "サービス",
+  lead_sources: "リードソース",
+  account_types: "取引先種別",
+  account_role_types: "取引先区分",
+  account_statuses: "取引先ステータス",
+  contact_statuses: "連絡先ステータス",
+  company_statuses: "事業者情報ステータス",
+  skill_categories: "スキルカテゴリ",
+  skills: "スキル",
+  project_statuses: "プロジェクトステータス",
+  lead_categories: "リードカテゴリ",
+  lead_activity_types: "対応種別",
+  lead_stages: "リードステージ",
+  lead_statuses: "リードステータス",
+  lead_temperatures: "温度感",
+  lead_call_statuses: "コールステータス",
+  lead_large_segments: "大セグメント",
+  lead_small_segments: "小セグメント",
+  lead_company_sizes: "企業規模",
+  lead_customer_activity_types: "顧客行動タイプ",
+  lead_score_rules: "スコアリングルール",
+  lead_score_thresholds: "スコア変換ルール",
+};
+
+function masterLabel(tableName: MasterTableName): string {
+  return MASTER_LABELS[tableName] ?? "マスタ";
+}
+
+/**
+ * `color` カラムを持つマスタ。
+ *
+ * 未指定で保存された行に色を自動付与する対象。存在しないカラムへ
+ * 書こうとすると INSERT 全体が落ちるため、リストで明示する
+ * （information_schema を毎回引くのは取得の往復が増えて割に合わない）。
+ * color を持つテーブルを増やしたらここにも足すこと。
+ */
+const COLOR_MASTER_TABLES = new Set<string>([
+  "account_role_types",
+  "account_statuses",
+  "company_statuses",
+  "contact_statuses",
+  "deal_stages",
+  "deal_statuses",
+  "lead_activity_types",
+  "lead_call_statuses",
+  "lead_categories",
+  "lead_customer_activity_types",
+  "lead_stages",
+  "lead_statuses",
+  "lead_temperatures",
+  "project_statuses",
+  // social_services も color を持つが、この汎用 CRUD の対象外
+  // （論理削除カラムが無く一覧取得の条件が合わない）
+]);
+
+/**
+ * 色が未指定なら、同じマスタで使われていない色を割り当てて返す。
+ *
+ * 表示側にも「色が無ければ名前から選ぶ」フォールバックはあるが、それだと
+ * DB に色が入らないままなので、同じ値でも一覧と詳細で違う色に見えうる。
+ * バッジ色の正本は DB という規約（CLAUDE.md）に合わせ、保存時に確定させる。
+ */
+async function withDefaultColor(
+  supabase: LooseSupabase,
+  tableName: MasterTableName,
+  values: Record<string, unknown>
+): Promise<Record<string, unknown>> {
+  if (!COLOR_MASTER_TABLES.has(tableName)) return values;
+  if (!("color" in values)) return values;
+  if (typeof values.color === "string" && values.color.trim() !== "") return values;
+
+  const { data } = await supabase
+    .from(tableName)
+    .select("color")
+    .is("deleted_at", null);
+
+  const existing = ((data ?? []) as { color?: string | null }[]).map((r) => r.color);
+  const seed =
+    (typeof values.name === "string" && values.name) ||
+    (typeof values.code === "string" && values.code) ||
+    tableName;
+
+  return { ...values, color: pickDefaultBadgeColor(existing, seed) };
 }
 
 async function getAuthenticatedUser() {
@@ -145,8 +242,18 @@ export async function createMasterRecord<K extends MasterTableName>(
   if (!parsed.success) return { data: null, error: parsed.error.issues[0].message };
 
   const auditCreate = hasAuditColumns(tableName) ? { created_by: user.id } : {};
-  const { data, error } = await supabase.from(tableName).insert({ ...(parsed.data as Record<string, unknown>), ...auditCreate }).select().single();
-  if (error) return { data: null, error: error.message };
+  const withColor = await withDefaultColor(
+    supabase,
+    tableName,
+    parsed.data as Record<string, unknown>
+  );
+  const { data, error } = await supabase.from(tableName).insert({ ...withColor, ...auditCreate }).select().single();
+  if (error) {
+    return {
+      data: null,
+      error: toUserMessage(error, { entityLabel: masterLabel(tableName), operation: "create" }),
+    };
+  }
   return { data, error: null };
 }
 
@@ -167,8 +274,20 @@ export async function updateMasterRecord<K extends MasterTableName>(
   if (!parsed.success) return { data: null, error: parsed.error.issues[0].message };
 
   const auditUpdate = hasAuditColumns(tableName) ? { last_updated_by: user.id } : {};
-  const { data, error } = await supabase.from(tableName).update({ ...(parsed.data as Record<string, unknown>), ...auditUpdate }).eq("id", id).select().single();
-  if (error) return { data: null, error: error.message };
+  // 色を空にして保存した場合も未指定として扱い、付け直す。
+  // 色の無い行を作らないため（色欄を触っていない更新では values に color が無く、素通りする）
+  const withColor = await withDefaultColor(
+    supabase,
+    tableName,
+    parsed.data as Record<string, unknown>
+  );
+  const { data, error } = await supabase.from(tableName).update({ ...withColor, ...auditUpdate }).eq("id", id).select().single();
+  if (error) {
+    return {
+      data: null,
+      error: toUserMessage(error, { entityLabel: masterLabel(tableName), operation: "update" }),
+    };
+  }
   return { data, error: null };
 }
 
@@ -186,7 +305,12 @@ export async function deleteMasterRecord(tableName: MasterTableName, id: string)
     deleted_by: user.id,
     ...auditDelete,
   }).eq("id", id);
-  if (error) return { data: null, error: error.message };
+  if (error) {
+    return {
+      data: null,
+      error: toUserMessage(error, { entityLabel: masterLabel(tableName), operation: "delete" }),
+    };
+  }
   return { data: null, error: null };
 }
 

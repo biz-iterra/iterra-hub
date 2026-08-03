@@ -29,6 +29,12 @@ yarn-error.log*
 !.env.example
 !.env.local.example
 
+# playwright (e2e)
+/test-results/
+/playwright-report/
+/playwright/.cache/
+e2e/.auth/
+
 # vercel
 .vercel
 

@@ -17,7 +17,6 @@ import {
   Calendar,
   CheckSquare,
   ClipboardList,
-  Clock,
   FileText,
   FolderKanban,
   Handshake,
@@ -32,6 +31,7 @@ import type { LucideIcon } from "lucide-react";
 import { DetailSection } from "@/components/ui/DetailSection";
 import { InfoField } from "@/components/ui/InfoField";
 import { EntityLink } from "@/components/ui/EntityLink";
+import { ACTIVITY_ICON } from "@/lib/activity";
 import { getDealCounterparty } from "@/lib/deal-counterparty";
 import { ContractMethodBadge, PipelineBadge, StageBadge, StatusBadge } from "@/components/ui/badges";
 import { detailContainerClass, detailGridClass, fieldGridClass, sectionStackClass, tableScrollClass } from "@/lib/layout";
@@ -477,7 +477,8 @@ export default async function DealDetailPage({
 
         {/* ======== Right ======== */}
         <div className={sectionStackClass}>
-          <DetailSection title="アクティビティ" icon={Clock}>
+          {/* サイドバーの「アクティビティ」と同じアイコンで揃える */}
+          <DetailSection title="アクティビティ" icon={ACTIVITY_ICON}>
             {activities.length === 0 ? (
               <p
                 style={{

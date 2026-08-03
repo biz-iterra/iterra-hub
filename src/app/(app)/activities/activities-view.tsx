@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Activity } from "lucide-react";
 import { getActivityFeed } from "@/actions/activity-feed";
+import { ActivitySourceIcon } from "@/components/ui/ActivitySourceIcon";
 import { ActivityTypeBadge, StatusBadge } from "@/components/ui/badges";
 import { EntityLink } from "@/components/ui/EntityLink";
 import { SearchInput } from "@/components/ui/SearchInput";
@@ -12,6 +12,7 @@ import { DataTable } from "@/components/ui/DataTable";
 import { Pagination } from "@/components/ui/Pagination";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants/pagination";
 import {
+  ACTIVITY_ICON,
   ACTIVITY_SOURCE_LABELS,
   activityEntityHref,
   formatOccurredAt,
@@ -156,13 +157,18 @@ export function ActivitiesView({
       <DataTable
         items={rows}
         getKey={(row) => `${row.source_kind}:${row.id}`}
-        emptyIcon={Activity}
+        emptyIcon={ACTIVITY_ICON}
         emptyMessage="アクティビティが見つかりません"
         columns={[
           {
             label: "日時",
             className: "text-xs whitespace-nowrap",
-            render: (row) => formatOccurredAt(row.occurred_at, row.has_time),
+            render: (row) => (
+              <span className="inline-flex items-center gap-1.5">
+                <ActivitySourceIcon sourceKind={row.source_kind} />
+                {formatOccurredAt(row.occurred_at, row.has_time)}
+              </span>
+            ),
           },
           {
             label: "種別",

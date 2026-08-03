@@ -1,5 +1,7 @@
-import { Mail, ArrowDownLeft, ArrowUpRight } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight } from "lucide-react";
 import { DetailSection } from "@/components/ui/DetailSection";
+import { ActivitySourceIcon } from "@/components/ui/ActivitySourceIcon";
+import { ACTIVITY_ICON } from "@/lib/activity";
 import type { EmailMessageWithContacts } from "@/types/relations";
 
 /**
@@ -17,7 +19,9 @@ export function EmailHistorySection({
   return (
     <DetailSection
       title="アクティビティ"
-      icon={Mail}
+      // サイドバーの「アクティビティ」と同じアイコンを使う。
+      // メールアイコンだと、記録元がメールに限られるように読める
+      icon={ACTIVITY_ICON}
       action={
         messages.length > 0 ? (
           <span style={{ fontSize: "0.75rem", color: "var(--color-sumi500)" }}>
@@ -99,12 +103,15 @@ export function EmailHistorySection({
                   </span>
                   <span
                     style={{
-                      display: "block",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.25rem",
                       fontSize: "0.75rem",
                       color: "var(--color-sumi500)",
                       marginTop: "0.125rem",
                     }}
                   >
+                    <ActivitySourceIcon sourceKind="email" size={12} />
                     {formatDateTime(m.sent_at)}
                     {inbound && m.from_name ? ` ・ ${m.from_name}` : ""}
                   </span>

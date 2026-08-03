@@ -60,8 +60,48 @@
 | Gate 3-1 db reset + 結合 (02) | 2026-08-04 | Claude | 通過 | **258 アサーション全 PASS**（IT-RLS-22 の 16 件を含む） |
 | Gate 3-2 システム (03〜07 該当章) | 2026-08-04 | Claude | E2E スモークで代替 | 前リリースと同じ判断 |
 | Gate 3-3 E2E スモーク (08 ランク S) | 2026-08-04 | Claude | 通過 | **5 本全緑**（1.3 分）。初回は 3 本赤 → 下記の処置を経て緑 |
-| Gate 4 受入 (09) | | | | |
-| Gate 5 デプロイ後スモーク | | | | |
+| Gate 4 受入 (09) | 2026-08-04 | Claude | 一部を本番へ持ち越し | 機械確認は合格。名刺取込と楽観ロックは**本番で確認する判断**（ユーザー） |
+| Gate 5 デプロイ後スモーク | 2026-08-04 | Claude / 利用者 | **不具合を検出** | 名刺取込が statement timeout で失敗。§ Gate 5 の検出 |
+
+### 本番反映の記録（2026-08-04）
+
+| 手順 | 結果 |
+|---|---|
+| 適用前バックアップ（`db-backup.yml` を手動実行） | success（run 30830514171） |
+| `npx supabase db push` | **10 本適用**（`20260803000001`〜`000008` + `000020` `000021`） |
+| 適用後の本数照合 | ローカル 128 / リモート 128、未適用 0、最新 `20260803000021`。**out-of-order のスキップなし** |
+| `/api/health?deep=1`（アプリ更新前） | `{"status":"ok","database":"ok"}` |
+| NAS のイメージ更新 | 完了（利用者が実施） |
+
+`docker-compose.yml` に差分がないため（環境変数の増減なし）、compose の差し替えは不要。
+
+### Gate 5 の検出（2026-08-04）
+
+**名刺取込が本番で失敗した。** 画面には
+`取込に失敗しました: canceling statement due to statement timeout` と出た。
+2 つの問題が重なっている。
+
+**1. 8 秒で打ち切られていた（T-0001）**
+
+PostgREST は `authenticator` ロールで接続してから `SET ROLE service_role` するため、
+**service_role で呼んでも `authenticator` の `statement_timeout = 8s` が効く**。
+RLS を避けるために `createAdminClient()` へ切り替えても 8 秒の壁は消えていなかった
+（この誤解が「service_role にすれば大量取込が通る」という前提を作っていた）。
+
+処置: 一括処理の関数にだけ実行時間の制限を与える（`20260804000001`）。
+ロール側の設定は変えない。検証は `test-cases/02-integration-db.md` の IT-PERF-01。
+
+**2. 英語の生エラーがそのまま画面に出た（T-0002）**
+
+`toUserMessage()` は `masters.ts` の 4 箇所にしか入っておらず、
+**31 ファイル 192 箇所が `error.message` を素通しで返していた**。
+CLAUDE.md に規約はあったが実装に行き渡っていなかった。
+
+処置: Server Action が DB エラーを返す経路をすべて `toUserMessage()` 経由に統一
+（削除系は `operation: "delete"` も渡す）。適用範囲は `docs/error-messages.md` §4。
+
+**再発防止**: 依頼・不具合を台帳（`docs/tasks.md`）で追う体制を作った
+（`docs/task-management.md`）。「実装した」と「本番で使える」を別の列で持つ。
 
 ### Gate 3-3 で検出した実装の不具合と処置（2026-08-04）
 

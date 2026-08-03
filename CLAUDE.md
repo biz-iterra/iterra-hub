@@ -111,14 +111,22 @@ ITERRA CRM（顧客関係管理）システム。
 
 ### 品質チェック
 
-コミット前に以下がすべて通ること。CI（`.github/workflows/ci.yml`）では typecheck / test / build を必須にしている。
+コミット前に以下がすべて通ること。CI（`.github/workflows/ci.yml`）は
+typecheck / test / build / lint の 4 つを必須にしている。
 
 ```bash
-npm run typecheck && npm test && npm run build
+npm run typecheck && npm test && npm run build && npm run lint -- --max-warnings 0
 ```
 
-`npm run lint` は既存負債（`no-explicit-any` 等 216 件）が残っているため CI では失敗させていない。
-新規コードでは増やさないこと。
+**lint は error / warning ともに 0 件が条件。** `no-explicit-any` の負債は
+Server Action の戻り値型を `src/types/relations.ts` に集約して解消済みで、
+`any` を足すと CI が落ちる。未使用の import / 定数もエラーになるため、
+参照を消したら定義も併せて消すこと。
+
+`package-lock.json` は **`npm install` で更新し、`--os` / `--cpu` を付けない。**
+付けると `integrity` が大量に欠落した lock ができ、それでインストールした
+`node_modules` から作り直しても戻らなくなる（2026-08-03 に発生）。
+lock を触ったら push 前に `npm ci` がローカルで通ることを確認する。
 
 ### シークレット管理（必須遵守）
 

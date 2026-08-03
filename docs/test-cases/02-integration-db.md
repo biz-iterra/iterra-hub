@@ -44,6 +44,23 @@ Server Action 層のテストは対象外（システムテスト `03〜07-syste
 | member | `a0000000-0000-0000-0000-000000000003` | member@iterra.jp |
 | member（2人目） | `a0000000-0000-0000-0000-000000000010` | ogawa@iterra.jp |
 
+**事前データを直接 INSERT するときの必須列**（2026-08-03 追加。以下を省くと NOT NULL / CHECK で落ちる）:
+
+| テーブル | 省略できない列 | 値の引き方 |
+|---|---|---|
+| `companies` | `company_status_id` | `(SELECT id FROM company_statuses WHERE code='unverified' AND deleted_at IS NULL)` |
+| `contacts` | `contact_status_id` | `(SELECT id FROM contact_statuses WHERE name='アクティブ' AND deleted_at IS NULL)` |
+| `leads` | `stage_id` | `(SELECT id FROM lead_stages WHERE deleted_at IS NULL ORDER BY sort_order LIMIT 1)` |
+| `deals` | `name` / `pipeline_type_id` / `deal_stage_id` / `deal_status_id` | 同上の要領で sort_order 最小を引く |
+| `lead_activities` | `call_number` / `call_status_id` / `called_on` / `caller_user_id` | — |
+| `lead_sources` | `slug`（`^[a-z][a-z0-9_]{0,31}$`） | ハイフン不可。`score_test` のように `_` を使う |
+| `lead_company_sizes` / `lead_temperatures` / `lead_statuses` | `code`（同上の形式） | 同上 |
+| `pipeline_types` | `slug` | 同上 |
+
+**ステータス系マスタの id を UUID 直書きしない。** `company_statuses` はマイグレーションで
+`gen_random_uuid()` により作られるため環境ごとに値が違う（実装も `code='unverified'` で引いている）。
+`b0…01`（pipeline_types）のように seed で固定 UUID を与えているものだけ直書きしてよい。
+
 ### 1.2 SQL の実行方法
 
 psql が入っていなければ Supabase CLI のコンテナ経由で実行する:
@@ -260,7 +277,15 @@ pg_cron ジョブ:
          company_sort_key('㈶やまがた産業支援機構', NULL) AS e;
   ```
 - 期待結果: a = b = `フロンティア`（前株・後株が同じ位置に並ぶ）、c = `アオゾラ`（フリガナ優先）、d は先頭の `「` が落ちて `あしたのいえ` から始まる、e = `やまがた産業支援機構`（旧制度の財団法人も落ちる）
-- 併せて生成列を確認: `INSERT INTO companies (name, owner_user_id) VALUES ('株式会社ソートキー確認','a0000000-0000-0000-0000-000000000001') RETURNING sort_key;` → `ソートキー確認`… ではなく `ソートキー確認` の名称部分（`sort_key = company_sort_key(name, name_kana)` の STORED 生成列であること）
+- 併せて生成列を確認:
+  ```sql
+  INSERT INTO companies (name, owner_user_id, company_status_id)
+  VALUES ('株式会社ソートキー確認','a0000000-0000-0000-0000-000000000001',
+          (SELECT id FROM company_statuses WHERE code='unverified' AND deleted_at IS NULL))
+  RETURNING sort_key;   -- → 'ソートキー確認'（company_sort_key(name, name_kana) の STORED 生成列）
+  ```
+- なお `company_sort_key('「あしたのいえ」秋田福祉会', NULL)` は `あしたのいえ」秋田福祉会` になる。
+  落とすのは**先頭**の記号だけで、閉じ括弧は残る（並び順の起点を決めるのが目的のため）
 
 ### IT-08: resolve_corporate_type_id — 最長一致
 
@@ -361,7 +386,7 @@ SELECT resolve_or_create_company(
 - 期待結果: 新規 companies 行が 1 件でき、
   - `name = '株式会社シータ'`（略記が開かれて保存される）
   - `corporate_type_id` = corporate_types「株式会社」の id（`resolve_corporate_type_id`）
-  - `company_status_id` = `e1000000-0000-0000-0000-000000000001`（未確認 `unverified`）
+  - `company_status_id` = `company_statuses` の `code = 'unverified'`（未確認）の id
   - `corporate_number = '9876543210123'`、`phone = '03-0000-0000'`（trim 済み）
   - `company_code ~ '^CMP-[0-9]{6}$'`（採番トリガー）
   - `company_domains` に `(company_id, 'theta.co.jp', is_primary=TRUE)` が 1 件
@@ -493,17 +518,23 @@ SELECT resolve_or_create_contact(
   INSERT INTO lead_sources (name) VALUES ('スコアテスト媒体') RETURNING id; -- :src
   INSERT INTO leads (lead_name, lead_source_id, owner_user_id)
   VALUES ('スコアテスト', :src, 'a0000000-…01') RETURNING id;              -- :lead
-  INSERT INTO lead_score_rules (name, category, condition_type, condition_value_id, score_delta, sort_order)
-  VALUES ('媒体+60','attribute','lead_source',:src, 60, 1),
-         ('媒体+50','attribute','lead_source',:src, 50, 2);
+  -- lead_score_rules に name 列は無い。ラベルは description に入れる
+  INSERT INTO lead_score_rules (category, condition_type, condition_value_id, score_delta, sort_order, description)
+  VALUES ('attribute','lead_source',:src, 60, 1, '媒体+60'),
+         ('attribute','lead_source',:src, 50, 2, '媒体+50');
   ```
-  ※ lead_score_rules の必須カラムは 20260422000002 定義に合わせる（category 等が NOT NULL の場合は seed の既存行を参考に埋める）
+  ※ seed の既定ルールが混ざると合計が変わるので、先に `UPDATE lead_score_rules SET deleted_at = now() WHERE deleted_at IS NULL;` で退避してから入れる
 - 実行: `SELECT recalculate_lead_score(:lead);`
 - 期待結果:
   - 戻り値 = **100**（60+50=110 をクリップ）
-  - `leads.score = 100`、`leads.temperature_id` = hot（`b1000000-…03`、threshold 80+）
+  - `leads.score = 100`、`leads.temperature_id` = hot（threshold 80+）
   - `lead_score_breakdowns` は当該リードで 2 件、`score_delta` は 60 と 50（クリップ前の生値）
-  - 続けてルールを全て `score_delta = -10` の 1 本に差し替えて再実行 → 戻り値 **0**（下方クリップ）、temperature = cold、breakdowns は**全置換**されて 1 件のみ
+  - 続けてルールを 1 本（`score_delta = 5`）に差し替えて再実行 → 戻り値 **5**、temperature = cold、
+    breakdowns は**全置換**されて 1 件のみ
+- **下方クリップは DB 上到達不能**（2026-08-03 訂正）: `chk_lead_score_rules_score_delta` が
+  `score_delta BETWEEN 0 AND 100` を課すため、負の加点ルールはそもそも登録できない。
+  `score_delta = -10` を INSERT すると CHECK 違反になることを確認する。
+  `recalculate_lead_score` 側の 0 クリップは防御的な実装として残っている
 
 ### IT-29: recalculate_lead_score — 参照切れルールはスキップ
 
@@ -795,10 +826,33 @@ INSERT INTO companies (name, owner_user_id) VALUES
 - 実行ロール: member
 - 期待: 自分の contact の talent のみ SELECT / UPDATE 可。他方は SELECT 0 行
 
+### IT-RLS-21: ビュー経由でも RLS が効く（2026-08-03 追加）
+
+- 背景: `v_leads_with_category` に `security_invoker` が付いておらず、**ビュー越しでは RLS が
+  完全にバイパスされていた**（member から基底テーブルは 0 件なのにビューは 3,008 件）。
+  `/leads` 一覧はこのビューを読むため、member が担当外リードを全件閲覧できていた
+- 実行ロール: member（a0…03。leads の主担当でも副担当でもない）
+- 実行:
+  ```sql
+  SELECT count(*) FROM leads;                  -- 基底テーブル
+  SELECT count(*) FROM v_leads_with_category;  -- ビュー
+  ```
+- 期待: **両者が一致する**（この構成では 0 件）。小川（a0…10、2,758 件担当）で 2,758、
+  manager で全件になることも併せて見る
+- 併せて確認: RLS のあるテーブルを読むビューすべてに `security_invoker=true` が付いていること
+  ```sql
+  SELECT c.relname, c.reloptions FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+   WHERE n.nspname='public' AND c.relkind='v';
+  ```
+  → 全ビューの `reloptions` に `security_invoker=true` が含まれること
+
 ### IT-RLS-20: 未認証（anon）— 全テーブル不可視
 
 - 実行ロール: `SET LOCAL role anon;`（claims なし）
-- 期待: `SELECT count(*) FROM companies / leads / pipeline_types / crm_users` すべて **0 行**（全ポリシーが `TO authenticated` のため）。INSERT は 42501
+- 期待: `SELECT count(*) FROM companies / leads / pipeline_types / crm_users` すべて
+  **SQLSTATE 42501（permission denied）**。0 行ではない（2026-08-03 訂正）。
+  anon には `public` スキーマのテーブル GRANT を与えていないため、RLS 以前に権限で弾かれる（§1 冒頭）。
+  ポリシーが `TO authenticated` であることに加えた二重の防御になっている
 
 ---
 
@@ -913,9 +967,36 @@ SELECT jobname, schedule FROM cron.job
    IT-23 は「新規連絡先が『アクティブ』であること」を固定値で検証してよい。
 2. **自動採番（MAX+1 方式）は並列 INSERT で一意制約違反を起こしうる。**
    `generate_company_code` 等はテーブル全体の MAX を読むだけでロックを取らないため、同時 INSERT の再現テストは不安定（advisory lock もシーケンスも無い）。IT-34/35 は単一接続前提。
+   なお **RLS 起因の確定的な採番衝突は 2026-08-03 に修正済み**
+   （`20260803000006_number_generators_bypass_rls.sql`）。それ以前は採番関数が
+   SECURITY INVOKER で、member が新規作成すると自分が owner の行しか MAX の対象にならず、
+   既存コードと必ず衝突していた（member は INSERT ポリシー上は作成できるのに実際は作れない状態）。
+   **採番のような「誰が実行しても同じであるべき値」を RLS のかかる SELECT で作らないこと。**
 3. **updated_at はトランザクション時刻で固定される。**
    同一トランザクション内で 2 回 UPDATE しても `updated_at` が進まないため、楽観ロック（`expected_updated_at`）の衝突検知は「別トランザクションからの更新」でのみテスト可能（IT-33 備考）。
 4. **pg_cron の実発火はローカルで待てない。**
    週次再計算・日次パージは関数の直接呼び出し（IT-30）と `cron.job` の登録確認で代替する。スケジュール実行そのものの検証は本番監視側の責務。
 5. **entity_change_logs の `changed_by` は service_role 経由で常に NULL になる**（設計どおりだが、バルク取込を service_role で行うと「誰の操作か」がログから消える。取込関数が `imported_by` を別途持つのはこのため）。
 6. **契約トリガーの Account ステータス解決が `name = 'アクティブ'` の文字列一致**（`ensure_account_on_contract`）。マスタの名称を変更すると「最古のステータス」フォールバックに落ちる。名称変更時はこのトリガーの確認が必要。
+7. **マイグレーションから seed のマスタを参照してはいけない**（2026-08-03、IT-36 が検出）。
+   `db reset` は「マイグレーション → seed」の順に流れるため、マイグレーション内の
+   `(SELECT id FROM <seed で入るマスタ> WHERE …)` は必ず NULL になる。
+   `20260731000008` はこれで `account_role_types.pipeline_type_id` を 5 件とも NULL にしており、
+   **契約が成立しても取引先に区分（顧客 / 仕入れ先 / 外注先）が一度も付いていなかった**。
+   `INSERT … ON CONFLICT DO NOTHING` なので seed 投入後も自然回復しない。
+   `lead_score_rules`（08-e2e-scenarios.md §6.2）と同じ構造の欠陥で、これで 2 件目。
+   - 対処: 紐付けは **seed 側**（`01-masters.sql` 末尾）で行い、既存環境向けに
+     backfill マイグレーション（`20260803000005`）を併せて置く
+   - **この形の欠落は Q13 で検出できる。** マスタ間の参照を足したら整合性クエリも足すこと
+8. **`score_delta` は CHECK で 0〜100**。負の加点ルールは登録できないため、
+   `recalculate_lead_score` の下方 0 クリップは到達不能な防御コードになっている（IT-28）。
+9. **ビューは既定で RLS をバイパスする**（2026-08-03、Gate 4 のブラウザ確認が検出）。
+   PostgreSQL のビューはビュー所有者（ここでは postgres = superuser）の権限で基底テーブルを読むため、
+   **`WITH (security_invoker = true)` を付けない限りポリシーを書いていても無効**になる。
+   `v_leads_with_category` がこれで、member が担当外リードを全件閲覧できていた
+   （`20260803000007` で修正。検証は IT-RLS-21）。
+   - **RLS のあるテーブルを読むビューを追加・再作成するときは必ず `security_invoker` を付ける。**
+     ビューを `CREATE OR REPLACE` すると reloptions が引き継がれないことがあるため、
+     再作成のたびに確認する
+   - Server Action 側は「認証チェックのみ、可視範囲は RLS に委ねる」設計のものが多く、
+     ビューの設定漏れがそのままアクセス制御の穴になる（多層防御の 2 層目が効かない）

@@ -3,12 +3,13 @@ import { getContactStatuses } from "@/actions/masters";
 import { getCrmUsers } from "@/actions/users";
 import { getPendingCandidateCount } from "@/actions/email-sync";
 import { countPendingMergeCandidates } from "@/actions/contact-merge";
+import { DEFAULT_PAGE_SIZE } from "@/lib/constants/pagination";
 import { ContactsView } from "./contacts-view";
 
 export default async function ContactsPage() {
   const [contactsResult, statusesResult, usersResult, candidateCount, mergeCount] =
     await Promise.all([
-      getContacts({ perPage: 50, page: 1 }),
+      getContacts({ perPage: DEFAULT_PAGE_SIZE, page: 1 }),
       getContactStatuses(),
       getCrmUsers(),
       // member は 0 が返る（候補の閲覧は manager 以上）

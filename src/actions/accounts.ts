@@ -1,5 +1,6 @@
 "use server";
 
+import { buildIlikePattern } from "@/lib/search-query";
 import { createClient } from "@/lib/supabase/server";
 import { conflictErrorMessage } from "@/lib/validators/common";
 import {
@@ -63,9 +64,10 @@ export async function getAccounts(
     .order("created_at", { ascending: false })
     .range(from, to);
 
-  if (params?.search) {
+  const searchPattern = buildIlikePattern(params?.search);
+  if (searchPattern) {
     query = query.or(
-      `name.ilike.%${params.search}%,account_code.ilike.%${params.search}%`
+      `name.ilike.${searchPattern},account_code.ilike.${searchPattern}`
     );
   }
   if (params?.statusId) {
@@ -96,6 +98,7 @@ export async function getAccount(id: string): Promise<ActionResult<AccountDetail
       `*, company:companies(id, name, invoice_registration_number), account_type:account_types(id, name, slug), account_status:account_statuses(id, name, color), account_roles(id, assigned_by_contract, role_type:account_role_types(id, code, name, color, sort_order)), lead_source:lead_sources(id, name), owner:crm_users!accounts_owner_user_id_fkey(id, full_name), contacts:account_contacts(id, role, contact:contacts(id, contact_code, last_name, first_name, department, job_title, deleted_at, company:companies!contacts_company_id_fkey(id, name))), deals(id, deal_code, name, amount, deal_stage:deal_stages(name), deal_status:deal_statuses(name))`
     )
     .eq("id", id)
+    .is("deleted_at", null)
     .single();
 
   if (error) return { data: null, error: error.message };
@@ -144,7 +147,7 @@ export async function updateAccount(
 
   // owner チェック（admin 以外は自分の担当のみ）
   if (role !== "admin") {
-    const { data: existing } = await supabase.from("accounts").select("owner_user_id").eq("id", id).single();
+    const { data: existing } = await supabase.from("accounts").select("owner_user_id").eq("id", id).is("deleted_at", null).single();
     if (!existing) return { data: null, error: "取引先が見つかりません" };
     if (existing.owner_user_id !== user.id) return { data: null, error: "この取引先を編集する権限がありません" };
   }

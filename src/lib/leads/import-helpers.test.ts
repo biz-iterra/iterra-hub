@@ -119,6 +119,16 @@ describe("normalizeDate", () => {
     expect(normalizeDate("2025年3月19日")).toBeNull();
     expect(normalizeDate("")).toBeNull();
   });
+
+  it("実在しない月日は null にする（UT-01: DATE 型カラムへ渡すと DB エラーになるため）", () => {
+    expect(normalizeDate("2025/13/40")).toBeNull();
+    expect(normalizeDate("2025/02/30")).toBeNull();
+  });
+
+  it("うるう年の 2/29 は年によって扱いを分ける", () => {
+    expect(normalizeDate("2024/02/29")).toBe("2024-02-29");
+    expect(normalizeDate("2025/02/29")).toBeNull();
+  });
 });
 
 describe("extractDomain", () => {

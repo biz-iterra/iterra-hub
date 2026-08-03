@@ -194,6 +194,8 @@ export const leadCustomerActivityUpdateSchema = leadCustomerActivityCreateSchema
   .partial()
   .extend({
     id: uuidString("[id] 顧客行動IDは必須です"),
+    // 楽観ロック用。未指定の場合はロックなし（後方互換）で従来どおり動作する
+    expected_updated_at: expectedUpdatedAtSchema,
   });
 
 // ---------- leadFiltersSchema ----------

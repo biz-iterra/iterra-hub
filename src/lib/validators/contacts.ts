@@ -37,18 +37,7 @@ export const updateContactSchema = contactBaseSchema
   .partial()
   .extend({ expected_updated_at: expectedUpdatedAtSchema });
 
-// contact_emails
-export const createContactEmailSchema = z.object({
-  contact_id: uuidString(),
-  email: z.string().email("有効なメールアドレスを入力してください"),
-  label: z.enum(["work", "personal", "other"]).default("work"),
-  is_primary: z.boolean().default(false),
-});
-
-// contact_phones
-export const createContactPhoneSchema = z.object({
-  contact_id: uuidString(),
-  phone: z.string().min(1, "電話番号は必須です").max(20),
-  label: z.enum(["work", "mobile", "home", "fax", "other"]).default("work"),
-  is_primary: z.boolean().default(false),
-});
+// contact_emails / contact_phones のスキーマはここには置かない。
+// チャネルの追加・更新は src/actions/contact-channels.ts が担っており、
+// そちらが親連絡先の owner_user_id を見た認可を行う。
+// 認可を持たない旧経路（contacts.ts の addContactEmail 等）は 2026-08-03 に削除した

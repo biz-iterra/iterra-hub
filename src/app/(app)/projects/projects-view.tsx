@@ -34,10 +34,12 @@ export function ProjectsView({
   initialData,
   statuses,
   users,
+  isManagerOrAbove,
 }: {
   initialData: ProjectsData;
   statuses: StatusOption[];
   users: CrmUser[];
+  isManagerOrAbove: boolean;
 }) {
   const [data, setData] = useState<ProjectsData>(initialData);
   const [statusId, setStatusId] = useState("");
@@ -102,26 +104,47 @@ export function ProjectsView({
         <h1 className="text-xl sm:text-2xl font-bold" style={{ color: "var(--color-text-title)" }}>
           プロジェクト
         </h1>
-        <Link
-          href="/projects/new"
-          className="inline-flex items-center gap-2 text-sm font-medium transition-colors whitespace-nowrap"
-          style={{
-            backgroundColor: "var(--color-terra)",
-            color: "#fff",
-            borderRadius: "var(--radius-button)",
-            padding: "0.5rem 1.25rem",
-            textDecoration: "none",
-          }}
-          onMouseEnter={(e) =>
-            (e.currentTarget.style.backgroundColor = "var(--color-terra-dark)")
-          }
-          onMouseLeave={(e) =>
-            (e.currentTarget.style.backgroundColor = "var(--color-terra)")
-          }
-        >
-          <Plus size={16} />
-          新規作成
-        </Link>
+        {isManagerOrAbove ? (
+          <Link
+            href="/projects/new"
+            className="inline-flex items-center gap-2 text-sm font-medium transition-colors whitespace-nowrap"
+            style={{
+              backgroundColor: "var(--color-terra)",
+              color: "#fff",
+              borderRadius: "var(--radius-button)",
+              padding: "0.5rem 1.25rem",
+              textDecoration: "none",
+            }}
+            onMouseEnter={(e) =>
+              (e.currentTarget.style.backgroundColor = "var(--color-terra-dark)")
+            }
+            onMouseLeave={(e) =>
+              (e.currentTarget.style.backgroundColor = "var(--color-terra)")
+            }
+          >
+            <Plus size={16} />
+            新規作成
+          </Link>
+        ) : (
+          <button
+            type="button"
+            disabled
+            title="作成権限がありません"
+            className="inline-flex items-center gap-2 text-sm font-medium whitespace-nowrap"
+            style={{
+              backgroundColor: "var(--color-sumi300)",
+              color: "#fff",
+              borderRadius: "var(--radius-button)",
+              padding: "0.5rem 1.25rem",
+              border: "none",
+              cursor: "not-allowed",
+              opacity: 0.6,
+            }}
+          >
+            <Plus size={16} />
+            新規作成
+          </button>
+        )}
       </div>
 
       {/* フィルター行 */}

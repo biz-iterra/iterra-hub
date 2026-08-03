@@ -2,6 +2,7 @@ import { getCampaignById, getCampaignLeads, getUnassignedLeadsForCampaign } from
 import { getCurrentUser } from "@/actions/users";
 import Link from "next/link";
 import { ArrowLeft, ArrowUpRight } from "lucide-react";
+import { DEFAULT_PAGE_SIZE } from "@/lib/constants/pagination";
 import { CampaignDetailClient } from "./campaign-detail-client";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -90,7 +91,7 @@ export default async function CampaignDetailPage({
   const [campaignLeadsResult, unassignedLeadsResult, currentUserResult] =
     await Promise.all([
       getCampaignLeads(id),
-      getUnassignedLeadsForCampaign(id),
+      getUnassignedLeadsForCampaign(id, { page: 1, perPage: DEFAULT_PAGE_SIZE }),
       getCurrentUser(),
     ]);
 
@@ -98,7 +99,7 @@ export default async function CampaignDetailPage({
     <CampaignDetailClient
       campaign={campaign}
       campaignLeads={campaignLeadsResult.data ?? []}
-      unassignedLeads={unassignedLeadsResult.data ?? []}
+      initialUnassignedTotal={unassignedLeadsResult.data?.total ?? 0}
       currentUser={currentUserResult.data ?? { id: "", full_name: "", role: "member" }}
     />
   );

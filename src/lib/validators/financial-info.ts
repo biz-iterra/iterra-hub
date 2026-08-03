@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { uuidString } from "./common";
+import { expectedUpdatedAtSchema, uuidString } from "./common";
 
 /**
  * 金融機関情報（振込先の口座）。
@@ -67,7 +67,8 @@ export const createFinancialInfoSchema = financialInfoBaseSchema;
 
 export const updateFinancialInfoSchema = financialInfoBaseSchema
   .omit({ company_id: true })
-  .partial();
+  .partial()
+  .extend({ expected_updated_at: expectedUpdatedAtSchema });
 
 export type CreateFinancialInfoInput = z.input<typeof createFinancialInfoSchema>;
 export type UpdateFinancialInfoInput = z.input<typeof updateFinancialInfoSchema>;

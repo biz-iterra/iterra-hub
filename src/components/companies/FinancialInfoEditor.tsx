@@ -341,8 +341,13 @@ export function FinancialInfoEditor({
       showToast({ type: "error", message: "金融機関名は必須です" });
       return;
     }
+    // 編集開始時点の updated_at を送って後勝ちを防ぐ
+    const current = rows.find((r) => r.id === id);
     const ok = await run(async () => {
-      const { error } = await updateFinancialInfo(id, editDraft);
+      const { error } = await updateFinancialInfo(id, {
+        ...editDraft,
+        expected_updated_at: current?.updated_at ?? undefined,
+      });
       return { error };
     });
     if (ok) setEditing(null);
@@ -415,6 +420,7 @@ export function FinancialInfoEditor({
                           run(async () => {
                             const { error } = await updateFinancialInfo(row.id, {
                               is_primary: true,
+                              expected_updated_at: row.updated_at ?? undefined,
                             });
                             return { error };
                           })

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { uuidString } from "./common";
+import { expectedUpdatedAtSchema, uuidString } from "./common";
 
 // ---------- leadActivityCreateSchema ----------
 // call_number は Server Action 側で自動採番するため受け取らない
@@ -76,4 +76,7 @@ export const leadActivityUpdateSchema = z.object({
     .max(1000, "[note] メモは1000文字以内で入力してください")
     .nullable()
     .optional(),
+
+  // 楽観ロック用。未指定の場合はロックなし（後方互換）で従来どおり動作する
+  expected_updated_at: expectedUpdatedAtSchema,
 });

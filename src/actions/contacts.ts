@@ -4,12 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { conflictErrorMessage } from "@/lib/validators/common";
 import type { Database } from "@/types/database.generated";
-import {
-  createContactSchema,
-  updateContactSchema,
-  createContactEmailSchema,
-  createContactPhoneSchema,
-} from "@/lib/validators/contacts";
+import { createContactSchema, updateContactSchema } from "@/lib/validators/contacts";
 import { calcPotentialNumber, calcZodiacSign } from "@/lib/diagnosis";
 import type {
   ContactDetail,
@@ -215,7 +210,12 @@ export async function updateContact(
 
   // owner チェック（admin 以外は自分の担当のみ）
   if (role !== "admin") {
-    const { data: existing } = await supabase.from("contacts").select("owner_user_id").eq("id", id).single();
+    const { data: existing } = await supabase
+      .from("contacts")
+      .select("owner_user_id")
+      .eq("id", id)
+      .is("deleted_at", null)
+      .single();
     if (!existing) return { data: null, error: "連絡先が見つかりません" };
     if (existing.owner_user_id !== user.id) return { data: null, error: "この連絡先を編集する権限がありません" };
   }
@@ -309,132 +309,6 @@ export async function deleteContact(
       deleted_by: user.id,
       last_updated_by: user.id,
     })
-    .eq("id", id);
-
-  if (error) return { data: null, error: error.message };
-  return { data: null, error: null };
-}
-
-// ---------------------------------------------------------------------------
-// メールアドレス追加
-// ---------------------------------------------------------------------------
-export async function addContactEmail(
-  input: unknown
-): Promise<ActionResult<Row<"contact_emails">>> {
-  const { supabase, user } = await getAuthenticatedUser();
-  if (!supabase || !user) return { data: null, error: "認証が必要です" };
-
-  const parsed = createContactEmailSchema.safeParse(input);
-  if (!parsed.success) {
-    return { data: null, error: parsed.error.issues[0].message };
-  }
-
-  const { data, error } = await supabase
-    .from("contact_emails")
-    .insert({ ...parsed.data, created_by: user.id })
-    .select()
-    .single();
-
-  if (error) return { data: null, error: error.message };
-  return { data, error: null };
-}
-
-// ---------------------------------------------------------------------------
-// メールアドレス更新
-// ---------------------------------------------------------------------------
-export async function updateContactEmail(
-  id: string,
-  input: { email?: string; label?: string; is_primary?: boolean }
-): Promise<ActionResult<Row<"contact_emails">>> {
-  const { supabase, user } = await getAuthenticatedUser();
-  if (!supabase || !user) return { data: null, error: "認証が必要です" };
-
-  const { data, error } = await supabase
-    .from("contact_emails")
-    .update({ ...input, last_updated_by: user.id })
-    .eq("id", id)
-    .select()
-    .single();
-
-  if (error) return { data: null, error: error.message };
-  return { data, error: null };
-}
-
-// ---------------------------------------------------------------------------
-// メールアドレス削除
-// ---------------------------------------------------------------------------
-export async function deleteContactEmail(
-  id: string
-): Promise<ActionResult<null>> {
-  const { supabase, user } = await getAuthenticatedUser();
-  if (!supabase || !user) return { data: null, error: "認証が必要です" };
-
-  const { error } = await supabase
-    .from("contact_emails")
-    .delete()
-    .eq("id", id);
-
-  if (error) return { data: null, error: error.message };
-  return { data: null, error: null };
-}
-
-// ---------------------------------------------------------------------------
-// 電話番号追加
-// ---------------------------------------------------------------------------
-export async function addContactPhone(
-  input: unknown
-): Promise<ActionResult<Row<"contact_phones">>> {
-  const { supabase, user } = await getAuthenticatedUser();
-  if (!supabase || !user) return { data: null, error: "認証が必要です" };
-
-  const parsed = createContactPhoneSchema.safeParse(input);
-  if (!parsed.success) {
-    return { data: null, error: parsed.error.issues[0].message };
-  }
-
-  const { data, error } = await supabase
-    .from("contact_phones")
-    .insert({ ...parsed.data, created_by: user.id })
-    .select()
-    .single();
-
-  if (error) return { data: null, error: error.message };
-  return { data, error: null };
-}
-
-// ---------------------------------------------------------------------------
-// 電話番号更新
-// ---------------------------------------------------------------------------
-export async function updateContactPhone(
-  id: string,
-  input: { phone?: string; label?: string; is_primary?: boolean }
-): Promise<ActionResult<Row<"contact_phones">>> {
-  const { supabase, user } = await getAuthenticatedUser();
-  if (!supabase || !user) return { data: null, error: "認証が必要です" };
-
-  const { data, error } = await supabase
-    .from("contact_phones")
-    .update({ ...input, last_updated_by: user.id })
-    .eq("id", id)
-    .select()
-    .single();
-
-  if (error) return { data: null, error: error.message };
-  return { data, error: null };
-}
-
-// ---------------------------------------------------------------------------
-// 電話番号削除
-// ---------------------------------------------------------------------------
-export async function deleteContactPhone(
-  id: string
-): Promise<ActionResult<null>> {
-  const { supabase, user } = await getAuthenticatedUser();
-  if (!supabase || !user) return { data: null, error: "認証が必要です" };
-
-  const { error } = await supabase
-    .from("contact_phones")
-    .delete()
     .eq("id", id);
 
   if (error) return { data: null, error: error.message };

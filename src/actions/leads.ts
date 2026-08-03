@@ -13,6 +13,7 @@ import {
 } from "@/lib/validators/leads";
 // score / temperature_id の算出は DB 関数 recalculate_lead_score に統合（Phase 5）
 import { recalculateLeadScore } from "@/lib/leads/recalculate-score";
+import { buildIlikePattern } from "@/lib/search-query";
 import {
   buildCompanyPayloadFromLead,
   buildContactPayloadFromLead,
@@ -114,9 +115,10 @@ export async function getLeads(
   if (category_id) query = query.eq("category_id", category_id);
   if (temperature_id) query = query.eq("temperature_id", temperature_id);
   if (owner_user_id) query = query.eq("owner_user_id", owner_user_id);
-  if (keyword) {
+  const keywordPattern = buildIlikePattern(keyword);
+  if (keywordPattern) {
     query = query.or(
-      `lead_name.ilike.%${keyword}%,company_name.ilike.%${keyword}%,company_phone.ilike.%${keyword}%,contact_phone.ilike.%${keyword}%,contact_email.ilike.%${keyword}%`
+      `lead_name.ilike.${keywordPattern},company_name.ilike.${keywordPattern},company_phone.ilike.${keywordPattern},contact_phone.ilike.${keywordPattern},contact_email.ilike.${keywordPattern}`
     );
   }
 
@@ -459,43 +461,81 @@ export async function updateLead(
   const adminClient = createAdminClient();
   await recalculateLeadScore(adminClient, id);
 
-  // stage が opportunity に遷移したら promoteLeadToDeal を呼び出す
-  // 既に promoted_deal_id がある場合は再昇格しない（二重生成防止）
-  if (safeUpdates.stage_id && safeUpdates.stage_id !== existing.stage_id) {
-    const { data: newStage } = await supabase
-      .from("lead_stages")
-      .select("auto_promote_to_deal")
-      .eq("id", safeUpdates.stage_id)
-      .single();
+  // promoteLeadToDeal の発火条件（不変条件: auto_promote_to_deal なステージのリードは
+  // promoted_deal_id を持つ、を維持するため）:
+  //   「ステージが遷移したとき」だけでなく「更新後のステージが auto_promote_to_deal かつ
+  //   promoted_deal_id が NULL のとき」にも広げる。ステージ変更を伴わない保存でも
+  //   （前回の昇格失敗からの復旧などで）再試行できるようにするため。
+  // isPromoteStage は 353-361 行目で newStageId（今回の更新後のステージ）に対して判定済みのものを再利用する。
+  // 二重発火防止（既に promoted_deal_id がある場合は再昇格しない）は必ず維持する。
+  if (isPromoteStage && !updated.promoted_deal_id) {
+    const promoteResult = await promoteLeadToDeal(id);
+    if (promoteResult.error) {
+      console.error("[updateLead] promoteLeadToDeal failed:", promoteResult.error);
 
-    if (newStage?.auto_promote_to_deal) {
-      // promoted_deal_id チェック（updateLead の existing には含まれていないため再取得）
-      const { data: currentLead } = await supabase
+      // 不変条件を守るため、昇格に失敗したらステージ（と連動する status_id）を
+      // 更新前の状態へ戻す。本来 CLAUDE.md の規約では複数テーブルにまたがる整合回復は
+      // PL/pgSQL 関数にまとめるべきだが、ここは leads 単一テーブルへの復旧に閉じるため
+      // 今回は Server Action 内で完結させる（DB 関数化は別タスク）。
+      const { data: reverted, error: revertErr } = await supabase
         .from("leads")
-        .select("promoted_deal_id")
+        .update({
+          stage_id: existing.stage_id,
+          status_id: existing.status_id,
+          last_updated_by: user.id,
+        })
         .eq("id", id)
-        .single();
+        .eq("updated_at", updated.updated_at)
+        .select("id")
+        .maybeSingle();
 
-      if (!currentLead?.promoted_deal_id) {
-        console.log("[updateLead] calling promoteLeadToDeal for lead:", id);
-        const promoteResult = await promoteLeadToDeal(id);
-        if (promoteResult.error) {
-          console.error("[updateLead] promoteLeadToDeal failed:", promoteResult.error);
-          // corporate_number 重複エラーは専用キーで返す（UI 側で該当フィールドに表示可能にする）
-          if (promoteResult.error.includes("[corporate_number]")) {
-            return {
-              ok: false,
-              errors: { corporate_number: [promoteResult.error] },
-            };
-          }
-          // その他の昇格失敗はエラーとして返す（ユーザーに確実に通知）
-          return {
-            ok: false,
-            errors: { _: [`商談昇格に失敗しました: ${promoteResult.error}`] },
-          };
-        }
-        console.log("[updateLead] promoteLeadToDeal succeeded");
+      // 戻す UPDATE 自体の失敗（DB エラー、または対象行が既に他者に更新されていて
+      // 0 行更新だった場合）も黙って握りつぶさず、エラー本文に含めて必ず通知する。
+      let revertNote: string;
+      if (revertErr || !reverted) {
+        console.error(
+          "[updateLead] stage revert after promotion failure ALSO FAILED:",
+          revertErr?.message ?? "対象行が更新後の状態と一致しませんでした（0 行更新）"
+        );
+        revertNote =
+          ` さらにステージの復旧にも失敗しました。リードが Opportunity のまま` +
+          `商談未作成の状態になっている可能性があるため、管理者にご連絡ください` +
+          `（${revertErr?.message ?? "対象行が他の更新と競合しました"}）`;
+      } else {
+        // 判断: この復旧 UPDATE でも updated_at は進む。ok:false の戻り値型は
+        // { errors } のみで lead を含まないため、クライアントが保持している
+        // expected_updated_at（編集開始時点の値）をこの場で更新する手段がない。
+        // そのため直後に再保存すると「他ユーザーによる更新」として楽観ロックに
+        // 弾かれる場合があるが、型を変えて誤魔化すより fail-closed（要再読み込み）に
+        // 倒すほうが安全と判断し、戻り値の型はそのまま維持する。
+        revertNote = " ステージは元に戻しましたので、内容をご確認のうえ再度保存してください";
       }
+
+      // corporate_number 重複エラーは専用キーで返す（UI 側で該当フィールドに表示可能にする）
+      if (promoteResult.error.includes("[corporate_number]")) {
+        return {
+          ok: false,
+          errors: { corporate_number: [promoteResult.error + revertNote] },
+        };
+      }
+      // その他の昇格失敗はエラーとして返す（ユーザーに確実に通知）
+      return {
+        ok: false,
+        errors: { _: [`商談昇格に失敗しました: ${promoteResult.error}${revertNote}`] },
+      };
+    }
+
+    // 昇格に成功すると promote_lead_to_deal が leads を更新している
+    // （promoted_deal_id / updated_at）。updated は昇格前に取った行なので、
+    // そのまま返すと画面が「昇格した」ことを判定できず、
+    // 「商談に昇格しました」ではなく通常の保存トーストになってしまう
+    const { data: afterPromote } = await supabase
+      .from("leads")
+      .select(LEAD_SELECT)
+      .eq("id", id)
+      .maybeSingle();
+    if (afterPromote) {
+      return { ok: true, lead: afterPromote, ...(warnings.length > 0 ? { warnings } : {}) };
     }
   }
 
@@ -848,7 +888,8 @@ export async function updateLeadCustomerActivity(
   const parsed = leadCustomerActivityUpdateSchema.safeParse({ ...( input as object ), id });
   if (!parsed.success) return { data: null, error: parsed.error.issues[0].message };
 
-  const { id: _id, ...updates } = parsed.data;
+  // expected_updated_at は DB カラムではないため更新値から除外する
+  const { id: _id, expected_updated_at: expectedUpdatedAt, ...updates } = parsed.data;
 
   // 既存レコード取得（lead_id を revalidate に使用）
   const { data: existing, error: fetchErr } = await supabase
@@ -860,17 +901,26 @@ export async function updateLeadCustomerActivity(
     return { data: null, error: "顧客行動が見つかりません" };
   }
 
-  const { data, error } = await supabase
+  // 楽観ロック: 編集開始時点から updated_at が変わっていれば 0 行更新になる
+  let updateQuery = supabase
     .from("lead_customer_activities")
     .update({
       ...updates,
       last_updated_by: user.id,
     })
-    .eq("id", id)
+    .eq("id", id);
+  if (expectedUpdatedAt) {
+    updateQuery = updateQuery.eq("updated_at", expectedUpdatedAt);
+  }
+
+  const { data, error } = await updateQuery
     .select("*, activity_type:lead_customer_activity_types(id, code, name)")
-    .single();
+    .maybeSingle();
 
   if (error) return { data: null, error: error.message };
+  if (!data) {
+    return { data: null, error: conflictErrorMessage("この顧客行動") };
+  }
 
   revalidatePath("/leads");
   revalidatePath(`/leads/${existing.lead_id}`);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, type CSSProperties } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition, type CSSProperties } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -15,7 +15,11 @@ import {
   Megaphone,
   UserSearch,
 } from "lucide-react";
-import { attachLeadsToCampaign, detachLeadFromCampaign } from "@/actions/campaigns";
+import {
+  attachLeadsToCampaign,
+  detachLeadFromCampaign,
+  getUnassignedLeadsForCampaign,
+} from "@/actions/campaigns";
 import {
   CampaignTypeBadge,
   CampaignStatusBadge,
@@ -27,6 +31,8 @@ import {
 import { useToast } from "@/components/ui/toast";
 import { DetailSection } from "@/components/ui/DetailSection";
 import { InfoField } from "@/components/ui/InfoField";
+import { Pagination } from "@/components/ui/Pagination";
+import { DEFAULT_PAGE_SIZE } from "@/lib/constants/pagination";
 import type {
   CampaignLeadRow,
   Row,
@@ -112,52 +118,92 @@ function onBlur(e: React.FocusEvent<HTMLInputElement>) {
 }
 
 // ---------- リード紐付けモーダル ----------
+//
+// 候補はサーバー側で検索・ページネーションする（getUnassignedLeadsForCampaign）。
+// 選択は id ではなく行オブジェクトの Map で保持する。ページをまたいで選択しても
+// 紐付け完了時に onAttached へ渡す行データ（一覧の楽観更新用）を失わないため。
 function AttachLeadsModal({
   campaignId,
-  unassignedLeads,
   onAttached,
   onClose,
 }: {
   campaignId: string;
-  unassignedLeads: UnassignedLeadRow[];
   onAttached: (leads: UnassignedLeadRow[]) => void;
   onClose: () => void;
 }) {
   const [search, setSearch] = useState("");
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [rows, setRows] = useState<UnassignedLeadRow[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [page, setPage] = useState(1);
+  const [selectedLeads, setSelectedLeads] = useState<Map<string, UnassignedLeadRow>>(new Map());
   const [saving, setSaving] = useState(false);
+  const [isLoading, startTransition] = useTransition();
   const { showToast } = useToast();
 
-  const filtered = unassignedLeads.filter((l) =>
-    l.lead_name?.toLowerCase().includes(search.toLowerCase())
+  const fetchCandidates = useCallback(
+    (nextParams: { keyword: string; page: number }) => {
+      startTransition(async () => {
+        const { data } = await getUnassignedLeadsForCampaign(campaignId, {
+          keyword: nextParams.keyword || undefined,
+          page: nextParams.page,
+          perPage: DEFAULT_PAGE_SIZE,
+        });
+        if (data) {
+          setRows(data.rows);
+          setTotalCount(data.total);
+        }
+      });
+    },
+    [campaignId]
   );
 
-  const toggleId = (id: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+  // 初回は即座に読み込み、以降の検索キーワード変更はデバウンスして 1 ページ目から検索し直す
+  const isFirstRun = useRef(true);
+  useEffect(() => {
+    if (isFirstRun.current) {
+      isFirstRun.current = false;
+      fetchCandidates({ keyword: "", page: 1 });
+      return;
+    }
+    const timer = setTimeout(() => {
+      setPage(1);
+      fetchCandidates({ keyword: search, page: 1 });
+    }, 300);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search]);
+
+  // ページ変更
+  useEffect(() => {
+    if (page > 1) fetchCandidates({ keyword: search, page });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page]);
+
+  const toggleLead = (lead: UnassignedLeadRow) => {
+    setSelectedLeads((prev) => {
+      const next = new Map(prev);
+      if (next.has(lead.id)) next.delete(lead.id);
+      else next.set(lead.id, lead);
       return next;
     });
   };
 
   const handleAttach = async () => {
-    if (selectedIds.size === 0) return;
+    if (selectedLeads.size === 0) return;
     setSaving(true);
-    const count = selectedIds.size;
+    const attached = Array.from(selectedLeads.values());
     const result = await attachLeadsToCampaign({
       campaignId,
-      leadIds: Array.from(selectedIds),
+      leadIds: attached.map((l) => l.id),
     });
     setSaving(false);
     if (result.error) {
       showToast({ type: "error", message: result.error });
       return;
     }
-    const attached = unassignedLeads.filter((l) => selectedIds.has(l.id));
     onAttached(attached);
     onClose();
-    showToast({ type: "success", message: `リードを${count}件紐付けました` });
+    showToast({ type: "success", message: `リードを${attached.length}件紐付けました` });
   };
 
   const overlayStyle: CSSProperties = {
@@ -237,7 +283,7 @@ function AttachLeadsModal({
             />
             <input
               type="text"
-              placeholder="リード名で検索..."
+              placeholder="リード名・会社名で検索..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               onFocus={onFocus}
@@ -245,11 +291,16 @@ function AttachLeadsModal({
               style={{ ...styles.input, paddingLeft: "2rem" }}
             />
           </div>
+          {isLoading && (
+            <p style={{ fontSize: "0.75rem", color: "var(--color-sumi500)", margin: "0.375rem 0 0 0" }}>
+              読み込み中...
+            </p>
+          )}
         </div>
 
         {/* List */}
         <div style={{ overflowY: "auto", flex: 1 }}>
-          {filtered.length === 0 ? (
+          {rows.length === 0 ? (
             <p
               style={{
                 textAlign: "center",
@@ -259,12 +310,12 @@ function AttachLeadsModal({
                 margin: 0,
               }}
             >
-              {search ? "検索結果がありません" : "紐付け可能なリードがありません"}
+              {isLoading ? "読み込み中..." : search ? "検索結果がありません" : "紐付け可能なリードがありません"}
             </p>
           ) : (
             <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
-              {filtered.map((lead) => {
-                const checked = selectedIds.has(lead.id);
+              {rows.map((lead) => {
+                const checked = selectedLeads.has(lead.id);
                 return (
                   <li
                     key={lead.id}
@@ -286,7 +337,7 @@ function AttachLeadsModal({
                       <input
                         type="checkbox"
                         checked={checked}
-                        onChange={() => toggleId(lead.id)}
+                        onChange={() => toggleLead(lead)}
                         style={{ accentColor: "var(--color-terra)", width: 15, height: 15, flexShrink: 0, cursor: "pointer" }}
                       />
                       <span
@@ -327,6 +378,18 @@ function AttachLeadsModal({
           )}
         </div>
 
+        {/* ページネーション（30 件超で表示） */}
+        {totalCount > DEFAULT_PAGE_SIZE && (
+          <div style={{ padding: "0.75rem 1.5rem", borderTop: "1px solid var(--color-border-default)" }}>
+            <Pagination
+              page={page}
+              totalCount={totalCount}
+              pageSize={DEFAULT_PAGE_SIZE}
+              onPageChange={setPage}
+            />
+          </div>
+        )}
+
         {/* Footer */}
         <div
           style={{
@@ -339,7 +402,7 @@ function AttachLeadsModal({
           }}
         >
           <span style={{ fontSize: "0.8125rem", color: "var(--color-sumi600)" }}>
-            {selectedIds.size > 0 ? `${selectedIds.size} 件選択中` : "チェックして選択"}
+            {selectedLeads.size > 0 ? `${selectedLeads.size} 件選択中` : "チェックして選択"}
           </span>
           <div style={{ display: "flex", gap: "0.75rem" }}>
             <button type="button" style={styles.btnOutline} onClick={onClose} disabled={saving}>
@@ -349,9 +412,9 @@ function AttachLeadsModal({
               type="button"
               style={styles.btnPrimary}
               onClick={handleAttach}
-              disabled={selectedIds.size === 0 || saving}
+              disabled={selectedLeads.size === 0 || saving}
             >
-              {saving ? "追加中..." : `選択したリードを紐付け（${selectedIds.size}件）`}
+              {saving ? "追加中..." : `選択したリードを紐付け（${selectedLeads.size}件）`}
             </button>
           </div>
         </div>
@@ -364,12 +427,13 @@ function AttachLeadsModal({
 export function CampaignDetailClient({
   campaign,
   campaignLeads: initialCampaignLeads,
-  unassignedLeads: initialUnassignedLeads,
+  initialUnassignedTotal,
   currentUser,
 }: {
   campaign: Row<"campaigns">;
   campaignLeads: CampaignLeadRow[];
-  unassignedLeads: UnassignedLeadRow[];
+  /** 未紐付け候補の総数（ページ1件目取得時点）。「追加」ボタンの活性判定にのみ使う */
+  initialUnassignedTotal: number;
   currentUser: { id: string; full_name: string; role: string };
 }) {
   const router = useRouter();
@@ -382,7 +446,9 @@ export function CampaignDetailClient({
 
   // ---- リード管理 ----
   const [campaignLeads, setCampaignLeads] = useState(initialCampaignLeads);
-  const [unassignedLeads, setUnassignedLeads] = useState(initialUnassignedLeads);
+  // モーダル自身がサーバーから検索・ページネーションして候補を取得するため、
+  // ここでは「追加」ボタンを活性化するかどうかの目安の総数だけを持つ
+  const [unassignedTotal, setUnassignedTotal] = useState(initialUnassignedTotal);
   const [showModal, setShowModal] = useState(false);
 
   const handleLeadsAttached = (attachedLeads: UnassignedLeadRow[]) => {
@@ -407,9 +473,7 @@ export function CampaignDetailClient({
       assigned_at: new Date().toISOString(),
     }));
     setCampaignLeads((prev) => [...newRows, ...prev]);
-    // 未紐付け一覧から除去
-    const attachedIds = new Set(attachedLeads.map((l) => l.id));
-    setUnassignedLeads((prev) => prev.filter((l) => !attachedIds.has(l.id)));
+    setUnassignedTotal((prev) => Math.max(prev - attachedLeads.length, 0));
   };
 
   const handleDetachLead = (leadId: string) => {
@@ -443,7 +507,6 @@ export function CampaignDetailClient({
       {showModal && (
         <AttachLeadsModal
           campaignId={campaign.id}
-          unassignedLeads={unassignedLeads}
           onAttached={handleLeadsAttached}
           onClose={() => setShowModal(false)}
         />
@@ -575,7 +638,7 @@ export function CampaignDetailClient({
                 type="button"
                 style={styles.btnPrimary}
                 onClick={() => setShowModal(true)}
-                disabled={unassignedLeads.length === 0}
+                disabled={unassignedTotal === 0}
               >
                 <Plus size={14} />
                 リードを追加

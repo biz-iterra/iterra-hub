@@ -80,16 +80,19 @@ export default async function DashboardPage() {
     supabase
       .from("deals")
       .select("id", { count: "exact", head: true })
-      .is("closed_at", null),
+      .is("closed_at", null)
+      .is("deleted_at", null),
     supabase
       .from("deals")
       .select("amount")
-      .is("closed_at", null),
+      .is("closed_at", null)
+      .is("deleted_at", null),
     supabase
       .from("deals")
       .select("id", { count: "exact", head: true })
       .gte("closed_at", monthStart)
-      .lte("closed_at", monthEnd),
+      .lte("closed_at", monthEnd)
+      .is("deleted_at", null),
     supabase
       .from("accounts")
       .select("id", { count: "exact", head: true })
@@ -132,7 +135,8 @@ export default async function DashboardPage() {
     const { data: funnelDeals } = await supabase
       .from("deals")
       .select("deal_stage_id")
-      .is("closed_at", null);
+      .is("closed_at", null)
+      .is("deleted_at", null);
 
     const countMap = new Map<string, number>();
     for (const d of funnelDeals ?? []) {
@@ -155,6 +159,7 @@ export default async function DashboardPage() {
       owner:crm_users!deals_owner_user_id_fkey(full_name)
     `
     )
+    .is("deleted_at", null)
     .order("created_at", { ascending: false })
     .limit(5);
 
@@ -178,7 +183,8 @@ export default async function DashboardPage() {
       owner:crm_users!deals_owner_user_id_fkey(full_name)
     `
     )
-    .is("closed_at", null);
+    .is("closed_at", null)
+    .is("deleted_at", null);
 
   const ownerCountMap = new Map<string, { name: string; count: number }>();
   for (const d of ownerDeals ?? []) {

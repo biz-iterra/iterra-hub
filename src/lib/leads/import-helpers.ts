@@ -105,8 +105,24 @@ export function normalizeEmail(raw: string | null | undefined): string | null {
 }
 
 /**
+ * 年月日が実在するかを検証する（うるう年を含む）。
+ * `Date.UTC` は月末超過分を繰り上げてしまう（例: 2025-02-30 → 2025-03-02）ため、
+ * 生成した Date から年月日を読み戻して入力と一致するかで実在性を判定する。
+ * 2024-02-29 は有効、2025-02-29 は無効になる。
+ */
+function isValidYmd(year: number, month: number, day: number): boolean {
+  const d = new Date(Date.UTC(year, month - 1, day));
+  return (
+    d.getUTCFullYear() === year &&
+    d.getUTCMonth() === month - 1 &&
+    d.getUTCDate() === day
+  );
+}
+
+/**
  * 日付の正規化: `YYYY/M/D` `YYYY-MM-DD` `M/D` → `YYYY-MM-DD`
  * Eight の名刺交換日は `YYYY/MM/DD`。年省略形式は defaultYear で補完する。
+ * 実在しない月日（例: `2025/13/40`）は解釈できない入力として null を返す。
  */
 export function normalizeDate(
   raw: string | null | undefined,
@@ -117,12 +133,14 @@ export function normalizeDate(
   const m1 = trimmed.match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$/);
   if (m1) {
     const [, y, mo, d] = m1;
+    if (!isValidYmd(Number(y), Number(mo), Number(d))) return null;
     return `${y}-${mo.padStart(2, "0")}-${d.padStart(2, "0")}`;
   }
   const m2 = trimmed.match(/^(\d{1,2})[/-](\d{1,2})$/);
   if (m2) {
     const [, mo, d] = m2;
     const year = defaultYear ?? new Date().getFullYear();
+    if (!isValidYmd(year, Number(mo), Number(d))) return null;
     return `${year}-${mo.padStart(2, "0")}-${d.padStart(2, "0")}`;
   }
   return null;

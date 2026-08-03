@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
+import { conflictErrorMessage } from "@/lib/validators/common";
 import {
   createFinancialInfoSchema,
   updateFinancialInfoSchema,
@@ -34,10 +35,12 @@ export type FinancialInfoRow = Pick<
   | "account_holder"
   | "account_holder_kana"
   | "is_primary"
+  // 楽観ロック（expected_updated_at）の基準として画面へ運ぶ
+  | "updated_at"
 >;
 
 const SELECT_COLUMNS =
-  "id, company_id, bank_name, bank_code, branch_name, branch_code, account_type, account_number, account_holder, account_holder_kana, is_primary";
+  "id, company_id, bank_name, bank_code, branch_name, branch_code, account_type, account_number, account_holder, account_holder_kana, is_primary, updated_at";
 
 async function authorize(need: "read" | "write") {
   const supabase = await createClient();
@@ -167,14 +170,22 @@ export async function updateFinancialInfo(
       .is("deleted_at", null);
   }
 
-  const { data, error } = await auth.supabase
+  // expected_updated_at は DB カラムではないため更新値から除外する
+  const { expected_updated_at, ...fields } = parsed.data;
+
+  // 楽観ロック: 編集開始時点から updated_at が変わっていれば 0 行更新になる
+  let updateQuery = auth.supabase
     .from("financial_info")
-    .update({ ...parsed.data, last_updated_by: auth.userId })
-    .eq("id", id)
-    .select(SELECT_COLUMNS)
-    .single();
+    .update({ ...fields, last_updated_by: auth.userId })
+    .eq("id", id);
+  if (expected_updated_at) {
+    updateQuery = updateQuery.eq("updated_at", expected_updated_at);
+  }
+
+  const { data, error } = await updateQuery.select(SELECT_COLUMNS).maybeSingle();
 
   if (error) return { data: null, error: error.message };
+  if (!data) return { data: null, error: conflictErrorMessage("この金融機関情報") };
 
   revalidatePath(`/companies/${current.company_id}`);
   revalidatePath(`/companies/${current.company_id}/edit`);

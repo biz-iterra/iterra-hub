@@ -41,8 +41,9 @@ const UUID_REGEX =
 
 /**
  * 対象タレントを編集できるか判定する。
- * talent_careers の RLS は全操作 USING(true) のため、Server Action 層が唯一の防御になる。
- * 基準は contacts と揃え、manager 以上は全件、member は親コンタクトのオーナーのみ。
+ * talents / talent_skills / talent_careers の RLS（20260416040013, 20260416040014）は
+ * いずれも「manager 以上は全件、member は親コンタクトの owner_user_id のみ」を基準にしている。
+ * Server Action 層でも同じ基準で検証し、RLS だけに依存しない（多層防御）。
  */
 async function canModifyTalent(
   supabase: SupabaseServerClient,
@@ -72,6 +73,19 @@ async function getCareerTalentId(
     .from("talent_careers")
     .select("talent_id")
     .eq("id", careerId)
+    .single();
+  return (data as { talent_id?: string } | null)?.talent_id ?? null;
+}
+
+/** talent_skills.id から親の talent_id を引く */
+async function getSkillTalentId(
+  supabase: SupabaseServerClient,
+  skillRowId: string
+): Promise<string | null> {
+  const { data } = await supabase
+    .from("talent_skills")
+    .select("talent_id")
+    .eq("id", skillRowId)
     .single();
   return (data as { talent_id?: string } | null)?.talent_id ?? null;
 }
@@ -168,13 +182,13 @@ export async function updateTalent(
   id: string,
   input: z.infer<typeof updateTalentSchema>
 ): Promise<ActionResult<Row<"talents">>> {
-  const { supabase, user } = await getAuthenticatedUser();
+  const { supabase, user, role } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
   const parsed = updateTalentSchema.safeParse(input);
   if (!parsed.success) return { data: null, error: parsed.error.issues[0].message };
 
-  // 存在確認のみ（変更履歴は entity_change_logs のトリガーが記録するため
+  // 存在確認（変更履歴は entity_change_logs のトリガーが記録するため
   // 変更前データをアプリ側で保持する必要はない）
   const { error: fetchError } = await supabase
     .from("talents")
@@ -183,6 +197,11 @@ export async function updateTalent(
     .single();
 
   if (fetchError) return { data: null, error: fetchError.message };
+
+  // owner チェック（admin/manager 以外は親コンタクトのオーナーのみ。RLS と同じ基準）
+  if (!(await canModifyTalent(supabase, user.id, role, id))) {
+    return { data: null, error: "このタレントを編集する権限がありません" };
+  }
 
   // expected_updated_at は DB カラムではないため更新値から除外する
   const { expected_updated_at, ...fields } = parsed.data;
@@ -229,11 +248,15 @@ export async function deleteTalent(id: string): Promise<ActionResult<null>> {
 export async function addTalentSkill(
   input: z.infer<typeof createTalentSkillSchema>
 ): Promise<ActionResult<Row<"talent_skills">>> {
-  const { supabase, user } = await getAuthenticatedUser();
+  const { supabase, user, role } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
   const parsed = createTalentSkillSchema.safeParse(input);
   if (!parsed.success) return { data: null, error: parsed.error.issues[0].message };
+
+  if (!(await canModifyTalent(supabase, user.id, role, parsed.data.talent_id))) {
+    return { data: null, error: "このタレントを編集する権限がありません" };
+  }
 
   const { data, error } = await supabase
     .from("talent_skills")
@@ -250,11 +273,19 @@ export async function updateTalentSkill(
   id: string,
   input: z.infer<typeof updateTalentSkillSchema>
 ): Promise<ActionResult<Row<"talent_skills">>> {
-  const { supabase, user } = await getAuthenticatedUser();
+  const { supabase, user, role } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
+
+  if (!UUID_REGEX.test(id)) return { data: null, error: "不正なパラメータです" };
 
   const parsed = updateTalentSkillSchema.safeParse(input);
   if (!parsed.success) return { data: null, error: parsed.error.issues[0].message };
+
+  const talentId = await getSkillTalentId(supabase, id);
+  if (!talentId) return { data: null, error: "スキルが見つかりません" };
+  if (!(await canModifyTalent(supabase, user.id, role, talentId))) {
+    return { data: null, error: "このタレントを編集する権限がありません" };
+  }
 
   const { data, error } = await supabase
     .from("talent_skills")
@@ -269,8 +300,16 @@ export async function updateTalentSkill(
 
 // ---------- スキル削除 ----------
 export async function removeTalentSkill(id: string): Promise<ActionResult<null>> {
-  const { supabase, user } = await getAuthenticatedUser();
+  const { supabase, user, role } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
+
+  if (!UUID_REGEX.test(id)) return { data: null, error: "不正なパラメータです" };
+
+  const talentId = await getSkillTalentId(supabase, id);
+  if (!talentId) return { data: null, error: "スキルが見つかりません" };
+  if (!(await canModifyTalent(supabase, user.id, role, talentId))) {
+    return { data: null, error: "このタレントを編集する権限がありません" };
+  }
 
   const { error } = await supabase
     .from("talent_skills")

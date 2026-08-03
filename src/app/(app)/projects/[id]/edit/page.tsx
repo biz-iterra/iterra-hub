@@ -23,10 +23,26 @@ export default async function EditProjectPage({
     );
   }
 
-  const [projectRes, statusesRes, currentUserRes] = await Promise.all([
+  const currentUserRes = await getCurrentUser();
+  const role = currentUserRes.data?.role ?? null;
+  const isManagerOrAbove = role === "manager" || role === "admin";
+
+  if (!isManagerOrAbove) {
+    return (
+      <div style={{ padding: "2rem" }}>
+        <p style={{ color: "var(--color-text-body)", marginBottom: "1rem" }}>
+          編集権限がありません
+        </p>
+        <Link href={`/projects/${id}`} style={{ color: "var(--color-terra)" }}>
+          プロジェクト詳細に戻る
+        </Link>
+      </div>
+    );
+  }
+
+  const [projectRes, statusesRes] = await Promise.all([
     getProject(id),
     getProjectStatuses(),
-    getCurrentUser(),
   ]);
 
   if (projectRes.error || !projectRes.data) {

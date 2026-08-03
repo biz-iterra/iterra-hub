@@ -14,10 +14,14 @@
  */
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { conflictErrorMessage } from "@/lib/validators/common";
 import {
   leadActivityCreateSchema,
   leadActivityUpdateSchema,
 } from "@/lib/validators/lead-activities";
+// score / temperature_id の算出は DB 関数 recalculate_lead_score に統合（Phase 5）
+import { recalculateLeadScore } from "@/lib/leads/recalculate-score";
 import type { z } from "zod";
 import type { LeadActivityWithRelations } from "@/types/relations";
 
@@ -117,6 +121,11 @@ export async function createLeadActivity(
     .single();
 
   if (error) return { data: null, error: error.message };
+
+  // score / temperature_id / breakdowns を DB 関数で算出（失敗はログのみ。作成自体は成功扱い）
+  const adminClient = createAdminClient();
+  await recalculateLeadScore(adminClient, d.lead_id);
+
   return { data, error: null };
 }
 
@@ -142,7 +151,7 @@ export async function updateLeadActivity(
   // 既存レコード取得（権限チェック用）
   const { data: existing, error: fetchErr } = await supabase
     .from("lead_activities")
-    .select("id, caller_user_id")
+    .select("id, lead_id, caller_user_id")
     .eq("id", id)
     .single();
 
@@ -157,18 +166,35 @@ export async function updateLeadActivity(
     return { data: null, error: "このアクティビティを編集する権限がありません" };
   }
 
-  const { data, error } = await supabase
+  // expected_updated_at は DB カラムではないため更新値から除外する
+  const { expected_updated_at: expectedUpdatedAt, ...updateFields } = fields;
+
+  // 楽観ロック: 編集開始時点から updated_at が変わっていれば 0 行更新になる。
+  // last_edited_at は「誰がいつ直したか」の監査用で、INSERT 時は NULL のため
+  // ロックの基準には使わない（20260803000002 で updated_at を追加した）
+  let updateQuery = supabase
     .from("lead_activities")
     .update({
-      ...fields,
+      ...updateFields,
       last_edited_at: new Date().toISOString(),
       last_edited_by_user_id: user.id,
     })
-    .eq("id", id)
-    .select(ACTIVITY_SELECT)
-    .single();
+    .eq("id", id);
+  if (expectedUpdatedAt) {
+    updateQuery = updateQuery.eq("updated_at", expectedUpdatedAt);
+  }
+
+  const { data, error } = await updateQuery.select(ACTIVITY_SELECT).maybeSingle();
 
   if (error) return { data: null, error: error.message };
+  if (!data) {
+    return { data: null, error: conflictErrorMessage("この架電記録") };
+  }
+
+  // score / temperature_id / breakdowns を DB 関数で算出（失敗はログのみ。更新自体は成功扱い）
+  const adminClient = createAdminClient();
+  await recalculateLeadScore(adminClient, existing.lead_id);
+
   return { data, error: null };
 }
 
@@ -186,11 +212,27 @@ export async function deleteLeadActivity(id: string): Promise<ActionResult<null>
     return { data: null, error: "架電記録の削除は管理者権限が必要です" };
   }
 
+  // lead_id を再計算に使用するため先に取得
+  const { data: existing, error: fetchErr } = await supabase
+    .from("lead_activities")
+    .select("id, lead_id")
+    .eq("id", id)
+    .single();
+
+  if (fetchErr || !existing) {
+    return { data: null, error: `[id] 架電記録が見つかりません。受信値: ${id}` };
+  }
+
   const { error } = await supabase
     .from("lead_activities")
     .delete()
     .eq("id", id);
 
   if (error) return { data: null, error: error.message };
+
+  // score / temperature_id / breakdowns を DB 関数で算出（失敗はログのみ。削除自体は成功扱い）
+  const adminClient = createAdminClient();
+  await recalculateLeadScore(adminClient, existing.lead_id);
+
   return { data: null, error: null };
 }

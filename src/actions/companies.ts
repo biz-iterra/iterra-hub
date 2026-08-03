@@ -6,6 +6,7 @@ import {
   stripCorporateType,
 } from "@/lib/company-name";
 import { toKatakanaReading } from "@/lib/kana";
+import { buildIlikePattern } from "@/lib/search-query";
 import { createClient } from "@/lib/supabase/server";
 import { conflictErrorMessage } from "@/lib/validators/common";
 import { createCompanySchema, updateCompanySchema } from "@/lib/validators";
@@ -110,8 +111,9 @@ export async function getCompanies(params?: {
     .order("sort_key", { ascending: true, nullsFirst: false })
     .range(from, to);
 
-  if (params?.search) {
-    query = query.or(`name.ilike.%${params.search}%,name_kana.ilike.%${params.search}%,company_code.ilike.%${params.search}%`);
+  const searchPattern = buildIlikePattern(params?.search);
+  if (searchPattern) {
+    query = query.or(`name.ilike.${searchPattern},name_kana.ilike.${searchPattern},company_code.ilike.${searchPattern}`);
   }
   if (params?.statusId) {
     query = query.eq("company_status_id", params.statusId);
@@ -149,6 +151,7 @@ export async function getCompany(id: string): Promise<ActionResult<CompanyDetail
       company_domains(id, domain, is_primary)
     `)
     .eq("id", id)
+    .is("deleted_at", null)
     .single();
 
   if (error) return { data: null, error: error.message };
@@ -182,7 +185,7 @@ export async function updateCompany(id: string, input: Record<string, unknown>):
 
   // owner チェック（admin 以外は自分の担当のみ）
   if (role !== "admin") {
-    const { data: existing } = await supabase.from("companies").select("owner_user_id").eq("id", id).single();
+    const { data: existing } = await supabase.from("companies").select("owner_user_id").eq("id", id).is("deleted_at", null).single();
     if (!existing) return { data: null, error: "事業者情報が見つかりません" };
     if (existing.owner_user_id !== user.id) return { data: null, error: "この事業者情報を編集する権限がありません" };
   }

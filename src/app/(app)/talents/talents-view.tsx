@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { UserCircle, Plus } from "lucide-react";
+import { UserCircle } from "lucide-react";
 import { getTalents } from "@/actions/talents";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { FilterGroup, FilterClearButton } from "@/components/ui/FilterGroup";
@@ -108,24 +108,6 @@ export function TalentsView({ initialData }: Props) {
         >
           タレント
         </h1>
-        <Link
-          href="/talents/new"
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white transition-colors whitespace-nowrap"
-          style={{
-            backgroundColor: "var(--color-terra)",
-            borderRadius: "var(--radius-button)",
-            textDecoration: "none",
-          }}
-          onMouseEnter={(e) =>
-            (e.currentTarget.style.backgroundColor = "var(--color-terra-dark)")
-          }
-          onMouseLeave={(e) =>
-            (e.currentTarget.style.backgroundColor = "var(--color-terra)")
-          }
-        >
-          <Plus size={16} />
-          新規作成
-        </Link>
       </div>
 
       {/* フィルター行 */}

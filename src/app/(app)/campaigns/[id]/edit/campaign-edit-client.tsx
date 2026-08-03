@@ -134,6 +134,8 @@ export function CampaignEditClient({
       start_date: values.start_date || null,
       end_date: values.end_date || null,
       status: values.status as "draft" | "active" | "paused" | "completed" | "cancelled",
+      // 楽観ロック: 編集開始時点の updated_at を送り、他者更新があれば競合として弾く
+      expected_updated_at: campaign.updated_at ?? undefined,
     });
     setSaving(false);
     if (result.error) {

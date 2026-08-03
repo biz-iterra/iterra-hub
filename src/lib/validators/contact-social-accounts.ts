@@ -23,9 +23,9 @@ export const contactSocialAccountBaseSchema = z.object({
   service_id: uuidString("サービスを選んでください"),
   account_id: z
     .string()
+    .trim()
     .min(1, "ID は必須です")
-    .max(200)
-    .transform((v) => v.trim()),
+    .max(200),
   workspace: optionalText(100),
   display_name: optionalText(100),
   note: optionalText(500),

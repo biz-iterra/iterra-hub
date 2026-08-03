@@ -1,12 +1,13 @@
 import { getAccounts } from "@/actions/accounts";
 import { getAccountStatuses, getAccountTypes } from "@/actions/masters";
 import { getCrmUsers } from "@/actions/users";
+import { DEFAULT_PAGE_SIZE } from "@/lib/constants/pagination";
 import { AccountsView } from "./accounts-view";
 
 export default async function AccountsPage() {
   const [accountsResult, statusesResult, accountTypesResult, usersResult] =
     await Promise.all([
-      getAccounts({ perPage: 50, page: 1 }),
+      getAccounts({ perPage: DEFAULT_PAGE_SIZE, page: 1 }),
       getAccountStatuses(),
       getAccountTypes(),
       getCrmUsers(),

@@ -1,6 +1,7 @@
 import { getDealsForKanban, getDeals } from "@/actions/deals";
 import { getPipelineTypes, getDealStages, getDealStatuses } from "@/actions/masters";
 import { getCrmUsers } from "@/actions/users";
+import { DEFAULT_PAGE_SIZE } from "@/lib/constants/pagination";
 import { DealsView } from "./deals-view";
 import type {
   DealWithRelations,
@@ -25,7 +26,7 @@ export default async function DealsPage() {
     usersResult,
   ] = await Promise.all([
     defaultPipelineId ? getDealsForKanban(defaultPipelineId) : Promise.resolve({ data: null }),
-    getDeals({ perPage: 50 }),
+    getDeals({ perPage: DEFAULT_PAGE_SIZE }),
     getDealStages(defaultPipelineId ?? undefined),
     getDealStatuses(defaultPipelineId ?? undefined),
     getCrmUsers(),

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { uuidString } from "@/lib/validators/common";
+import { expectedUpdatedAtSchema, uuidString } from "./common";
 
 // ---------- campaignCreateSchema ----------
 export const campaignCreateSchema = z
@@ -75,6 +75,9 @@ export const campaignUpdateSchema = z
       .optional(),
 
     deletion_reason: z.string().max(500).nullable().optional(),
+
+    // 楽観ロック用。未指定の場合はロックなし（後方互換）で従来どおり動作する
+    expected_updated_at: expectedUpdatedAtSchema,
   })
   .refine(
     (data) => {

@@ -458,6 +458,8 @@ function LeadActivityEditModal({
     setError(null);
     const result = await updateLeadActivity({
       id: act.id,
+      // 楽観ロック: 編集開始時点の updated_at を送り、他者更新があれば競合として弾く
+      expected_updated_at: act.updated_at ?? undefined,
       called_on: form.called_on,
       called_at_time: form.called_at_time || null,
       call_status_id: form.call_status_id,

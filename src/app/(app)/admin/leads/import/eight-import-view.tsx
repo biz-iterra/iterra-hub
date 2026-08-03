@@ -1,13 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState, type ChangeEvent, type CSSProperties } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState, type ChangeEvent, type CSSProperties } from "react";
 import {
   AlertTriangle,
   ArrowLeft,
   ArrowUpRight,
   CheckCircle2,
   FileText,
+  Loader2,
   PlayCircle,
   UploadCloud,
 } from "lucide-react";
@@ -19,10 +21,19 @@ import { tableScrollClass } from "@/lib/layout";
 import {
   commitEightImport,
   dryRunEightImport,
+  getActiveEightImportJobs,
+  getEightImportJob,
+  type EightImportJob,
   type EightImportPreview,
-  type EightImportResult,
   type ImportBatchRow,
 } from "@/actions/leads/eight-import";
+
+/**
+ * ジョブの状態を見に行く間隔。
+ * ワーカーは毎分動くので、これより細かくしても着手は早くならない。
+ * 進み具合が画面に出るまでの体感を短くするためだけの値
+ */
+const POLL_INTERVAL_MS = 3000;
 
 type CrmUser = { id: string; full_name: string; role: string };
 
@@ -147,6 +158,15 @@ const styles = {
     color: "#047857",
     fontSize: "0.875rem",
   } as CSSProperties,
+  // 実行中の案内。成功でも失敗でもないので緑・赤とは別の色を使う
+  alertInfo: {
+    backgroundColor: "rgba(59, 130, 246, 0.08)",
+    border: "1px solid rgba(59, 130, 246, 0.3)",
+    borderRadius: "var(--radius-md)",
+    padding: "0.875rem 1rem",
+    color: "#1D4ED8",
+    fontSize: "0.875rem",
+  } as CSSProperties,
 } as const;
 
 function formatDateTime(value: string | null | undefined): string {
@@ -170,31 +190,78 @@ export function EightImportView({
   const [file, setFile] = useState<File | null>(null);
   const [ownerUserId, setOwnerUserId] = useState(currentUserId);
   const [preview, setPreview] = useState<EightImportPreview | null>(null);
-  const [result, setResult] = useState<EightImportResult | null>(null);
+  const [job, setJob] = useState<EightImportJob | null>(null);
   const [loading, setLoading] = useState<"dryrun" | "commit" | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { showToast } = useToast();
+  const router = useRouter();
+
+  /**
+   * 実行中のジョブを追いかける。
+   *
+   * 取込はワーカーが行うので、この画面を閉じても進む。**逆に、開き直したときは
+   * 走っているジョブを拾い直す**（そうしないと「押したのに何も起きていない」ように見える）。
+   * 終わったら止める。
+   */
+  useEffect(() => {
+    let canceled = false;
+
+    const pickUpRunning = async () => {
+      const res = await getActiveEightImportJobs();
+      if (canceled || !res.data || res.data.length === 0) return;
+      setJob(res.data[0]);
+    };
+
+    if (!job) {
+      void pickUpRunning();
+      return () => {
+        canceled = true;
+      };
+    }
+
+    if (job.status === "succeeded" || job.status === "failed") return;
+
+    const timer = setInterval(async () => {
+      const res = await getEightImportJob(job.id);
+      if (canceled || !res.data) return;
+      setJob(res.data);
+      if (res.data.status === "succeeded") {
+        showToast({ type: "success", message: "名刺の取込が完了しました" });
+        // 取込履歴はサーバーコンポーネントが描いた初期値のままなので取り直す。
+        // 遷移を伴わない同一ページの再描画なので refresh を単独で呼ぶのが正しい
+        // （CLAUDE.md / 08-e2e-scenarios.md §6.1 の「push と併用しない」に該当しない）
+        router.refresh();
+      } else if (res.data.status === "failed") {
+        showToast({ type: "error", message: res.data.errorMessage ?? "取込に失敗しました" });
+      }
+    }, POLL_INTERVAL_MS);
+
+    return () => {
+      canceled = true;
+      clearInterval(timer);
+    };
+  }, [job, showToast, router]);
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (!f) return;
     setPreview(null);
-    setResult(null);
+    setJob(null);
     setFile(f);
   };
 
   const reset = () => {
     setFile(null);
     setPreview(null);
-    setResult(null);
+    setJob(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const runDryRun = async () => {
     if (!file) return;
     setLoading("dryrun");
-    setResult(null);
+    setJob(null);
 
     try {
       const fd = new FormData();
@@ -226,9 +293,28 @@ export function EightImportView({
       const res = await commitEightImport(fd);
 
       if (res.error || !res.data) {
-        return { error: res.error ?? "取込に失敗しました" };
+        return { error: res.error ?? "取込を開始できませんでした" };
       }
-      setResult(res.data);
+      // ここで返るのは「受け付けた」ことだけ。実行はワーカーが行うので、
+      // 以降はジョブの状態を追う（useEffect のポーリング）
+      const accepted = await getEightImportJob(res.data.jobId);
+      setJob(
+        accepted.data ?? {
+          id: res.data.jobId,
+          fileName: file.name,
+          rowCount: res.data.queuedCount,
+          status: "queued",
+          requestedAt: new Date().toISOString(),
+          startedAt: null,
+          finishedAt: null,
+          createdCount: null,
+          updatedCount: null,
+          errorCount: null,
+          cardCount: null,
+          mergeCandidateCount: null,
+          errorMessage: null,
+        }
+      );
       setPreview(null);
       return { error: null };
     } catch (e) {
@@ -641,8 +727,53 @@ export function EightImportView({
         </div>
       )}
 
+      {/* ---- 実行待ち・実行中 ---- */}
+      {job && (job.status === "queued" || job.status === "running") && (
+        <div style={styles.alertInfo}>
+          <strong
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.375rem",
+              marginBottom: "0.375rem",
+            }}
+          >
+            <Loader2 size={16} className="animate-spin" />
+            {job.status === "queued" ? "取込の順番を待っています" : "取込を実行しています"}
+          </strong>
+          {job.fileName}（{job.rowCount.toLocaleString()} 行）
+          <div style={{ marginTop: "0.375rem" }}>
+            {/* ここが「閉じても大丈夫」と伝える唯一の場所。ジョブ方式にした意味そのもの */}
+            <strong>この画面を閉じても取込は続きます。</strong>
+            あとで開き直せば結果を確認できます。
+          </div>
+        </div>
+      )}
+
+      {/* ---- 失敗 ---- */}
+      {job && job.status === "failed" && (
+        <div style={styles.alertError}>
+          <strong
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.375rem",
+              marginBottom: "0.375rem",
+            }}
+          >
+            <AlertTriangle size={16} />
+            取込に失敗しました
+          </strong>
+          {job.errorMessage ?? "原因を特定できませんでした"}
+          <div style={{ marginTop: "0.375rem" }}>
+            取り込まれた行はありません（途中まで登録された状態にはなりません）。
+            内容を確認してからやり直してください。
+          </div>
+        </div>
+      )}
+
       {/* ---- 結果 ---- */}
-      {result && (
+      {job && job.status === "succeeded" && (
         <div style={styles.alertOk}>
           <strong
             style={{
@@ -655,22 +786,22 @@ export function EightImportView({
             <CheckCircle2 size={16} />
             取込が完了しました
           </strong>
-          新規 {result.createdCount.toLocaleString()} 件 / 追記{" "}
-          {result.updatedCount.toLocaleString()} 件
-          {result.errorCount > 0 && ` / 取込できなかった行 ${result.errorCount} 件`}
+          新規 {(job.createdCount ?? 0).toLocaleString()} 件 / 追記{" "}
+          {(job.updatedCount ?? 0).toLocaleString()} 件
+          {(job.errorCount ?? 0) > 0 && ` / 取込できなかった行 ${job.errorCount} 件`}
           {/* 名刺は記録するだけ。連絡先の現在の所属は変えないことを明示する */}
-          {result.cardCount > 0 && (
+          {(job.cardCount ?? 0) > 0 && (
             <div style={{ marginTop: "0.375rem" }}>
-              名刺 {result.cardCount.toLocaleString()} 枚を記録しました。
+              名刺 {(job.cardCount ?? 0).toLocaleString()} 枚を記録しました。
               連絡先の現在の所属は変更していません（名刺ごとに所属が残るので、
               切り替えたい場合は連絡先の「名刺」から選んでください）。
             </div>
           )}
           {/* 姓名しか一致しない組は自動統合していない。人の判断が要る */}
-          {result.mergeCandidateCount > 0 && (
+          {(job.mergeCandidateCount ?? 0) > 0 && (
             <div style={{ marginTop: "0.375rem" }}>
               同姓同名で所属先が違う連絡先が{" "}
-              {result.mergeCandidateCount.toLocaleString()} 組見つかりました。
+              {(job.mergeCandidateCount ?? 0).toLocaleString()} 組見つかりました。
               別人として取り込んでいます。
               <Link
                 href="/contacts/merge-candidates"

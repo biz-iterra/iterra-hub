@@ -923,6 +923,42 @@ SELECT proname, array_to_string(proconfig, ', ')
   取込側の分割が要る
 - 自動化区分: SQL 検証
 
+### IT-JOB-01: 名刺取込がジョブ方式で完了する（2026-08-04 追加）
+
+- 対象: マイグレーション `20260804000002`（`lead_import_jobs` / `process_lead_import_jobs`）
+- 背景: 取込を HTTP リクエストの外へ出した経緯は `docs/lead-import-eight.md` §6
+- 手順・期待:
+
+```sql
+-- 1. cron に登録されていること
+SELECT jobname, schedule, active FROM cron.job WHERE jobname = 'process_lead_import_jobs';
+--   '* * * * *' / active = t
+
+-- 2. 投入直後は queued（画面から取り込むか、payload を直接入れる）
+SELECT status, attempts, started_at FROM lead_import_jobs ORDER BY requested_at DESC LIMIT 1;
+--   queued / 0 / NULL
+
+-- 3. ワーカーを手で 1 回動かす（cron を待たずに検証する）
+SELECT process_lead_import_jobs();   --> 1（処理した件数）
+
+-- 4. 完了していること
+SELECT status, attempts, created_count, card_count, error_message
+  FROM lead_import_jobs ORDER BY requested_at DESC LIMIT 1;
+--   succeeded / 1 / 取込件数 / 名刺枚数 / NULL
+
+-- 5. 待ちが無ければ 0 を返すこと（空振りしても落ちない）
+SELECT process_lead_import_jobs();   --> 0
+```
+
+- **失敗時に中途半端な取込を残さないこと**: `payload` を壊した状態で実行し、
+  `status = 'failed'` かつ `error_message` が入り、**leads が増えていない**ことを確認する
+  （ワーカーの EXCEPTION ブロックが取込分を巻き戻す）
+- **多重起動しても二重処理しないこと**: 2 つのセッションで同時に
+  `process_lead_import_jobs()` を呼び、片方が 0 を返す（`FOR UPDATE SKIP LOCKED`）
+- RLS: member / manager から `lead_import_jobs` が 0 件に見えること。
+  **UPDATE ポリシーが無い**ため admin でも状態を書き換えられないこと
+- 自動化区分: SQL 検証
+
 ---
 
 ## 6. 整合性チェッククエリ集

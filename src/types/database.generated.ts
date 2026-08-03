@@ -3844,6 +3844,93 @@ export type Database = {
           },
         ]
       }
+      lead_import_jobs: {
+        Row: {
+          attempts: number
+          batch_id: string | null
+          card_count: number | null
+          created_count: number | null
+          defaults: Json
+          encoding: string
+          error_count: number | null
+          error_message: string | null
+          errors: Json
+          file_name: string
+          finished_at: string | null
+          id: string
+          merge_candidate_count: number | null
+          payload: Json
+          requested_at: string
+          requested_by: string
+          row_count: number
+          source_slug: string
+          started_at: string | null
+          status: string
+          updated_count: number | null
+        }
+        Insert: {
+          attempts?: number
+          batch_id?: string | null
+          card_count?: number | null
+          created_count?: number | null
+          defaults: Json
+          encoding: string
+          error_count?: number | null
+          error_message?: string | null
+          errors?: Json
+          file_name: string
+          finished_at?: string | null
+          id?: string
+          merge_candidate_count?: number | null
+          payload: Json
+          requested_at?: string
+          requested_by: string
+          row_count?: number
+          source_slug: string
+          started_at?: string | null
+          status?: string
+          updated_count?: number | null
+        }
+        Update: {
+          attempts?: number
+          batch_id?: string | null
+          card_count?: number | null
+          created_count?: number | null
+          defaults?: Json
+          encoding?: string
+          error_count?: number | null
+          error_message?: string | null
+          errors?: Json
+          file_name?: string
+          finished_at?: string | null
+          id?: string
+          merge_candidate_count?: number | null
+          payload?: Json
+          requested_at?: string
+          requested_by?: string
+          row_count?: number
+          source_slug?: string
+          started_at?: string | null
+          status?: string
+          updated_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_import_jobs_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "lead_import_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_import_jobs_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "crm_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lead_import_records: {
         Row: {
           batch_id: string
@@ -6281,6 +6368,7 @@ export type Database = {
       normalize_company_name: { Args: { p_name: string }; Returns: string }
       normalize_domain: { Args: { p_input: string }; Returns: string }
       phone_line_type: { Args: { p_phone: string }; Returns: string }
+      process_lead_import_jobs: { Args: never; Returns: number }
       promote_lead_to_deal: {
         Args: {
           p_account: Json

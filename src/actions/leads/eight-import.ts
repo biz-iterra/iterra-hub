@@ -70,16 +70,22 @@ export type EightImportPreview = {
   }[];
 };
 
+/**
+ * 取込の「受付」結果。
+ *
+ * 取込そのものは pg_cron のワーカーが後から行うため、この時点では件数の確定値が無い。
+ * 結果は `EightImportJob` を取り直して見る（2026-08-04 にジョブ方式へ変更）。
+ */
 export type EightImportResult = {
-  batchId: string;
-  createdCount: number;
-  updatedCount: number;
+  jobId: string;
+  /** 実行待ちに積んだリード件数 */
+  queuedCount: number;
+  /** CSV の時点で取り込めないと判定した行数 */
   errorCount: number;
-  /** 記録した名刺の枚数 */
-  cardCount: number;
-  /** 姓名だけが一致し、同一人物か判断が要る組の数 */
-  mergeCandidateCount: number;
 };
+
+/** 詳細ページと同じ形式で params を検証する（CLAUDE.md の [id] ルート規約に合わせる） */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // ------------------------------------------------------------
 // 認証・権限
@@ -417,8 +423,9 @@ export async function commitEightImport(
     return { data: null, error: "取込できる行がありません" };
   }
 
-  // 1,000 行規模の bulk insert は RLS 経由で statement_timeout に達するため
-  // service_role を使う。admin チェックは上で通している
+  // 取込そのものは pg_cron のワーカーが行う（下記）。ここで service_role を使うのは
+  // 投入前の確認（担当者の在籍・マスタ既定値）を RLS 抜きで引くため。
+  // admin チェックは上で通している
   const admin = createAdminClient();
   const clientError = await verifyAdminClient(admin);
   if (clientError) return { data: null, error: clientError };
@@ -454,62 +461,148 @@ export async function commitEightImport(
     error_reason: e.error ?? "取込できません",
   }));
 
-  const { data, error } = await admin.rpc("import_eight_leads", {
-    p_batch: {
+  // **ここでは取り込まない。ジョブに積むだけ。**
+  //
+  // 取込は行数に比例して伸びるため、HTTP リクエストの中で完結させようとすると
+  // 必ずどこかの制限に当たる（DB の statement_timeout → Cloudflare の
+  // proxy タイムアウト、の順で本番が止まった。2026-08-04）。
+  // 実行は pg_cron のワーカー（process_lead_import_jobs）が担い、
+  // 画面は状態をポーリングする。ブラウザを閉じても取込は進む。
+  const { data, error } = await admin
+    .from("lead_import_jobs")
+    .insert({
       source_slug: EIGHT_SOURCE_SLUG,
       file_name: parsed.fileName,
       encoding: parsed.encoding,
       row_count: parsed.rowCount,
-      imported_by: auth.userId,
-    },
-    p_leads: leadsPayload,
-    p_errors: errorsPayload,
-    p_defaults: defaults,
-  });
+      payload: leadsPayload,
+      errors: errorsPayload,
+      defaults,
+      requested_by: auth.userId,
+    })
+    .select("id")
+    .single();
 
   if (error) {
-    console.error("[commitEightImport] RPC FAILED:", error.message, error.code);
+    console.error("[commitEightImport] ジョブ登録に失敗:", error.message, error.code);
     return {
       data: null,
-      error: `取込に失敗しました。${toUserMessage(error, { entityLabel: "リード", operation: "create" })}`,
+      error: `取込を開始できませんでした。${toUserMessage(error, { entityLabel: "取込ジョブ", operation: "create" })}`,
     };
   }
 
-  const result = data as {
-    batch_id: string;
-    created_count: number;
-    updated_count: number;
-    error_count: number;
-    card_count?: number;
-    merge_candidate_count?: number;
-  };
-
-  // スコアは名刺交換の活動を含めて再計算する。
-  // 全件（recalculate_all_lead_scores）だと 3,008 件で約 3.9 秒かかり、
-  // リードが増えるほど取込のたびに遅くなる。今回のバッチ分だけ計算する。
-  // 全件の再計算は週次の pg_cron が担う。
-  // 失敗しても取込自体は成立しているのでログのみ
-  const { error: scoreError } = await admin.rpc("recalculate_lead_scores_for_batch", {
-    p_batch_id: result.batch_id,
-  });
-  if (scoreError) {
-    console.warn("[commitEightImport] スコア再計算 WARN:", scoreError.message);
-  }
-
-  revalidatePath("/leads");
   revalidatePath("/admin/leads/import");
 
   return {
     data: {
-      batchId: result.batch_id,
-      createdCount: result.created_count,
-      updatedCount: result.updated_count,
-      errorCount: result.error_count,
-      cardCount: result.card_count ?? 0,
-      mergeCandidateCount: result.merge_candidate_count ?? 0,
+      jobId: data.id,
+      queuedCount: parsed.merged.length,
+      errorCount: parsed.errors.length,
     },
     error: null,
   };
+}
+
+// ------------------------------------------------------------
+// 取込ジョブの状態
+// ------------------------------------------------------------
+
+export type EightImportJob = {
+  id: string;
+  fileName: string;
+  rowCount: number;
+  status: "queued" | "running" | "succeeded" | "failed";
+  requestedAt: string;
+  startedAt: string | null;
+  finishedAt: string | null;
+  createdCount: number | null;
+  updatedCount: number | null;
+  errorCount: number | null;
+  cardCount: number | null;
+  mergeCandidateCount: number | null;
+  /** 失敗理由。DB には原文が入るので、ここで日本語へ直してから返す */
+  errorMessage: string | null;
+};
+
+type JobRow = {
+  id: string;
+  file_name: string;
+  row_count: number;
+  status: EightImportJob["status"];
+  requested_at: string;
+  started_at: string | null;
+  finished_at: string | null;
+  created_count: number | null;
+  updated_count: number | null;
+  error_count: number | null;
+  card_count: number | null;
+  merge_candidate_count: number | null;
+  error_message: string | null;
+};
+
+const JOB_COLUMNS =
+  "id, file_name, row_count, status, requested_at, started_at, finished_at, " +
+  "created_count, updated_count, error_count, card_count, merge_candidate_count, error_message";
+
+function toJob(row: JobRow): EightImportJob {
+  return {
+    id: row.id,
+    fileName: row.file_name,
+    rowCount: row.row_count,
+    status: row.status,
+    requestedAt: row.requested_at,
+    startedAt: row.started_at,
+    finishedAt: row.finished_at,
+    createdCount: row.created_count,
+    updatedCount: row.updated_count,
+    errorCount: row.error_count,
+    cardCount: row.card_count,
+    mergeCandidateCount: row.merge_candidate_count,
+    // ワーカーが記録するのは SQLERRM の原文なので、画面に出す前に日本語へ直す
+    errorMessage: row.error_message
+      ? toUserMessage({ message: row.error_message }, { entityLabel: "リード" })
+      : null,
+  };
+}
+
+/** 取込ジョブを 1 件取る（画面のポーリング用） */
+export async function getEightImportJob(
+  jobId: string
+): Promise<ActionResult<EightImportJob>> {
+  const auth = await requireAdmin();
+  if ("error" in auth) return { data: null, error: auth.error };
+
+  if (!UUID_RE.test(jobId)) return { data: null, error: "不正なパラメータです" };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("lead_import_jobs")
+    .select(JOB_COLUMNS)
+    .eq("id", jobId)
+    .maybeSingle<JobRow>();
+
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "取込ジョブ" }) };
+  if (!data) return { data: null, error: "取込ジョブが見つかりません" };
+
+  return { data: toJob(data), error: null };
+}
+
+/** 実行待ち・実行中のジョブ（画面を開き直したときに拾い直すため） */
+export async function getActiveEightImportJobs(): Promise<ActionResult<EightImportJob[]>> {
+  const auth = await requireAdmin();
+  if ("error" in auth) return { data: null, error: auth.error };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("lead_import_jobs")
+    .select(JOB_COLUMNS)
+    .in("status", ["queued", "running"])
+    .order("requested_at", { ascending: true })
+    .returns<JobRow[]>();
+
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "取込ジョブ" }) };
+
+  return { data: (data ?? []).map(toJob), error: null };
 }
 
 // ------------------------------------------------------------

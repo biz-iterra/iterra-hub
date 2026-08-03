@@ -265,18 +265,41 @@ CSV の「名刺交換日」は**利用者が Eight にデータを登録した�
    - ヘッダ検証（18 列・列名一致。位置ではなく列名でマッピングする）
    - 行ごとにパース・正規化・重複判定
    - プレビュー: 新規 N / 更新 M / スキップ K / エラー E ＋ エラー行の一覧（行番号付き）
-3. commit
-   - lead_import_batches を 1 件作成
-   - addresses → leads → lead_activities → lead_import_records の順に bulk insert
-   - chunkedInsert で分割（実測 922 行 + activity 922 行 = 約 1,844 行）
-   - 完了後にスコア再計算（recalculate_lead_score）
+3. commit（**投入だけ**。2026-08-04 にジョブ方式へ変更）
+   - 解析結果を lead_import_jobs へ 1 件 INSERT して即座に返す
+   - 画面はジョブの status をポーリングする（閉じても取込は続く）
+4. ワーカー（pg_cron が毎分起動する process_lead_import_jobs）
+   - queued を 1 件取り出し（FOR UPDATE SKIP LOCKED）、import_eight_leads を呼ぶ
+   - lead_import_batches を 1 件作成し、addresses → leads → lead_activities →
+     lead_import_records を書く（この中身は従来どおり）
+   - 完了後にこのバッチ分だけスコア再計算（recalculate_lead_scores_for_batch）
 ```
+
+### なぜ同期実行をやめたか（2026-08-04）
+
+**行数に比例して伸びる処理を HTTP リクエストの中で完結させようとすると、必ずどこかの
+制限に当たる。** 実際に次の順で本番が止まった。
+
+1. RLS 経由が重い → service_role へ切り替え。
+   **ところが PostgREST は `authenticator` ロールで接続してから `SET ROLE` するため、
+   service_role でも `authenticator` の `statement_timeout = 8s` が効いていた**（回避できていなかった）
+2. 一括処理の関数だけ時間制限を延長（`20260804000001`）→ 8 秒の壁は消えた
+3. **次は HTTP 層のタイムアウト**（Cloudflare の約 100 秒）。これは DB 側の設定では外せない。
+   画面には `An unexpected response was received from the server` と出た
+
+実測（ローカル・587 行 0.16MB）で約 20 秒。本番は Supabase Free の共有インスタンス +
+NAS からの経路なので数倍かかり、100 秒に届いていた。**取込の中身を速くしても、
+行数が増えれば再発する構造**だったため、実行の場所を HTTP の外へ移した。
 
 ### 権限とクライアント
 
 - **admin 限定**。`role !== "admin"` は拒否
-- 1,000 行超の bulk insert は RLS 経由で `statement_timeout` に達するため **`createAdminClient()`（service_role）を使う**（既知の制約。メモリ `feedback_rls_bulk_insert` 参照）
-- service_role は RLS をバイパスするので、**Server Action 側で admin チェックを必ず先に通す**
+- ジョブ表（`lead_import_jobs`）の RLS も admin のみ。**UPDATE は誰にも許さない**
+  （実行中のジョブを利用者が queued へ戻せてしまうため）。状態を書くのはワーカーだけ
+- Server Action が `createAdminClient()`（service_role）を使うのは、投入前の確認
+  （担当者の在籍・マスタ既定値）を RLS 抜きで引くため。**取込そのものは実行しない**
+- ワーカーは `SECURITY DEFINER` で動き、`SET LOCAL statement_timeout = 0` で時間制限を外す
+  （cron からの実行なので HTTP の経路に乗らない）
 
 ### トランザクション
 

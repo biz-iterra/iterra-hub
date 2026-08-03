@@ -27,7 +27,15 @@
     "tailwind-merge": "^3.5.0",
     "zod": "^4.3.6"
   },
+  "//@emnapi": [
+    "直接は使わない。wasm32-wasi 版のネイティブ binding（vitest / sharp / unrs-resolver）が",
+    "要求するが、lock を作った環境で対象外になるため npm がトップレベルに書かず、",
+    "CI（linux/x64）の npm ci が EUSAGE で落ちていた。明示依存にして必ず載るようにする。",
+    "外すときは npm ci を linux でも通してから"
+  ],
   "devDependencies": {
+    "@emnapi/core": "^1.11.3",
+    "@emnapi/runtime": "^1.11.3",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

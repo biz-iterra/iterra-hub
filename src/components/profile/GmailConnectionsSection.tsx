@@ -62,12 +62,16 @@ export function GmailConnectionsSection({
       return;
     }
     const recorded = data?.recorded ?? 0;
+    const missing = data?.missing ?? 0;
+    // Gmail 上に無かった分は「取り込めなかった」ことが分かるよう添える
+    const missingNote =
+      missing > 0 ? `（${missing} 件は Gmail 上に見つからず飛ばしました）` : "";
     showToast({
       type: "success",
       message:
         recorded === 0
-          ? "新しいやり取りはありませんでした"
-          : `${recorded} 件のやり取りを取り込みました`,
+          ? `新しいやり取りはありませんでした${missingNote}`
+          : `${recorded} 件のやり取りを取り込みました${missingNote}`,
     });
     router.refresh();
   }

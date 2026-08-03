@@ -118,8 +118,11 @@ main への push / PR で Gate 1 と同一の 4 チェックが自動実行さ�
    ランク S シナリオ 5 本を実装。`npm run test:e2e` で実行する（全件緑）。
    spec は `*.e2e.ts`（Vitest の `*.test.ts` と衝突しないため `npm test` には拾われない）。
    実行前に `npx supabase db reset` と `npm run dev` が要る。
-   なお `test-results/` と `playwright-report/` は ESLint の対象外設定になっていないため、
-   `test:e2e` の直後に `npm run lint` を回すなら先に消すこと
+   `test-results/` `playwright-report/` と、Claude Code の worktree 置き場 `.claude/**` は
+   ESLint / Vitest の対象外にしてある（`eslint.config.mjs` / `vitest.config.ts`）。
+   worktree を作ったまま Gate 1 を回すと、別ブランチの作業コピーとその `.next` 生成物まで
+   検査・実行されてしまうため（2026-08-04 に lint 4,353 件のエラーと
+   単体テストの二重実行として顕在化した）
 2. **Phase 2**: 結合テストの SQL ケース（02）を `scripts/db-tests/` に SQL + 実行スクリプトとして固定化し、
    `npm run test:db` を追加
 3. **Phase 3**: GitHub Actions で `supabase start` → test:db → test:e2e を nightly 実行

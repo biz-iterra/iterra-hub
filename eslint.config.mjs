@@ -14,6 +14,14 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // supabase gen types の生成物。手で直さないため対象外にする
     "src/types/database.generated.ts",
+    // Claude Code の git worktree 置き場。別ブランチの作業コピーが丸ごと入るため、
+    // ここを検査すると他ブランチのコードと `.next` の生成物まで拾ってしまう。
+    // 上の ".next/**" はリポジトリ直下にしか効かない（2026-08-04 に
+    // Gate 1 の lint が生成物由来のエラー 4,353 件で落ちて判明）
+    ".claude/**",
+    // Playwright の実行成果物。test:e2e の直後に lint を回せる状態にしておく
+    "test-results/**",
+    "playwright-report/**",
   ]),
   {
     rules: {

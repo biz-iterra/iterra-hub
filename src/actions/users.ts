@@ -1,5 +1,6 @@
 "use server";
 
+import { toUserMessage } from "@/lib/db-error";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { conflictErrorMessage } from "@/lib/validators/common";
@@ -20,7 +21,7 @@ export async function getCurrentUser(): Promise<
     .eq("id", user.id)
     .single();
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "ユーザー" }) };
   return { data, error: null };
 }
 
@@ -50,7 +51,7 @@ export async function updateOwnProfile(
   }
 
   const { data, error } = await query.select("id, full_name, updated_at").maybeSingle();
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "ユーザー" }) };
   if (!data) return { data: null, error: conflictErrorMessage("プロフィール") };
 
   revalidatePath("/profile");
@@ -68,6 +69,6 @@ export async function getCrmUsers(): Promise<ActionResult<{ id: string; full_nam
     .eq("is_active", true)
     .order("full_name", { ascending: true });
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "ユーザー" }) };
   return { data: data ?? [], error: null };
 }

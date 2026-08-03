@@ -2,6 +2,7 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { toUserMessage } from "@/lib/db-error";
 import {
   checkEightHeader,
   EIGHT_SOURCE_SLUG,
@@ -116,7 +117,7 @@ async function verifyAdminClient(
 ): Promise<string | null> {
   const { data, error } = await supabase.from("lead_stages").select("id").limit(1);
   if (error) {
-    return `service_role クライアントが利用できません: ${error.message}`;
+    return `取込用の接続が利用できません。${toUserMessage(error)}`;
   }
   if (!data || data.length === 0) {
     return (
@@ -183,7 +184,7 @@ async function findExistingKeys(
       .select("source_external_key")
       .in("source_external_key", chunk)
       .is("deleted_at", null);
-    if (error) throw new Error(`既存リードの確認に失敗しました: ${error.message}`);
+    if (error) throw new Error(`既存リードの確認に失敗しました。${toUserMessage(error)}`);
     for (const row of data ?? []) {
       if (row.source_external_key) found.add(row.source_external_key);
     }
@@ -220,7 +221,7 @@ async function findSameNameContacts(
       .in("last_name", chunk)
       .is("deleted_at", null);
     if (error) {
-      throw new Error(`同姓同名の確認に失敗しました: ${error.message}`);
+      throw new Error(`同姓同名の確認に失敗しました。${toUserMessage(error)}`);
     }
     for (const row of data ?? []) {
       const key = nameKey(row.last_name, row.first_name ?? "");
@@ -468,7 +469,10 @@ export async function commitEightImport(
 
   if (error) {
     console.error("[commitEightImport] RPC FAILED:", error.message, error.code);
-    return { data: null, error: `取込に失敗しました: ${error.message}` };
+    return {
+      data: null,
+      error: `取込に失敗しました。${toUserMessage(error, { entityLabel: "リード", operation: "create" })}`,
+    };
   }
 
   const result = data as {
@@ -538,7 +542,7 @@ export async function getImportBatches(): Promise<ActionResult<ImportBatchRow[]>
     .order("imported_at", { ascending: false })
     .limit(30);
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "取込履歴" }) };
 
   const rows = (data ?? []) as (Omit<ImportBatchRow, "imported_by_name"> & {
     importer: { full_name: string } | null;

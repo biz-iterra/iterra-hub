@@ -222,7 +222,7 @@ export async function getMasterList<K extends MasterTableName>(
     .order("created_at", { ascending: true });
 
   const { data, error } = await query;
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "マスタ" }) };
   return { data, error: null };
 }
 
@@ -335,7 +335,7 @@ export async function getDealStages(
   let query = supabase.from("deal_stages").select("*").is("deleted_at", null).order("sort_order");
   if (pipelineTypeId) query = query.eq("pipeline_type_id", pipelineTypeId);
   const { data, error } = await query;
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "マスタ" }) };
   return { data, error: null };
 }
 export async function createDealStage(input: Record<string, unknown>) {
@@ -357,7 +357,7 @@ export async function getDealStatuses(
   if (pipelineTypeId) query = query.eq("pipeline_type_id", pipelineTypeId);
   if (dealStageId) query = query.eq("deal_stage_id", dealStageId);
   const { data, error } = await query;
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "マスタ" }) };
   return { data, error: null };
 }
 export async function createDealStatus(input: Record<string, unknown>) {
@@ -475,7 +475,7 @@ export async function getSkills(categoryId?: string) {
   let query = supabase.from("skills").select("id, skill_code, skill_category_id, axis, name, system_tags, note, sort_order, is_active, skill_categories(name)").is("deleted_at", null).order("sort_order");
   if (categoryId) query = query.eq("skill_category_id", categoryId);
   const { data, error } = await query;
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "マスタ" }) };
   return { data, error: null };
 }
 export async function createSkill(input: Record<string, unknown>) {
@@ -497,7 +497,7 @@ export async function createLeadCategory(input: Record<string, unknown>): Promis
   const parsed = leadCategoryCreateSchema.safeParse(input);
   if (!parsed.success) return { data: null, error: parsed.error.issues[0].message };
   const { data, error } = await supabase.from("lead_categories").insert(parsed.data as Record<string, unknown>).select().single();
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "マスタ" }) };
   return { data, error: null };
 }
 export async function updateLeadCategory(id: string, input: Record<string, unknown>): Promise<ActionResult<Row<"lead_categories">>> {
@@ -508,7 +508,7 @@ export async function updateLeadCategory(id: string, input: Record<string, unkno
   const parsed = leadCategoryUpdateSchema.safeParse(input);
   if (!parsed.success) return { data: null, error: parsed.error.issues[0].message };
   const { data, error } = await supabase.from("lead_categories").update(parsed.data as Record<string, unknown>).eq("id", id).select().single();
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "マスタ" }) };
   return { data, error: null };
 }
 export async function deleteLeadCategory(id: string): Promise<ActionResult<null>> {
@@ -520,7 +520,7 @@ export async function deleteLeadCategory(id: string): Promise<ActionResult<null>
     deleted_at: new Date().toISOString(),
     deleted_by: user.id,
   }).eq("id", id);
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "マスタ", operation: "delete"}) };
   return { data: null, error: null };
 }
 
@@ -540,7 +540,7 @@ export async function getLeadStatuses(
     .order("sort_order", { ascending: true });
   if (stageId) query = query.eq("stage_id", stageId);
   const { data, error } = await query;
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "マスタ" }) };
   return { data, error: null };
 }
 
@@ -566,7 +566,7 @@ export async function getLeadSmallSegments(
     .order("name", { ascending: true });
   if (largeSegmentId) query = query.eq("large_segment_id", largeSegmentId);
   const { data, error } = await query;
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "マスタ" }) };
   return { data, error: null };
 }
 
@@ -581,7 +581,7 @@ export async function createLeadActivityType(input: Record<string, unknown>): Pr
   const parsed = leadActivityTypeCreateSchema.safeParse(input);
   if (!parsed.success) return { data: null, error: parsed.error.issues[0].message };
   const { data, error } = await supabase.from("lead_activity_types").insert(parsed.data as Record<string, unknown>).select().single();
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "マスタ" }) };
   return { data, error: null };
 }
 export async function updateLeadActivityType(id: string, input: Record<string, unknown>): Promise<ActionResult<Row<"lead_activity_types">>> {
@@ -592,7 +592,7 @@ export async function updateLeadActivityType(id: string, input: Record<string, u
   const parsed = leadActivityTypeUpdateSchema.safeParse(input);
   if (!parsed.success) return { data: null, error: parsed.error.issues[0].message };
   const { data, error } = await supabase.from("lead_activity_types").update(parsed.data as Record<string, unknown>).eq("id", id).select().single();
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "マスタ" }) };
   return { data, error: null };
 }
 export async function deleteLeadActivityType(id: string): Promise<ActionResult<null>> {
@@ -604,7 +604,7 @@ export async function deleteLeadActivityType(id: string): Promise<ActionResult<n
     deleted_at: new Date().toISOString(),
     deleted_by: user.id,
   }).eq("id", id);
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "マスタ", operation: "delete"}) };
   return { data: null, error: null };
 }
 
@@ -675,7 +675,7 @@ export async function getLeadCompanySizes(): Promise<ActionResult<Row<"lead_comp
     .select("*")
     .is("deleted_at", null)
     .order("sort_order", { ascending: true });
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "マスタ" }) };
   return { data, error: null };
 }
 export async function createLeadCompanySize(input: Record<string, unknown>): Promise<ActionResult<Row<"lead_company_sizes">>> {
@@ -686,7 +686,7 @@ export async function createLeadCompanySize(input: Record<string, unknown>): Pro
   const parsed = leadCompanySizeSchema.safeParse(input);
   if (!parsed.success) return { data: null, error: parsed.error.issues[0].message };
   const { data, error } = await supabase.from("lead_company_sizes").insert(parsed.data as Record<string, unknown>).select().single();
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "マスタ" }) };
   return { data, error: null };
 }
 export async function updateLeadCompanySize(id: string, input: Record<string, unknown>): Promise<ActionResult<Row<"lead_company_sizes">>> {
@@ -697,7 +697,7 @@ export async function updateLeadCompanySize(id: string, input: Record<string, un
   const parsed = leadCompanySizeUpdateSchema.safeParse(input);
   if (!parsed.success) return { data: null, error: parsed.error.issues[0].message };
   const { data, error } = await supabase.from("lead_company_sizes").update(parsed.data as Record<string, unknown>).eq("id", id).select().single();
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "マスタ" }) };
   return { data, error: null };
 }
 export async function deleteLeadCompanySize(id: string): Promise<ActionResult<null>> {
@@ -709,7 +709,7 @@ export async function deleteLeadCompanySize(id: string): Promise<ActionResult<nu
     deleted_at: new Date().toISOString(),
     deleted_by: user.id,
   }).eq("id", id);
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "マスタ", operation: "delete"}) };
   return { data: null, error: null };
 }
 
@@ -722,7 +722,7 @@ export async function getLeadCustomerActivityTypes(): Promise<ActionResult<Row<"
     .select("*")
     .is("deleted_at", null)
     .order("sort_order", { ascending: true });
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "マスタ" }) };
   return { data, error: null };
 }
 export async function createLeadCustomerActivityType(input: Record<string, unknown>): Promise<ActionResult<Row<"lead_customer_activity_types">>> {
@@ -733,7 +733,7 @@ export async function createLeadCustomerActivityType(input: Record<string, unkno
   const parsed = leadCustomerActivityTypeSchema.safeParse(input);
   if (!parsed.success) return { data: null, error: parsed.error.issues[0].message };
   const { data, error } = await supabase.from("lead_customer_activity_types").insert(parsed.data as Record<string, unknown>).select().single();
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "マスタ" }) };
   return { data, error: null };
 }
 export async function updateLeadCustomerActivityType(id: string, input: Record<string, unknown>): Promise<ActionResult<Row<"lead_customer_activity_types">>> {
@@ -744,7 +744,7 @@ export async function updateLeadCustomerActivityType(id: string, input: Record<s
   const parsed = leadCustomerActivityTypeUpdateSchema.safeParse(input);
   if (!parsed.success) return { data: null, error: parsed.error.issues[0].message };
   const { data, error } = await supabase.from("lead_customer_activity_types").update(parsed.data as Record<string, unknown>).eq("id", id).select().single();
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "マスタ" }) };
   return { data, error: null };
 }
 export async function deleteLeadCustomerActivityType(id: string): Promise<ActionResult<null>> {
@@ -756,7 +756,7 @@ export async function deleteLeadCustomerActivityType(id: string): Promise<Action
     deleted_at: new Date().toISOString(),
     deleted_by: user.id,
   }).eq("id", id);
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "マスタ", operation: "delete"}) };
   return { data: null, error: null };
 }
 
@@ -769,7 +769,7 @@ export async function getLeadScoreRules(): Promise<ActionResult<Row<"lead_score_
     .select("*")
     .is("deleted_at", null)
     .order("sort_order", { ascending: true });
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "マスタ" }) };
   return { data, error: null };
 }
 export async function createLeadScoreRule(input: Record<string, unknown>): Promise<ActionResult<Row<"lead_score_rules">>> {
@@ -780,7 +780,7 @@ export async function createLeadScoreRule(input: Record<string, unknown>): Promi
   const parsed = leadScoreRuleSchema.safeParse(input);
   if (!parsed.success) return { data: null, error: parsed.error.issues[0].message };
   const { data, error } = await supabase.from("lead_score_rules").insert(parsed.data as Record<string, unknown>).select().single();
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "マスタ" }) };
   return { data, error: null };
 }
 export async function updateLeadScoreRule(id: string, input: Record<string, unknown>): Promise<ActionResult<Row<"lead_score_rules">>> {
@@ -791,7 +791,7 @@ export async function updateLeadScoreRule(id: string, input: Record<string, unkn
   const parsed = leadScoreRuleUpdateSchema.safeParse(input);
   if (!parsed.success) return { data: null, error: parsed.error.issues[0].message };
   const { data, error } = await supabase.from("lead_score_rules").update(parsed.data as Record<string, unknown>).eq("id", id).select().single();
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "マスタ" }) };
   return { data, error: null };
 }
 export async function deleteLeadScoreRule(id: string): Promise<ActionResult<null>> {
@@ -803,7 +803,7 @@ export async function deleteLeadScoreRule(id: string): Promise<ActionResult<null
     deleted_at: new Date().toISOString(),
     deleted_by: user.id,
   }).eq("id", id);
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "マスタ", operation: "delete"}) };
   return { data: null, error: null };
 }
 
@@ -816,7 +816,7 @@ export async function getLeadScoreThresholds(): Promise<ActionResult<Row<"lead_s
     .select("*")
     .is("deleted_at", null)
     .order("min_score", { ascending: true });
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "マスタ" }) };
   return { data, error: null };
 }
 
@@ -835,7 +835,7 @@ export async function getLeadScoreRulesWithBrokenRefs(): Promise<ActionResult<{
     .select("*")
     .is("deleted_at", null)
     .order("sort_order", { ascending: true });
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "マスタ" }) };
   if (!rules || rules.length === 0) return { data: { rules: [], brokenCount: 0 }, error: null };
 
   // condition_value_id を持つルールについて参照先を検証

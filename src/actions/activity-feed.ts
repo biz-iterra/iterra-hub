@@ -10,6 +10,7 @@
  * 読み取り専用。記録の追加は各エンティティの画面から行う。
  */
 
+import { toUserMessage } from "@/lib/db-error";
 import { createClient } from "@/lib/supabase/server";
 import type { ActivityFeedRow, ActivityFeedSourceKind } from "@/types/relations";
 
@@ -77,7 +78,7 @@ export async function getActivityFeed(
   }
 
   const { data, error, count } = await query;
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "アクティビティ" }) };
 
   return { data: { rows: (data ?? []) as ActivityFeedRow[], total: count ?? 0 }, error: null };
 }

@@ -1,5 +1,6 @@
 "use server";
 
+import { toUserMessage } from "@/lib/db-error";
 import { createClient } from "@/lib/supabase/server";
 import { conflictErrorMessage } from "@/lib/validators/common";
 import type { Database } from "@/types/database.generated";
@@ -72,7 +73,7 @@ export async function getProjects(params?: {
   }
 
   const { data, error, count } = await query;
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "プロジェクト" }) };
   return { data: { rows: data ?? [], total: count ?? 0 }, error: null };
 }
 
@@ -107,7 +108,7 @@ export async function getProject(id: string): Promise<ActionResult<ProjectDetail
     .eq("id", id)
     .single();
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "プロジェクト" }) };
   return { data, error: null };
 }
 
@@ -149,7 +150,7 @@ export async function createProject(
     .select()
     .single();
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "プロジェクト" }) };
 
   revalidatePath("/projects");
   return { data, error: null };
@@ -185,7 +186,7 @@ export async function updateProject(
     .select("*")
     .eq("id", id)
     .single();
-  if (fetchErr) return { data: null, error: fetchErr.message };
+  if (fetchErr) return { data: null, error: toUserMessage(fetchErr, { entityLabel: "プロジェクト" }) };
 
   // expected_updated_at は DB カラムではないため更新値から除外する
   const { expected_updated_at, ...fields } = parsed.data;
@@ -211,7 +212,7 @@ export async function updateProject(
   }
 
   const { data, error } = await updateQuery.select().maybeSingle();
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "プロジェクト" }) };
   if (!data) return { data: null, error: conflictErrorMessage("このプロジェクト") };
 
   // 変更履歴は entity_change_logs のトリガーが自動記録する（20260728000002）
@@ -239,7 +240,7 @@ export async function deleteProject(id: string): Promise<ActionResult<null>> {
     })
     .eq("id", id);
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "プロジェクト", operation: "delete"}) };
   revalidatePath("/projects");
   return { data: null, error: null };
 }
@@ -265,7 +266,7 @@ export async function addProjectMember(
     .select()
     .single();
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "プロジェクト" }) };
   revalidatePath(`/projects/${parsed.data.project_id}`);
   return { data, error: null };
 }
@@ -289,7 +290,7 @@ export async function removeProjectMember(
     .eq("project_id", projectId)
     .eq("user_id", userId);
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "プロジェクト", operation: "delete"}) };
   revalidatePath(`/projects/${projectId}`);
   return { data: null, error: null };
 }
@@ -311,7 +312,7 @@ export async function bulkAddMembersFromDeals(
     .from("deal_projects")
     .select("deal:deals(owner_user_id)")
     .eq("project_id", projectId);
-  if (dpErr) return { data: null, error: dpErr.message };
+  if (dpErr) return { data: null, error: toUserMessage(dpErr, { entityLabel: "プロジェクト" }) };
 
   const ownerIds = new Set<string>();
   for (const dp of dealProjects ?? []) {
@@ -339,7 +340,7 @@ export async function bulkAddMembersFromDeals(
   }));
 
   const { error: insErr } = await supabase.from("project_members").insert(rows);
-  if (insErr) return { data: null, error: insErr.message };
+  if (insErr) return { data: null, error: toUserMessage(insErr, { entityLabel: "プロジェクト" }) };
 
   revalidatePath(`/projects/${projectId}`);
   return { data: { added: rows.length }, error: null };
@@ -366,7 +367,7 @@ export async function addDealProject(
     .select()
     .single();
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "プロジェクト" }) };
   revalidatePath(`/projects/${parsed.data.project_id}`);
   revalidatePath(`/deals/${parsed.data.deal_id}`);
   return { data, error: null };
@@ -391,7 +392,7 @@ export async function removeDealProject(
     .eq("deal_id", dealId)
     .eq("project_id", projectId);
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "プロジェクト", operation: "delete"}) };
   revalidatePath(`/projects/${projectId}`);
   revalidatePath(`/deals/${dealId}`);
   return { data: null, error: null };
@@ -410,6 +411,6 @@ export async function getProjectStatuses(): Promise<ActionResult<SortedRef[]>> {
     .is("deleted_at", null)
     .order("sort_order");
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "プロジェクト" }) };
   return { data: data ?? [], error: null };
 }

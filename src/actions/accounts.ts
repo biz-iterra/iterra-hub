@@ -1,5 +1,6 @@
 "use server";
 
+import { toUserMessage } from "@/lib/db-error";
 import { revalidatePath } from "next/cache";
 import { buildIlikePattern } from "@/lib/search-query";
 import { createClient } from "@/lib/supabase/server";
@@ -87,7 +88,7 @@ export async function getAccounts(
   }
 
   const { data, error, count } = await query;
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "取引先" }) };
   return { data: { rows: data ?? [], total: count ?? 0 }, error: null };
 }
 
@@ -107,7 +108,7 @@ export async function getAccount(id: string): Promise<ActionResult<AccountDetail
     .is("deleted_at", null)
     .single();
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "取引先" }) };
   return { data, error: null };
 }
 
@@ -137,7 +138,7 @@ export async function createAccount(
     .select()
     .single();
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "取引先" }) };
   revalidatePath("/accounts");
   return { data, error: null };
 }
@@ -170,7 +171,7 @@ export async function updateAccount(
     .select("*")
     .eq("id", id)
     .single();
-  if (fetchErr) return { data: null, error: fetchErr.message };
+  if (fetchErr) return { data: null, error: toUserMessage(fetchErr, { entityLabel: "取引先" }) };
 
   // expected_updated_at は DB カラムではないため更新値から除外する
   const { expected_updated_at, ...fields } = parsed.data;
@@ -194,7 +195,7 @@ export async function updateAccount(
   }
 
   const { data, error } = await updateQuery.select().maybeSingle();
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "取引先" }) };
   if (!data) return { data: null, error: conflictErrorMessage("この取引先") };
 
   // 変更履歴は entity_change_logs のトリガーが自動記録する（20260728000002）
@@ -238,7 +239,7 @@ export async function deleteAccount(
     })
     .eq("id", id);
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "取引先", operation: "delete"}) };
   revalidatePath("/accounts");
   revalidatePath(`/accounts/${id}`);
   return { data: null, error: null };
@@ -264,7 +265,7 @@ export async function addAccountContact(
     .select()
     .single();
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "取引先" }) };
   return { data, error: null };
 }
 
@@ -284,7 +285,7 @@ export async function removeAccountContact(
     .eq("account_id", accountId)
     .eq("contact_id", contactId);
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "取引先", operation: "delete"}) };
   return { data: null, error: null };
 }
 
@@ -306,7 +307,7 @@ export async function getAccountRoleTypes(): Promise<
     .is("deleted_at", null)
     .order("sort_order");
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "取引先" }) };
   return { data: data ?? [], error: null };
 }
 
@@ -333,7 +334,7 @@ export async function addAccountRole(
     .select()
     .single();
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "取引先" }) };
   return { data, error: null };
 }
 
@@ -342,6 +343,6 @@ export async function removeAccountRole(id: string): Promise<ActionResult<null>>
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
   const { error } = await supabase.from("account_roles").delete().eq("id", id);
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "取引先", operation: "delete"}) };
   return { data: null, error: null };
 }

@@ -1,5 +1,6 @@
 "use server";
 
+import { toUserMessage } from "@/lib/db-error";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { conflictErrorMessage } from "@/lib/validators/common";
@@ -71,7 +72,7 @@ export async function getCampaigns(
   if (keyword) query = query.ilike("name", `%${keyword}%`);
 
   const { data, error, count } = await query;
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "キャンペーン" }) };
   return { data: { rows: data ?? [], total: count ?? 0 }, error: null };
 }
 
@@ -92,7 +93,7 @@ export async function getCampaignById(id: string): Promise<ActionResult<Row<"cam
     .is("deleted_at", null)
     .single();
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "キャンペーン" }) };
   if (!data) return { data: null, error: "キャンペーンが見つかりません" };
   return { data, error: null };
 }
@@ -120,7 +121,7 @@ export async function createCampaign(
     .select(CAMPAIGN_SELECT)
     .single();
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "キャンペーン" }) };
   revalidatePath("/campaigns");
   return { data, error: null };
 }
@@ -157,7 +158,7 @@ export async function updateCampaign(
 
   const { data, error } = await updateQuery.select(CAMPAIGN_SELECT).maybeSingle();
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "キャンペーン" }) };
   if (!data) {
     return { data: null, error: conflictErrorMessage("このキャンペーン") };
   }
@@ -189,7 +190,7 @@ export async function deleteCampaign(
     })
     .eq("id", id);
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "キャンペーン", operation: "delete"}) };
   revalidatePath("/campaigns");
   revalidatePath(`/campaigns/${id}`);
   return { data: null, error: null };
@@ -215,7 +216,7 @@ export async function restoreCampaign(id: string): Promise<ActionResult<null>> {
     })
     .eq("id", id);
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "キャンペーン" }) };
   return { data: null, error: null };
 }
 
@@ -258,7 +259,7 @@ export async function attachLeadToCampaign(
     if (error.code === "23505") {
       return { data: null, error: "このリードは既にキャンペーンに登録されています" };
     }
-    return { data: null, error: error.message };
+    return { data: null, error: toUserMessage(error, { entityLabel: "キャンペーン" }) };
   }
   return { data, error: null };
 }
@@ -297,7 +298,7 @@ export async function detachLeadFromCampaign(
     .eq("lead_id", leadId)
     .eq("campaign_id", campaignId);
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "キャンペーン", operation: "delete"}) };
   return { data: null, error: null };
 }
 
@@ -325,7 +326,7 @@ export async function attachLeadsToCampaign(
     if (error.code === "23505") {
       return { data: null, error: "選択したリードの中に、既にこのキャンペーンに登録されているものがあります" };
     }
-    return { data: null, error: error.message };
+    return { data: null, error: toUserMessage(error, { entityLabel: "キャンペーン" }) };
   }
   return { data: null, error: null };
 }
@@ -386,7 +387,7 @@ export async function getUnassignedLeadsForCampaign(
         .select("lead_id")
         .eq("campaign_id", campaignId)
         .range(offset, offset + UNASSIGNED_LEAD_BATCH_SIZE - 1);
-      if (error) return { data: null, error: error.message };
+      if (error) return { data: null, error: toUserMessage(error, { entityLabel: "キャンペーン" }) };
       for (const row of data ?? []) attachedIds.add(row.lead_id);
       if (!data || data.length < UNASSIGNED_LEAD_BATCH_SIZE) break;
       offset += UNASSIGNED_LEAD_BATCH_SIZE;
@@ -400,7 +401,7 @@ export async function getUnassignedLeadsForCampaign(
       .select("id", { count: "exact", head: true })
       .is("deleted_at", null)
   );
-  if (totalError) return { data: null, error: totalError.message };
+  if (totalError) return { data: null, error: toUserMessage(totalError, { entityLabel: "キャンペーン" }) };
 
   const { count: totalAttachedMatching, error: attachedCountError } = await applyKeyword(
     supabase
@@ -409,7 +410,7 @@ export async function getUnassignedLeadsForCampaign(
       .is("deleted_at", null)
       .eq("lead_campaigns.campaign_id", campaignId)
   );
-  if (attachedCountError) return { data: null, error: attachedCountError.message };
+  if (attachedCountError) return { data: null, error: toUserMessage(attachedCountError, { entityLabel: "キャンペーン" }) };
 
   const total = Math.max((totalMatching ?? 0) - (totalAttachedMatching ?? 0), 0);
 
@@ -432,7 +433,7 @@ export async function getUnassignedLeadsForCampaign(
         .order("lead_name", { ascending: true })
         .range(offset, offset + UNASSIGNED_LEAD_BATCH_SIZE - 1)
     );
-    if (error) return { data: null, error: error.message };
+    if (error) return { data: null, error: toUserMessage(error, { entityLabel: "キャンペーン" }) };
     const batch = (data ?? []) as UnassignedLeadRow[];
 
     for (const lead of batch) {
@@ -480,6 +481,6 @@ export async function getCampaignLeads(
     .eq("campaign_id", campaignId)
     .order("assigned_at", { ascending: false });
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "キャンペーン" }) };
   return { data: data ?? [], error: null };
 }

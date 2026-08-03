@@ -1,5 +1,6 @@
 "use server";
 
+import { toUserMessage } from "@/lib/db-error";
 import { createClient } from "@/lib/supabase/server";
 import {
   isHoujinApiConfigured,
@@ -199,7 +200,7 @@ export async function verifyCompany(
     .update(updates)
     .eq("id", companyId);
 
-  if (updateErr) return { data: null, error: updateErr.message };
+  if (updateErr) return { data: null, error: toUserMessage(updateErr, { entityLabel: "事業者情報" }) };
 
   // 履歴は INSERT ONLY。失敗しても確認自体は成立しているので処理は止めない
   await supabase.from("company_verification_logs").insert({
@@ -281,7 +282,7 @@ export async function verifyCompaniesBatch(
     .order("verified_at", { ascending: true, nullsFirst: true })
     .limit(safeLimit);
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "事業者情報" }) };
 
   const results: VerifyOneResult[] = [];
   const counts: Record<VerificationOutcome, number> = {

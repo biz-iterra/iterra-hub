@@ -1,5 +1,6 @@
 "use server";
 
+import { toUserMessage } from "@/lib/db-error";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import type { EntityAddress } from "@/types/relations";
@@ -76,7 +77,7 @@ async function authorize(
             .is("deleted_at", null)
             .maybeSingle();
 
-  if (error) return { error: error.message };
+  if (error) return { error: toUserMessage(error, { entityLabel: "住所" }) };
   if (!owner) return { error: "紐づけ先が見つかりません" };
 
   const isManager = crmUser?.role === "manager" || crmUser?.role === "admin";
@@ -113,7 +114,7 @@ export async function getEntityAddresses(
     .order("is_primary", { ascending: false })
     .order("created_at");
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "住所" }) };
   return { data: (data ?? []) as unknown as EntityAddress[], error: null };
 }
 
@@ -152,7 +153,7 @@ export async function addEntityAddress(
     p_actor: auth.userId,
   });
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "住所" }) };
   refresh(ownerType, ownerId);
   return { data: { id: data as unknown as string }, error: null };
 }
@@ -174,7 +175,7 @@ export async function updateEntityAddress(
     .eq(`${ownerType}_id`, ownerId)
     .maybeSingle();
 
-  if (linkError) return { data: null, error: linkError.message };
+  if (linkError) return { data: null, error: toUserMessage(linkError, { entityLabel: "住所" }) };
   if (!link) return { data: null, error: "住所が見つかりません" };
 
   const { error: addrError } = await auth.supabase
@@ -189,7 +190,7 @@ export async function updateEntityAddress(
     })
     .eq("id", link.address_id);
 
-  if (addrError) return { data: null, error: addrError.message };
+  if (addrError) return { data: null, error: toUserMessage(addrError, { entityLabel: "住所" }) };
 
   const { error } = await auth.supabase
     .from("entity_addresses")
@@ -202,7 +203,7 @@ export async function updateEntityAddress(
     })
     .eq("id", linkId);
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "住所" }) };
   refresh(ownerType, ownerId);
   return { data: null, error: null };
 }
@@ -221,7 +222,7 @@ export async function setPrimaryEntityAddress(
     p_actor: auth.userId,
   });
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "住所" }) };
   refresh(ownerType, ownerId);
   return { data: null, error: null };
 }
@@ -244,7 +245,7 @@ export async function deleteEntityAddress(
     .eq("id", linkId)
     .eq(`${ownerType}_id`, ownerId);
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "住所", operation: "delete"}) };
   refresh(ownerType, ownerId);
   return { data: null, error: null };
 }

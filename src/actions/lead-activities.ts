@@ -13,6 +13,7 @@
  * 削除機能は admin 専用アコーディオン内に表示される。
  */
 
+import { toUserMessage } from "@/lib/db-error";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { conflictErrorMessage } from "@/lib/validators/common";
@@ -69,7 +70,7 @@ export async function getLeadActivities(
     .order("called_on", { ascending: false })
     .order("created_at", { ascending: false });
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "社内対応" }) };
   return { data: data ?? [], error: null };
 }
 
@@ -120,7 +121,7 @@ export async function createLeadActivity(
     .select(ACTIVITY_SELECT)
     .single();
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "社内対応" }) };
 
   // score / temperature_id / breakdowns を DB 関数で算出（失敗はログのみ。作成自体は成功扱い）
   const adminClient = createAdminClient();
@@ -186,7 +187,7 @@ export async function updateLeadActivity(
 
   const { data, error } = await updateQuery.select(ACTIVITY_SELECT).maybeSingle();
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "社内対応" }) };
   if (!data) {
     return { data: null, error: conflictErrorMessage("この架電記録") };
   }
@@ -228,7 +229,7 @@ export async function deleteLeadActivity(id: string): Promise<ActionResult<null>
     .delete()
     .eq("id", id);
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "社内対応", operation: "delete"}) };
 
   // score / temperature_id / breakdowns を DB 関数で算出（失敗はログのみ。削除自体は成功扱い）
   const adminClient = createAdminClient();

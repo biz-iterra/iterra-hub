@@ -1,5 +1,6 @@
 "use server";
 
+import { toUserMessage } from "@/lib/db-error";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { conflictErrorMessage } from "@/lib/validators/common";
@@ -85,7 +86,7 @@ export async function getContracts(params?: {
   }
 
   const { data, error, count } = await query;
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "契約" }) };
   return { data: { rows: data ?? [], total: count ?? 0 }, error: null };
 }
 
@@ -105,7 +106,7 @@ export async function getContract(id: string): Promise<ActionResult<ContractDeta
     .eq("id", id)
     .single();
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "契約" }) };
   return { data, error: null };
 }
 
@@ -134,7 +135,7 @@ export async function createContract(
     .select()
     .single();
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "契約" }) };
   // 契約成立の AFTER INSERT トリガーが取引先を作り商談に紐付けるので、そちらも再検証する
   revalidatePath("/contracts");
   revalidatePath("/accounts");
@@ -171,7 +172,7 @@ export async function updateContract(
 
   const { data, error } = await updateQuery.select().maybeSingle();
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "契約" }) };
   if (!data) return { data: null, error: conflictErrorMessage("この契約") };
   revalidatePath("/contracts");
   revalidatePath(`/contracts/${id}`);
@@ -195,7 +196,7 @@ export async function deleteContract(id: string): Promise<ActionResult<null>> {
     })
     .eq("id", id);
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "契約", operation: "delete"}) };
   revalidatePath("/contracts");
   revalidatePath(`/contracts/${id}`);
   return { data: null, error: null };

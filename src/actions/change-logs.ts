@@ -1,5 +1,6 @@
 "use server";
 
+import { toUserMessage } from "@/lib/db-error";
 import { createClient } from "@/lib/supabase/server";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants/pagination";
 import type { Paged } from "@/types/relations";
@@ -55,7 +56,7 @@ export async function getChangeLogs(params?: {
     .order("changed_at", { ascending: false })
     .range(from, from + perPage - 1);
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "変更履歴" }) };
 
   return {
     data: {
@@ -82,7 +83,7 @@ export async function getChangeLogTables(): Promise<ActionResult<string[]>> {
     .order("changed_at", { ascending: false })
     .limit(1000);
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "変更履歴" }) };
 
   return {
     data: [...new Set((data ?? []).map((r) => r.table_name))].sort(),

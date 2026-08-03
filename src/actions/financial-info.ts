@@ -1,5 +1,6 @@
 "use server";
 
+import { toUserMessage } from "@/lib/db-error";
 import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
@@ -86,7 +87,7 @@ export async function getCompanyFinancialInfo(
     .order("is_primary", { ascending: false })
     .order("created_at");
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "口座情報" }) };
   return { data: data ?? [], error: null };
 }
 
@@ -133,7 +134,7 @@ export async function createFinancialInfo(
     .select(SELECT_COLUMNS)
     .single();
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "口座情報" }) };
 
   revalidatePath(`/companies/${company_id}`);
   revalidatePath(`/companies/${company_id}/edit`);
@@ -184,7 +185,7 @@ export async function updateFinancialInfo(
 
   const { data, error } = await updateQuery.select(SELECT_COLUMNS).maybeSingle();
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "口座情報" }) };
   if (!data) return { data: null, error: conflictErrorMessage("この金融機関情報") };
 
   revalidatePath(`/companies/${current.company_id}`);
@@ -215,7 +216,7 @@ export async function deleteFinancialInfo(id: string): Promise<ActionResult<null
     })
     .eq("id", id);
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "口座情報", operation: "delete"}) };
 
   // 主口座を消したら、残っているうちの先頭を主にする。
   // 振込先が 1 つも「主」でない状態を作らない

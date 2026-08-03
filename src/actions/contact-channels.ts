@@ -1,5 +1,6 @@
 "use server";
 
+import { toUserMessage } from "@/lib/db-error";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 
@@ -42,7 +43,7 @@ async function authorize(
     .is("deleted_at", null)
     .maybeSingle();
 
-  if (error) return { error: error.message };
+  if (error) return { error: toUserMessage(error, { entityLabel: "連絡先" }) };
   if (!contact) return { error: "連絡先が見つかりません" };
 
   // RLS でも守られるが、規約どおり Server Action 側でも確かめる
@@ -120,7 +121,7 @@ export async function addContactChannel(
     if (error.code === "23505") {
       return { data: null, error: "同じ値が既に登録されています" };
     }
-    return { data: null, error: error.message };
+    return { data: null, error: toUserMessage(error, { entityLabel: "連絡先" }) };
   }
 
   refresh(contactId);
@@ -151,7 +152,7 @@ export async function updateContactChannelLabel(
     .eq("id", id)
     .eq("contact_id", contactId);
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "連絡先" }) };
   refresh(contactId);
   return { data: null, error: null };
 }
@@ -173,7 +174,7 @@ export async function setPrimaryContactChannel(
     { p_id: id, p_actor: auth.userId }
   );
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "連絡先" }) };
   refresh(contactId);
   return { data: null, error: null };
 }
@@ -219,7 +220,7 @@ export async function deleteContactChannel(
     .eq("id", id)
     .eq("contact_id", contactId);
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "連絡先", operation: "delete"}) };
 
   // 主を消した場合の繰り上げは DB のトリガーが行う
   refresh(contactId);

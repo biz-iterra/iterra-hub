@@ -1,5 +1,6 @@
 "use server";
 
+import { toUserMessage } from "@/lib/db-error";
 import { createClient } from "@/lib/supabase/server";
 
 type ActionResult<T> = { data: T | null; error: string | null };
@@ -65,7 +66,7 @@ export async function getDeletedRecords(
     .order("deleted_at", { ascending: false })
     .range(from, to);
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "削除済みデータ" }) };
   return {
     data: {
       items: (data ?? []) as unknown as Record<string, unknown>[],
@@ -91,7 +92,7 @@ export async function restoreRecord(
     })
     .eq("id", id);
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "削除済みデータ" }) };
   return { data: null, error: null };
 }
 

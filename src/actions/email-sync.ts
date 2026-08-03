@@ -1,5 +1,6 @@
 "use server";
 
+import { toUserMessage } from "@/lib/db-error";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { isGmailConfigured } from "@/lib/gmail/config";
@@ -50,7 +51,7 @@ export async function getMyGmailConnections(): Promise<
     .eq("is_active", true)
     .order("created_at");
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "メール" }) };
   return { data: data ?? [], error: null };
 }
 
@@ -109,7 +110,7 @@ export async function disconnectGmail(id: string): Promise<ActionResult<null>> {
     .eq("crm_user_id", user.id)
     .select("id");
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "メール" }) };
   if (!data || data.length === 0) {
     return { data: null, error: "連携が見つかりませんでした" };
   }
@@ -140,7 +141,7 @@ export async function getEmailContactCandidates(params?: {
     .order("last_seen_at", { ascending: false })
     .limit(200);
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "メール" }) };
   return { data: (data ?? []) as EmailCandidateWithCompany[], error: null };
 }
 
@@ -174,7 +175,7 @@ export async function approveEmailContactCandidate(input: {
     p_owner_user_id: input.ownerUserId ?? user.id,
   });
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "メール" }) };
 
   revalidatePath("/contacts");
   return { data: { contactId: data as string }, error: null };
@@ -199,7 +200,7 @@ export async function ignoreEmailContactCandidate(
     })
     .eq("id", id);
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "メール" }) };
   return { data: null, error: null };
 }
 
@@ -226,7 +227,7 @@ export async function getContactEmailMessages(
     .eq("contact_id", contactId)
     .limit(limit);
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "メール" }) };
 
   // 新しい順に並べる。並び替えは JOIN 先の列なのでクエリでは指定できない
   const rows = (data ?? [])
@@ -248,6 +249,6 @@ export async function getPendingCandidateCount(): Promise<ActionResult<number>> 
     .select("id", { count: "exact", head: true })
     .eq("status", "pending");
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "メール" }) };
   return { data: count ?? 0, error: null };
 }

@@ -1,5 +1,6 @@
 "use server";
 
+import { toUserMessage } from "@/lib/db-error";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import type { ContactMergeCandidate, ContactMergePreview } from "@/types/relations";
@@ -62,7 +63,7 @@ export async function getMergeCandidates(
     .eq("status", status)
     .order("created_at", { ascending: false });
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "連絡先" }) };
   return { data: (data ?? []) as unknown as ContactMergeCandidate[], error: null };
 }
 
@@ -94,7 +95,7 @@ export async function detectAllMergeCandidates(): Promise<ActionResult<number>> 
   if ("error" in auth) return { data: null, error: auth.error };
 
   const { data, error } = await auth.supabase.rpc("detect_all_contact_merge_candidates");
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "連絡先" }) };
 
   revalidatePath("/contacts/merge-candidates");
   return { data: data ?? 0, error: null };
@@ -116,7 +117,7 @@ export async function previewContactMerge(
     p_merge: mergeId,
   });
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "連絡先" }) };
   return { data: data as unknown as ContactMergePreview, error: null };
 }
 
@@ -140,7 +141,7 @@ export async function mergeContactsAction(
     p_merge: mergeId,
   });
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "連絡先" }) };
 
   revalidatePath("/contacts");
   revalidatePath("/contacts/merge-candidates");
@@ -166,7 +167,7 @@ export async function rejectMergeCandidate(
     .eq("id", candidateId)
     .eq("status", "pending");
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "連絡先" }) };
 
   revalidatePath("/contacts/merge-candidates");
   return { data: null, error: null };

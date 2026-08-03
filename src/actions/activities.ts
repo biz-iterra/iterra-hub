@@ -1,5 +1,6 @@
 "use server";
 
+import { toUserMessage } from "@/lib/db-error";
 import { createClient } from "@/lib/supabase/server";
 import {
   createDealActivitySchema,
@@ -50,7 +51,7 @@ export async function getDealActivities(
     .eq("deal_id", dealId)
     .order("activity_at", { ascending: false });
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "アクティビティ" }) };
   return { data: data ?? [], error: null };
 }
 
@@ -75,7 +76,7 @@ export async function createDealActivity(
     .select()
     .single();
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "アクティビティ" }) };
   return { data, error: null };
 }
 
@@ -97,7 +98,7 @@ export async function updateDealActivity(
     .select()
     .single();
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "アクティビティ" }) };
   return { data, error: null };
 }
 
@@ -114,7 +115,7 @@ export async function deleteDealActivity(id: string): Promise<ActionResult<null>
     .delete()
     .eq("id", id);
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "アクティビティ", operation: "delete"}) };
   return { data: null, error: null };
 }
 
@@ -134,7 +135,7 @@ export async function createDealActivityEmail(
     .select()
     .single();
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "アクティビティ" }) };
   return { data, error: null };
 }
 
@@ -159,7 +160,7 @@ export async function createActivityLog(
     .select()
     .single();
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "アクティビティ" }) };
   return { data, error: null };
 }
 
@@ -196,6 +197,6 @@ export async function getActivityLogs(params?: {
   }
 
   const { data, error, count } = await query;
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "アクティビティ" }) };
   return { data: { items: data ?? [], count: count ?? 0 }, error: null };
 }

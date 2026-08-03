@@ -1,5 +1,6 @@
 "use server";
 
+import { toUserMessage } from "@/lib/db-error";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { conflictErrorMessage } from "@/lib/validators/common";
@@ -152,7 +153,7 @@ export async function getTalents(
   }
 
   const { data, error, count } = await query;
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "タレント" }) };
   return { data: { rows: data ?? [], total: count ?? 0 }, error: null };
 }
 
@@ -179,7 +180,7 @@ export async function getTalent(id: string): Promise<ActionResult<TalentDetail>>
     .order("sort_order", { referencedTable: "talent_careers", ascending: true })
     .single();
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "タレント" }) };
   // talent_careers.career_type は DB の CHECK 制約で 3 値に限定されているが
   // 生成型では TEXT のままなので、ここで一度だけ絞り込んだ型に寄せる。
   // （詳細は @/types/relations の TalentCareerRow のコメント）
@@ -202,7 +203,7 @@ export async function createTalent(
     .select()
     .single();
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "タレント" }) };
   revalidatePath("/talents");
   return { data, error: null };
 }
@@ -226,7 +227,7 @@ export async function updateTalent(
     .eq("id", id)
     .single();
 
-  if (fetchError) return { data: null, error: fetchError.message };
+  if (fetchError) return { data: null, error: toUserMessage(fetchError, { entityLabel: "タレント" }) };
 
   // owner チェック（admin/manager 以外は親コンタクトのオーナーのみ。RLS と同じ基準）
   if (!(await canModifyTalent(supabase, user.id, role, id))) {
@@ -247,7 +248,7 @@ export async function updateTalent(
 
   const { data, error } = await updateQuery.select().maybeSingle();
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "タレント" }) };
   if (!data) return { data: null, error: conflictErrorMessage("このタレント") };
 
   // 変更履歴は entity_change_logs のトリガーが自動記録する（20260728000002）
@@ -272,7 +273,7 @@ export async function deleteTalent(id: string): Promise<ActionResult<null>> {
     })
     .eq("id", id);
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "タレント", operation: "delete"}) };
   revalidatePath("/talents");
   revalidatePath(`/talents/${id}`);
   return { data: null, error: null };
@@ -298,7 +299,7 @@ export async function addTalentSkill(
     .select()
     .single();
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "タレント" }) };
   return { data, error: null };
 }
 
@@ -328,7 +329,7 @@ export async function updateTalentSkill(
     .select()
     .single();
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "タレント" }) };
   return { data, error: null };
 }
 
@@ -350,7 +351,7 @@ export async function removeTalentSkill(id: string): Promise<ActionResult<null>>
     .delete()
     .eq("id", id);
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "タレント", operation: "delete"}) };
   return { data: null, error: null };
 }
 
@@ -374,7 +375,7 @@ export async function addTalentCareer(
     .select()
     .single();
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "タレント" }) };
   return { data, error: null };
 }
 
@@ -404,7 +405,7 @@ export async function updateTalentCareer(
     .select()
     .single();
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "タレント" }) };
   return { data, error: null };
 }
 
@@ -426,7 +427,7 @@ export async function removeTalentCareer(id: string): Promise<ActionResult<null>
     .delete()
     .eq("id", id);
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "タレント", operation: "delete"}) };
   return { data: null, error: null };
 }
 
@@ -449,7 +450,7 @@ export async function getPotentialTypes(): Promise<
     .select("type, dominant_brain")
     .order("type", { ascending: true });
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "タレント" }) };
 
   const seen = new Map<string, string | null>();
   for (const row of data ?? []) {

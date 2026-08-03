@@ -1,5 +1,6 @@
 "use server";
 
+import { toUserMessage } from "@/lib/db-error";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants/pagination";
@@ -47,7 +48,7 @@ async function authorizeCard(cardId: string) {
     .eq("id", cardId)
     .maybeSingle();
 
-  if (error) return { ok: false as const, error: error.message };
+  if (error) return { ok: false as const, error: toUserMessage(error, { entityLabel: "名刺" }) };
   if (!card) return { ok: false as const, error: "名刺が見つかりません" };
 
   const owner = (card.contact as { owner_user_id: string | null } | null)
@@ -93,7 +94,7 @@ export async function updateBusinessCardReferral(
     if (error.message.includes("referrer_not_self")) {
       return { data: null, error: "本人を紹介者にはできません" };
     }
-    return { data: null, error: error.message };
+    return { data: null, error: toUserMessage(error, { entityLabel: "名刺" }) };
   }
 
   revalidatePath(`/contacts/${auth.contactId}`);
@@ -157,7 +158,7 @@ export async function getBusinessCards(params?: {
     .order("created_at", { ascending: false })
     .range(from, from + perPage - 1);
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "名刺" }) };
 
   return {
     data: {
@@ -192,7 +193,7 @@ export async function getReferredContacts(
     .eq("referrer_contact_id", contactId)
     .order("created_at", { ascending: false });
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "名刺" }) };
   return { data: (data ?? []) as unknown as ReferredCardRow[], error: null };
 }
 
@@ -230,7 +231,7 @@ export async function searchContactsForReferrer(
   if (excludeContactId) query = query.neq("id", excludeContactId);
 
   const { data, error } = await query;
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "名刺" }) };
 
   return {
     data: (data ?? []).map((c) => ({
@@ -254,7 +255,7 @@ export async function applyBusinessCardAsCurrent(
     p_actor: auth.user.id,
   });
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "名刺" }) };
 
   revalidatePath(`/contacts/${auth.contactId}`);
   revalidatePath("/contacts");

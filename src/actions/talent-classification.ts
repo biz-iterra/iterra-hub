@@ -1,5 +1,6 @@
 "use server";
 
+import { toUserMessage } from "@/lib/db-error";
 import { createClient } from "@/lib/supabase/server";
 import { UUID_REGEX } from "@/lib/validators/common";
 import {
@@ -60,7 +61,7 @@ export async function getTalentSystemTags(): Promise<
     .select("*")
     .order("sort_order", { ascending: true });
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "タレント分類" }) };
   return { data: (data ?? []) as TalentSystemTag[], error: null };
 }
 
@@ -76,7 +77,7 @@ export async function getTalentGrades(): Promise<ActionResult<TalentGrade[]>> {
     .select("*")
     .order("sort_order", { ascending: true });
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "タレント分類" }) };
   return { data: (data ?? []) as TalentGrade[], error: null };
 }
 
@@ -100,7 +101,7 @@ export async function getTalentGradeRequirements(params?: {
   }
 
   const { data, error } = await query;
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "タレント分類" }) };
   return { data: (data ?? []) as TalentGradeRequirement[], error: null };
 }
 
@@ -118,7 +119,7 @@ export async function getTalentJobTypes(): Promise<
     .select("*")
     .order("sort_order", { ascending: true });
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "タレント分類" }) };
   return { data: (data ?? []) as TalentJobType[], error: null };
 }
 
@@ -136,7 +137,7 @@ export async function getTalentAchievementsMaster(): Promise<
     .select("*")
     .order("sort_order", { ascending: true });
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "タレント分類" }) };
   return { data: (data ?? []) as TalentAchievementMaster[], error: null };
 }
 
@@ -162,7 +163,7 @@ export async function getTalentAchievements(
     .eq("talent_id", talent_id)
     .order("achievement_code", { ascending: true });
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "タレント分類" }) };
   return { data: (data ?? []) as TalentAchievementWithMaster[], error: null };
 }
 
@@ -192,7 +193,7 @@ export async function addTalentAchievement(
     `)
     .single();
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "タレント分類" }) };
   return { data: data as TalentAchievementWithMaster, error: null };
 }
 
@@ -225,7 +226,7 @@ export async function updateTalentAchievement(
     .select()
     .single();
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "タレント分類" }) };
   return { data: data as TalentAchievement, error: null };
 }
 
@@ -250,7 +251,7 @@ export async function removeTalentAchievement(
     .delete()
     .eq("id", id);
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "タレント分類", operation: "delete"}) };
   return { data: null, error: null };
 }
 
@@ -291,10 +292,10 @@ export async function getTalentProfile(
     supabase.from("talent_job_types").select("*").order("sort_order"),
   ]);
 
-  if (e1) return { data: null, error: e1.message };
-  if (e2) return { data: null, error: e2.message };
-  if (e3) return { data: null, error: e3.message };
-  if (e4) return { data: null, error: e4.message };
+  if (e1) return { data: null, error: toUserMessage(e1, { entityLabel: "タレント分類" }) };
+  if (e2) return { data: null, error: toUserMessage(e2, { entityLabel: "タレント分類" }) };
+  if (e3) return { data: null, error: toUserMessage(e3, { entityLabel: "タレント分類" }) };
+  if (e4) return { data: null, error: toUserMessage(e4, { entityLabel: "タレント分類" }) };
 
   // ── タレントスキル取得 ────────────────────────────────────────────────────────
   const { data: talentSkillsRaw, error: e5 } = await supabase
@@ -304,7 +305,7 @@ export async function getTalentProfile(
     )
     .eq("talent_id", talent_id);
 
-  if (e5) return { data: null, error: e5.message };
+  if (e5) return { data: null, error: toUserMessage(e5, { entityLabel: "タレント分類" }) };
 
   // ── タレント実績取得 ──────────────────────────────────────────────────────────
   const { data: achievementsRaw, error: e6 } = await supabase
@@ -312,7 +313,7 @@ export async function getTalentProfile(
     .select("achievement_code")
     .eq("talent_id", talent_id);
 
-  if (e6) return { data: null, error: e6.message };
+  if (e6) return { data: null, error: toUserMessage(e6, { entityLabel: "タレント分類" }) };
 
   // ── 型変換 ────────────────────────────────────────────────────────────────────
   const talentSkills: TalentSkillForClassification[] = (

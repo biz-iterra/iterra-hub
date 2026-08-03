@@ -1,5 +1,6 @@
 "use server";
 
+import { toUserMessage } from "@/lib/db-error";
 import { revalidatePath } from "next/cache";
 
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -75,7 +76,7 @@ export async function getMembers(): Promise<ActionResult<MemberRow[]>> {
     admin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
   ]);
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "メンバー" }) };
 
   const byId = new Map(authList.data.users.map((u) => [u.id, u]));
 
@@ -160,7 +161,7 @@ export async function createMember(
   if (insertError) {
     // 認証だけ残ると、次に同じメールで追加できなくなる
     await admin.auth.admin.deleteUser(created.user.id);
-    return { data: null, error: insertError.message };
+    return { data: null, error: toUserMessage(insertError, { entityLabel: "メンバー" }) };
   }
 
   revalidatePath("/admin/members");
@@ -223,7 +224,7 @@ export async function updateMember(
     })
     .eq("id", memberId);
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "メンバー" }) };
 
   revalidatePath("/admin/members");
   return { data: null, error: null };
@@ -269,7 +270,7 @@ export async function setMemberActive(
     .update({ is_active: active })
     .eq("id", memberId);
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "メンバー" }) };
 
   // Auth 側も揃える。期限なしの ban と解除
   const { error: authError } = await admin.auth.admin.updateUserById(memberId, {
@@ -279,7 +280,7 @@ export async function setMemberActive(
   if (authError) {
     // CRM 側だけ止まった状態は危ないので戻す
     await admin.from("crm_users").update({ is_active: !active }).eq("id", memberId);
-    return { data: null, error: authError.message };
+    return { data: null, error: toUserMessage(authError, { entityLabel: "メンバー" }) };
   }
 
   revalidatePath("/admin/members");

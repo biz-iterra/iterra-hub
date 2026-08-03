@@ -1,5 +1,6 @@
 "use server";
 
+import { toUserMessage } from "@/lib/db-error";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -95,7 +96,7 @@ export async function getDeals(params?: {
   }
 
   const { data, error, count } = await query;
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "商談" }) };
   return { data: { rows: data ?? [], total: count ?? 0 }, error: null };
 }
 
@@ -188,7 +189,7 @@ export async function getDeal(id: string): Promise<ActionResult<DealDetail>> {
     .order("activity_at", { referencedTable: "deal_activities", ascending: false })
     .single();
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "商談" }) };
   return { data, error: null };
 }
 
@@ -215,7 +216,7 @@ export async function createDeal(
     .select()
     .single();
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "商談" }) };
 
   // deal_stage_histories に初回エントリ
   await supabase.from("deal_stage_histories").insert({
@@ -265,7 +266,7 @@ export async function updateDeal(
     .eq("id", id)
     .single();
 
-  if (fetchError) return { data: null, error: fetchError.message };
+  if (fetchError) return { data: null, error: toUserMessage(fetchError, { entityLabel: "商談" }) };
 
   // expected_updated_at は DB カラムではないため更新値から除外する
   const { expected_updated_at, ...fields } = parsed.data;
@@ -287,7 +288,7 @@ export async function updateDeal(
 
   const { data: deal, error } = await updateQuery.select().maybeSingle();
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "商談" }) };
   if (!deal) {
     return { data: null, error: conflictErrorMessage("この商談") };
   }
@@ -366,7 +367,7 @@ export async function moveDealCard(
       .order("sort_order", { ascending: true })
       .limit(1)
       .maybeSingle();
-    if (statusError) return { data: null, error: statusError.message };
+    if (statusError) return { data: null, error: toUserMessage(statusError, { entityLabel: "商談" }) };
     if (!statusRow) {
       return { data: null, error: "移動先ステージにステータスが未定義です" };
     }
@@ -380,7 +381,7 @@ export async function moveDealCard(
       .eq("id", targetId)
       .is("deleted_at", null)
       .maybeSingle();
-    if (statusError) return { data: null, error: statusError.message };
+    if (statusError) return { data: null, error: toUserMessage(statusError, { entityLabel: "商談" }) };
     if (!statusRow) return { data: null, error: "移動先ステータスが見つかりません" };
     newStatusId = statusRow.id;
     if (statusRow.deal_stage_id) newStageId = statusRow.deal_stage_id;
@@ -396,7 +397,7 @@ export async function moveDealCard(
       .select(DEAL_SELECT)
       .eq("id", dealId)
       .single();
-    if (error) return { data: null, error: error.message };
+    if (error) return { data: null, error: toUserMessage(error, { entityLabel: "商談" }) };
     return { data: deal, error: null };
   }
 
@@ -416,7 +417,7 @@ export async function moveDealCard(
     .select(DEAL_SELECT)
     .maybeSingle();
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "商談" }) };
   if (!deal) return { data: null, error: conflictErrorMessage("この商談") };
 
   if (stageChanged) {
@@ -469,7 +470,7 @@ export async function deleteDeal(id: string): Promise<ActionResult<null>> {
     })
     .eq("id", id);
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "商談", operation: "delete"}) };
   revalidatePath("/deals");
   revalidatePath(`/deals/${id}`);
   revalidatePath("/dashboard");
@@ -492,7 +493,7 @@ export async function addDealService(
     .select()
     .single();
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "商談" }) };
   return { data, error: null };
 }
 
@@ -510,6 +511,6 @@ export async function removeDealService(
     .eq("deal_id", dealId)
     .eq("service_id", serviceId);
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "商談", operation: "delete"}) };
   return { data: null, error: null };
 }

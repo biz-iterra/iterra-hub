@@ -13,6 +13,7 @@
  */
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { toUserMessage } from "@/lib/db-error";
 import { getGmailConfig } from "./config";
 import {
   getMessageMetadata,
@@ -74,7 +75,7 @@ export async function syncConnection(
     .eq("is_active", true)
     .maybeSingle<ConnectionRow>();
 
-  if (connError) return { data: null, error: connError.message };
+  if (connError) return { data: null, error: toUserMessage(connError, { entityLabel: "メール連携" }) };
   if (!conn) return { data: null, error: "連携が見つかりません" };
 
   try {

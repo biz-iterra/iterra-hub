@@ -1,5 +1,6 @@
 "use server";
 
+import { toUserMessage } from "@/lib/db-error";
 import { createClient } from "@/lib/supabase/server";
 import { conflictErrorMessage } from "@/lib/validators/common";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -128,7 +129,7 @@ export async function getLeads(
   }
 
   const { data, error, count } = await query;
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "リード" }) };
 
   // 最終アクティビティ日（called_on）を lead_id 単位で集約して付与
   const items = (data ?? []) as LeadListRow[];
@@ -169,7 +170,7 @@ export async function getLeadById(id: string): Promise<ActionResult<LeadDetail>>
     .is("deleted_at", null)
     .single();
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "リード" }) };
   if (!data) return { data: null, error: "リードが見つかりません" };
 
   // lead_campaigns join 結果から campaign_ids を抽出し、フラットな配列として付与
@@ -592,7 +593,7 @@ export async function deleteLead(
     })
     .eq("id", id);
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "リード", operation: "delete"}) };
   revalidatePath("/leads");
   revalidatePath(`/leads/${id}`);
   return { data: null, error: null };
@@ -618,7 +619,7 @@ export async function restoreLead(id: string): Promise<ActionResult<null>> {
     })
     .eq("id", id);
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "リード" }) };
   return { data: null, error: null };
 }
 
@@ -877,7 +878,7 @@ export async function createLeadCustomerActivity(
     .select("*, activity_type:lead_customer_activity_types(id, code, name)")
     .single();
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "リード" }) };
 
   revalidatePath("/leads");
   revalidatePath(`/leads/${d.lead_id}`);
@@ -933,7 +934,7 @@ export async function updateLeadCustomerActivity(
     .select("*, activity_type:lead_customer_activity_types(id, code, name)")
     .maybeSingle();
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "リード" }) };
   if (!data) {
     return { data: null, error: conflictErrorMessage("この顧客行動") };
   }
@@ -979,7 +980,7 @@ export async function deleteLeadCustomerActivity(
     .delete()
     .eq("id", id);
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "リード", operation: "delete"}) };
 
   revalidatePath("/leads");
   revalidatePath(`/leads/${existing.lead_id}`);
@@ -1022,7 +1023,7 @@ export async function getLeadProgressSummary(
   const { data, error } = await supabase.rpc("lead_progress_summary", {
     p_category_code: categoryCode ?? undefined,
   });
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "リード" }) };
 
   return { data: (data ?? []) as LeadProgressCell[], error: null };
 }
@@ -1063,7 +1064,7 @@ export async function getLeadKanbanCards(
     p_limit: limitPerStage,
     p_category_code: categoryCode ?? undefined,
   });
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "リード" }) };
 
   return { data: (data ?? []) as LeadKanbanCard[], error: null };
 }

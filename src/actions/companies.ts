@@ -1,5 +1,6 @@
 "use server";
 
+import { toUserMessage } from "@/lib/db-error";
 import { revalidatePath } from "next/cache";
 import {
   detectCorporateType,
@@ -132,7 +133,7 @@ export async function getCompanies(params?: {
   }
 
   const { data, error, count } = await query;
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "事業者情報" }) };
   return { data: { rows: data ?? [], total: count ?? 0 }, error: null };
 }
 
@@ -160,7 +161,7 @@ export async function getCompany(id: string): Promise<ActionResult<CompanyDetail
     .is("deleted_at", null)
     .single();
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "事業者情報" }) };
   return { data, error: null };
 }
 
@@ -180,7 +181,7 @@ export async function createCompany(input: Record<string, unknown>): Promise<Act
     .select()
     .single();
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "事業者情報" }) };
   revalidatePath("/companies");
   return { data, error: null };
 }
@@ -227,7 +228,7 @@ export async function updateCompany(id: string, input: Record<string, unknown>):
   }
 
   const { data, error } = await updateQuery.select().maybeSingle();
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "事業者情報" }) };
   if (!data) return { data: null, error: conflictErrorMessage("この事業者情報") };
 
   // 変更履歴記録
@@ -255,7 +256,7 @@ export async function deleteCompany(id: string): Promise<ActionResult<null>> {
     deleted_by: user.id,
     last_updated_by: user.id,
   }).eq("id", id);
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "事業者情報", operation: "delete"}) };
   revalidatePath("/companies");
   revalidatePath(`/companies/${id}`);
   return { data: null, error: null };
@@ -287,7 +288,7 @@ export async function addCompanyDomain(
     p_is_primary: parsed.data.is_primary ?? false,
   });
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "事業者情報" }) };
   return { data: data as Row<"company_domains">, error: null };
 }
 
@@ -305,6 +306,6 @@ export async function deleteCompanyDomain(id: string): Promise<ActionResult<null
 
   // 削除可否は RLS（親 companies の owner / admin）が判定する
   const { error } = await supabase.from("company_domains").delete().eq("id", id);
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "事業者情報", operation: "delete"}) };
   return { data: null, error: null };
 }

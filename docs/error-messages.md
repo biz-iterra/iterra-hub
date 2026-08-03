@@ -95,6 +95,27 @@ DB が `NOT NULL` の参照カラムは、フォームの選択肢に「（未�
 新しいマスタを足したら `src/actions/masters.ts` の `MASTER_LABELS` に和名を追記する。
 和名が無いと主語が「マスタ」になる。
 
+### 適用範囲（2026-08-04 に全面適用）
+
+**Server Action が DB エラーを返す経路はすべて `toUserMessage()` を通す。**
+`error.message` をそのまま返してよい場所は無い。
+
+2026-08-04 以前は `masters.ts` の 4 箇所にしか入っておらず、**31 ファイル 192 箇所**が
+英語の生文言を返していた。本番の名刺取込で
+`取込に失敗しました: canceling statement due to statement timeout` が
+そのまま画面に出て発覚した。
+
+| 対象 | 扱い |
+|---|---|
+| `src/actions/**` の Server Action | **必ず通す**。`entityLabel` に画面上の呼び名を渡す |
+| 削除系（`delete*` / `remove*` / `detach*`） | **`operation: "delete"` も渡す**。外部キー違反の文言が変わる |
+| `src/lib/gmail/sync.ts` など Server Action から呼ばれる関数 | 通す（戻り値が画面に出るため） |
+| `src/app/api/**` の HTTP レスポンス | **通さない**。利用者ではなく連携先が読む。原文の方が原因を追える |
+
+`entityLabel` はファイル単位で決めてある（取引先 / 事業者情報 / 連絡先 / 商談 / 契約 /
+リード / タレント / キャンペーン / プロジェクト / 名刺 / 住所 / 口座情報 / 社内対応 /
+アクティビティ / メール / メンバー / ユーザー / 変更履歴 / 削除済みデータ / マスタ）。
+
 ## 5. Gmail 連携（`describeGmailError()`）
 
 原文は `（{操作名}: {原文}）` の形で末尾に残す。操作名は

@@ -1,5 +1,6 @@
 "use server";
 
+import { toUserMessage } from "@/lib/db-error";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { conflictErrorMessage } from "@/lib/validators/common";
@@ -126,7 +127,7 @@ export async function getContacts(
   }
 
   const { data, error, count } = await query;
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "連絡先" }) };
   return { data: { rows: data ?? [], total: count ?? 0 }, error: null };
 }
 
@@ -155,7 +156,7 @@ export async function getContact(id: string): Promise<ActionResult<ContactDetail
       .eq("contact_id", id),
   ]);
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "連絡先" }) };
 
   // talent_careers.career_type は DB の CHECK 制約で 3 値に限定されているが
   // 生成型では TEXT のままなので、ここで一度だけ絞り込んだ型に寄せる。
@@ -199,7 +200,7 @@ export async function createContact(
     .select()
     .single();
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "連絡先" }) };
   revalidatePath("/contacts");
   return { data, error: null };
 }
@@ -244,7 +245,7 @@ export async function updateContact(
     .select("*")
     .eq("id", id)
     .single();
-  if (fetchErr) return { data: null, error: fetchErr.message };
+  if (fetchErr) return { data: null, error: toUserMessage(fetchErr, { entityLabel: "連絡先" }) };
 
   // expected_updated_at は DB カラムではないため更新値から除外する
   const { expected_updated_at, ...fields } = parsed.data;
@@ -285,7 +286,7 @@ export async function updateContact(
   }
 
   const { data, error } = await updateQuery.select().maybeSingle();
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "連絡先" }) };
   if (!data) return { data: null, error: conflictErrorMessage("この連絡先") };
 
   // 変更履歴は entity_change_logs のトリガーが自動記録する（20260728000002）
@@ -317,7 +318,7 @@ export async function deleteContact(
     })
     .eq("id", id);
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "連絡先", operation: "delete"}) };
   revalidatePath("/contacts");
   revalidatePath(`/contacts/${id}`);
   return { data: null, error: null };

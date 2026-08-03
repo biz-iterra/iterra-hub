@@ -1,5 +1,6 @@
 "use server";
 
+import { toUserMessage } from "@/lib/db-error";
 import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
@@ -58,7 +59,7 @@ export async function getSocialServices(): Promise<ActionResult<SocialService[]>
     .eq("is_active", true)
     .order("sort_order");
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "連絡先" }) };
   return { data: data ?? [], error: null };
 }
 
@@ -79,7 +80,7 @@ export async function getContactSocialAccounts(
     .eq("contact_id", contactId)
     .order("created_at");
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "連絡先" }) };
   return { data: (data ?? []) as ContactSocialAccount[], error: null };
 }
 
@@ -109,7 +110,7 @@ export async function createContactSocialAccount(
     if (error.code === "23505") {
       return { data: null, error: "同じ ID が既に登録されています" };
     }
-    return { data: null, error: error.message };
+    return { data: null, error: toUserMessage(error, { entityLabel: "連絡先" }) };
   }
 
   revalidatePath(`/contacts/${parsed.data.contact_id}`);
@@ -144,7 +145,7 @@ export async function updateContactSocialAccount(
     if (error.code === "23505") {
       return { data: null, error: "同じ ID が既に登録されています" };
     }
-    return { data: null, error: error.message };
+    return { data: null, error: toUserMessage(error, { entityLabel: "連絡先" }) };
   }
   // RLS で弾かれると 0 行になる。エラーにならないので自分で気づく
   if (!data) return { data: null, error: "この連絡先を編集する権限がありません" };
@@ -177,7 +178,7 @@ export async function deleteContactSocialAccount(
     .select("contact_id")
     .maybeSingle();
 
-  if (error) return { data: null, error: error.message };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "連絡先", operation: "delete"}) };
   if (!data) return { data: null, error: "この連絡先を編集する権限がありません" };
 
   revalidatePath(`/contacts/${data.contact_id}`);

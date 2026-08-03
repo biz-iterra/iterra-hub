@@ -35,7 +35,10 @@ ITERRA CRM（顧客関係管理）システム。
 │   ├── lead-import-eight.md # Eight 名刺CSV取込の設計（実装済み: /admin/leads/import）
 │   ├── lead-import-inquiry.md # コーポレートサイトの問い合わせ取込（D1 → /api/leads/inquiry-sync）
 │   ├── operation-manual.md # 操作マニュアル（§13 バックアップと復旧）
-│   ├── test-checklist.md  # テストチェックリスト
+│   ├── test-strategy.md   # テスト戦略（テストレベル定義とデプロイゲートの正本）
+│   ├── test-cases/        # レベル別詳細テストケース（01-unit 〜 09-acceptance）
+│   ├── test-checklist.md  # デプロイゲート実施記録（リリースごとに追記）
+│   ├── team-structure.md  # エージェント体制（engineer/qa/reviewer/designer/operator の 5 ロール）
 │   └── archive/           # 役目を終えたドキュメント（現行仕様の参照には使わない）
 ├── supabase/
 │   ├── config.toml        # ローカルSupabase設定（ポート: 5433x系 / db.seed.sql_paths）
@@ -65,7 +68,7 @@ ITERRA CRM（顧客関係管理）システム。
 │   │   ├── campaigns/     # キャンペーン
 │   │   ├── projects/      # プロジェクト
 │   │   ├── manual/        # 操作マニュアル（静的ページ）
-│   │   └── admin/         # マスタ管理（7グループ・21タブ・CRUD）
+│   │   └── admin/         # マスタ管理（7グループ・23タブ・CRUD）
 │   ├── app/api/health/    # ヘルスチェック（Docker healthcheck / 外形監視用）
 │   ├── actions/           # Server Actions（masters, companies, accounts, contacts, deals, contracts, talents, activities）
 │   ├── components/ui/     # shadcn/ui コンポーネント
@@ -109,7 +112,12 @@ ITERRA CRM（顧客関係管理）システム。
   過去日付で作ると `supabase db push` が out-of-order でスキップし、
   適用に `--include-all` が必要になる（実際に発生済み。`docs/deployment-nas.md § 0.2`）
 
-### 品質チェック
+### 品質チェックとデプロイゲート
+
+テスト方針の正本は `docs/test-strategy.md`。**デプロイは同書 §4 の 5 ゲート
+（コミット前 → CI → リリース前検証 → 受入 → デプロイ後スモーク）を順に通過した場合のみ**行い、
+実施結果を `docs/test-checklist.md` に記録する。実装を変更したら、対応する
+`docs/test-cases/` の文書を同じ作業内で更新すること。
 
 コミット前に以下がすべて通ること。CI（`.github/workflows/ci.yml`）は
 typecheck / test / build / lint の 4 つを必須にしている。

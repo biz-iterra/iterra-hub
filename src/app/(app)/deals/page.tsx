@@ -5,7 +5,6 @@ import { DealsView } from "./deals-view";
 import type {
   DealWithRelations,
   SortedColoredRef,
-  SortedRef,
 } from "@/types/relations";
 
 export default async function DealsPage() {

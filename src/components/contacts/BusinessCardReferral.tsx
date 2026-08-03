@@ -53,10 +53,7 @@ export function BusinessCardReferral({
 
   useEffect(() => {
     if (timer.current) clearTimeout(timer.current);
-    if (keyword.trim().length < 2) {
-      setCandidates([]);
-      return;
-    }
+    if (keyword.trim().length < 2) return;
     timer.current = setTimeout(async () => {
       const { data } = await searchContactsForReferrer(keyword, contactId);
       setCandidates(data ?? []);
@@ -66,6 +63,10 @@ export function BusinessCardReferral({
       if (timer.current) clearTimeout(timer.current);
     };
   }, [keyword, contactId]);
+
+  // 2 文字未満に戻したら候補を出さない。state を effect で消すと
+  // 余分なレンダーを挟むため、表示する側で絞る
+  const shownCandidates = keyword.trim().length < 2 ? [] : candidates;
 
   async function save() {
     setSaving(true);
@@ -171,9 +172,9 @@ export function BusinessCardReferral({
               e.currentTarget.style.boxShadow = "none";
             }}
           />
-          {candidates.length > 0 && (
+          {shownCandidates.length > 0 && (
             <span style={styles.candidates}>
-              {candidates.map((c) => (
+              {shownCandidates.map((c) => (
                 <button
                   key={c.id}
                   type="button"

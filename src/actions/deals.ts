@@ -13,7 +13,6 @@ import type {
   DealWithRelations,
   Paged,
   Row,
-  SortedRef,
   SortedColoredRef,
 } from "@/types/relations";
 import type { z } from "zod";

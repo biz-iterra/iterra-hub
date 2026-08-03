@@ -347,6 +347,52 @@
 - 期待値: 1 つ目はカタカナ主体の文字列（例: `"カブシキガイシャヤマダショウテン"`。辞書依存のため「空でない・ひらがな漢字を含まない」の性質検査でも可）、空値は `""`、辞書ロード失敗時も例外にならず `""`
 - 理由: 17MB 辞書のロードを伴うため厳密には統合テスト寄りだが、「失敗しても空文字で業務を止めない」というエラー方針は単体で固定したい。実行時間が問題になる場合は Vitest の `test.concurrent` 対象から外すか別プロジェクト設定に分離する
 
+### 4.12 `src/lib/validators/masters.ts` — マスタスキーマ（実装済み: `masters.test.ts`）
+
+### UT-57: マスタスキーマの必須・形式・正規化
+- 入力: (a) `leadStatusCreateSchema` に `code` 無し / 空文字 / `No_Prospect`、(b) `stage_id: null`、
+  (c) `color: ""` / `"9E9E9E"` / `"#FFF"`、(d) `sort_order: -1` / `1.5` / 未指定、
+  (e) `leadStatusUpdateSchema` に `{ name }` だけ、(f) `leadStageCreateSchema` /
+  `leadSmallSegmentCreateSchema` / `createAccountStatusSchema` / `createPipelineTypeSchema` に必須欄なし
+- 期待値: (a) すべて失敗し `[code]` 付きの日本語、(b) `[stage_id] リードステージを選択してください`、
+  (c) 空文字は success かつ `color === null`、他は `[color]` の形式エラー、
+  (d) 負数・小数は `[sort_order]` の日本語（英語の `Too small: ...` を返さない）、未指定は `0`、
+  (e) success かつ `sort_order` キーを持たない（部分更新で並び順を 0 に潰さない）、
+  (f) それぞれ `[slug]` / `[large_segment_id]` / `[code]` の必須エラー
+- 理由: DB が NOT NULL のカラムがスキーマから抜けており、`null value in column "code" ...` が
+  そのまま画面に出ていた。上限・形式は DB の CHECK と同値でなければアプリを通過して DB で落ちる
+
+### 4.13 `src/lib/db-error.ts` — DB エラーの日本語化（実装済み: `db-error.test.ts`）
+
+### UT-58: toUserMessage の SQLSTATE 別変換
+- 入力: `23502` / `23505`（単一キー・複合キー）/ `23503`（delete と create）/ `23514`
+  （`_code_format` / `_color_format` / `_sort_order_check` / 未知の制約）/ `22001` / `42501` /
+  `PGRST116` / SQLSTATE 無しの日本語文言 / 判定できない英語 / `null`
+- 期待値: 各行が `docs/error-messages.md` §4 の表どおりの文言になる。
+  日本語（DB 関数の `RAISE EXCEPTION`）はそのまま通り、未知の英語は
+  `処理に失敗しました（{原文}）` になる
+- 理由: Postgres の生エラーが利用者に出ていた。文言の追加時にこのテストが表の写経になる
+
+### 4.14 `src/lib/gmail/` — Gmail クライアントと同期（実装済み: `client.test.ts` / `sync.test.ts`）
+
+### UT-59: Gmail API エラーの日本語化
+- 入力: `getMessageMetadata` が 401 / 403（rate limit・権限不足）/ 404 / 503 を受けた場合、
+  `listAddedMessageIds` が 404 / 500 を受けた場合
+- 期待値: いずれも日本語かつ対処が書かれた文言で、末尾に `（{操作名}: {原文}）` が付く。
+  `listAddedMessageIds` の 404 は例外ではなく `{ ids: [], historyId: null, expired: true }`、
+  500 は投げ直す
+- 理由: `Gmail API: Requested entity was not found.` が画面に出ていた。
+  履歴失効（正常系）と本当の異常を取り違えない
+
+### UT-60: 同期は 1 通の欠落で止まらない
+- 入力: 差分履歴が返した ID のうち 1 件が `messages.get` で 404、残りは正常。
+  および 500 が返る場合、履歴が失効した場合、初回同期の場合
+- 期待値: 404 は `missing` に数えて続行し `error` は null。500 は同期全体を失敗させ
+  `last_error` に日本語が残る。履歴失効・初回はいずれも `getProfile` の `historyId` を
+  `last_history_id` に控える
+- 理由: 削除済みメールが 1 通あるだけで同期全体が毎回失敗していた。
+  historyId を控えないと、失効のたびに直近分の走査へ落ちて差分同期に戻れない
+
 ## 5. テスト追加の優先順位
 
 ### P1（先に着手。データ破壊・業務ルールの穴を直接塞ぐ）

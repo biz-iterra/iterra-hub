@@ -888,6 +888,43 @@ INSERT INTO companies (name, owner_user_id) VALUES
 
 ---
 
+### IT-PERF-01: 一括処理の関数に実行時間の制限が設定されている（2026-08-04 追加）
+
+- 対象: マイグレーション `20260804000001`
+- 背景: **PostgREST は `authenticator` ロールで接続してから `SET ROLE service_role` する。**
+  そのため service_role で呼んでも `authenticator` の `statement_timeout = 8s` が効き、
+  RLS 回避のために `createAdminClient()` へ切り替えても 8 秒の壁は消えない。
+  本番の名刺取込が `canceling statement due to statement timeout` で失敗した（2026-08-04）
+- 手順・期待:
+
+```sql
+-- 1. ロール側の設定は変えていないこと（通常のクエリは 8 秒で止まってほしい）
+SELECT rolname, rolconfig FROM pg_roles
+ WHERE rolname IN ('authenticated','anon','service_role','authenticator');
+--   authenticated = 8s / anon = 3s / authenticator = 8s のまま
+
+-- 2. 一括処理の関数にだけ制限が入っていること
+SELECT proname, array_to_string(proconfig, ', ')
+  FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+ WHERE n.nspname = 'public'
+   AND array_to_string(proconfig, ',') LIKE '%statement_timeout%'
+ ORDER BY 1;
+--   detect_all_contact_merge_candidates  600s
+--   import_eight_leads                   240s
+--   import_inquiry_leads                 120s
+--   recalculate_all_lead_scores          600s
+--   recalculate_lead_scores_for_batch    120s
+```
+
+- **`search_path` が消えていないこと**もあわせて見る（`ALTER FUNCTION ... SET` は
+  既存の設定に追加する形だが、書き方を誤ると失われる）
+- 注意: Supabase の HTTP 層（Kong / PostgREST）には別のタイムアウトがあり、
+  ここでの引き上げは「8 秒の壁」を外すもの。1 リクエストが極端に長くなる規模には
+  取込側の分割が要る
+- 自動化区分: SQL 検証
+
+---
+
 ## 6. 整合性チェッククエリ集
 
 `db reset` 直後・大量取込後・本番デプロイ後に流す。**すべて 0 行が正常**（Q11 を除く）。

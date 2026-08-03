@@ -10,6 +10,11 @@
  *   npx tsx scripts/backfill-company-kana.mts           … 空欄を埋める
  *   npx tsx scripts/backfill-company-kana.mts --rebuild … 法人格が入ってしまった分も作り直す
  *   npx tsx scripts/backfill-company-kana.mts --dry-run … 内容だけ見る
+ *
+ * 接続先は既定で `.env.local`（ローカル Supabase）。本番へ流すときは
+ * `--env <ファイル>` で切り替える。`.env.local` を本番の値に書き換えると、
+ * 戻し忘れたときに以降の開発作業がすべて本番を触ることになるため。
+ *   npx tsx scripts/backfill-company-kana.mts --env .env.production.local --dry-run
  */
 import { readFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
@@ -26,12 +31,25 @@ const rebuild = process.argv.includes("--rebuild");
 const KANA_CORPORATE_FORMS =
   /カブシキ[ガカ]イシャ|ユウゲン[ガカ]イシャ|ゴウドウ[ガカ]イシャ|ゴウシ[ガカ]イシャ|ゴウメイ[ガカ]イシャ|ホウジン|キョウドウクミアイ/;
 
+const envArg = process.argv.indexOf("--env");
+const envFile = envArg >= 0 ? process.argv[envArg + 1] : ".env.local";
+if (envArg >= 0 && !envFile) {
+  throw new Error("--env にはファイル名が要る（例: --env .env.production.local）");
+}
+
 const env: Record<string, string> = {};
 // CRLF のファイルを "\n" で割ると行末の \r が残るため \r?\n で分割する
-for (const line of readFileSync(".env.local", "utf8").split(/\r?\n/)) {
+for (const line of readFileSync(envFile, "utf8").split(/\r?\n/)) {
   const m = line.match(/^([A-Z_]+)=(.*)$/);
   if (m) env[m[1]] = m[2].trim();
 }
+for (const k of ["NEXT_PUBLIC_SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"]) {
+  if (!env[k]) throw new Error(`${envFile} に ${k} が無い`);
+}
+
+// どこへ書くのかを毎回出す。URL は公開値なので表示してよい
+console.log(`接続先 ${new URL(env.NEXT_PUBLIC_SUPABASE_URL).host}（${envFile}）`);
+
 const db = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
 
 // PostgREST は 1 回に 1000 行しか返さない。ページを送って全件を集める

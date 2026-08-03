@@ -196,7 +196,8 @@ lock を触ったら push 前に `npm ci` がローカルで通ることを確�
 - **deals/leads:** member は `owner_user_id = auth.uid()`（leads は副担当 `lead_owners` を含む）のみ、manager/admin は全件。
   営業の担当分離が意味を持つため、こちらは広げていない
 - **contracts:** manager/admin のみ全操作
-- **従属テーブル（contact_emails 等）:** 親テーブルの `owner_user_id` を参照して制限
+- **従属テーブル（contact_emails 等）:** **書き込み**は親テーブルの `owner_user_id` を参照して制限。
+  参照は上記のとおり全員可（`talent_skills` / `talent_careers` / `deal_services` は参照も親準拠のまま）
 - **financial_info:** SELECT は manager/admin のみ、CUD は admin のみ
 - **履歴テーブル:** INSERT ONLY を原則とする（UPDATE/DELETE 不可）。ただし `lead_activities` は例外で、`caller_user_id` 本人と manager/admin による UPDATE を許可（`last_edited_at` / `last_edited_by_user_id` で監査証跡を保全。マイグレーション: 20260426000001）。admin のみ DELETE 可能（誤記録修正用）
 

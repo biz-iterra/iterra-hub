@@ -864,7 +864,10 @@ INSERT INTO companies (name, owner_user_id) VALUES
   anon には `public` スキーマのテーブル GRANT を与えていないため、RLS 以前に権限で弾かれる（§1 冒頭）。
   ポリシーが `TO authenticated` であることに加えた二重の防御になっている
 
-### IT-RLS-21: 述語の InitPlan 化で可視範囲が変わらない
+### IT-RLS-22: 述語の InitPlan 化で可視範囲が変わらない
+
+（`feat/list-ux` 側では IT-RLS-21 として起票されていたが、
+`v_leads_with_category` の検証と番号が衝突したため 22 に振り直した。2026-08-04）
 
 - 対象: マイグレーション `20260803000021`（`auth.uid()` / `is_admin()` /
   `is_manager_or_above()` をスカラーサブクエリで包む変更）

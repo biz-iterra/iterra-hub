@@ -81,6 +81,15 @@ let filled = 0;
 let skipped = 0;
 const samples: string[] = [];
 
+// 据え置いた理由の内訳。0 件で終わったときに原因を追えるようにする
+const skipReasons = { 人が入れた値: 0, 読みが引けない: 0, 既存と同じ: 0, 表記と同じ: 0 };
+const skipSamples: string[] = [];
+function skip(reason: keyof typeof skipReasons, detail: string) {
+  skipped += 1;
+  skipReasons[reason] += 1;
+  if (skipSamples.length < 10) skipSamples.push(`[${reason}] ${detail}`);
+}
+
 // 更新は 1 行ずつ投げる。upsert だと指定しなかった列が既定値で
 // 上書きされてしまうため使えない。件数が多いので少しずつ並行させる
 const CONCURRENCY = 20;
@@ -89,7 +98,7 @@ const pending: { id: string; reading: string }[] = [];
 for (const c of targets) {
   // 既に人が入れたフリガナ（法人格を含まないもの）は触らない
   if (c.name_kana && !KANA_CORPORATE_FORMS.test(c.name_kana)) {
-    skipped += 1;
+    skip("人が入れた値", `${c.name}（${c.name_kana}）`);
     continue;
   }
 
@@ -97,15 +106,19 @@ for (const c of targets) {
   const base = stripCorporateType(c.name);
   const reading = await toKatakanaReading(base);
 
-  if (!reading || reading === c.name_kana) {
-    skipped += 1;
+  if (!reading) {
+    skip("読みが引けない", `${c.name} → 表記「${base}」から読みを作れない`);
+    continue;
+  }
+  if (reading === c.name_kana) {
+    skip("既存と同じ", `${c.name} → ${reading}`);
     continue;
   }
 
   // 空欄に入れる場合だけ、表記と同じ結果しか出ないものを見送る
   // （手掛かりにならないため）。既に入っているものは法人格を落とすだけでも意味がある
   if (!c.name_kana && reading === base) {
-    skipped += 1;
+    skip("表記と同じ", `${c.name} → ${reading}`);
     continue;
   }
 
@@ -131,7 +144,19 @@ if (!dryRun) {
   }
 }
 
-console.log(`\n例:\n${samples.map((s) => `  ${s}`).join("\n")}`);
+if (samples.length > 0) {
+  console.log(`\n例:\n${samples.map((s) => `  ${s}`).join("\n")}`);
+}
+
+if (skipped > 0) {
+  const breakdown = Object.entries(skipReasons)
+    .filter(([, n]) => n > 0)
+    .map(([k, n]) => `${k} ${n}`)
+    .join(" / ");
+  console.log(`\n据え置きの内訳: ${breakdown}`);
+  console.log(skipSamples.map((s) => `  ${s}`).join("\n"));
+}
+
 console.log(
   `\n${dryRun ? "入る予定" : "入れた"} ${filled} 件 / 変換できず据え置き ${skipped} 件 / ${Date.now() - t0}ms`
 );

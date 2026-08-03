@@ -552,7 +552,6 @@ export function TalentEditForm({
     }
     showToast({ type: "success", message: "保存しました" });
     router.push(`/talents/${talent.id}`);
-    router.refresh();
   };
 
   const handleDelete = async () => {
@@ -562,7 +561,6 @@ export function TalentEditForm({
     }
     showToast({ type: "success", message: "タレントを削除しました" });
     router.push("/talents");
-    router.refresh();
     return { error: null };
   };
 

@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import {
   createDealSchema,
@@ -229,6 +230,8 @@ export async function createDeal(
     changed_by: user.id,
   });
 
+  revalidatePath("/deals");
+  revalidatePath("/dashboard");
   return { data: deal, error: null };
 }
 
@@ -308,6 +311,9 @@ export async function updateDeal(
   // 全フィールド変更履歴
   // 変更履歴は entity_change_logs のトリガーが自動記録する（20260728000002）
 
+  revalidatePath("/deals");
+  revalidatePath(`/deals/${id}`);
+  revalidatePath("/dashboard");
   return { data: deal, error: null };
 }
 
@@ -427,6 +433,8 @@ export async function moveDealCard(
     });
   }
 
+  revalidatePath("/deals");
+  revalidatePath("/dashboard");
   return { data: deal, error: null };
 }
 
@@ -457,6 +465,9 @@ export async function deleteDeal(id: string): Promise<ActionResult<null>> {
     .eq("id", id);
 
   if (error) return { data: null, error: error.message };
+  revalidatePath("/deals");
+  revalidatePath(`/deals/${id}`);
+  revalidatePath("/dashboard");
   return { data: null, error: null };
 }
 

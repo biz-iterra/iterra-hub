@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { conflictErrorMessage } from "@/lib/validators/common";
 import {
@@ -174,6 +175,7 @@ export async function createTalent(
     .single();
 
   if (error) return { data: null, error: error.message };
+  revalidatePath("/talents");
   return { data, error: null };
 }
 
@@ -222,6 +224,8 @@ export async function updateTalent(
 
   // 変更履歴は entity_change_logs のトリガーが自動記録する（20260728000002）
 
+  revalidatePath("/talents");
+  revalidatePath(`/talents/${id}`);
   return { data, error: null };
 }
 
@@ -241,6 +245,8 @@ export async function deleteTalent(id: string): Promise<ActionResult<null>> {
     .eq("id", id);
 
   if (error) return { data: null, error: error.message };
+  revalidatePath("/talents");
+  revalidatePath(`/talents/${id}`);
   return { data: null, error: null };
 }
 

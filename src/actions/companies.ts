@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import {
   detectCorporateType,
   formatCompanyName,
@@ -175,6 +176,7 @@ export async function createCompany(input: Record<string, unknown>): Promise<Act
     .single();
 
   if (error) return { data: null, error: error.message };
+  revalidatePath("/companies");
   return { data, error: null };
 }
 
@@ -228,6 +230,8 @@ export async function updateCompany(id: string, input: Record<string, unknown>):
     // 変更履歴は entity_change_logs のトリガーが自動記録する（20260728000002）
   }
 
+  revalidatePath("/companies");
+  revalidatePath(`/companies/${id}`);
   return { data, error: null };
 }
 
@@ -247,6 +251,8 @@ export async function deleteCompany(id: string): Promise<ActionResult<null>> {
     last_updated_by: user.id,
   }).eq("id", id);
   if (error) return { data: null, error: error.message };
+  revalidatePath("/companies");
+  revalidatePath(`/companies/${id}`);
   return { data: null, error: null };
 }
 

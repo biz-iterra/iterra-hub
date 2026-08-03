@@ -202,7 +202,6 @@ export function AccountEditForm({
     }
     showToast({ type: "success", message: "保存しました" });
     router.push(`/accounts/${account.id}`);
-    router.refresh();
   };
 
   const handleDelete = async () => {
@@ -212,7 +211,6 @@ export function AccountEditForm({
     }
     showToast({ type: "success", message: "取引先を削除しました" });
     router.push("/accounts");
-    router.refresh();
     return { error: null };
   };
 

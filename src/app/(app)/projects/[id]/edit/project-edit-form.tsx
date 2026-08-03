@@ -175,7 +175,6 @@ export function ProjectEditForm({
     }
     showToast({ type: "success", message: "保存しました" });
     router.push(`/projects/${project.id}`);
-    router.refresh();
   };
 
   const handleDelete = async () => {
@@ -185,7 +184,6 @@ export function ProjectEditForm({
     }
     showToast({ type: "success", message: "プロジェクトを削除しました" });
     router.push("/projects");
-    router.refresh();
     return { error: null };
   };
 

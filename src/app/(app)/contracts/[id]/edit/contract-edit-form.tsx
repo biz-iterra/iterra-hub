@@ -243,8 +243,9 @@ export function ContractEditForm({
       return;
     }
     showToast({ type: "success", message: "保存しました" });
+    // router.refresh() は呼ばない（push が中断され遷移しなくなる）。
+    // キャッシュ更新は Server Action 側の revalidatePath に任せる
     router.push(`/contracts/${contract.id}`);
-    router.refresh();
   };
 
   const handleDelete = async () => {
@@ -254,7 +255,6 @@ export function ContractEditForm({
     }
     showToast({ type: "success", message: "契約を削除しました" });
     router.push("/contracts");
-    router.refresh();
     return { error: null };
   };
 

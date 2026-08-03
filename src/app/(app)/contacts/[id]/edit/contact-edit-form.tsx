@@ -282,8 +282,9 @@ export function ContactEditForm({
       return { error: result.error };
     }
     showToast({ type: "success", message: "連絡先を削除しました" });
+    // router.refresh() は呼ばない（push が中断され遷移しなくなる）。
+    // キャッシュ更新は Server Action 側の revalidatePath に任せる
     router.push("/contacts");
-    router.refresh();
     return { error: null };
   };
 

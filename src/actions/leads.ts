@@ -301,6 +301,7 @@ export async function createLead(
   const adminClient = createAdminClient();
   await recalculateLeadScore(adminClient, lead.id);
 
+  revalidatePath("/leads");
   return { ok: true, lead, ...(warnings.length > 0 ? { warnings } : {}) };
 }
 
@@ -535,10 +536,18 @@ export async function updateLead(
       .eq("id", id)
       .maybeSingle();
     if (afterPromote) {
+      // 昇格では Company / Contact / Deal も作られるので、それらの一覧も再検証する
+      revalidatePath("/leads");
+      revalidatePath(`/leads/${id}`);
+      revalidatePath("/deals");
+      revalidatePath("/companies");
+      revalidatePath("/contacts");
       return { ok: true, lead: afterPromote, ...(warnings.length > 0 ? { warnings } : {}) };
     }
   }
 
+  revalidatePath("/leads");
+  revalidatePath(`/leads/${id}`);
   return { ok: true, lead: updated, ...(warnings.length > 0 ? { warnings } : {}) };
 }
 
@@ -579,6 +588,8 @@ export async function deleteLead(
     .eq("id", id);
 
   if (error) return { data: null, error: error.message };
+  revalidatePath("/leads");
+  revalidatePath(`/leads/${id}`);
   return { data: null, error: null };
 }
 

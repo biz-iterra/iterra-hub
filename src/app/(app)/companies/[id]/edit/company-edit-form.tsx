@@ -256,7 +256,6 @@ export function CompanyEditForm({
     }
     showToast({ type: "success", message: "保存しました" });
     router.push(`/companies/${company.id}`);
-    router.refresh();
   };
 
   const handleDelete = async () => {
@@ -266,7 +265,6 @@ export function CompanyEditForm({
     }
     showToast({ type: "success", message: "事業者情報を削除しました" });
     router.push("/companies");
-    router.refresh();
     return { error: null };
   };
 

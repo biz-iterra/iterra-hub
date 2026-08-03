@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { conflictErrorMessage } from "@/lib/validators/common";
 import {
@@ -115,6 +116,7 @@ export async function createCampaign(
     .single();
 
   if (error) return { data: null, error: error.message };
+  revalidatePath("/campaigns");
   return { data, error: null };
 }
 
@@ -154,6 +156,8 @@ export async function updateCampaign(
   if (!data) {
     return { data: null, error: conflictErrorMessage("このキャンペーン") };
   }
+  revalidatePath("/campaigns");
+  revalidatePath(`/campaigns/${id}`);
   return { data, error: null };
 }
 
@@ -181,6 +185,8 @@ export async function deleteCampaign(
     .eq("id", id);
 
   if (error) return { data: null, error: error.message };
+  revalidatePath("/campaigns");
+  revalidatePath(`/campaigns/${id}`);
   return { data: null, error: null };
 }
 

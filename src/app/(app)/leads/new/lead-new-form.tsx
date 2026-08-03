@@ -291,7 +291,6 @@ export function LeadNewForm({
     } else {
       router.push("/leads");
     }
-    router.refresh();
   };
 
   return (

@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { buildIlikePattern } from "@/lib/search-query";
 import { createClient } from "@/lib/supabase/server";
 import { conflictErrorMessage } from "@/lib/validators/common";
@@ -132,6 +133,7 @@ export async function createAccount(
     .single();
 
   if (error) return { data: null, error: error.message };
+  revalidatePath("/accounts");
   return { data, error: null };
 }
 
@@ -192,6 +194,8 @@ export async function updateAccount(
 
   // 変更履歴は entity_change_logs のトリガーが自動記録する（20260728000002）
 
+  revalidatePath("/accounts");
+  revalidatePath(`/accounts/${id}`);
   return { data, error: null };
 }
 
@@ -230,6 +234,8 @@ export async function deleteAccount(
     .eq("id", id);
 
   if (error) return { data: null, error: error.message };
+  revalidatePath("/accounts");
+  revalidatePath(`/accounts/${id}`);
   return { data: null, error: null };
 }
 

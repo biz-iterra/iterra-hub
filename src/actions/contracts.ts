@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { conflictErrorMessage } from "@/lib/validators/common";
 import {
@@ -129,6 +130,11 @@ export async function createContract(
     .single();
 
   if (error) return { data: null, error: error.message };
+  // 契約成立の AFTER INSERT トリガーが取引先を作り商談に紐付けるので、そちらも再検証する
+  revalidatePath("/contracts");
+  revalidatePath("/accounts");
+  revalidatePath("/deals");
+  if (data?.deal_id) revalidatePath(`/deals/${data.deal_id}`);
   return { data, error: null };
 }
 
@@ -162,6 +168,8 @@ export async function updateContract(
 
   if (error) return { data: null, error: error.message };
   if (!data) return { data: null, error: conflictErrorMessage("この契約") };
+  revalidatePath("/contracts");
+  revalidatePath(`/contracts/${id}`);
   return { data, error: null };
 }
 
@@ -183,5 +191,7 @@ export async function deleteContract(id: string): Promise<ActionResult<null>> {
     .eq("id", id);
 
   if (error) return { data: null, error: error.message };
+  revalidatePath("/contracts");
+  revalidatePath(`/contracts/${id}`);
   return { data: null, error: null };
 }

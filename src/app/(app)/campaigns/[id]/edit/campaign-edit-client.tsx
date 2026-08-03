@@ -156,7 +156,6 @@ export function CampaignEditClient({
     if (result.error) return { error: result.error };
     showToast({ type: "success", message: "キャンペーンを削除しました" });
     router.push("/campaigns");
-    router.refresh();
     return { error: null };
   };
 

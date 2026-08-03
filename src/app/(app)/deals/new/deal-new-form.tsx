@@ -246,13 +246,15 @@ export function DealNewForm({ masters }: { masters: Masters }) {
       return;
     }
     showToast({ type: "success", message: "商談を作成しました" });
+    // router.push の直後に router.refresh() を呼ぶと、進行中のナビゲーションが
+    // 現在ルートの再フェッチに差し替わって遷移が起きない。キャッシュの更新は
+    // Server Action 側の revalidatePath に任せる（2026-08-03 修正）
     const newId = (result.data as { id?: string } | null)?.id;
     if (newId) {
       router.push(`/deals/${newId}`);
     } else {
       router.push("/deals");
     }
-    router.refresh();
   };
 
   return (

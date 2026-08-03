@@ -224,7 +224,6 @@ export function CompanyNewForm({ masters }: { masters: Masters }) {
     } else {
       router.push("/companies");
     }
-    router.refresh();
   };
 
   return (

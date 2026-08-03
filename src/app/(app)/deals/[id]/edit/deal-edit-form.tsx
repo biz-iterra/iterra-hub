@@ -181,8 +181,9 @@ export function DealEditForm({
       return { error: result.error };
     }
     showToast({ type: "success", message: "商談を削除しました" });
+    // router.refresh() は呼ばない（push が中断され遷移しなくなる）。
+    // キャッシュ更新は Server Action 側の revalidatePath に任せる
     router.push("/deals");
-    router.refresh();
     return { error: null };
   };
 
@@ -267,7 +268,6 @@ export function DealEditForm({
     }
     showToast({ type: "success", message: "保存しました" });
     router.push(`/deals/${deal.id}`);
-    router.refresh();
   };
 
   return (

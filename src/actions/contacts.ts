@@ -195,6 +195,7 @@ export async function createContact(
     .single();
 
   if (error) return { data: null, error: error.message };
+  revalidatePath("/contacts");
   return { data, error: null };
 }
 
@@ -312,5 +313,7 @@ export async function deleteContact(
     .eq("id", id);
 
   if (error) return { data: null, error: error.message };
+  revalidatePath("/contacts");
+  revalidatePath(`/contacts/${id}`);
   return { data: null, error: null };
 }

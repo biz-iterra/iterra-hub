@@ -36,6 +36,7 @@ import {
 } from "@/actions/masters";
 import type { LeadScoreRuleWithRefCheck, Row } from "@/types/relations";
 import { tableScrollClass } from "@/lib/layout";
+import { RequiredMark } from "@/components/ui/RequiredMark";
 import { parseFieldError } from "@/lib/errors";
 
 /** スコアリング管理タブで扱うマスタ行 */
@@ -47,6 +48,14 @@ type LeadScoreThreshold = Row<"lead_score_thresholds">;
 type FieldDef = {
   key: string;
   label: string;
+  /**
+   * 入力必須。ラベルに `*` を出す。
+   *
+   * 正本は `src/lib/validators/masters.ts` の create スキーマ。
+   * 片方だけ直すと「* が無いのに保存できない欄」ができるので、
+   * スキーマを変えたらここも同じ作業内で合わせる。
+   */
+  required?: boolean;
   type?: "text" | "textarea" | "number" | "select";
   options?: { value: string; label: string }[];
   colorSwatch?: boolean;
@@ -363,6 +372,7 @@ function FormModal({
             <div key={field.key}>
               <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 600, color: "var(--color-sumi700)", marginBottom: "0.25rem" }}>
                 {field.label}
+                {field.required && <RequiredMark />}
               </label>
               {field.helpText && (
                 <p style={{ fontSize: "0.75rem", color: "var(--color-sumi500)", marginTop: 0, marginBottom: "0.375rem" }}>
@@ -785,8 +795,8 @@ function PipelineTab() {
   }, [selectedPipeline, loadStages, loadStatuses]);
 
   const pipelineFields: FieldDef[] = [
-    { key: "slug", label: "スラッグ (例: sales)", type: "text", helpText: CODE_HELP_TEXT },
-    { key: "name", label: "名前", type: "text" },
+    { key: "slug", label: "スラッグ (例: sales)", required: true, type: "text", helpText: CODE_HELP_TEXT },
+    { key: "name", label: "名前", required: true, type: "text" },
     { key: "definition", label: "定義", type: "textarea" },
     {
       key: "default_close_months",
@@ -804,7 +814,7 @@ function PipelineTab() {
   ];
 
   const stageFields: FieldDef[] = [
-    { key: "name", label: "名前", type: "text" },
+    { key: "name", label: "名前", required: true, type: "text" },
     { key: "definition", label: "定義", type: "textarea" },
     { key: "current_situation", label: "現在の状況", type: "textarea" },
     { key: "sort_order", label: "表示順", type: "number", min: 0 },
@@ -813,7 +823,7 @@ function PipelineTab() {
 
   const stageOptions = stages.map((s) => ({ value: s.id, label: s.name }));
   const statusFields: FieldDef[] = [
-    { key: "name", label: "名前", type: "text" },
+    { key: "name", label: "名前", required: true, type: "text" },
     { key: "definition", label: "定義", type: "textarea" },
     { key: "deal_stage_id", label: "商談ステージ", type: "select", options: stageOptions },
     { key: "sort_order", label: "表示順", type: "number", min: 0 },
@@ -920,13 +930,13 @@ function SkillsTab() {
   }, [selectedCategory, loadSkills]);
 
   const categoryFields: FieldDef[] = [
-    { key: "name", label: "名前", type: "text" },
+    { key: "name", label: "名前", required: true, type: "text" },
     { key: "definition", label: "定義", type: "textarea" },
     { key: "sort_order", label: "表示順", type: "number", min: 0 },
   ];
 
   const skillFields: FieldDef[] = [
-    { key: "name", label: "名前", type: "text" },
+    { key: "name", label: "名前", required: true, type: "text" },
     { key: "definition", label: "定義", type: "textarea" },
     { key: "sort_order", label: "表示順", type: "number", min: 0 },
   ];
@@ -1011,8 +1021,8 @@ function LeadStagesTab() {
   }, [selectedStage, loadStatuses]);
 
   const stageFields: FieldDef[] = [
-    { key: "slug", label: "スラッグ (例: nurturing)", type: "text", helpText: CODE_HELP_TEXT },
-    { key: "name", label: "名前", type: "text" },
+    { key: "slug", label: "スラッグ (例: nurturing)", required: true, type: "text", helpText: CODE_HELP_TEXT },
+    { key: "name", label: "名前", required: true, type: "text" },
     { key: "definition", label: "定義", type: "textarea" },
     { key: "sort_order", label: "表示順", type: "number", min: 0 },
     { key: "color", label: "バッジ色 (#RRGGBB)", type: "text", colorSwatch: true, helpText: COLOR_HELP_TEXT },
@@ -1021,9 +1031,9 @@ function LeadStagesTab() {
   // ステータスはステージに従属する（DB は stage_id NOT NULL）。未分類は作れない
   const stageOptions = stages.map((s) => ({ value: s.id, label: s.name }));
   const statusFields: FieldDef[] = [
-    { key: "stage_id", label: "リードステージ", type: "select", options: stageOptions },
-    { key: "code", label: "コード (例: no_prospect)", type: "text", helpText: CODE_HELP_TEXT },
-    { key: "name", label: "名前", type: "text" },
+    { key: "stage_id", label: "リードステージ", required: true, type: "select", options: stageOptions },
+    { key: "code", label: "コード (例: no_prospect)", required: true, type: "text", helpText: CODE_HELP_TEXT },
+    { key: "name", label: "名前", required: true, type: "text" },
     { key: "definition", label: "定義", type: "textarea" },
     { key: "sort_order", label: "表示順", type: "number", min: 0 },
     { key: "color", label: "バッジ色 (#RRGGBB)", type: "text", colorSwatch: true, helpText: COLOR_HELP_TEXT },
@@ -1105,17 +1115,17 @@ function LeadSegmentsTab() {
   }, [selectedLarge, loadSmall]);
 
   const largeFields: FieldDef[] = [
-    { key: "code", label: "コード (例: manufacturing)", type: "text", helpText: CODE_HELP_TEXT },
-    { key: "name", label: "名前", type: "text" },
+    { key: "code", label: "コード (例: manufacturing)", required: true, type: "text", helpText: CODE_HELP_TEXT },
+    { key: "name", label: "名前", required: true, type: "text" },
     { key: "definition", label: "定義", type: "textarea" },
   ];
 
   // 小セグメントは大セグメントに従属する（DB は large_segment_id NOT NULL）
   const largeOptions = largeSegments.map((s) => ({ value: s.id, label: s.name }));
   const smallFields: FieldDef[] = [
-    { key: "large_segment_id", label: "大セグメント", type: "select", options: largeOptions },
-    { key: "code", label: "コード (例: food_manufacturing)", type: "text", helpText: CODE_HELP_TEXT },
-    { key: "name", label: "名前", type: "text" },
+    { key: "large_segment_id", label: "大セグメント", required: true, type: "select", options: largeOptions },
+    { key: "code", label: "コード (例: food_manufacturing)", required: true, type: "text", helpText: CODE_HELP_TEXT },
+    { key: "name", label: "名前", required: true, type: "text" },
     { key: "definition", label: "定義", type: "textarea" },
   ];
 
@@ -1221,10 +1231,10 @@ function LeadScoreRulesTab({ scoreMasters }: { scoreMasters?: ScoreRuleMasters }
   useEffect(() => { loadRules(); }, [loadRules]);
 
   const formFields: FieldDef[] = [
-    { key: "category", label: "カテゴリ", type: "select", options: CATEGORY_OPTIONS },
-    { key: "condition_type", label: "条件タイプ", type: "select", options: CONDITION_TYPE_OPTIONS },
+    { key: "category", label: "カテゴリ", required: true, type: "select", options: CATEGORY_OPTIONS },
+    { key: "condition_type", label: "条件タイプ", required: true, type: "select", options: CONDITION_TYPE_OPTIONS },
     { key: "condition_value_id", label: "条件値ID（UUID）", type: "text" },
-    { key: "score_delta", label: "加点値（0-100）", type: "number", min: 0 },
+    { key: "score_delta", label: "加点値（0-100）", required: true, type: "number", min: 0 },
     { key: "description", label: "説明", type: "textarea" },
     { key: "sort_order", label: "表示順", type: "number", min: 0 },
   ];
@@ -1897,7 +1907,7 @@ export function AdminView() {
             onDelete={deleteContractType}
             onRefresh={refreshContractTypes}
             fields={[
-              { key: "name", label: "名前", type: "text" },
+              { key: "name", label: "名前", required: true, type: "text" },
               { key: "definition", label: "定義", type: "textarea" },
             ]}
           />
@@ -1912,7 +1922,7 @@ export function AdminView() {
             onDelete={deleteCorporateType}
             onRefresh={refreshCorporateTypes}
             fields={[
-              { key: "name", label: "名前", type: "text" },
+              { key: "name", label: "名前", required: true, type: "text" },
               { key: "definition", label: "定義", type: "textarea" },
             ]}
           />
@@ -1927,7 +1937,7 @@ export function AdminView() {
             onDelete={deleteCompanyStatus}
             onRefresh={refreshCompanyStatuses}
             fields={[
-              { key: "name", label: "名前", type: "text" },
+              { key: "name", label: "名前", required: true, type: "text" },
               { key: "definition", label: "定義", type: "textarea" },
               { key: "color", label: "バッジ色 (#RRGGBB)", type: "text", colorSwatch: true, helpText: COLOR_HELP_TEXT },
             ]}
@@ -1943,7 +1953,7 @@ export function AdminView() {
             onDelete={deleteService}
             onRefresh={refreshServices}
             fields={[
-              { key: "name", label: "名前", type: "text" },
+              { key: "name", label: "名前", required: true, type: "text" },
               { key: "definition", label: "定義", type: "textarea" },
             ]}
           />
@@ -1958,8 +1968,8 @@ export function AdminView() {
             onDelete={deleteLeadSource}
             onRefresh={refreshLeadSources}
             fields={[
-              { key: "slug", label: "スラッグ (例: eight)", type: "text", helpText: CODE_HELP_TEXT },
-              { key: "name", label: "名前", type: "text" },
+              { key: "slug", label: "スラッグ (例: eight)", required: true, type: "text", helpText: CODE_HELP_TEXT },
+              { key: "name", label: "名前", required: true, type: "text" },
               { key: "definition", label: "定義", type: "textarea" },
             ]}
           />
@@ -1974,8 +1984,8 @@ export function AdminView() {
             onDelete={deleteLeadCategory}
             onRefresh={refreshLeadCategories}
             fields={[
-              { key: "code", label: "コード (例: inquiry)", type: "text" },
-              { key: "name", label: "名前", type: "text" },
+              { key: "code", label: "コード (例: inquiry)", required: true, type: "text" },
+              { key: "name", label: "名前", required: true, type: "text" },
               { key: "definition", label: "定義", type: "textarea" },
               { key: "color", label: "バッジ色 (#RRGGBB)", type: "text", colorSwatch: true, helpText: COLOR_HELP_TEXT },
               { key: "sort_order", label: "表示順", type: "number", min: 0 },
@@ -1992,8 +2002,8 @@ export function AdminView() {
             onDelete={deleteLeadTemperature}
             onRefresh={refreshLeadTemperatures}
             fields={[
-              { key: "code", label: "コード (例: hot)", type: "text", helpText: CODE_HELP_TEXT },
-              { key: "name", label: "名前", type: "text" },
+              { key: "code", label: "コード (例: hot)", required: true, type: "text", helpText: CODE_HELP_TEXT },
+              { key: "name", label: "名前", required: true, type: "text" },
               { key: "definition", label: "定義", type: "textarea" },
               { key: "sort_order", label: "表示順", type: "number", min: 0 },
             ]}
@@ -2009,8 +2019,8 @@ export function AdminView() {
             onDelete={deleteLeadCallStatus}
             onRefresh={refreshLeadCallStatuses}
             fields={[
-              { key: "code", label: "コード (例: connected)", type: "text", helpText: CODE_HELP_TEXT },
-              { key: "name", label: "名前", type: "text" },
+              { key: "code", label: "コード (例: connected)", required: true, type: "text", helpText: CODE_HELP_TEXT },
+              { key: "name", label: "名前", required: true, type: "text" },
               { key: "definition", label: "定義", type: "textarea" },
               { key: "sort_order", label: "表示順", type: "number", min: 0 },
             ]}
@@ -2026,8 +2036,8 @@ export function AdminView() {
             onDelete={deleteLeadActivityType}
             onRefresh={refreshLeadActivityTypes}
             fields={[
-              { key: "code", label: "コード (例: call)", type: "text" },
-              { key: "name", label: "名前", type: "text" },
+              { key: "code", label: "コード (例: call)", required: true, type: "text" },
+              { key: "name", label: "名前", required: true, type: "text" },
               { key: "definition", label: "定義", type: "textarea" },
               { key: "color", label: "バッジ色 (#RRGGBB)", type: "text", colorSwatch: true, helpText: COLOR_HELP_TEXT },
               { key: "sort_order", label: "表示順", type: "number", min: 0 },
@@ -2044,7 +2054,7 @@ export function AdminView() {
             onDelete={deleteAccountType}
             onRefresh={refreshAccountTypes}
             fields={[
-              { key: "name", label: "名前", type: "text" },
+              { key: "name", label: "名前", required: true, type: "text" },
               { key: "definition", label: "定義", type: "textarea" },
             ]}
           />
@@ -2061,8 +2071,8 @@ export function AdminView() {
             onDelete={deleteAccountRoleType}
             onRefresh={refreshAccountRoleTypes}
             fields={[
-              { key: "code", label: "コード (例: customer)", type: "text" },
-              { key: "name", label: "名前", type: "text" },
+              { key: "code", label: "コード (例: customer)", required: true, type: "text" },
+              { key: "name", label: "名前", required: true, type: "text" },
               { key: "definition", label: "定義", type: "textarea" },
               { key: "color", label: "バッジ色 (#RRGGBB)", type: "text", colorSwatch: true, helpText: COLOR_HELP_TEXT },
               { key: "sort_order", label: "表示順", type: "number", min: 0 },
@@ -2089,8 +2099,8 @@ export function AdminView() {
             onDelete={deleteAccountStatus}
             onRefresh={refreshAccountStatuses}
             fields={[
-              { key: "code", label: "コード (例: active)", type: "text", helpText: CODE_HELP_TEXT },
-              { key: "name", label: "名前", type: "text" },
+              { key: "code", label: "コード (例: active)", required: true, type: "text", helpText: CODE_HELP_TEXT },
+              { key: "name", label: "名前", required: true, type: "text" },
               { key: "definition", label: "定義", type: "textarea" },
               { key: "color", label: "バッジ色 (#RRGGBB)", type: "text", colorSwatch: true, helpText: COLOR_HELP_TEXT },
             ]}
@@ -2106,7 +2116,7 @@ export function AdminView() {
             onDelete={deleteContactStatus}
             onRefresh={refreshContactStatuses}
             fields={[
-              { key: "name", label: "名前", type: "text" },
+              { key: "name", label: "名前", required: true, type: "text" },
               { key: "definition", label: "定義", type: "textarea" },
               { key: "color", label: "バッジ色 (#RRGGBB)", type: "text", colorSwatch: true, helpText: COLOR_HELP_TEXT },
             ]}
@@ -2122,8 +2132,8 @@ export function AdminView() {
             onDelete={deleteLeadCompanySize}
             onRefresh={refreshLeadCompanySizes}
             fields={[
-              { key: "code", label: "コード", type: "text" },
-              { key: "name", label: "名前", type: "text" },
+              { key: "code", label: "コード", required: true, type: "text" },
+              { key: "name", label: "名前", required: true, type: "text" },
               { key: "min_employees", label: "従業員数（下限）", type: "number", min: 0 },
               { key: "max_employees", label: "従業員数（上限）", type: "number", min: 0 },
               { key: "min_capital", label: "資本金（下限・円）", type: "number", min: 0 },
@@ -2142,8 +2152,8 @@ export function AdminView() {
             onDelete={deleteLeadCustomerActivityType}
             onRefresh={refreshLeadCustomerActivityTypes}
             fields={[
-              { key: "code", label: "コード", type: "text" },
-              { key: "name", label: "名前", type: "text" },
+              { key: "code", label: "コード", required: true, type: "text" },
+              { key: "name", label: "名前", required: true, type: "text" },
               { key: "description", label: "説明", type: "textarea" },
               { key: "sort_order", label: "表示順", type: "number", min: 0 },
             ]}
@@ -2161,7 +2171,7 @@ export function AdminView() {
             onDelete={deleteProjectStatus}
             onRefresh={refreshProjectStatuses}
             fields={[
-              { key: "name", label: "名前", type: "text" },
+              { key: "name", label: "名前", required: true, type: "text" },
               { key: "definition", label: "定義", type: "textarea" },
               { key: "sort_order", label: "表示順", type: "number", min: 0 },
               { key: "color", label: "バッジ色 (#RRGGBB)", type: "text", colorSwatch: true, helpText: COLOR_HELP_TEXT },

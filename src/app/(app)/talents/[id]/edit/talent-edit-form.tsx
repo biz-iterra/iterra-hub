@@ -10,6 +10,7 @@ import { useToast } from "@/components/ui/toast";
 import { isFieldValidationError } from "@/lib/errors";
 import type { TalentCareerRow } from "@/types/relations";
 import { formContainerClass, fieldGridClass, fieldGrid3Class, formFooterClass } from "@/lib/layout";
+import { RequiredMark } from "@/components/ui/RequiredMark";
 
 // ---------- 型 ----------
 
@@ -324,7 +325,7 @@ function CareerForm({
       <div className={styles.grid} style={{ marginBottom: "0.75rem" }}>
         <div>
           <label style={styles.label}>
-            種別 <span style={{ color: "var(--color-error)" }}>*</span>
+            種別<RequiredMark />
           </label>
           <select
             style={styles.select}
@@ -342,7 +343,7 @@ function CareerForm({
         </div>
         <div>
           <label style={styles.label}>
-            組織名 <span style={{ color: "var(--color-error)" }}>*</span>
+            組織名<RequiredMark />
           </label>
           <input
             type="text"

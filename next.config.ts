@@ -24,6 +24,14 @@ const nextConfig: NextConfig = {
   },
   experimental: {
     turbopackFileSystemCacheForDev: true,
+    serverActions: {
+      // 名刺 CSV を Server Action で受けるため既定の 1MB では足りない。
+      // Eight の書き出しは 1 行あたり約 350 バイトで、3,000 件で 1.02MB と
+      // ちょうど既定を超える。超えると Server Action がサーバー側で例外になり、
+      // 画面は「取込中」のまま応答が返らない（本番で発生）。
+      // 3 万件（約 10MB）まで受けられるようにしておく
+      bodySizeLimit: "16mb",
+    },
   },
 };
 

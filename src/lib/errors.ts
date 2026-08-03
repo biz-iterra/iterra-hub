@@ -43,3 +43,31 @@ export function parseFieldError(
   if (!matched) return null;
   return { field: matched[1], message: matched[2].trim() };
 }
+
+/**
+ * Server Action そのものが失敗したときの文言。
+ *
+ * `error: string` を返す前にサーバー側で例外になった場合、呼び出し側の
+ * Promise は reject する。ここで拾わないと画面は処理中のまま止まる。
+ * 例外は英語（`Body exceeded 1 MB limit` / `Failed to fetch` 等）なので
+ * 日本語へ寄せる。文言の正本は docs/error-messages.md。
+ *
+ * @param file 送信していたファイル。サイズを文言に含めるために受け取る
+ */
+export function describeTransportError(error: unknown, file?: File | null): string {
+  const raw = error instanceof Error ? error.message : String(error ?? "");
+  const sizeNote = file
+    ? `（${file.name} / ${(file.size / 1024 / 1024).toFixed(2)}MB）`
+    : "";
+
+  if (/body exceeded|payload too large|413/i.test(raw)) {
+    return `ファイルが大きすぎて送信できませんでした${sizeNote}。分割して取り込んでください`;
+  }
+  if (/failed to fetch|network|load failed/i.test(raw)) {
+    return `サーバーとの通信が切れました${sizeNote}。取り込まれた件数を取込履歴で確認してから、やり直してください`;
+  }
+  if (/timeout|timed out|504|524/i.test(raw)) {
+    return `処理が時間内に終わりませんでした${sizeNote}。件数を分けて取り込んでください`;
+  }
+  return `処理に失敗しました${sizeNote}${raw ? `（${raw}）` : ""}`;
+}

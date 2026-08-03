@@ -25,7 +25,14 @@
 | 入力バリデーション | `src/lib/validators/common.ts`（共通スキーマ）, `masters.ts` ほか | 保存前に弾く。`[field]` 付き |
 | DB エラー変換 | `src/lib/db-error.ts` の `toUserMessage()` | Postgres の生エラーを日本語へ。Server Action が `error` を返す前に必ず通す |
 | 外部 API | `src/lib/gmail/client.ts` の `describeGmailError()` | Gmail API のエラーを日本語へ。原文を括弧で残す |
+| Server Action の失敗 | `src/lib/errors.ts` の `describeTransportError()` | `error` を返す前に例外になった場合。送信サイズ超過・通信断・タイムアウト |
 | 表示の振り分け | `src/lib/errors.ts` の `parseFieldError()` / `isFieldValidationError()` | インラインかトーストかを決める |
+
+**Server Action の呼び出しは必ず `try / catch / finally` で囲む。** `error: string` は
+サーバー側が正常に応答できた場合にしか返らない。送信サイズ超過や通信断では Promise が
+reject するため、`catch` が無いと処理中の表示が解除されず画面が固まる（2026-08-03 に
+名刺取込で発生）。`finally` で読み込み状態を解除し、`catch` で `describeTransportError()`
+を通した文言を出す。
 
 ## 3. 入力バリデーション（マスタ共通）
 
@@ -129,10 +136,30 @@ OAuth 側（`describeOAuthError()`）は別立て。
 | 楽観ロック競合 | `{対象}は他のユーザーによって更新されています。画面を再読み込みしてから保存してください` | `conflictErrorMessage()` |
 | 不正な ID 形式 | `不正なパラメータです` | 詳細ページ（`[id]` ルート） |
 
-## 7. 文言を追加するときの手順
+## 7. Server Action の通信失敗（`describeTransportError()`）
+
+応答が返る前に例外になった場合。原文（英語）は分類できたときは出さず、
+できなかったときだけ括弧に残す。ファイルを送っている場合は名前とサイズを添える。
+
+| 例外の内容 | メッセージ |
+|---|---|
+| `Body exceeded 1 MB limit` / `Payload Too Large` / 413 | `ファイルが大きすぎて送信できませんでした（{名前} / {サイズ}MB）。分割して取り込んでください` |
+| `Failed to fetch` / `NetworkError` | `サーバーとの通信が切れました（…）。取り込まれた件数を取込履歴で確認してから、やり直してください` |
+| `timeout` / 504 / 524 | `処理が時間内に終わりませんでした（…）。件数を分けて取り込んでください` |
+| 上記以外 | `処理に失敗しました（…）（{原文}）` |
+
+送信サイズの上限は `next.config.ts` の `experimental.serverActions.bodySizeLimit`
+（既定 1MB → 16MB へ引き上げ済み）。CSV を Server Action で受ける画面を足すときは
+この上限を必ず確認する。
+
+名刺取込は `source_external_key` で既存を判定するため、同じファイルを再送しても
+リードは重複しない（2 回目は「既存に追記」になる）。通信が切れたときは
+やり直して問題ない。
+
+## 8. 文言を追加するときの手順
 
 1. 入力で防げるなら Zod スキーマに足す（DB に到達する前に止める）
 2. DB でしか判定できないなら `toUserMessage()` に分岐を足す
 3. この文書の表に追記する
-4. `src/lib/validators/masters.test.ts` / `src/lib/db-error.test.ts` にケースを足す
+4. `src/lib/validators/masters.test.ts` / `src/lib/db-error.test.ts` / `src/lib/errors.test.ts` にケースを足す
 5. 画面での見え方（インラインかトーストか）を `docs/test-cases/07-system-platform-admin.md` で確認する

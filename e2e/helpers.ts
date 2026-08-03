@@ -50,6 +50,26 @@ export async function selectFirstRealOption(select: Locator): Promise<string> {
   return firstReal;
 }
 
+/**
+ * 一覧の検索欄に語を入れ、条件が URL に載って一覧が絞り込まれるまで待つ。
+ *
+ * 検索は `SearchInput` の debounce（300ms）を挟んでから `useListView` 経由で
+ * URL のクエリに載る（2026-08-04 の一覧 UX 変更）。反映を待たずに一覧の行を
+ * 押すと、絞り込み前に並んでいた行を押すことになるうえ、直後に走る
+ * `router.replace` がクリックによる遷移を打ち消して詳細ページへ入れない。
+ *
+ * 「検索して 1 件に特定してから選ぶ」という手順どおりに進めるため、
+ * 検索語が URL に載るところまでをこの関数で待ち切る。
+ */
+export async function searchInList(
+  page: Page,
+  placeholder: string,
+  keyword: string
+): Promise<void> {
+  await page.getByPlaceholder(placeholder).fill(keyword);
+  await page.waitForURL((url) => url.searchParams.get("search") === keyword);
+}
+
 /** 成功トースト（role="status"）が指定テキストを含んで表示されることを確認する */
 export async function expectSuccessToast(page: Page, textSubstring: string): Promise<void> {
   const toast = page.getByRole("status").filter({ hasText: textSubstring });
@@ -58,8 +78,10 @@ export async function expectSuccessToast(page: Page, textSubstring: string): Pro
 
 /**
  * エラートースト（role="alert"）が指定テキストを含んで表示されることを確認する。
- * error トーストは自動消滅しないため、確認後は閉じるボタンで消しておく
- * （見た目の残留が次のアサーションに干渉しないようにする）。
+ *
+ * error トーストは 2026-08-04 の変更で約 10 秒の自動消滅に変わった（それ以前は
+ * 手動クローズのみ）。表示の確認だけを行い、消滅は待たない。
+ * 続けて別のアサーションを置く場合は、残っている間に済ませること。
  */
 export async function expectErrorToastAndClose(page: Page, textSubstring?: string): Promise<Locator> {
   const toast = textSubstring
@@ -85,11 +107,18 @@ function escapeRegExp(value: string): string {
  * ラベルと同じ div の兄弟要素として置かれているだけ（for/id 紐付けなし）のフォームが
  * 多いため、getByLabel が使えない。ラベル文字列から兄弟の入力欄を辿るための代替手段。
  *
- * ラベル文字列は該当フォームのソースに書かれている通り、末尾の " *"（必須マーク）も
- * 含めて厳密一致で渡すこと（部分一致だと「ステージ」が「ステージ *」にも当たってしまう）。
+ * 必須欄は `RequiredMark`（`src/components/ui/RequiredMark.tsx`）が
+ * 視覚用の `*` と読み上げ用の `（必須）` を出すため、ラベルの textContent は
+ * 「リード名 *（必須）」になる。呼び出し側は従来どおり `"リード名 *"` を渡してよく、
+ * ここで両方の書き方を吸収する（2026-08-04。`*` をラベル文字列に直書きしていた
+ * 時代の呼び出しがそのまま動くようにするため）。
+ *
+ * 部分一致にはしない。「ステージ」が「ステージ *」にも当たってしまうため、
+ * 必須マークの有無だけを任意にした厳密一致にする。
  */
 export function fieldByLabel(page: Page, label: string): Locator {
-  const exact = new RegExp(`^${escapeRegExp(label)}$`);
+  const base = label.replace(/\s*\*$/, "");
+  const exact = new RegExp(`^${escapeRegExp(base)}(\\s*\\*(（必須）)?)?$`);
   const labelLocator = page.locator("label").filter({ hasText: exact }).first();
   return labelLocator.locator("xpath=following-sibling::*[self::input or self::select or self::textarea][1]");
 }

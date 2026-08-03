@@ -6,6 +6,7 @@ import {
   extractIdFromHref,
   fieldByLabel,
   openAs,
+  searchInList,
   selectFirstRealOption,
 } from "./helpers";
 
@@ -44,7 +45,7 @@ test.describe("E2E-04", () => {
       await expectSuccessToast(adminPage, "リードを作成しました");
       // 作成直後の自動遷移は待たず、一覧の検索から辿る（e2e/helpers.ts 冒頭の既知の問題を参照）
       await adminPage.goto("/leads");
-      await adminPage.getByPlaceholder("リード名・電話番号で検索...").fill(leadName);
+      await searchInList(adminPage, "リード名・電話番号で検索...", leadName);
       const createdLeadLink = adminPage.getByRole("link", { name: leadName, exact: true });
       await expect(createdLeadLink).toBeVisible();
       await createdLeadLink.click();
@@ -106,7 +107,7 @@ test.describe("E2E-04", () => {
       await expectSuccessToast(managerPage, "契約を作成しました");
       // 作成直後の自動遷移は待たず、一覧の検索から辿る（e2e/helpers.ts 冒頭の既知の問題を参照）
       await managerPage.goto("/contracts");
-      await managerPage.getByPlaceholder("契約書名で検索...").fill(contractName);
+      await searchInList(managerPage, "契約書名で検索...", contractName);
       const createdContractLink = managerPage.getByRole("link", { name: contractName, exact: true });
       await expect(createdContractLink).toBeVisible();
       await createdContractLink.click();
@@ -123,7 +124,7 @@ test.describe("E2E-04", () => {
       const accountId = extractIdFromHref(accountHref!);
 
       await managerPage.goto("/accounts");
-      await managerPage.getByPlaceholder("取引先名で検索...").fill(companyName);
+      await searchInList(managerPage, "取引先名で検索...", companyName);
       await expect(managerPage.getByRole("link", { name: companyName }).first()).toBeVisible();
 
       // ---- 後片付け（admin。削除操作は admin 限定）----
@@ -144,7 +145,7 @@ test.describe("E2E-04", () => {
 
       // company/contact の ID はリード側には出ないため、事業者情報一覧から検索して辿る
       await adminPage.goto("/companies");
-      await adminPage.getByPlaceholder("会社名で検索...").fill(companyName);
+      await searchInList(adminPage, "会社名で検索...", companyName);
       const companyRowLink = adminPage.getByRole("link", { name: companyName }).first();
       await expect(companyRowLink).toBeVisible();
       const companyHref = await companyRowLink.getAttribute("href");

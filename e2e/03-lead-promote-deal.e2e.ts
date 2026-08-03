@@ -1,6 +1,13 @@
 import { test, expect } from "@playwright/test";
 import { authFile } from "./roles";
-import { e2eName, expectSuccessToast, extractIdFromHref, fieldByLabel, selectFirstRealOption } from "./helpers";
+import {
+  e2eName,
+  expectSuccessToast,
+  extractIdFromHref,
+  fieldByLabel,
+  searchInList,
+  selectFirstRealOption,
+} from "./helpers";
 
 const UUID_RE = "[0-9a-f-]{36}";
 
@@ -31,7 +38,7 @@ test.describe("E2E-03", () => {
     await expectSuccessToast(page, "リードを作成しました");
     // 作成直後の自動遷移は待たず、一覧の検索から辿る（e2e/helpers.ts 冒頭の既知の問題を参照）
     await page.goto("/leads");
-    await page.getByPlaceholder("リード名・電話番号で検索...").fill(leadName);
+    await searchInList(page, "リード名・電話番号で検索...", leadName);
     const createdLeadLink = page.getByRole("link", { name: leadName, exact: true });
     await expect(createdLeadLink).toBeVisible();
     await createdLeadLink.click();
@@ -85,7 +92,9 @@ test.describe("E2E-03", () => {
     // ---- 4. /deals のテーブルビューにも新規 Deal が現れ、取引先列は事業者情報名を表示する ----
     await page.goto("/deals");
     await page.getByRole("button", { name: "テーブル" }).click();
-    await page.getByPlaceholder("商談名で検索...").fill(leadName);
+    // 表示モードも URL の条件に含まれる。切り替わり切ってから検索する
+    await page.waitForURL(/[?&]view=table/);
+    await searchInList(page, "商談名で検索...", leadName);
     const dealRow = page.getByRole("row").filter({ hasText: `${leadName} 案件` });
     await expect(dealRow).toBeVisible();
     await expect(dealRow.getByText(companyName)).toBeVisible();

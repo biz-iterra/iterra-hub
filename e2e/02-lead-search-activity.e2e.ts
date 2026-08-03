@@ -1,6 +1,12 @@
 import { test, expect } from "@playwright/test";
 import { authFile } from "./roles";
-import { e2eName, expectSuccessToast, fieldByLabel, selectFirstRealOption } from "./helpers";
+import {
+  e2eName,
+  expectSuccessToast,
+  fieldByLabel,
+  searchInList,
+  selectFirstRealOption,
+} from "./helpers";
 
 /**
  * E2E-02 [S] リード管理の基本線: 検索 → 詳細 → 社内対応の記録 → スコア再計算
@@ -42,7 +48,7 @@ test.describe("E2E-02", () => {
 
     // 2. 検索でリードを 1 件特定 → 詳細へ遷移
     await page.goto("/leads");
-    await page.getByPlaceholder("リード名・電話番号で検索...").fill(leadName);
+    await searchInList(page, "リード名・電話番号で検索...", leadName);
     const resultLink = page.getByRole("link", { name: leadName, exact: true });
     await expect(resultLink).toBeVisible();
     await resultLink.click();
@@ -83,6 +89,9 @@ test.describe("E2E-02", () => {
     await page.getByRole("button", { name: "削除", exact: true }).click();
     await page.getByRole("button", { name: "削除する" }).click();
     await expectSuccessToast(page, "リードを削除しました");
-    await page.waitForURL("**/leads");
+    // 一覧の条件（検索語）は URL のクエリに載るため、削除後の戻り先は
+    // `/leads?search=...` になる（2026-08-04 の一覧 UX 変更）。
+    // グロブの `**/leads` はクエリ付きにマッチしないので正規表現で受ける。
+    await page.waitForURL(/\/leads(\?.*)?$/);
   });
 });

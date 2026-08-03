@@ -30,6 +30,7 @@ import {
   leadScoreRuleSchema, leadScoreRuleUpdateSchema,
 } from "@/lib/validators";
 import { toUserMessage } from "@/lib/db-error";
+import { pickDefaultBadgeColor } from "@/lib/master-color";
 import type { z } from "zod";
 import type { Database } from "@/types/database.generated";
 import type {
@@ -126,6 +127,63 @@ function masterLabel(tableName: MasterTableName): string {
   return MASTER_LABELS[tableName] ?? "マスタ";
 }
 
+/**
+ * `color` カラムを持つマスタ。
+ *
+ * 未指定で保存された行に色を自動付与する対象。存在しないカラムへ
+ * 書こうとすると INSERT 全体が落ちるため、リストで明示する
+ * （information_schema を毎回引くのは取得の往復が増えて割に合わない）。
+ * color を持つテーブルを増やしたらここにも足すこと。
+ */
+const COLOR_MASTER_TABLES = new Set<string>([
+  "account_role_types",
+  "account_statuses",
+  "company_statuses",
+  "contact_statuses",
+  "deal_stages",
+  "deal_statuses",
+  "lead_activity_types",
+  "lead_call_statuses",
+  "lead_categories",
+  "lead_customer_activity_types",
+  "lead_stages",
+  "lead_statuses",
+  "lead_temperatures",
+  "project_statuses",
+  // social_services も color を持つが、この汎用 CRUD の対象外
+  // （論理削除カラムが無く一覧取得の条件が合わない）
+]);
+
+/**
+ * 色が未指定なら、同じマスタで使われていない色を割り当てて返す。
+ *
+ * 表示側にも「色が無ければ名前から選ぶ」フォールバックはあるが、それだと
+ * DB に色が入らないままなので、同じ値でも一覧と詳細で違う色に見えうる。
+ * バッジ色の正本は DB という規約（CLAUDE.md）に合わせ、保存時に確定させる。
+ */
+async function withDefaultColor(
+  supabase: LooseSupabase,
+  tableName: MasterTableName,
+  values: Record<string, unknown>
+): Promise<Record<string, unknown>> {
+  if (!COLOR_MASTER_TABLES.has(tableName)) return values;
+  if (!("color" in values)) return values;
+  if (typeof values.color === "string" && values.color.trim() !== "") return values;
+
+  const { data } = await supabase
+    .from(tableName)
+    .select("color")
+    .is("deleted_at", null);
+
+  const existing = ((data ?? []) as { color?: string | null }[]).map((r) => r.color);
+  const seed =
+    (typeof values.name === "string" && values.name) ||
+    (typeof values.code === "string" && values.code) ||
+    tableName;
+
+  return { ...values, color: pickDefaultBadgeColor(existing, seed) };
+}
+
 async function getAuthenticatedUser() {
   const typed = await createClient();
   const { data: { user } } = await typed.auth.getUser();
@@ -184,7 +242,12 @@ export async function createMasterRecord<K extends MasterTableName>(
   if (!parsed.success) return { data: null, error: parsed.error.issues[0].message };
 
   const auditCreate = hasAuditColumns(tableName) ? { created_by: user.id } : {};
-  const { data, error } = await supabase.from(tableName).insert({ ...(parsed.data as Record<string, unknown>), ...auditCreate }).select().single();
+  const withColor = await withDefaultColor(
+    supabase,
+    tableName,
+    parsed.data as Record<string, unknown>
+  );
+  const { data, error } = await supabase.from(tableName).insert({ ...withColor, ...auditCreate }).select().single();
   if (error) {
     return {
       data: null,
@@ -211,7 +274,14 @@ export async function updateMasterRecord<K extends MasterTableName>(
   if (!parsed.success) return { data: null, error: parsed.error.issues[0].message };
 
   const auditUpdate = hasAuditColumns(tableName) ? { last_updated_by: user.id } : {};
-  const { data, error } = await supabase.from(tableName).update({ ...(parsed.data as Record<string, unknown>), ...auditUpdate }).eq("id", id).select().single();
+  // 色を空にして保存した場合も未指定として扱い、付け直す。
+  // 色の無い行を作らないため（色欄を触っていない更新では values に color が無く、素通りする）
+  const withColor = await withDefaultColor(
+    supabase,
+    tableName,
+    parsed.data as Record<string, unknown>
+  );
+  const { data, error } = await supabase.from(tableName).update({ ...withColor, ...auditUpdate }).eq("id", id).select().single();
   if (error) {
     return {
       data: null,

@@ -251,3 +251,8 @@ Lead ─取込→ Company + Contact          名刺はリードであると同�
 ステータス／ステージ系マスタは `color`（`#RRGGBB`）を持ち、表示側は DB の値をそのまま使う。
 画面ごとに sort_order から算出すると同じ値が別の色になるため、**バッジを出す箇所は必ず `color` まで SELECT する**。
 既定色は意味カテゴリで横断統一している（「アクティブ」は取引先でも法人でも同じ色）。
+
+**色を空欄で保存した場合は Server Action が自動で付与する**（`pickDefaultBadgeColor()`,
+`src/lib/master-color.ts`）。同じマスタで未使用の色をパレット順に選ぶため、DB に色の無い
+行はできない。パレットは `badges.tsx` の `PROGRESSION_PALETTE` と揃えてあるので、
+色を増やすときは両方を直す。

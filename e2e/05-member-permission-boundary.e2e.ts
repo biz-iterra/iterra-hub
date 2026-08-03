@@ -1,6 +1,13 @@
 import { test, expect } from "@playwright/test";
 import { authFile } from "./roles";
-import { e2eName, expectSuccessToast, fieldByLabel, openAs, selectFirstRealOption } from "./helpers";
+import {
+  e2eName,
+  expectErrorToastAndClose,
+  expectSuccessToast,
+  fieldByLabel,
+  openAs,
+  selectFirstRealOption,
+} from "./helpers";
 
 /**
  * E2E-05 [S] 権限境界の通し確認（member）
@@ -23,12 +30,8 @@ test.describe("E2E-05", () => {
       await selectFirstRealOption(fieldByLabel(adminPage, "ステータス *"));
       await adminPage.getByRole("button", { name: "作成" }).click();
       await expectSuccessToast(adminPage, "事業者情報を作成しました");
-      // 作成直後の自動遷移は待たず、一覧の検索から辿る（e2e/helpers.ts 冒頭の既知の問題を参照）
-      await adminPage.goto("/companies");
-      await adminPage.getByPlaceholder("会社名で検索...").fill(othersCompanyName);
-      const createdCompanyLink = adminPage.getByRole("link", { name: othersCompanyName, exact: true });
-      await expect(createdCompanyLink).toBeVisible();
-      await createdCompanyLink.click();
+      // 保存後の自動遷移をここで明示的に待つ。router.push 直後の router.refresh() で
+      // 遷移が打ち消される退行（2026-08-03 修正）を毎回検知するための番人
       await adminPage.waitForURL(/\/companies\/[0-9a-f-]{36}$/);
       othersCompanyId = new URL(adminPage.url()).pathname.split("/").pop()!;
 
@@ -47,10 +50,18 @@ test.describe("E2E-05", () => {
       await page.waitForURL("**/dashboard");
       await expect(page.getByRole("heading", { name: "ダッシュボード" })).toBeVisible();
 
-      // 4. 他人（admin）の事業者情報詳細へ直 URL → 「見つかりません」
+      // 4. 他人（admin）の事業者情報は「閲覧できる」が「編集はできない」
+      //    2026-08-03 に参照を認証済み全員へ広げた（20260803000008）。
+      //    他の担当者の取引先に商談を起こせないと業務が回らないため。
+      //    書き込みの範囲は変えていないので、境界は更新の可否で見る
       await page.goto(`/companies/${othersCompanyId}`);
-      await expect(page.getByText("事業者情報が見つかりません")).toBeVisible();
-      await expect(page.getByRole("link", { name: "事業者情報一覧" })).toBeVisible();
+      await expect(page.getByRole("heading", { name: othersCompanyName })).toBeVisible();
+
+      // 4b. 編集ページで保存しようとすると Server Action の owner チェックで拒否される
+      await page.goto(`/companies/${othersCompanyId}/edit`);
+      await fieldByLabel(page, "会社名 *").fill(`${othersCompanyName}-改`);
+      await page.getByRole("button", { name: "保存" }).click();
+      await expectErrorToastAndClose(page, "編集する権限がありません");
 
       // 5. サイドバーに管理・契約メニューが出ないこと
       await page.goto("/dashboard");

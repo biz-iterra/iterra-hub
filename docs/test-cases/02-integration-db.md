@@ -166,12 +166,14 @@ pg_cron ジョブ:
 | テーブル群 | SELECT | INSERT | UPDATE | DELETE | 定義元 |
 |---|---|---|---|---|---|
 | マスタ全般（pipeline_types 等） | 認証済み全員 | admin | admin | admin | 20260416040013 §3-3 ほか |
-| companies / accounts / contacts / deals | manager以上 or owner | 認証済み全員 | admin or owner（**manager は他人の行を更新できない**） | admin | 20260416040013 §3-5〜3-8 |
+| companies / accounts / contacts | **認証済み全員**（2026-08-03 変更） | 認証済み全員 | admin or owner（**manager は他人の行を更新できない**） | admin | 20260803000008 |
+| deals | manager以上 or owner | 認証済み全員 | admin or owner | admin | 20260416040013 §3-8 |
 | contracts | manager以上 | manager以上 | manager以上 | admin | 20260416040013 §3-9 |
 | talents | manager以上 or 親 contact の owner | 認証済み全員 | admin or 親 owner | ポリシーなし（CASCADE） | 20260416040013 §3-10 |
 | financial_info | manager以上 | admin | admin | admin | 20260416040013 §3-12 |
-| contact_emails / contact_phones / talent_skills / talent_careers / deal_services / account_contacts | manager以上 or 親 owner | manager以上 or 親 owner | admin or 親 owner | admin or 親 owner | **20260416040014**（040013 の全許可を差替え） |
-| company_domains / account_roles / entity_addresses | 親テーブル準拠 | 親準拠(admin or owner) | 同左（account_roles は UPDATE ポリシーなし） | 同左 | 20260731000002 / 20260731000008 / 20260801000009 |
+| contact_emails / contact_phones / contact_social_accounts / account_contacts / business_cards / entity_addresses / company_domains | **認証済み全員**（2026-08-03 変更） | manager以上 or 親 owner | admin or 親 owner | admin or 親 owner | 20260803000008 |
+| talent_skills / talent_careers / deal_services | manager以上 or 親 owner | manager以上 or 親 owner | admin or 親 owner | admin or 親 owner | **20260416040014**（040013 の全許可を差替え） |
+| account_roles | 親テーブル準拠 | 親準拠(admin or owner) | UPDATE ポリシーなし | 同左 | 20260731000008 |
 | leads | manager以上 or 主担当 or 副担当(lead_owners) | 主担当 or manager以上 | 主担当/副担当/manager以上 | 主担当 or manager以上（**副担当は不可**） | 20260422000010 |
 | lead_activities | is_lead_accessible | is_lead_accessible | caller 本人 or manager以上 | admin | 20260419000007 / 20260426000001 |
 | entity_change_logs | manager以上 or 自分が changed_by | **ポリシーなし**（トリガーのみが書く） | なし | なし | 20260728000002 |
@@ -712,11 +714,14 @@ INSERT INTO companies (name, owner_user_id) VALUES
   ('RLS-C2', 'a0000000-0000-0000-0000-000000000002');  -- manager 所有
 ```
 
-### IT-RLS-01: companies × member — SELECT は自分が owner の行のみ
+### IT-RLS-01: companies × member — SELECT は全件（2026-08-03 変更）
 
 - 実行ロール: member（a0…03）
 - 対象データ: RLS-C1（自分）/ RLS-C2（他人）
-- 期待: `SELECT name FROM companies WHERE name LIKE 'RLS-%'` → **RLS-C1 の 1 行のみ**
+- 期待: `SELECT name FROM companies WHERE name LIKE 'RLS-%'` → **2 行とも見える**
+- 背景: 他の担当者の取引先に商談を起こせないと業務が回らないため、
+  20260803000008 で参照だけを認証済み全員に広げた。**書き込みの範囲は変えていない**
+  （他人の行の UPDATE / DELETE が 0 行であることは IT-RLS-04 で担保する）
 
 ### IT-RLS-02: companies × manager — SELECT は全件・UPDATE は他人の行に効かない
 
@@ -733,10 +738,13 @@ INSERT INTO companies (name, owner_user_id) VALUES
 - 実行ロール: member
 - 期待: `UPDATE … WHERE name='RLS-C2'` → 0 行（エラーにならない点に注意）。`INSERT INTO companies (name, owner_user_id) VALUES ('RLS-C3','a0000000-…03')` → 成功（INSERT ポリシーは `WITH CHECK (true)`）。DELETE → 0 行（admin のみ）
 
-### IT-RLS-05: accounts / contacts / deals × 各ロール — companies と同パターンの代表確認
+### IT-RLS-05: accounts / contacts / deals × 各ロール
 
 - 事前データ: owner を member にした accounts / contacts / deals（deals は `deals_counterparty_check` を満たすため `company_id` に RLS-C1 を設定）各 1 行 + owner を manager にした各 1 行
-- 期待: member SELECT = 自分の行のみ / manager SELECT = 全件・他人行 UPDATE 0 行 / admin UPDATE・DELETE 可。3 テーブルとも companies（IT-RLS-01〜04）と同じ結果になる
+- 期待（2026-08-03 更新）:
+  - **accounts / contacts**: member SELECT = **2 行とも**（companies と同じく参照は全員可）
+  - **deals**: member SELECT = **自分の 1 行のみ**（営業の担当分離のため広げていない）
+  - manager SELECT = 3 テーブルとも全件。他人行 UPDATE は 0 行 / admin は UPDATE・DELETE 可
 
 ### IT-RLS-06: contracts × member — 全操作不可
 
@@ -766,9 +774,10 @@ INSERT INTO companies (name, owner_user_id) VALUES
 ### IT-RLS-10: contact_emails（従属テーブル）× member / manager
 
 - 事前データ: member 所有の contact `:cm`（email 1 件付き）と manager 所有の contact `:cg`（email 1 件付き）
-- 期待:
-  - member: `:cm` の email は SELECT / INSERT / UPDATE / DELETE 可。`:cg` の email は SELECT 0 行・INSERT 42501
-  - manager: 両方 SELECT 可・INSERT 可（select/insert は `is_manager_or_above()` で許可）。ただし `:cm` の email への **UPDATE / DELETE は 0 行**（update/delete は `is_admin() OR 親owner`）
+- 期待（2026-08-03 更新）:
+  - member: `:cm` の email は SELECT / INSERT / UPDATE / DELETE 可。
+    `:cg` の email は **SELECT 可**（参照は全員に広げた）だが **INSERT は 42501**
+  - manager: 両方 SELECT 可・INSERT 可（insert は `is_manager_or_above()` で許可）。ただし `:cm` の email への **UPDATE / DELETE は 0 行**（update/delete は `is_admin() OR 親owner`）
 
 ### IT-RLS-11: leads × member — 主担当・副担当の可視性
 
@@ -808,7 +817,8 @@ INSERT INTO companies (name, owner_user_id) VALUES
 
 - 事前データ: RLS-C1（member 所有・domain 1 件）、RLS-C2（manager 所有・domain 1 件）
 - 実行ロール: member
-- 期待: RLS-C1 の domain は SELECT / INSERT / UPDATE / DELETE 可。RLS-C2 の domain は SELECT 0 行・INSERT 42501
+- 期待（2026-08-03 更新）: RLS-C1 の domain は SELECT / INSERT / UPDATE / DELETE 可。
+  RLS-C2 の domain は **SELECT 可**（参照は全員）だが **INSERT は 42501**
 
 ### IT-RLS-17: crm_users — 全員閲覧・自分のみ更新・INSERT 不可
 

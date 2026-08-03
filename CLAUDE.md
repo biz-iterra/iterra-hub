@@ -179,7 +179,12 @@ lock を触ったら push 前に `npm ci` がローカルで通ることを確�
 
 ### RLS ポリシー設計
 - **マスタテーブル:** SELECT は認証済み全員、INSERT/UPDATE/DELETE は admin のみ
-- **companies/accounts/contacts/deals:** member は `owner_user_id = auth.uid()` のみ、manager/admin は全件
+- **companies/accounts/contacts:** **SELECT は認証済み全員**（2026-08-03 変更。マイグレーション 20260803000008）。
+  UPDATE / DELETE は従来どおり `owner_user_id = auth.uid()` または admin。
+  member が他の担当者の取引先に対して商談を起こせないと業務が回らないため参照だけ広げた。
+  従属テーブル（メール・電話・SNS・ドメイン・住所・名刺・account_contacts）も参照は全員可
+- **deals/leads:** member は `owner_user_id = auth.uid()`（leads は副担当 `lead_owners` を含む）のみ、manager/admin は全件。
+  営業の担当分離が意味を持つため、こちらは広げていない
 - **contracts:** manager/admin のみ全操作
 - **従属テーブル（contact_emails 等）:** 親テーブルの `owner_user_id` を参照して制限
 - **financial_info:** SELECT は manager/admin のみ、CUD は admin のみ

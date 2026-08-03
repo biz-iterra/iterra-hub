@@ -91,6 +91,10 @@ ITERRA CRM（顧客関係管理）システム。
 - DB設計は `docs/database-design.md` に基づく。変更時は設計書を先に更新する
 - 操作結果（保存・削除・移動の成否）はトーストで通知する。`useToast()`（`src/components/ui/toast.tsx`）を使う
 - フィールド単位のバリデーションエラー（入力必須・形式不正など、入力箇所に紐づくもの）はインライン表示のまま。トーストにしない
+- **一覧の条件（フィルタ・ページ・並び順）は URL のクエリに置く。** `useListView`
+  （`src/hooks/useListView.ts`）を使い、`page.tsx` は `searchParams` を見て初回取得する。
+  `useState` に置くと詳細から戻ったときに条件が消える。フィルタ名と並び替え可能な列は
+  `src/lib/list-sort.ts` に集約する（Server Action と Server Component の両方が参照するため）
 - **入力必須の印は `RequiredMark`（`src/components/ui/RequiredMark.tsx`）を使う。** ラベル文字列に `*` を直接書かない。
   どの欄に付けるかの正本は Zod スキーマ（`src/lib/validators/`）。スキーマの必須を変えたらフォームの印も同じ作業内で合わせる
 - トーストは種別ごとの時間で自動消滅する（error は約10秒、success/info は約4秒）。

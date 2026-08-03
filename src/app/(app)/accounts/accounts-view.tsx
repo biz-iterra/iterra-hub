@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useTransition } from "react";
 import Link from "next/link";
 import { Plus, Briefcase } from "lucide-react";
 import { getAccounts } from "@/actions/accounts";
+import { useListView } from "@/hooks/useListView";
+import { LIST_FILTER_KEYS } from "@/lib/list-sort";
 import { AccountTypeBadge, LabelBadge, StatusBadge } from "@/components/ui/badges";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { FilterSelect } from "@/components/ui/FilterSelect";
@@ -43,60 +44,27 @@ export function AccountsView({
   accountTypes,
   users,
 }: AccountsViewProps) {
-  const [data, setData] = useState<AccountsData>(initialData);
-  const [statusFilter, setStatusFilter] = useState("");
-  const [accountTypeFilter, setAccountTypeFilter] = useState("");
-  const [ownerFilter, setOwnerFilter] = useState("");
-  const [keyword, setKeyword] = useState("");
-  const [page, setPage] = useState(1);
-  const [isPending, startTransition] = useTransition();
-
-  function handleFilter(
-    key: string,
-    value: string,
-    setter: (v: string) => void
-  ) {
-    setter(value);
-    setPage(1);
-    startTransition(async () => {
-      const { data: result } = await getAccounts({
-        statusId: key === "statusId" ? value || undefined : statusFilter || undefined,
-        accountTypeId: key === "accountTypeId" ? value || undefined : accountTypeFilter || undefined,
-        ownerUserId: key === "ownerUserId" ? value || undefined : ownerFilter || undefined,
-        search: key === "search" ? value || undefined : keyword || undefined,
-        perPage: DEFAULT_PAGE_SIZE,
-        page: 1,
-      });
-      setData(result);
+  const { filters, page, sort, setFilter, setPage, setSort, clear, isPending, data } =
+    useListView({
+      filterKeys: LIST_FILTER_KEYS.accounts,
+      initialData,
+      load: (state) =>
+        getAccounts({
+          statusId: state.filters.statusId || undefined,
+          accountTypeId: state.filters.typeId || undefined,
+          ownerUserId: state.filters.ownerUserId || undefined,
+          search: state.filters.search || undefined,
+          perPage: DEFAULT_PAGE_SIZE,
+          page: state.page,
+          sortField: state.sort?.field,
+          sortDirection: state.sort?.direction,
+        }),
     });
-  }
 
-  function handleClear() {
-    setStatusFilter("");
-    setAccountTypeFilter("");
-    setOwnerFilter("");
-    setKeyword("");
-    setPage(1);
-    startTransition(async () => {
-      const { data: result } = await getAccounts({ perPage: DEFAULT_PAGE_SIZE, page: 1 });
-      setData(result);
-    });
-  }
-
-  function handlePageChange(next: number) {
-    setPage(next);
-    startTransition(async () => {
-      const { data: result } = await getAccounts({
-        statusId: statusFilter || undefined,
-        accountTypeId: accountTypeFilter || undefined,
-        ownerUserId: ownerFilter || undefined,
-        search: keyword || undefined,
-        perPage: DEFAULT_PAGE_SIZE,
-        page: next,
-      });
-      setData(result);
-    });
-  }
+  const statusFilter = filters.statusId ?? "";
+  const accountTypeFilter = filters.typeId ?? "";
+  const ownerFilter = filters.ownerUserId ?? "";
+  const keyword = filters.search ?? "";
 
   const rows = data?.rows ?? [];
   const total = data?.total ?? 0;
@@ -137,26 +105,26 @@ export function AccountsView({
           label="ステータス"
           value={statusFilter}
           options={statuses.map((s) => ({ value: s.id, label: s.name }))}
-          onChange={(v) => handleFilter("statusId", v, setStatusFilter)}
+          onChange={(v) => setFilter("statusId", v)}
         />
         <FilterSelect
           label="種別"
           value={accountTypeFilter}
           options={accountTypes.map((t) => ({ value: t.id, label: t.name }))}
-          onChange={(v) => handleFilter("accountTypeId", v, setAccountTypeFilter)}
+          onChange={(v) => setFilter("typeId", v)}
         />
         <FilterSelect
           label="担当者"
           value={ownerFilter}
           options={users.map((u) => ({ value: u.id, label: u.full_name }))}
-          onChange={(v) => handleFilter("ownerUserId", v, setOwnerFilter)}
+          onChange={(v) => setFilter("ownerUserId", v)}
         />
         <SearchInput
           value={keyword}
           placeholder="取引先名で検索..."
-          onChange={(v) => handleFilter("search", v, setKeyword)}
+          onChange={(v) => setFilter("search", v)}
         />
-        <FilterClearButton onClear={handleClear} />
+        <FilterClearButton onClear={clear} />
         {isPending && (
           <span
             className="text-xs"
@@ -174,6 +142,8 @@ export function AccountsView({
         getHref={(account) => `/accounts/${account.id}`}
         emptyIcon={Briefcase}
         emptyMessage="取引先が見つかりません"
+        sort={sort}
+        onSortChange={setSort}
         columns={[
           {
             /*
@@ -181,6 +151,7 @@ export function AccountsView({
               区分（顧客／仕入れ先など）は複数付くため独立した列にする。
             */
             label: "取引先名",
+            sortKey: "name",
             card: "title",
             render: (account) => (
               <span className="inline-flex items-center gap-2 flex-wrap">
@@ -249,6 +220,7 @@ export function AccountsView({
           },
           {
             label: "最終更新日",
+            sortKey: "updated_at",
             className: "text-xs whitespace-nowrap",
             render: (account) => formatDateTime(account.updated_at),
           },
@@ -260,7 +232,7 @@ export function AccountsView({
         page={page}
         totalCount={total}
         pageSize={DEFAULT_PAGE_SIZE}
-        onPageChange={handlePageChange}
+        onPageChange={setPage}
       />
     </div>
   );

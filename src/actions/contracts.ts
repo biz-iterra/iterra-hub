@@ -13,6 +13,7 @@ import type {
   Row,
 } from "@/types/relations";
 import type { z } from "zod";
+import { resolveListSort, SORT_FIELDS, toOrderArgs, type SortParams } from "@/lib/list-sort";
 
 type ActionResult<T> = { data: T | null; error: string | null };
 
@@ -47,7 +48,7 @@ export async function getContracts(params?: {
   contractMethod?: string;
   page?: number;
   perPage?: number;
-}): Promise<ActionResult<Paged<ContractWithRelations>>> {
+} & SortParams): Promise<ActionResult<Paged<ContractWithRelations>>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
@@ -55,12 +56,16 @@ export async function getContracts(params?: {
   const perPage = params?.perPage ?? 20;
   const from = (page - 1) * perPage;
   const to = from + perPage - 1;
+  const sort = resolveListSort(params, SORT_FIELDS.contracts, {
+    field: "created_at",
+    direction: "desc",
+  });
 
   let query = supabase
     .from("contracts")
     .select(CONTRACT_LIST_SELECT, { count: "exact" })
     .is("deleted_at", null)
-    .order("created_at", { ascending: false })
+    .order(...toOrderArgs(sort))
     .range(from, to);
 
   if (params?.search) {

@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useTransition } from "react";
 import Link from "next/link";
-import { Plus, ArrowUpDown, UserSearch } from "lucide-react";
+import { Plus, UserSearch } from "lucide-react";
 import { getLeads } from "@/actions/leads";
+import { useListView } from "@/hooks/useListView";
+import { LIST_FILTER_KEYS } from "@/lib/list-sort";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { FilterSelect } from "@/components/ui/FilterSelect";
 import { FilterGroup, FilterClearButton } from "@/components/ui/FilterGroup";
@@ -63,73 +64,31 @@ export function LeadsView({
   users,
   // currentUserRole は props 型に残しているが、現状 UI 分岐に使っていないため受け取らない
 }: LeadsViewProps) {
-  const [data, setData] = useState(initialData);
-  const [stageFilter, setStageFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("");
-  const [temperatureFilter, setTemperatureFilter] = useState("");
-  const [ownerFilter, setOwnerFilter] = useState("");
-  const [keyword, setKeyword] = useState("");
-  const [sortByScore, setSortByScore] = useState(false);
-  const [page, setPage] = useState(1);
-  const [isPending, startTransition] = useTransition();
-
-
-  function handleFilter(
-    key: string,
-    value: string,
-    setter: (v: string) => void
-  ) {
-    setter(value);
-    setPage(1);
-    startTransition(async () => {
-      const { data: result } = await getLeads({
-        stage_id: key === "stage_id" ? value || undefined : stageFilter || undefined,
-        status_id: key === "status_id" ? value || undefined : statusFilter || undefined,
-        category_id:
-          key === "category_id" ? value || undefined : categoryFilter || undefined,
-        temperature_id:
-          key === "temperature_id" ? value || undefined : temperatureFilter || undefined,
-        owner_user_id:
-          key === "owner_user_id" ? value || undefined : ownerFilter || undefined,
-        keyword: key === "keyword" ? value || undefined : keyword || undefined,
-        perPage: DEFAULT_PAGE_SIZE,
-        page: 1,
-      });
-      setData(result);
+  const { filters, page, sort, setFilter, setFilters, setPage, setSort, clear, isPending, data } =
+    useListView({
+      filterKeys: LIST_FILTER_KEYS.leads,
+      initialData,
+      load: (state) =>
+        getLeads({
+          stage_id: state.filters.stageId || undefined,
+          status_id: state.filters.statusId || undefined,
+          category_id: state.filters.categoryId || undefined,
+          temperature_id: state.filters.temperatureId || undefined,
+          owner_user_id: state.filters.ownerUserId || undefined,
+          keyword: state.filters.search || undefined,
+          perPage: DEFAULT_PAGE_SIZE,
+          page: state.page,
+          sortField: state.sort?.field,
+          sortDirection: state.sort?.direction,
+        }),
     });
-  }
 
-  function handleClear() {
-    setStageFilter("");
-    setStatusFilter("");
-    setCategoryFilter("");
-    setTemperatureFilter("");
-    setOwnerFilter("");
-    setKeyword("");
-    setPage(1);
-    startTransition(async () => {
-      const { data: result } = await getLeads({ perPage: DEFAULT_PAGE_SIZE, page: 1 });
-      setData(result);
-    });
-  }
-
-  function handlePageChange(next: number) {
-    setPage(next);
-    startTransition(async () => {
-      const { data: result } = await getLeads({
-        stage_id: stageFilter || undefined,
-        status_id: statusFilter || undefined,
-        category_id: categoryFilter || undefined,
-        temperature_id: temperatureFilter || undefined,
-        owner_user_id: ownerFilter || undefined,
-        keyword: keyword || undefined,
-        perPage: DEFAULT_PAGE_SIZE,
-        page: next,
-      });
-      setData(result);
-    });
-  }
+  const stageFilter = filters.stageId ?? "";
+  const statusFilter = filters.statusId ?? "";
+  const categoryFilter = filters.categoryId ?? "";
+  const temperatureFilter = filters.temperatureId ?? "";
+  const ownerFilter = filters.ownerUserId ?? "";
+  const keyword = filters.search ?? "";
 
   // sort_order でステータス選択肢をステージ別にフィルタ
   const filteredStatusOptions = stageFilter
@@ -137,9 +96,6 @@ export function LeadsView({
     : statuses;
 
   const items = data?.rows ?? [];
-  const sortedItems = sortByScore
-    ? [...items].sort((a, b) => (b.score ?? -1) - (a.score ?? -1))
-    : items;
 
   return (
     <div>
@@ -178,59 +134,41 @@ export function LeadsView({
           label="ステージ"
           value={stageFilter}
           options={stages.map((s) => ({ value: s.id, label: s.name }))}
-          onChange={(v) => {
-            setStageFilter(v);
-            setStatusFilter("");
-            handleFilter("stage_id", v, setStageFilter);
-          }}
+          // ステージを変えるとステータスの選択肢が変わるので、
+          // 前のステージのステータスが残らないよう同時に外す
+          onChange={(v) => setFilters({ stageId: v, statusId: "" })}
         />
         <FilterSelect
           label="ステータス"
           value={statusFilter}
           options={filteredStatusOptions.map((s) => ({ value: s.id, label: s.name }))}
-          onChange={(v) => handleFilter("status_id", v, setStatusFilter)}
+          onChange={(v) => setFilter("statusId", v)}
         />
         <FilterSelect
           label="カテゴリ"
           value={categoryFilter}
           options={categories.map((c) => ({ value: c.id, label: c.name }))}
-          onChange={(v) => handleFilter("category_id", v, setCategoryFilter)}
+          onChange={(v) => setFilter("categoryId", v)}
         />
         <FilterSelect
           label="温度感"
           value={temperatureFilter}
           options={temperatures.map((t) => ({ value: t.id, label: t.name }))}
-          onChange={(v) => handleFilter("temperature_id", v, setTemperatureFilter)}
+          onChange={(v) => setFilter("temperatureId", v)}
         />
         <FilterSelect
           label="担当者"
           value={ownerFilter}
           options={users.map((u) => ({ value: u.id, label: u.full_name }))}
-          onChange={(v) => handleFilter("owner_user_id", v, setOwnerFilter)}
+          onChange={(v) => setFilter("ownerUserId", v)}
         />
         <SearchInput
           value={keyword}
           placeholder="リード名・電話番号で検索..."
-          onChange={(v) => handleFilter("keyword", v, setKeyword)}
+          onChange={(v) => setFilter("search", v)}
         />
-        {/* スコアソート */}
-        <button
-          onClick={() => setSortByScore(!sortByScore)}
-          className="flex items-center gap-1.5 px-3 py-[0.4rem] text-xs font-medium transition-colors"
-          style={{
-            border: "1px solid var(--color-border-default)",
-            borderRadius: "var(--radius-button)",
-            backgroundColor: sortByScore ? "var(--color-terra)" : "#fff",
-            color: sortByScore ? "#fff" : "var(--color-sumi600)",
-            cursor: "pointer",
-            alignSelf: "flex-end",
-          }}
-        >
-          <ArrowUpDown size={13} />
-          スコア順
-        </button>
         {/* フィルタ一括クリア */}
-        <FilterClearButton onClear={handleClear} />
+        <FilterClearButton onClear={clear} />
         {isPending && (
           <span
             className="text-xs"
@@ -243,14 +181,17 @@ export function LeadsView({
 
       {/* 一覧（md 未満はカード） */}
       <DataTable
-        items={sortedItems}
+        items={items}
         getKey={(lead) => lead.id}
         getHref={(lead) => `/leads/${lead.id}`}
         emptyIcon={UserSearch}
         emptyMessage="リードが見つかりません"
+        sort={sort}
+        onSortChange={setSort}
         columns={[
           {
             label: "リード名",
+            sortKey: "lead_name",
             card: "title",
             render: (lead) => (
               <Link
@@ -301,6 +242,14 @@ export function LeadsView({
             },
           },
           {
+            /* 以前は「スコア順」トグルで並べ替えていた。列にしてサーバー側で
+               並べ替えるようにしたので、表示中のページ内だけでなく全件で効く */
+            label: "スコア",
+            sortKey: "score",
+            className: "whitespace-nowrap text-xs",
+            render: (lead) => (lead.score == null ? "—" : String(lead.score)),
+          },
+          {
             label: "カテゴリ",
             className: "whitespace-nowrap",
             render: (lead) => {
@@ -312,6 +261,7 @@ export function LeadsView({
           },
           {
             label: "企業名",
+            sortKey: "company_name",
             className: "max-w-[140px] truncate",
             render: (lead) =>
               lead.company_name || (
@@ -330,6 +280,7 @@ export function LeadsView({
           },
           {
             label: "最終更新日",
+            sortKey: "updated_at",
             className: "text-xs whitespace-nowrap",
             render: (lead) => formatDateTime(lead.updated_at),
           },
@@ -341,7 +292,7 @@ export function LeadsView({
         page={page}
         totalCount={data?.total ?? 0}
         pageSize={DEFAULT_PAGE_SIZE}
-        onPageChange={handlePageChange}
+        onPageChange={setPage}
       />
     </div>
   );

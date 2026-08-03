@@ -35,7 +35,18 @@ export const LIST_FILTER_KEYS = {
   contacts: ["statusId", "contactType", "ownerUserId", "search"],
   companies: ["statusId", "corporateTypeId", "ownerUserId", "search"],
   accounts: ["statusId", "typeId", "ownerUserId", "search"],
-  deals: ["pipelineTypeId", "stageId", "statusId", "ownerUserId", "search"],
+  // 商談はカンバンと表を切り替えるので、表示モードと分類軸も条件として持つ。
+  // どちらの画面から詳細へ入っても、戻ったとき同じ見え方に復元する
+  deals: [
+    "view",
+    "pipelineId",
+    "groupBy",
+    "kanbanColumn",
+    "stageId",
+    "statusId",
+    "ownerUserId",
+    "search",
+  ],
   contracts: ["typeId", "methodId", "search"],
   projects: ["statusId", "ownerUserId", "search"],
   campaigns: ["type", "status", "search"],

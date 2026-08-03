@@ -51,6 +51,23 @@ export function parseListState(
   return { filters, page, sort: parseSort(search.get(SORT_PARAM)) };
 }
 
+/**
+ * Server Component の `searchParams` から一覧の状態を読む。
+ *
+ * App Router の `searchParams` は同名クエリが複数あると配列になる。
+ * 一覧の条件は 1 つずつなので、配列で来たものは無視する
+ * （URL を手で書き換えられても意図しない値が混ざらない）。
+ */
+export function parseSearchParams(
+  searchParams: Record<string, string | string[] | undefined>,
+  filterKeys: readonly string[]
+): ListState {
+  const entries = Object.entries(searchParams).flatMap(([key, value]) =>
+    typeof value === "string" ? [[key, value] as [string, string]] : []
+  );
+  return parseListState(new URLSearchParams(entries), filterKeys);
+}
+
 /** `field:direction` を分解する。壊れた値は「指定なし」として捨てる */
 export function parseSort(raw: string | null | undefined): SortState {
   if (!raw) return null;

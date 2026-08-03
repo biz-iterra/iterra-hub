@@ -16,6 +16,7 @@ import type {
   SortedColoredRef,
 } from "@/types/relations";
 import type { z } from "zod";
+import { resolveListSort, SORT_FIELDS, toOrderArgs, type SortParams } from "@/lib/list-sort";
 
 type ActionResult<T> = { data: T | null; error: string | null };
 
@@ -54,7 +55,7 @@ export async function getDeals(params?: {
   ownerUserId?: string;
   page?: number;
   perPage?: number;
-}): Promise<ActionResult<Paged<DealWithRelations>>> {
+} & SortParams): Promise<ActionResult<Paged<DealWithRelations>>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
@@ -62,12 +63,16 @@ export async function getDeals(params?: {
   const perPage = params?.perPage ?? 20;
   const from = (page - 1) * perPage;
   const to = from + perPage - 1;
+  const sort = resolveListSort(params, SORT_FIELDS.deals, {
+    field: "created_at",
+    direction: "desc",
+  });
 
   let query = supabase
     .from("deals")
     .select(DEAL_SELECT, { count: "exact" })
     .is("deleted_at", null)
-    .order("created_at", { ascending: false })
+    .order(...toOrderArgs(sort))
     .range(from, to);
 
   if (params?.search) {

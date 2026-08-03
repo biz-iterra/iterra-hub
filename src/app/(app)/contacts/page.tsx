@@ -4,7 +4,7 @@ import { getCrmUsers } from "@/actions/users";
 import { getPendingCandidateCount } from "@/actions/email-sync";
 import { countPendingMergeCandidates } from "@/actions/contact-merge";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants/pagination";
-import { parseListState } from "@/lib/list-params";
+import { parseSearchParams } from "@/lib/list-params";
 import { LIST_FILTER_KEYS } from "@/lib/list-sort";
 import { ContactsView } from "./contacts-view";
 
@@ -15,15 +15,7 @@ export default async function ContactsPage({
 }) {
   // 一覧の条件は URL に載っている。詳細から戻ってきたときも同じ条件で描くため、
   // サーバー側の初回取得もクエリを見る（クライアントで取り直さずに済む）
-  const params = await searchParams;
-  const state = parseListState(
-    new URLSearchParams(
-      Object.entries(params).flatMap(([k, v]) =>
-        typeof v === "string" ? [[k, v] as [string, string]] : []
-      )
-    ),
-    LIST_FILTER_KEYS.contacts
-  );
+  const state = parseSearchParams(await searchParams, LIST_FILTER_KEYS.contacts);
 
   const [contactsResult, statusesResult, usersResult, candidateCount, mergeCount] =
     await Promise.all([

@@ -142,18 +142,19 @@ export default async function CompanyDetailPage({
   const activeContacts =
     company.contacts?.filter((c) => c.deleted_at === null) ?? [];
 
-  // 代表者に選べるのは法人代表の連絡先だけ。所属していても従業員は代表ではない
+  // 個人事業主は法人番号を持たず、国税庁の台帳にも載らない
+  const isSoleProprietor = isSoleProprietorTypeName(company.corporate_types?.name);
+
+  // 代表者に選べるのは法人代表の連絡先。**個人事業主は本人が「個人」種別で
+  // 登録されることがある**ので、そのときは種別で絞らない（2026-08-04）
   const representativeOptions = activeContacts
-    .filter((c) => c.contact_type === "corporate_rep")
+    .filter((c) => isSoleProprietor || c.contact_type === "corporate_rep")
     .map((c) => ({
       value: c.id,
       label:
         `${c.last_name ?? ""} ${c.first_name ?? ""}`.trim() +
         (c.contact_code ? ` (${c.contact_code})` : ""),
     }));
-
-  // 個人事業主は法人番号を持たず、国税庁の台帳にも載らない
-  const isSoleProprietor = isSoleProprietorTypeName(company.corporate_types?.name);
 
   // freee の紐づけ。1 事業者に複数の取引先が紐づくことは想定していないので先頭を見る
   const freeeLinkStatus =
@@ -237,18 +238,20 @@ export default async function CompanyDetailPage({
             <div
               className={fieldGridClass}
             >
-              {/* 個人事業主は法人ではないので「会社名」と呼ばない（§22.2.1） */}
-              <InfoField
-                label={isSoleProprietor ? "屋号" : "会社名"}
-                value={company.name}
-              />
+              {/* 事業者名が表示・検索の正本。会社名／屋号名は補助として別に持つ */}
+              <InfoField label="事業者名" value={company.name} />
+              {isSoleProprietor ? (
+                <InfoField label="屋号名" value={company.trade_name} />
+              ) : (
+                <InfoField label="会社名" value={company.corporate_name} />
+              )}
               <InfoField label="フリガナ" value={company.name_kana} />
-              {/* 個人事業主は本人しかいないので代表者・担当者を別に持たない。
-                  代表者は連絡先（法人代表）から選ぶ。連絡先がまだ無い場合に備えて
-                  自由入力の representative_name も表示に残す */}
-              {!isSoleProprietor && (
+              {/* 代表者は連絡先から選ぶ。**個人事業主でも出す**（事業主本人を
+                  紐づけたいため。2026-08-04 の指示）。連絡先がまだ無い場合に
+                  備えて自由入力の representative_name も表示に残す */}
+              {(
                 <RelationField
-                  label="代表者"
+                  label={isSoleProprietor ? "事業主" : "代表者"}
                   value={company.representative_contact_id}
                   display={
                     company.representative_contact ? (
@@ -315,7 +318,7 @@ export default async function CompanyDetailPage({
             >
               {/* 個人事業主のときは自明なので出さない */}
               {!isSoleProprietor && (
-                <InfoField label="法人格" value={company.corporate_types?.name} />
+                <InfoField label="事業種別" value={company.corporate_types?.name} />
               )}
               <InfoField label="業種" value={industryLabel} />
               <InfoField label="ステータス" value={company.company_status?.name} />

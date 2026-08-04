@@ -86,14 +86,14 @@ test.describe("変更した画面の総ざらい", () => {
       await page.goto("/companies/new");
       await page
         .locator("label")
-        .filter({ hasText: /^(会社名|屋号)/ })
+        .filter({ hasText: /^事業者名/ })
         .first()
         .locator("xpath=following-sibling::input[1]")
         .fill("検証-個人事業主");
       // 法人格を個人事業主にする
       const typeSelect = page
         .locator("label")
-        .filter({ hasText: "法人格" })
+        .filter({ hasText: "事業種別" })
         .first()
         .locator("xpath=following-sibling::select[1]");
       await typeSelect.selectOption({ label: "個人事業主" });
@@ -116,7 +116,10 @@ test.describe("変更した画面の総ざらい", () => {
         for (const ng of ["法人番号", "代表者", "登記事項証明書"]) {
           expect(body, `詳細に「${ng}」が出ている`).not.toContain(ng);
         }
-        expect(body, "屋号になっていない").toContain("屋号");
+        expect(body, "事業者名が出ていない").toContain("事業者名");
+        expect(body, "屋号名が出ていない").toContain("屋号名");
+        // 個人事業主でも事業主（代表者）を紐づけられること
+        expect(body, "事業主の欄が出ていない").toContain("事業主");
       });
 
       await check("個人事業主の編集に法人向けの項目が出ない", async () => {

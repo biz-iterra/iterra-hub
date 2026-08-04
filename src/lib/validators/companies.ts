@@ -5,6 +5,10 @@ const companyBaseSchema = z.object({
   name: z.string().min(1, "会社名は必須です").max(200),
   name_kana: z.string().max(200).nullable().optional(),
   corporate_type_id: uuidString().nullable().optional(),
+  /** 会社名（法人のとき）。事業者名（name）とは別に保持する */
+  corporate_name: z.string().max(200).nullable().optional(),
+  /** 屋号名（個人事業主のとき）。屋号を持たない事業主では空 */
+  trade_name: z.string().max(200).nullable().optional(),
   representative_name: z.string().max(100).nullable().optional(),
   corporate_number: z.string().regex(/^\d{13}$/, "法人番号は13桁の数字です").nullable().optional(),
   invoice_registered: z.boolean().default(false),

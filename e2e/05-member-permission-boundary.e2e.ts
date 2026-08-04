@@ -26,7 +26,7 @@ test.describe("E2E-05", () => {
     let othersCompanyId = "";
     try {
       await adminPage.goto("/companies/new");
-      await fieldByLabel(adminPage, "会社名 *").fill(othersCompanyName);
+      await fieldByLabel(adminPage, "事業者名 *").fill(othersCompanyName);
       await selectFirstRealOption(fieldByLabel(adminPage, "ステータス *"));
       await adminPage.getByRole("button", { name: "作成" }).click();
       await expectSuccessToast(adminPage, "事業者情報を作成しました");
@@ -59,7 +59,7 @@ test.describe("E2E-05", () => {
 
       // 4b. 編集ページで保存しようとすると Server Action の owner チェックで拒否される
       await page.goto(`/companies/${othersCompanyId}/edit`);
-      await fieldByLabel(page, "会社名 *").fill(`${othersCompanyName}-改`);
+      await fieldByLabel(page, "事業者名 *").fill(`${othersCompanyName}-改`);
       await page.getByRole("button", { name: "保存" }).click();
       await expectErrorToastAndClose(page, "編集する権限がありません");
 

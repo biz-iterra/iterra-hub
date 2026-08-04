@@ -27,7 +27,7 @@ test.describe("E2E-13", () => {
 
     // ---- 1. 事業者情報を用意 ----
     await page.goto("/companies/new");
-    await fieldByLabel(page, "会社名 *").fill(companyName);
+    await fieldByLabel(page, "事業者名 *").fill(companyName);
     await selectFirstRealOption(fieldByLabel(page, "ステータス *"));
     await page.getByRole("button", { name: "作成" }).click();
     await expectSuccessToast(page, "事業者情報を作成しました");

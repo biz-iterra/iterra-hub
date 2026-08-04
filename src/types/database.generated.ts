@@ -837,6 +837,7 @@ export type Database = {
         Row: {
           company_code: string
           company_status_id: string
+          corporate_name: string | null
           corporate_number: string | null
           corporate_type_id: string | null
           created_at: string
@@ -862,6 +863,7 @@ export type Database = {
           representative_name: string | null
           sort_key: string | null
           status_updated_at: string | null
+          trade_name: string | null
           updated_at: string
           verification_note: string | null
           verification_source: string | null
@@ -872,6 +874,7 @@ export type Database = {
         Insert: {
           company_code?: string
           company_status_id: string
+          corporate_name?: string | null
           corporate_number?: string | null
           corporate_type_id?: string | null
           created_at?: string
@@ -897,6 +900,7 @@ export type Database = {
           representative_name?: string | null
           sort_key?: string | null
           status_updated_at?: string | null
+          trade_name?: string | null
           updated_at?: string
           verification_note?: string | null
           verification_source?: string | null
@@ -907,6 +911,7 @@ export type Database = {
         Update: {
           company_code?: string
           company_status_id?: string
+          corporate_name?: string | null
           corporate_number?: string | null
           corporate_type_id?: string | null
           created_at?: string
@@ -932,6 +937,7 @@ export type Database = {
           representative_name?: string | null
           sort_key?: string | null
           status_updated_at?: string | null
+          trade_name?: string | null
           updated_at?: string
           verification_note?: string | null
           verification_source?: string | null
@@ -3286,98 +3292,164 @@ export type Database = {
       freee_partners: {
         Row: {
           account_id: string | null
+          account_name: string | null
+          account_number: string | null
+          account_type: string | null
           address_prefecture_code: number | null
           address_street_name1: string | null
           address_street_name2: string | null
           address_zipcode: string | null
           available: boolean
+          bank_code: string | null
+          bank_name: string | null
+          bank_name_kana: string | null
+          branch_code: string | null
+          branch_kana: string | null
+          branch_name: string | null
           code: string | null
           company_id: string | null
           contact_name: string | null
           corporate_number: string | null
           country_code: string | null
           created_at: string
+          default_title: string | null
+          doc_sending_method: string | null
           email: string | null
           freee_company_id: number
           freee_deleted_at: string | null
           freee_partner_id: number
           freee_update_date: string | null
           id: string
+          invoice_additional_months: number | null
+          invoice_cutoff_day: number | null
+          invoice_fixed_day: number | null
           invoice_registration_number: string | null
           link_status: string
           linked_at: string | null
           linked_by: string | null
+          long_account_name: string | null
           long_name: string | null
           name: string
           name_kana: string | null
           org_code: number | null
+          payer_walletable_id: number | null
+          payment_additional_months: number | null
+          payment_cutoff_day: number | null
+          payment_fixed_day: number | null
           phone: string | null
           qualified_invoice_issuer: boolean | null
+          shortcut1: string | null
+          shortcut2: string | null
           synced_at: string
+          transfer_fee_handling_side: string | null
           updated_at: string
         }
         Insert: {
           account_id?: string | null
+          account_name?: string | null
+          account_number?: string | null
+          account_type?: string | null
           address_prefecture_code?: number | null
           address_street_name1?: string | null
           address_street_name2?: string | null
           address_zipcode?: string | null
           available?: boolean
+          bank_code?: string | null
+          bank_name?: string | null
+          bank_name_kana?: string | null
+          branch_code?: string | null
+          branch_kana?: string | null
+          branch_name?: string | null
           code?: string | null
           company_id?: string | null
           contact_name?: string | null
           corporate_number?: string | null
           country_code?: string | null
           created_at?: string
+          default_title?: string | null
+          doc_sending_method?: string | null
           email?: string | null
           freee_company_id: number
           freee_deleted_at?: string | null
           freee_partner_id: number
           freee_update_date?: string | null
           id?: string
+          invoice_additional_months?: number | null
+          invoice_cutoff_day?: number | null
+          invoice_fixed_day?: number | null
           invoice_registration_number?: string | null
           link_status?: string
           linked_at?: string | null
           linked_by?: string | null
+          long_account_name?: string | null
           long_name?: string | null
           name: string
           name_kana?: string | null
           org_code?: number | null
+          payer_walletable_id?: number | null
+          payment_additional_months?: number | null
+          payment_cutoff_day?: number | null
+          payment_fixed_day?: number | null
           phone?: string | null
           qualified_invoice_issuer?: boolean | null
+          shortcut1?: string | null
+          shortcut2?: string | null
           synced_at?: string
+          transfer_fee_handling_side?: string | null
           updated_at?: string
         }
         Update: {
           account_id?: string | null
+          account_name?: string | null
+          account_number?: string | null
+          account_type?: string | null
           address_prefecture_code?: number | null
           address_street_name1?: string | null
           address_street_name2?: string | null
           address_zipcode?: string | null
           available?: boolean
+          bank_code?: string | null
+          bank_name?: string | null
+          bank_name_kana?: string | null
+          branch_code?: string | null
+          branch_kana?: string | null
+          branch_name?: string | null
           code?: string | null
           company_id?: string | null
           contact_name?: string | null
           corporate_number?: string | null
           country_code?: string | null
           created_at?: string
+          default_title?: string | null
+          doc_sending_method?: string | null
           email?: string | null
           freee_company_id?: number
           freee_deleted_at?: string | null
           freee_partner_id?: number
           freee_update_date?: string | null
           id?: string
+          invoice_additional_months?: number | null
+          invoice_cutoff_day?: number | null
+          invoice_fixed_day?: number | null
           invoice_registration_number?: string | null
           link_status?: string
           linked_at?: string | null
           linked_by?: string | null
+          long_account_name?: string | null
           long_name?: string | null
           name?: string
           name_kana?: string | null
           org_code?: number | null
+          payer_walletable_id?: number | null
+          payment_additional_months?: number | null
+          payment_cutoff_day?: number | null
+          payment_fixed_day?: number | null
           phone?: string | null
           qualified_invoice_issuer?: boolean | null
+          shortcut1?: string | null
+          shortcut2?: string | null
           synced_at?: string
+          transfer_fee_handling_side?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -6586,6 +6658,14 @@ export type Database = {
         }
         Returns: string
       }
+      company_primary_contact_email: {
+        Args: { p_company_id: string }
+        Returns: string
+      }
+      company_primary_contact_name: {
+        Args: { p_company_id: string }
+        Returns: string
+      }
       company_sort_key: {
         Args: { p_name: string; p_name_kana?: string }
         Returns: string
@@ -6618,6 +6698,7 @@ export type Database = {
         }
         Returns: string
       }
+      crm_account_type_to_freee: { Args: { p_type: string }; Returns: string }
       default_phone_label: { Args: { p_phone: string }; Returns: string }
       detect_all_contact_merge_candidates: { Args: never; Returns: number }
       detect_contact_merge_candidates: {
@@ -6648,6 +6729,9 @@ export type Database = {
         Returns: string
       }
       find_contact_by_email: { Args: { p_email: string }; Returns: string }
+      freee_account_type_to_crm: { Args: { p_type: string }; Returns: string }
+      freee_prefecture_code: { Args: { p_name: string }; Returns: number }
+      freee_prefecture_name: { Args: { p_code: number }; Returns: string }
       get_user_role: { Args: never; Returns: string }
       import_eight_leads: {
         Args: { p_batch: Json; p_defaults: Json; p_errors: Json; p_leads: Json }
@@ -6852,6 +6936,13 @@ export type Database = {
       set_primary_entity_address: {
         Args: { p_actor?: string; p_id: string }
         Returns: undefined
+      }
+      split_japanese_city: {
+        Args: { p_rest: string }
+        Returns: {
+          city: string
+          rest: string
+        }[]
       }
       upsert_company_domain: {
         Args: { p_company_id: string; p_input: string; p_is_primary?: boolean }

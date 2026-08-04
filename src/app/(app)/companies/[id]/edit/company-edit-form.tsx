@@ -28,6 +28,8 @@ type CompanyData = {
   id: string;
   name: string;
   name_kana: string | null;
+  corporate_name: string | null;
+  trade_name: string | null;
   representative_name: string | null;
   corporate_type_id: string | null;
   company_status_id: string | null;
@@ -180,6 +182,8 @@ export function CompanyEditForm({
   const [values, setValues] = useState({
     name: company.name ?? "",
     name_kana: company.name_kana ?? "",
+    corporate_name: company.corporate_name ?? "",
+    trade_name: company.trade_name ?? "",
     representative_name: company.representative_name ?? "",
     corporate_type_id: company.corporate_type_id ?? "",
     company_status_id: company.company_status_id ?? "",
@@ -232,6 +236,8 @@ export function CompanyEditForm({
     const payload: Record<string, unknown> = {
       name: values.name,
       name_kana: values.name_kana || null,
+      corporate_name: values.corporate_name || null,
+      trade_name: values.trade_name || null,
       representative_name: values.representative_name || null,
       corporate_type_id: values.corporate_type_id || null,
       company_status_id: values.company_status_id,
@@ -297,9 +303,9 @@ export function CompanyEditForm({
           <h2 style={styles.sectionTitle}>基本情報</h2>
           <div className={styles.grid}>
             <div>
-              {/* 個人事業主は法人ではないので「会社名」と呼ばない（§22.2.1） */}
+              {/* 表示・検索・名寄せの正本。法人は会社名、個人事業主は屋号か個人名 */}
               <label style={styles.label}>
-                {isSoleProprietor ? "屋号" : "会社名"}
+                事業者名
                 <RequiredMark />
               </label>
               <input
@@ -315,6 +321,38 @@ export function CompanyEditForm({
                 }}
               />
             </div>
+            {/*
+              会社名・屋号名は事業者名とは別に持つ（2026-08-04）。
+              法人は 事業者名＝会社名 になるのが普通で、個人事業主は
+              事業者名に屋号か個人名が入る。**検索と名寄せは事業者名を見る**
+            */}
+            {!isSoleProprietor ? (
+              <div>
+                <label style={styles.label}>会社名</label>
+                <input
+                  type="text"
+                  style={styles.input}
+                  value={values.corporate_name}
+                  onChange={(e) => set("corporate_name", e.target.value)}
+                  placeholder="事業者名と同じなら空のままで構いません"
+                  onFocus={onFocus}
+                  onBlur={onBlur}
+                />
+              </div>
+            ) : (
+              <div>
+                <label style={styles.label}>屋号名</label>
+                <input
+                  type="text"
+                  style={styles.input}
+                  value={values.trade_name}
+                  onChange={(e) => set("trade_name", e.target.value)}
+                  placeholder="屋号があれば入力（無ければ空のまま）"
+                  onFocus={onFocus}
+                  onBlur={onBlur}
+                />
+              </div>
+            )}
             <div>
               <label style={styles.label}>フリガナ</label>
               <input
@@ -352,7 +390,7 @@ export function CompanyEditForm({
               </div>
             )}
             <div>
-              <label style={styles.label}>法人格</label>
+              <label style={styles.label}>事業種別</label>
               <select
                 style={styles.input}
                 value={values.corporate_type_id}

@@ -201,6 +201,8 @@ export async function fetchPartners(params: {
 /** freee の取引先へ書ける項目。CRM にしか無いものは送らない */
 export type FreeePartnerPayload = {
   name?: string;
+  /** 取引先コード。CRM の事業者情報 UID を入れて対応付けを見えるようにする */
+  code?: string | null;
   long_name?: string | null;
   name_kana?: string | null;
   phone?: string | null;

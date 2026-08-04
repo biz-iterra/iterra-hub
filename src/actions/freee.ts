@@ -15,6 +15,7 @@ import { createClient } from "@/lib/supabase/server";
 import { buildIlikePattern } from "@/lib/search-query";
 import { isFreeeConfigured } from "@/lib/freee/config";
 import { pushPartnerToFreee, syncFreeeConnection } from "@/lib/freee/sync";
+import { freeePrefectureCode } from "@/lib/freee/prefecture";
 import type {
   FreeeConnectionStatus,
   FreeePartnerDiff,
@@ -514,16 +515,36 @@ export async function pushFieldsToFreee(params: {
       case "invoice_registration_number":
         payload.invoice_registration_number = f.crm;
         break;
+      case "code":
+        // freee の取引先コードに CRM の事業者情報 UID を入れる。
+        // どの CRM レコードに対応するのかが freee 側から分かるようにする
+        payload.code = f.crm;
+        break;
       case "zipcode":
         payload.address_attributes = {
           ...(payload.address_attributes as object | undefined),
           zipcode: f.crm,
         };
         break;
+      case "prefecture":
+        // freee は都道府県をコードで持つ（0: 北海道 〜 46: 沖縄県）
+        payload.address_attributes = {
+          ...(payload.address_attributes as object | undefined),
+          prefecture_code: freeePrefectureCode(f.crm),
+        };
+        break;
       case "street":
+        // **CRM は市区町村と番地が別、freee は 1 項目**。
+        // 差分の crm 値は既に連結済みなのでそのまま送る
         payload.address_attributes = {
           ...(payload.address_attributes as object | undefined),
           street_name1: f.crm,
+        };
+        break;
+      case "building":
+        payload.address_attributes = {
+          ...(payload.address_attributes as object | undefined),
+          street_name2: f.crm,
         };
         break;
       default:

@@ -3710,8 +3710,42 @@ RLS は SELECT が admin のみ。書き込みは service_role と SECURITY DEFI
 書き込みには freee 側のアプリに**取引先の更新権限**が要る。読み取りだけの設定だと
 `403` が返る。文言でその旨を案内する（`docs/error-messages.md` §6）。
 
+### 26.7 住所の持ち方の違い（2026-08-04 修正）
+
+**freee は「市区町村＋町名＋番地」を `street_name1` の 1 項目で持つ。**
+CRM は `city`（市区町村）と `address_line1`（町名・番地）に分けて持つ。
+
+当初は CRM の `address_line1` だけを `street_name1` と比べていたため、
+**市区町村の分だけ必ず食い違い**、直しようのない差分が出続けた。
+取り込み側も `street_name1` を丸ごと `address_line1` に入れており、
+市区町村が番地欄に混ざっていた。
+
+| 方向 | 扱い |
+|---|---|
+| 比較 | CRM の `city ‖ address_line1` を連結して `street_name1` と比べる。**空白は無視**する |
+| freee → CRM | `split_japanese_city()` で市区町村を切り出して別々に入れる |
+| CRM → freee | 連結した値を `street_name1` に送る |
+
+`split_japanese_city()` の規則は **TS の `parseAddress`（Eight 取込）と同じ**にしてある。
+片方だけ直すと取込経路によって住所の入り方が変わる。
+
+都道府県は freee がコード（0: 北海道 〜 46: 沖縄県）、CRM が和名。
+`freee_prefecture_name()` / `freee_prefecture_code()`（DB）と
+`src/lib/freee/prefecture.ts`（TS）で変換する。**取り込みは DB 関数、送信は TS** と
+経路が分かれているため両方に必要になった。**片方だけ直さないこと。**
+
+### 26.8 取引先コード
+
+freee の `code`（取引先コード）に **CRM の事業者情報（`companies.id`）** を入れる。
+freee 側からどの CRM レコードに対応するのかが分かるようにするため。
+
+取引先（`accounts`）ではなく事業者情報にしたのは、**取引先は契約成立まで存在せず**、
+多くの相手で空になるため。契約成立を境にコードが入れ替わると、freee 側でコードを
+鍵にしている運用と食い違う。
+
 ### 26.6 マイグレーション
 
 | ファイル | 内容 |
 |---|---|
 | `20260805000006_freee_two_way_sync.sql` | `freee_sync_logs` + 差分検出 + 取り込み + 記録の関数 |
+| `20260805000007_freee_address_and_code.sql` | 住所の分解・都道府県の変換・取引先コード。差分検出と取り込みを差し替え |

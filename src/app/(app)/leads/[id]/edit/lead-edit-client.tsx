@@ -210,6 +210,12 @@ export function LeadEditClient({
     [masters.statuses, values.stage_id]
   );
 
+  /** 選択中のステージ名。昇格ダイアログの見出しに使う */
+  const selectedStageName = useMemo(
+    () => masters.stages.find((s) => s.value === values.stage_id)?.label ?? "商談",
+    [masters.stages, values.stage_id]
+  );
+
   // 保存すると商談が自動生成されるステージか（昇格の予告に使う）
   const isPromoteStage = useMemo(
     () =>
@@ -385,9 +391,10 @@ export function LeadEditClient({
         onClose={() => setDeleteOpen(false)}
       />
 
-      {/* Opportunity 昇格確認ダイアログ */}
+      {/* 商談昇格の確認ダイアログ */}
       <PromoteConfirmDialog
         open={promoteConfirmOpen}
+        stageName={selectedStageName}
         isCorporate={isCorporateSelected}
         onConfirm={handlePromoteConfirm}
         onClose={() => setPromoteConfirmOpen(false)}
@@ -761,14 +768,18 @@ export function LeadEditClient({
   );
 }
 
-// ---- Opportunity 昇格確認ダイアログ ----
+// ---- 商談昇格の確認ダイアログ ----
+// Sales / Opportunity のどちらでも出る（auto_promote_to_deal なステージが対象）
 function PromoteConfirmDialog({
   open,
+  stageName,
   isCorporate,
   onConfirm,
   onClose,
 }: {
   open: boolean;
+  /** 遷移先のステージ名。Opportunity 固定で書かない */
+  stageName: string;
   isCorporate: boolean;
   onConfirm: () => Promise<{ error: string | null }>;
   onClose: () => void;
@@ -848,7 +859,7 @@ function PromoteConfirmDialog({
   return (
     <div style={overlayStyle} onClick={loading ? undefined : onClose}>
       <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
-        <h2 style={titleStyle}>Opportunity に昇格します</h2>
+        <h2 style={titleStyle}>{stageName} に昇格します</h2>
         <div style={bodyStyle}>
           <p style={{ margin: "0 0 0.5rem 0" }}>
             この操作により、以下が自動生成されます:
@@ -857,16 +868,17 @@ function PromoteConfirmDialog({
             <ul style={listStyle}>
               <li>事業者情報</li>
               <li>連絡先</li>
-              <li>取引先</li>
               <li>商談</li>
             </ul>
           ) : (
             <ul style={listStyle}>
               <li>連絡先</li>
-              <li>取引先</li>
               <li>商談</li>
             </ul>
           )}
+          <p style={{ margin: "0.5rem 0 0 0", color: "var(--color-sumi500)" }}>
+            取引先は契約が成立したときに作られます（ここでは作られません）。
+          </p>
           <p style={{ margin: "0.5rem 0 0 0" }}>
             生成された後に自動で削除することはできません。続けますか？
           </p>

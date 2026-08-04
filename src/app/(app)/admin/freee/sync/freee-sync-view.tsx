@@ -4,9 +4,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type CSSProperties } from "react";
 import { AlertTriangle, ArrowLeft, ArrowRight, Check, RefreshCw } from "lucide-react";
-import { pullFieldsFromFreee, pushFieldsToFreee } from "@/actions/freee";
+import {
+  getFreeeContactCandidates,
+  pullFieldsFromFreee,
+  pushFieldsToFreee,
+  setPrimaryContactFromFreee,
+} from "@/actions/freee";
 import { useToast } from "@/components/ui/toast";
-import type { FreeePartnerDiff } from "@/types/relations";
+import type { FreeeContactCandidate, FreeePartnerDiff } from "@/types/relations";
 
 /**
  * 差分の確認と反映。
@@ -120,6 +125,41 @@ export function FreeeSyncView({
       )
   );
   const [busyId, setBusyId] = useState<string | null>(null);
+  // 担当者名は freee 側の値をそのまま取り込めない（氏名の切れ目が分からず、
+  // 同名の別人に紐づくため）。候補を出して人が選ぶ
+  const [candidates, setCandidates] = useState<
+    Record<string, FreeeContactCandidate[]>
+  >({});
+  const [loadingCandidates, setLoadingCandidates] = useState<string | null>(null);
+
+  const loadCandidates = async (partnerId: string) => {
+    setLoadingCandidates(partnerId);
+    try {
+      const res = await getFreeeContactCandidates(partnerId);
+      if (res.error) {
+        showToast({ type: "error", message: res.error });
+        return;
+      }
+      setCandidates((c) => ({ ...c, [partnerId]: res.data ?? [] }));
+    } finally {
+      setLoadingCandidates(null);
+    }
+  };
+
+  const linkContact = async (partnerId: string, contactId: string) => {
+    setBusyId(partnerId);
+    try {
+      const res = await setPrimaryContactFromFreee({ partnerId, contactId });
+      if (res.error) {
+        showToast({ type: "error", message: res.error });
+        return;
+      }
+      showToast({ type: "success", message: "担当者を紐づけました" });
+      router.refresh();
+    } finally {
+      setBusyId(null);
+    }
+  };
 
   const setChoice = (partnerId: string, field: string, dir: Direction) =>
     setChoices((c) => ({
@@ -279,6 +319,62 @@ export function FreeeSyncView({
                       <td style={styles.td}>{valueText(f.crm)}</td>
                       <td style={styles.td}>{valueText(f.freee)}</td>
                       <td style={styles.td}>
+                        {/*
+                          担当者名は freee 側の値を取り込めない（§26.12）。
+                          「freee → CRM」の代わりに、候補から連絡先を選んで紐づける
+                        */}
+                        {f.field === "contact_name" && (
+                          <div style={{ marginBottom: "0.375rem" }}>
+                            {candidates[d.partnerId] === undefined ? (
+                              <button
+                                type="button"
+                                onClick={() => void loadCandidates(d.partnerId)}
+                                disabled={loadingCandidates === d.partnerId}
+                                style={{
+                                  ...styles.button,
+                                  backgroundColor: "#fff",
+                                  color: "var(--color-terra)",
+                                  border: "1px solid var(--color-border-default)",
+                                }}
+                              >
+                                {loadingCandidates === d.partnerId
+                                  ? "探しています..."
+                                  : "この名前の連絡先を探す"}
+                              </button>
+                            ) : candidates[d.partnerId].length === 0 ? (
+                              <span style={{ fontSize: "0.75rem", color: "var(--color-sumi500)" }}>
+                                同じ名前の連絡先は見つかりませんでした。
+                                連絡先の画面から登録してください（ここでは作りません）。
+                              </span>
+                            ) : (
+                              <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+                                {candidates[d.partnerId].map((c) => (
+                                  <span
+                                    key={c.contactId}
+                                    style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem" }}
+                                  >
+                                    <button
+                                      type="button"
+                                      style={{ ...styles.button, padding: "0.25rem 0.625rem" }}
+                                      disabled={busyId === d.partnerId || c.isPrimary}
+                                      onClick={() => void linkContact(d.partnerId, c.contactId)}
+                                    >
+                                      {c.isPrimary ? "紐づけ済み" : "この人に紐づける"}
+                                    </button>
+                                    <span style={{ fontSize: "0.75rem" }}>{c.contactName}</span>
+                                    <span style={{ fontSize: "0.6875rem", color: "var(--color-sumi500)" }}>
+                                      {c.reason === "exact_full"
+                                        ? "氏名が一致"
+                                        : c.reason === "exact_name"
+                                        ? "姓名が一致"
+                                        : "姓だけ一致"}
+                                    </span>
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
                         <div style={styles.radioRow}>
                           <label style={{ display: "inline-flex", gap: "0.25rem", alignItems: "center", cursor: "pointer" }}>
                             <input
@@ -289,15 +385,18 @@ export function FreeeSyncView({
                             />
                             CRM <ArrowRight size={11} /> freee
                           </label>
-                          <label style={{ display: "inline-flex", gap: "0.25rem", alignItems: "center", cursor: "pointer" }}>
-                            <input
-                              type="radio"
-                              name={`${d.partnerId}-${f.field}`}
-                              checked={picked === "to_crm"}
-                              onChange={() => setChoice(d.partnerId, f.field, "to_crm")}
-                            />
-                            freee <ArrowRight size={11} /> CRM
-                          </label>
+                          {/* 担当者名とメールは CRM が正本。取り込みは選ばせない */}
+                          {f.field !== "contact_name" && f.field !== "email" && (
+                            <label style={{ display: "inline-flex", gap: "0.25rem", alignItems: "center", cursor: "pointer" }}>
+                              <input
+                                type="radio"
+                                name={`${d.partnerId}-${f.field}`}
+                                checked={picked === "to_crm"}
+                                onChange={() => setChoice(d.partnerId, f.field, "to_crm")}
+                              />
+                              freee <ArrowRight size={11} /> CRM
+                            </label>
+                          )}
                           <label style={{ display: "inline-flex", gap: "0.25rem", alignItems: "center", cursor: "pointer" }}>
                             <input
                               type="radio"

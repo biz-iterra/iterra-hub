@@ -830,3 +830,16 @@ export type FreeePartnerDiff = {
     freee: string | null;
   }[];
 };
+
+/**
+ * freee の担当者名に対する連絡先の候補。
+ * **自動確定には使わない**（人が選ぶ）。
+ */
+export type FreeeContactCandidate = {
+  contactId: string;
+  contactName: string;
+  /** exact_full: 姓+ミドル+名 / exact_name: 姓+名 / last_name: 姓だけ（弱い） */
+  reason: "exact_full" | "exact_name" | "last_name";
+  /** すでにこの事業者の主担当か */
+  isPrimary: boolean;
+};

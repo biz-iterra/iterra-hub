@@ -6705,6 +6705,15 @@ export type Database = {
         Args: { p_contact_id: string }
         Returns: number
       }
+      detect_freee_contact_candidates: {
+        Args: { p_partner_id: string }
+        Returns: {
+          contact_id: string
+          contact_name: string
+          is_primary: boolean
+          reason: string
+        }[]
+      }
       detect_freee_partner_candidates: {
         Args: { p_partner_id: string }
         Returns: {
@@ -6807,6 +6816,7 @@ export type Database = {
       }
       normalize_company_name: { Args: { p_name: string }; Returns: string }
       normalize_domain: { Args: { p_input: string }; Returns: string }
+      normalize_person_name: { Args: { p_name: string }; Returns: string }
       phone_line_type: { Args: { p_phone: string }; Returns: string }
       process_lead_import_jobs: { Args: never; Returns: number }
       promote_lead_to_deal: {
@@ -6924,6 +6934,10 @@ export type Database = {
           p_phone: string
         }
         Returns: string
+      }
+      set_company_primary_contact_from_freee: {
+        Args: { p_actor?: string; p_contact_id: string; p_partner_id: string }
+        Returns: undefined
       }
       set_primary_contact_email: {
         Args: { p_actor?: string; p_id: string }

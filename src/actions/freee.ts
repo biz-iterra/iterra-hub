@@ -19,6 +19,7 @@ import { freeePrefectureCode } from "@/lib/freee/prefecture";
 import { crmAccountTypeToFreee } from "@/lib/freee/account-type";
 import type {
   FreeeConnectionStatus,
+  FreeeContactCandidate,
   FreeePartnerDiff,
   FreeePartnerCandidate,
   FreeePartnerListItem,
@@ -623,6 +624,71 @@ export async function pullFieldsFromFreee(params: {
 
   if (error) {
     return { data: null, error: toUserMessage(error, { entityLabel: "事業者情報" }) };
+  }
+
+  revalidatePath("/admin/freee/sync");
+  revalidatePath("/companies");
+  return { data: true, error: null };
+}
+
+/**
+ * freee の担当者名に近い連絡先の候補。
+ *
+ * **自動では結ばない。** freee は氏名を文字列 1 つで持ち、姓と名の切れ目が
+ * 分からないうえ同名の別人もいるため、人が選ぶ（§26.12）。
+ */
+export async function getFreeeContactCandidates(
+  partnerId: string
+): Promise<ActionResult<FreeeContactCandidate[]>> {
+  const auth = await requireAdmin();
+  if ("error" in auth) return { data: null, error: auth.error };
+  if (!UUID_RE.test(partnerId)) return { data: null, error: "不正なパラメータです" };
+
+  const { data, error } = await auth.supabase.rpc("detect_freee_contact_candidates", {
+    p_partner_id: partnerId,
+  });
+
+  if (error) {
+    return { data: null, error: toUserMessage(error, { entityLabel: "連絡先" }) };
+  }
+
+  const rows = (data ?? []) as {
+    contact_id: string;
+    contact_name: string;
+    reason: string;
+    is_primary: boolean | null;
+  }[];
+
+  return {
+    data: rows.map((r) => ({
+      contactId: r.contact_id,
+      contactName: r.contact_name,
+      reason: r.reason as FreeeContactCandidate["reason"],
+      isPrimary: r.is_primary === true,
+    })),
+    error: null,
+  };
+}
+
+/** 候補から選んだ連絡先を、その事業者の主担当にする */
+export async function setPrimaryContactFromFreee(params: {
+  partnerId: string;
+  contactId: string;
+}): Promise<ActionResult<true>> {
+  const auth = await requireAdmin();
+  if ("error" in auth) return { data: null, error: auth.error };
+  if (!UUID_RE.test(params.partnerId) || !UUID_RE.test(params.contactId)) {
+    return { data: null, error: "不正なパラメータです" };
+  }
+
+  const { error } = await auth.supabase.rpc("set_company_primary_contact_from_freee", {
+    p_partner_id: params.partnerId,
+    p_contact_id: params.contactId,
+    p_actor: auth.userId,
+  });
+
+  if (error) {
+    return { data: null, error: toUserMessage(error, { entityLabel: "連絡先" }) };
   }
 
   revalidatePath("/admin/freee/sync");

@@ -111,7 +111,12 @@ export async function getCompanies(params?: {
 
   let query = supabase
     .from("companies")
-    .select("*, corporate_types(id, name), lead_sources(name), company_status:company_statuses(id, name, color), crm_users!companies_owner_user_id_fkey(id, full_name)", { count: "exact" })
+    .select(
+      // freee_partners は admin だけが読める（RLS）。他ロールでは空配列で返るため、
+      // 画面側は「admin のときだけ」連携アイコンを出す（未連携と見分けがつかないため）
+      "*, corporate_types(id, name), lead_sources(name), company_status:company_statuses(id, name, color), crm_users!companies_owner_user_id_fkey(id, full_name), freee_partners(id, link_status)",
+      { count: "exact" }
+    )
     .is("deleted_at", null)
     // 法人格を除いた名称の順に並べる（20260802000008）。
     // 件数が多く、登録順では目当ての事業者を辿れないため
@@ -156,7 +161,8 @@ export async function getCompany(id: string): Promise<ActionResult<CompanyDetail
       representative_contact:contacts!companies_representative_contact_id_fkey(id, contact_code, last_name, first_name),
       accounts(id, account_code, name, deleted_at),
       contacts!contacts_company_id_fkey(id, contact_code, last_name, first_name, contact_type, department, job_title, deleted_at),
-      company_domains(id, domain, is_primary)
+      company_domains(id, domain, is_primary),
+      freee_partners(id, link_status, freee_partner_id)
     `)
     .eq("id", id)
     .is("deleted_at", null)

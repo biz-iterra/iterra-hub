@@ -24,6 +24,7 @@ import {
 import { DetailSection } from "@/components/ui/DetailSection";
 import { AddRelatedLink } from "@/components/ui/AddRelatedLink";
 import { isSoleProprietorTypeName } from "@/lib/company-type";
+import { FreeeLinkIcon } from "@/components/freee/FreeeLinkIcon";
 import { InfoField } from "@/components/ui/InfoField";
 import { ExternalLinkText } from "@/components/ui/ExternalLinkText";
 import { EntityLink } from "@/components/ui/EntityLink";
@@ -154,6 +155,15 @@ export default async function CompanyDetailPage({
   // 個人事業主は法人番号を持たず、国税庁の台帳にも載らない
   const isSoleProprietor = isSoleProprietorTypeName(company.corporate_types?.name);
 
+  // freee の紐づけ。1 事業者に複数の取引先が紐づくことは想定していないので先頭を見る
+  const freeeLinkStatus =
+    (company.freee_partners?.[0]?.link_status as
+      | "unlinked"
+      | "auto"
+      | "confirmed"
+      | "excluded"
+      | undefined) ?? null;
+
   const industryLabel = company.industry_classifications
     ? [
         company.industry_classifications.major_name,
@@ -202,6 +212,14 @@ export default async function CompanyDetailPage({
           >
             {company.name}
           </h1>
+          {/*
+            freee との連携状態。**admin のときだけ出す。**
+            freee_partners は RLS で admin しか読めず、他ロールでは連携済みでも
+            空で返るため、未連携と区別がつかない
+          */}
+          {me?.role === "admin" && (
+            <FreeeLinkIcon status={freeeLinkStatus} size={16} />
+          )}
           <Link href={`/companies/${company.id}/edit`} style={editButtonStyle}>
             <Pencil size={14} />
             編集

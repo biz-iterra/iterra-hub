@@ -261,6 +261,11 @@ export type CompanyWithRelations = Row<"companies"> & {
   lead_sources: { name: string } | null;
   company_status: ColoredRef | null;
   crm_users: UserRef | null;
+  /**
+   * freee の取引先との紐づけ。**admin 以外では常に空**（RLS）なので、
+   * 未連携と区別できない。一覧は admin のときだけアイコンを出す
+   */
+  freee_partners: Ref<"freee_partners", "id" | "link_status">[];
 };
 
 /** companies.ts の getCompany に対応（業種・主担当・紐づくアカウント/コンタクト） */
@@ -299,6 +304,11 @@ export type CompanyDetail = Row<"companies"> & {
   >[];
   /** 名刺取込の法人名寄せに使うメールドメイン */
   company_domains: Ref<"company_domains", "id" | "domain" | "is_primary">[];
+  /**
+   * freee の取引先との紐づけ。**admin 以外では常に空**（RLS）なので、
+   * 未連携と区別できない。画面は admin のときだけ状態を出すこと
+   */
+  freee_partners: Ref<"freee_partners", "id" | "link_status" | "freee_partner_id">[];
 };
 
 // ============================================================

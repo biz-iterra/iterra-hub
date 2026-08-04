@@ -7,6 +7,7 @@ import { useListView } from "@/hooks/useListView";
 import { LIST_FILTER_KEYS } from "@/lib/list-sort";
 import { StatusBadge } from "@/components/ui/badges";
 import { DataTable } from "@/components/ui/DataTable";
+import { FreeeLinkIcon } from "@/components/freee/FreeeLinkIcon";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { FilterSelect } from "@/components/ui/FilterSelect";
 import { FilterGroup, FilterClearButton } from "@/components/ui/FilterGroup";
@@ -35,6 +36,12 @@ interface CompaniesViewProps {
   statuses: CompanyStatus[];
   corporateTypes: CorporateType[];
   users: CrmUser[];
+  /**
+   * freee 連携アイコンを出すか。**admin のときだけ true。**
+   * freee_partners は RLS で admin しか読めず、他ロールでは連携済みでも
+   * 空で返るため、出すと未連携と誤解させる
+   */
+  isAdmin: boolean;
 }
 
 export function CompaniesView({
@@ -42,6 +49,7 @@ export function CompaniesView({
   statuses,
   corporateTypes,
   users,
+  isAdmin,
 }: CompaniesViewProps) {
   const { filters, page, sort, setFilter, setPage, setSort, clear, isPending, data } =
     useListView({
@@ -149,14 +157,31 @@ export function CompaniesView({
             sortKey: "name",
             card: "title",
             render: (company) => (
-              <Link
-                href={`/companies/${company.id}`}
-                className="font-medium"
-                style={{ color: "var(--color-text-list)" }}
-                onClick={(e) => e.stopPropagation()}
+              <span
+                style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem" }}
               >
-                {company.name}
-              </Link>
+                {/* カラー = freee と連携済み / グレー = 未連携 */}
+                {isAdmin && (
+                  <FreeeLinkIcon
+                    status={
+                      (company.freee_partners?.[0]?.link_status as
+                        | "unlinked"
+                        | "auto"
+                        | "confirmed"
+                        | "excluded"
+                        | undefined) ?? null
+                    }
+                  />
+                )}
+                <Link
+                  href={`/companies/${company.id}`}
+                  className="font-medium"
+                  style={{ color: "var(--color-text-list)" }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {company.name}
+                </Link>
+              </span>
             ),
           },
           {

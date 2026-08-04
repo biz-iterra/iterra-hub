@@ -34,6 +34,10 @@ test.describe("E2E-13", () => {
     await page.waitForURL(/\/companies\/[0-9a-f-]{36}$/);
     const companyId = page.url().split("/").pop()!;
 
+    // freee 連携の状態がアイコンで分かること（admin のみ）。
+    // ここで作った事業者はまだ紐づいていないのでグレー＝未連携になる
+    await expect(page.getByRole("img", { name: "freee と未連携" }).first()).toBeVisible();
+
     // ---- 2. 詳細から「連絡先を追加」で、事業者が初期選択された作成画面へ ----
     const addContact = page.getByRole("link", { name: "連絡先を追加" });
     await expect(addContact).toBeVisible();

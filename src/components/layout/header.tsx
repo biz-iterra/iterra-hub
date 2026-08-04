@@ -29,6 +29,8 @@ const pathLabels: Record<string, string> = {
   "/admin/members": "メンバー管理",
   "/admin/logs": "ログ",
   "/admin/leads/import": "インポート",
+  "/admin/freee": "freee 連携",
+  "/admin/freee/partners": "取引先の突合",
   "/profile": "プロフィール設定",
 };
 

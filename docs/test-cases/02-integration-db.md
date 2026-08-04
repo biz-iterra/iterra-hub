@@ -1,6 +1,6 @@
 # DB 結合テスト仕様（ローカル Supabase）
 
-最終更新: 2026-08-03
+最終更新: 2026-08-04
 
 対象: ローカル Supabase 上の **DB 関数・トリガー・RLS**。
 マイグレーション（`supabase/migrations/` 118 本）の実定義から導出している。
@@ -957,6 +957,76 @@ SELECT process_lead_import_jobs();   --> 0
   `process_lead_import_jobs()` を呼び、片方が 0 を返す（`FOR UPDATE SKIP LOCKED`）
 - RLS: member / manager から `lead_import_jobs` が 0 件に見えること。
   **UPDATE ポリシーが無い**ため admin でも状態を書き換えられないこと
+- 自動化区分: SQL 検証
+
+### IT-FREEE-01: freee 取引先の取込と自動紐付け（2026-08-04 追加）
+
+- 対象: マイグレーション `20260805000001`（`upsert_freee_partners`）
+- 背景: 自動で紐付けてよいのは**インボイス登録番号の一致だけ**という設計判断
+  （`docs/database-design.md` §23.2）。名称一致で自動化すると同名の別会社に付く
+- 手順・期待:
+
+```sql
+-- 1. 法人（インボイス番号が CRM と一致）/ 名称だけ一致 / ドメインだけ一致 /
+--    個人事業主（T 番号あり）の 4 件を JSONB で渡す
+SELECT upsert_freee_partners(99999, '[...]'::JSONB, TRUE);
+--   {"upserted": 4, "auto_linked": 1, "marked_deleted": 0}
+--   自動で紐付くのはインボイス一致の 1 件だけ
+
+-- 2. 法人番号は法人のときだけ導出されること
+SELECT freee_partner_id, org_code, invoice_registration_number, corporate_number, link_status
+  FROM freee_partners WHERE freee_company_id = 99999 ORDER BY 1;
+--   org_code=1 かつ T+13桁 → corporate_number が入る / org_code=2 → NULL
+
+-- 3. 再同期しても増えず、確定済みの紐付けを壊さないこと（差分同期）
+SELECT upsert_freee_partners(99999, '[{...同じ partner_id で名称と available を変更...}]'::JSONB, FALSE);
+SELECT count(*) FROM freee_partners WHERE freee_company_id = 99999;   --> 4 のまま
+--   ミラー列（name / available）は更新され、link_status と company_id は保持される
+
+-- 4. 全件同期のときだけ freee 側の削除を検出すること
+SELECT upsert_freee_partners(99999, '[{...1 件だけ...}]'::JSONB, TRUE);
+--   {"marked_deleted": 3}。行と紐付けは残り、freee_deleted_at に時刻が入る
+```
+
+- **差分同期（`p_full = FALSE`）では `freee_deleted_at` が付かないこと**もあわせて見る。
+  差分は更新日での絞り込みなので、消えた取引先は結果に出てこない
+- 自動化区分: SQL 検証
+
+### IT-FREEE-02: 紐付け操作の権限と副作用（2026-08-04 追加）
+
+- 対象: `confirm_freee_partner_link` / `register_freee_partner_company` /
+  `detect_freee_partner_candidates`
+- 背景: 確定系は `SECURITY DEFINER` で RLS が効かない。**関数内の権限確認だけが防御**
+- 手順・期待:
+
+```sql
+-- 1. crm_users に行の無い認証ユーザーでは拒否されること
+SELECT set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000ff"}', TRUE);
+SELECT confirm_freee_partner_link('<partner_id>', '<company_id>');
+--   ERROR: 紐付けの確定は admin だけが行えます
+SELECT register_freee_partner_company('<partner_id>');
+--   ERROR: 事業者情報の作成は admin だけが行えます
+
+-- 2. 候補は 1 社 1 行で、最も強い理由（名称 > ドメイン > 電話）だけを返すこと
+SELECT company_name, reason FROM detect_freee_partner_candidates('<partner_id>');
+--   名称も電話も一致する会社が 2 行に割れないこと
+
+-- 3. 事業者情報の新規作成では Account を作らないこと
+SELECT register_freee_partner_company('<partner_id>', '<admin_id>');
+SELECT count(*) FROM accounts WHERE company_id = '<返った company_id>';   --> 0
+--   住所（freee の都道府県コード → 和名）と法人番号は移り、
+--   フリーメールのドメインは company_domains に登録されない
+
+-- 4. 紐付け済みには新規作成できないこと
+SELECT register_freee_partner_company('<紐付け済みの partner_id>');
+--   ERROR: 既に紐付け済みです。先に紐付けを解除してください
+```
+
+- **1 の拒否が「権限の文言」で起きること**を必ず確認する。`is_admin()` は
+  `crm_users` に行が無いと NULL を返し、`IF NOT is_admin()` では分岐しないため
+  素の書き方だとチェックをすり抜ける（2026-08-04 の検証で検出し `COALESCE` を追加）。
+  外部キー違反など**別の理由での失敗を「拒否された」と読み違えないこと**
+- RLS: member / manager から `freee_partners` / `freee_connections` が 0 件に見えること
 - 自動化区分: SQL 検証
 
 ---

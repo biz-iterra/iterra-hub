@@ -64,7 +64,7 @@ Environment に無いときへ静かにフォールバックし、分離でき�
 `environment: staging` のジョブを回すと、リポジトリレベルに残った**本番の値**へ静かに
 フォールバックし、STG のつもりで本番 DB を触ってしまう。
 
-### NAS — `/volume1/docker/iterra-hub/.env`（14 件）
+### NAS — `/volume1/docker/iterra-hub/.env`（18 件）
 
 `docker-compose.yml` がコンテナ実行時に読む。ファイルは `chmod 600`。
 
@@ -84,6 +84,10 @@ Environment に無いときへ静かにフォールバックし、分離でき�
 | `nas/iterra-hub:production/CLOUDFLARE_API_TOKEN` | 同上。D1 REST API の認証 | **corporate-iterra の本番アカウント API トークンと同値**（トークン名 `corporate-site env:production CI`。既に D1 Edit を持つ） | アカウント API トークンを**環境ごとに 1 本**にまとめる方針。個別トークンは作らない。→ 同値グループ |
 | `nas/iterra-hub:production/INQUIRY_SYNC_CRON_SECRET` | 取込エンドポイント（`/api/leads/inquiry-sync`）の Bearer トークン | 自分のターミナルで生成。Gmail 用とは別の値にする | 未設定ならエンドポイントは 503 で無効 |
 | `nas/iterra-hub:production/INQUIRY_SYNC_OWNER_EMAIL` | 取り込んだリードの担当者 | 運用で決める（`crm_users.email` と一致させる） | 秘密値ではない。未設定なら最初の管理者に付く |
+| `nas/iterra-hub:production/FREEE_CLIENT_ID` | freee 会計連携の OAuth クライアント | freee 開発者コンソール（https://developer.freee.co.jp/） → アプリ管理 → 対象アプリ | 秘密値ではないがシークレットと組で管理する。**コールバック URI に `https://hub.iterra.online/api/freee/callback` の登録が要る** |
+| `nas/iterra-hub:production/FREEE_CLIENT_SECRET` | 同上 | 同上 | 再発行すると既存の接続が切れる |
+| `nas/iterra-hub:production/FREEE_TOKEN_ENCRYPTION_KEY` | freee のトークンの暗号化鍵（AES-256-GCM） | 自分のターミナルで生成。`GMAIL_TOKEN_ENCRYPTION_KEY` と同じ手順で、**別の値**にする | **変更・紛失すると保存済みトークンを復号できず、管理画面から接続し直しになる** |
+| `nas/iterra-hub:production/FREEE_SYNC_CRON_SECRET` | 定期同期エンドポイント（`/api/freee/sync`）の Bearer トークン | 自分のターミナルで生成。他の CRON_SECRET とは別の値にする | 未設定ならエンドポイントは 503 で無効。**開発機には置かない**（手動同期で足りる） |
 
 `IMAGE_TAG` は切り戻し時のみ使う運用値で、秘密値ではないため登録対象外。
 
@@ -101,15 +105,18 @@ Environment に無いときへ静かにフォールバックし、分離でき�
 | `local/iterra-hub:development/GOOGLE_OAUTH_CLIENT_ID` | Google Cloud に**開発用として別に作った**クライアント。本番のものを手元に持ってこない |
 | `local/iterra-hub:development/GOOGLE_OAUTH_CLIENT_SECRET` | 同上 |
 | `local/iterra-hub:development/GMAIL_TOKEN_ENCRYPTION_KEY` | 自分で生成した**開発専用**の鍵。本番と同じ値にしない |
+| `local/iterra-hub:development/FREEE_CLIENT_ID` | freee 開発者コンソールに**開発用として別に作った**アプリ。本番のものを手元に持ってこない |
+| `local/iterra-hub:development/FREEE_CLIENT_SECRET` | 同上 |
+| `local/iterra-hub:development/FREEE_TOKEN_ENCRYPTION_KEY` | 自分で生成した**開発専用**の鍵。本番とも Gmail 用とも別の値にする |
 | `HOUJIN_BANGOU_APP_ID` | 本番と同じ値でよい（読み取り専用の公開 API。無償・レート制限のみ）。登録は本番分のみ |
 
-上 3 件は Bitwarden に登録する。`supabase status` のように再取得できる値ではなく、
-**失うと復元できない**ため（暗号鍵を失うと開発機に保存済みのトークンが読めなくなる）。
-Supabase のローカル値は引き続き登録しない。
+`local/iterra-hub:development/*` の 6 件は Bitwarden に登録する。`supabase status` のように
+再取得できる値ではなく、**失うと復元できない**ため（暗号鍵を失うと開発機に保存済みの
+トークンが読めなくなる）。Supabase のローカル値は引き続き登録しない。
 
-**Gmail の暗号鍵を本番と共通にしないこと。** 本番 DB をローカルへコピーしたとき、
-鍵が同じだと保存済みのリフレッシュトークンを復号でき、開発機から本番のメールを読めてしまう。
-別鍵にしておけば、コピーした時点でトークンが復号不能になり無害化される。
+**Gmail / freee の暗号鍵を本番と共通にしないこと。** 本番 DB をローカルへコピーしたとき、
+鍵が同じだと保存済みのリフレッシュトークンを復号でき、開発機から本番のメール・会計データを
+読めてしまう。別鍵にしておけば、コピーした時点でトークンが復号不能になり無害化される。
 
 Supabase の 3 つはローカル Supabase が起動時に生成する専用値で、**本番の値を一切含まない**。
 `npx supabase status` でいつでも再取得できる＝正本が別にあるため Bitwarden には登録しない

@@ -3214,6 +3214,186 @@ export type Database = {
           },
         ]
       }
+      freee_connections: {
+        Row: {
+          access_token_enc: string | null
+          access_token_expires_at: string | null
+          created_at: string
+          crm_user_id: string
+          freee_company_id: number
+          freee_company_name: string | null
+          granted_scope: string | null
+          id: string
+          is_active: boolean
+          last_error: string | null
+          last_full_synced_at: string | null
+          last_synced_at: string | null
+          refresh_token_enc: string
+          updated_at: string
+        }
+        Insert: {
+          access_token_enc?: string | null
+          access_token_expires_at?: string | null
+          created_at?: string
+          crm_user_id: string
+          freee_company_id: number
+          freee_company_name?: string | null
+          granted_scope?: string | null
+          id?: string
+          is_active?: boolean
+          last_error?: string | null
+          last_full_synced_at?: string | null
+          last_synced_at?: string | null
+          refresh_token_enc: string
+          updated_at?: string
+        }
+        Update: {
+          access_token_enc?: string | null
+          access_token_expires_at?: string | null
+          created_at?: string
+          crm_user_id?: string
+          freee_company_id?: number
+          freee_company_name?: string | null
+          granted_scope?: string | null
+          id?: string
+          is_active?: boolean
+          last_error?: string | null
+          last_full_synced_at?: string | null
+          last_synced_at?: string | null
+          refresh_token_enc?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "freee_connections_crm_user_id_fkey"
+            columns: ["crm_user_id"]
+            isOneToOne: false
+            referencedRelation: "crm_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      freee_partners: {
+        Row: {
+          account_id: string | null
+          address_prefecture_code: number | null
+          address_street_name1: string | null
+          address_street_name2: string | null
+          address_zipcode: string | null
+          available: boolean
+          code: string | null
+          company_id: string | null
+          contact_name: string | null
+          corporate_number: string | null
+          country_code: string | null
+          created_at: string
+          email: string | null
+          freee_company_id: number
+          freee_deleted_at: string | null
+          freee_partner_id: number
+          freee_update_date: string | null
+          id: string
+          invoice_registration_number: string | null
+          link_status: string
+          linked_at: string | null
+          linked_by: string | null
+          long_name: string | null
+          name: string
+          name_kana: string | null
+          org_code: number | null
+          phone: string | null
+          qualified_invoice_issuer: boolean | null
+          synced_at: string
+          updated_at: string
+        }
+        Insert: {
+          account_id?: string | null
+          address_prefecture_code?: number | null
+          address_street_name1?: string | null
+          address_street_name2?: string | null
+          address_zipcode?: string | null
+          available?: boolean
+          code?: string | null
+          company_id?: string | null
+          contact_name?: string | null
+          corporate_number?: string | null
+          country_code?: string | null
+          created_at?: string
+          email?: string | null
+          freee_company_id: number
+          freee_deleted_at?: string | null
+          freee_partner_id: number
+          freee_update_date?: string | null
+          id?: string
+          invoice_registration_number?: string | null
+          link_status?: string
+          linked_at?: string | null
+          linked_by?: string | null
+          long_name?: string | null
+          name: string
+          name_kana?: string | null
+          org_code?: number | null
+          phone?: string | null
+          qualified_invoice_issuer?: boolean | null
+          synced_at?: string
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string | null
+          address_prefecture_code?: number | null
+          address_street_name1?: string | null
+          address_street_name2?: string | null
+          address_zipcode?: string | null
+          available?: boolean
+          code?: string | null
+          company_id?: string | null
+          contact_name?: string | null
+          corporate_number?: string | null
+          country_code?: string | null
+          created_at?: string
+          email?: string | null
+          freee_company_id?: number
+          freee_deleted_at?: string | null
+          freee_partner_id?: number
+          freee_update_date?: string | null
+          id?: string
+          invoice_registration_number?: string | null
+          link_status?: string
+          linked_at?: string | null
+          linked_by?: string | null
+          long_name?: string | null
+          name?: string
+          name_kana?: string | null
+          org_code?: number | null
+          phone?: string | null
+          qualified_invoice_issuer?: boolean | null
+          synced_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "freee_partners_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "freee_partners_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "freee_partners_linked_by_fkey"
+            columns: ["linked_by"]
+            isOneToOne: false
+            referencedRelation: "crm_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gmail_connections: {
         Row: {
           created_at: string
@@ -6272,6 +6452,15 @@ export type Database = {
         Args: { p_name: string; p_name_kana?: string }
         Returns: string
       }
+      confirm_freee_partner_link: {
+        Args: {
+          p_account_id?: string
+          p_actor?: string
+          p_company_id: string
+          p_partner_id: string
+        }
+        Returns: undefined
+      }
       contact_merge_candidate_pairs: {
         Args: { p_contact_id?: string }
         Returns: {
@@ -6286,6 +6475,15 @@ export type Database = {
       detect_contact_merge_candidates: {
         Args: { p_contact_id: string }
         Returns: number
+      }
+      detect_freee_partner_candidates: {
+        Args: { p_partner_id: string }
+        Returns: {
+          company_id: string
+          company_name: string
+          detail: Json
+          reason: string
+        }[]
       }
       expand_corporate_abbreviations: {
         Args: { p_name: string }
@@ -6425,6 +6623,10 @@ export type Database = {
         }
         Returns: string
       }
+      register_freee_partner_company: {
+        Args: { p_actor?: string; p_partner_id: string }
+        Returns: string
+      }
       resolve_corporate_type_id: {
         Args: { p_company_name: string }
         Returns: string
@@ -6496,6 +6698,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      upsert_freee_partners: {
+        Args: { p_freee_company_id: number; p_full?: boolean; p_rows: Json }
+        Returns: Json
       }
     }
     Enums: {

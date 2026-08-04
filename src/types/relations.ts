@@ -724,3 +724,76 @@ export type ActivityFeedRow = Omit<
   entity_type: "lead" | "contact";
   entity_id: string;
 };
+
+// ============================================================
+// freee 会計連携（取引先の突合）
+//
+// freee 側は読み取り専用。CRM 側の紐付け判断だけをこちらで持つ。
+// ============================================================
+
+/** 管理画面に出す接続状態。**トークンは含めない** */
+export type FreeeConnectionStatus = {
+  /** 環境変数が揃っているか（未設定なら接続ボタン自体を出さない） */
+  configured: boolean;
+  connection: {
+    id: string;
+    freeeCompanyId: number;
+    freeeCompanyName: string | null;
+    lastSyncedAt: string | null;
+    /** 全件同期（freee 側の削除検出）を最後に行った日時 */
+    lastFullSyncedAt: string | null;
+    lastError: string | null;
+    connectedAt: string;
+  } | null;
+};
+
+export type FreeeSyncSummary = {
+  fetched: number;
+  upserted: number;
+  /** インボイス番号一致で自動紐付けした件数 */
+  autoLinked: number;
+  /** 全件同期で freee 側から消えていた件数 */
+  markedDeleted: number;
+  full: boolean;
+};
+
+/** 突合一覧の 1 行（freee 側の写し + CRM 側の紐付け） */
+export type FreeePartnerListItem = {
+  id: string;
+  freeePartnerId: number;
+  name: string;
+  longName: string | null;
+  nameKana: string | null;
+  /** 1: 法人 / 2: 個人 / null: 未設定 */
+  orgCode: number | null;
+  phone: string | null;
+  email: string | null;
+  contactName: string | null;
+  invoiceRegistrationNumber: string | null;
+  /** 法人のみインボイス番号から導出した 13 桁 */
+  corporateNumber: string | null;
+  available: boolean;
+  freeeDeletedAt: string | null;
+  freeeUpdateDate: string | null;
+  linkStatus: "unlinked" | "auto" | "confirmed" | "excluded";
+  companyId: string | null;
+  companyName: string | null;
+  accountId: string | null;
+  accountName: string | null;
+  accountCode: string | null;
+  /** CRM と freee でインボイス番号が食い違っている（**CRM が正本**。警告のみ） */
+  invoiceMismatch: boolean;
+  crmInvoiceRegistrationNumber: string | null;
+};
+
+/** 紐付けの候補。自動確定には使わない弱いキーによる提案 */
+export type FreeePartnerCandidate = {
+  companyId: string;
+  companyName: string;
+  /** name: 名称の正規化一致 / domain: メールドメイン / phone: 電話番号 */
+  reason: "name" | "domain" | "phone";
+  invoiceRegistrationNumber: string | null;
+  corporateNumber: string | null;
+  /** その事業者に紐づく取引先の数（0 なら契約前） */
+  accountCount: number;
+};

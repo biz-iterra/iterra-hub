@@ -49,6 +49,13 @@ services:
       INQUIRY_SYNC_CRON_SECRET: ${INQUIRY_SYNC_CRON_SECRET:-}
       INQUIRY_SYNC_OWNER_EMAIL: ${INQUIRY_SYNC_OWNER_EMAIL:-}
 
+      # freee 会計の取引先突合（読み取り専用）。
+      # 未設定なら管理画面が「未設定」と表示し、/api/freee/sync は 503 で無効
+      FREEE_CLIENT_ID: ${FREEE_CLIENT_ID:-}
+      FREEE_CLIENT_SECRET: ${FREEE_CLIENT_SECRET:-}
+      FREEE_TOKEN_ENCRYPTION_KEY: ${FREEE_TOKEN_ENCRYPTION_KEY:-}
+      FREEE_SYNC_CRON_SECRET: ${FREEE_SYNC_CRON_SECRET:-}
+
       TZ: Asia/Tokyo
 
     healthcheck:

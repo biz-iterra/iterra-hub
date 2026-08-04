@@ -628,6 +628,8 @@ chmod 600 .env
 | `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` / `GMAIL_TOKEN_ENCRYPTION_KEY` | 起動はする。Gmail 連携が「未設定」表示になる |
 | `GMAIL_SYNC_CRON_SECRET` | 起動はする。`/api/gmail/sync` が 503 で無効（定期同期が動かない） |
 | `HOUJIN_BANGOU_APP_ID` | 起動はする。法人の実在確認が「未設定」表示になる |
+| `FREEE_CLIENT_ID` / `FREEE_CLIENT_SECRET` / `FREEE_TOKEN_ENCRYPTION_KEY` | 起動はする。`/admin/freee` が「未設定」表示になり、接続ボタンが出ない |
+| `FREEE_SYNC_CRON_SECRET` | 起動はする。`/api/freee/sync` が 503 で無効（定期同期が動かない。画面の「今すぐ同期」は使える） |
 
 貼り付け事故の検証（山括弧が残っていないか。値は表示されない）:
 
@@ -694,6 +696,9 @@ awk -F= '{print $1": "length($2)"文字"}' .env         # 値は出さず桁数�
 
 # コンテナに実際に渡っているか（値は出さない）
 docker exec iterra-hub-app sh -c 'for k in GOOGLE_OAUTH_CLIENT_ID GOOGLE_OAUTH_CLIENT_SECRET GMAIL_TOKEN_ENCRYPTION_KEY GMAIL_SYNC_CRON_SECRET HOUJIN_BANGOU_APP_ID; do v=$(printenv "$k"); echo "$k: ${#v} 文字"; done'
+
+# freee 連携（2026-08-04 追加分）
+docker exec iterra-hub-app sh -c 'for k in FREEE_CLIENT_ID FREEE_CLIENT_SECRET FREEE_TOKEN_ENCRYPTION_KEY FREEE_SYNC_CRON_SECRET; do v=$(printenv "$k"); echo "$k: ${#v} 文字"; done'
 ```
 
 動いているイメージがどのコミットかは次で分かる。
@@ -941,6 +946,46 @@ cd /volume1/docker/iterra-hub
 | `results[].error` に文言 | その連携だけ失敗 | プロフィール画面の連携欄にも同じ理由が出る。「連携の承認が失効」なら再連携 |
 
 1 つの連携が失敗しても他は続行する。全体は止まらない。
+
+### 8.0.1 freee 取引先の定期同期
+
+freee 会計の取引先を CRM へ取り込む。**freee 側には書かない**（読み取り専用）。
+Gmail と同じく `docker exec` でコンテナの中から叩く。
+
+| 種別 | スケジュール | コマンドの末尾 |
+|---|---|---|
+| 差分 | 1 日 1 回（深夜） | `http://127.0.0.1:3000/api/freee/sync` |
+| 全件 | 週 1 回 | `http://127.0.0.1:3000/api/freee/sync?full=1` |
+
+```bash
+cd /volume1/docker/iterra-hub
+( set -a; . ./.env; set +a
+  docker exec iterra-hub-app wget -qO- --post-data='' --header="Authorization: Bearer $FREEE_SYNC_CRON_SECRET" http://127.0.0.1:3000/api/freee/sync )
+```
+
+**サブシェルの括弧を外さない理由は 8.0 と同じ。**
+
+**全件同期を別枠で回す理由。** 差分同期は freee の `start_update_date`（更新日での絞り込み）を
+使うため、**freee 側で削除された取引先を検出できない**。全件同期のときだけ、今回出現
+しなかった行に「freee 側から消えていた」印を付ける（行と紐付けは残す。会計側の削除で
+CRM 側の判断まで消さないため）。
+
+**間隔を 15 分にしない理由。** 取引先マスタは日に何度も変わるものではなく、
+突合は人が画面で行う作業なので日次で足りる。
+
+| 応答 | 意味 | 対処 |
+|---|---|---|
+| `{"connections":n,"full":false,"failed":0,...}` | 正常 | — |
+| `{"skipped":true,...}`（409） | 前回の同期が実行中 | 次の実行に任せる |
+| `{"error":"認証に失敗しました"}`（401） | 合言葉が違う | `.env` の値と Bitwarden を突き合わせる |
+| `{"error":"定期同期は無効です..."}`（503） | `FREEE_SYNC_CRON_SECRET` 未設定 | `.env` に設定してコンテナを再起動 |
+| `{"error":"freee 連携が未設定です"}`（503） | クライアント ID / シークレット / 暗号鍵のいずれか未設定 | `.env` を確認 |
+| `results[].error` に文言 | その接続だけ失敗 | `/admin/freee` の接続欄にも同じ理由が出る。「接続が切れています」なら管理画面から接続し直す |
+
+**接続そのものは画面から行う。** `/admin/freee` の「freee と接続する」で OAuth を通す。
+事前に freee 開発者コンソールのアプリへコールバック URI
+`https://hub.iterra.online/api/freee/callback` を登録しておくこと（未登録だと
+`redirect_uri` の不一致で認可が通らない）。
 
 ### 8.1 死活監視
 

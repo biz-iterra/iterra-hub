@@ -1,20 +1,20 @@
 # システムテスト仕様: 認証・管理・共通基盤
 
-最終更新: 2026-08-03
+最終更新: 2026-08-04
 
 ## 1. 対象範囲
 
 | 区分 | 対象 |
 |---|---|
-| 画面 | `/login`、`/dashboard`、`/admin`（マスタ管理）、`/admin/deleted`、`/admin/members`、`/admin/logs`、`/profile`、`/manual`、共通レイアウト（サイドバー `src/components/layout/sidebar.tsx` / ヘッダー `header.tsx` / グローバル検索 `global-search.tsx`） |
-| Server Action | `src/actions/masters.ts`, `members.ts`, `users.ts`, `deleted.ts`, `change-logs.ts`, `search.ts`, `lookup.ts` |
+| 画面 | `/login`、`/dashboard`、`/admin`（マスタ管理）、`/admin/deleted`、`/admin/members`、`/admin/logs`、`/admin/freee`、`/admin/freee/partners`、`/profile`、`/manual`、共通レイアウト（サイドバー `src/components/layout/sidebar.tsx` / ヘッダー `header.tsx` / グローバル検索 `global-search.tsx`） |
+| Server Action | `src/actions/masters.ts`, `members.ts`, `users.ts`, `deleted.ts`, `change-logs.ts`, `search.ts`, `lookup.ts`, `freee.ts` |
 | middleware | `src/middleware.ts` + `src/lib/supabase/middleware.ts`（認証リダイレクト。※ロール別のルーティングは middleware に無く、各ページ / Server Action / RLS が担う） |
-| API | `/api/health`（`src/app/api/health/route.ts`） |
+| API | `/api/health`（`src/app/api/health/route.ts`）、`/api/freee/auth`・`/api/freee/callback`・`/api/freee/sync` |
 
 - テスト環境: http://localhost:2000
 - テストユーザー: admin@iterra.jp / manager@iterra.jp / member@iterra.jp（いずれも password123）
 - 前提データ: `supabase/seeds/01-masters.sql`〜`03-dev-samples.sql` 投入済みのローカル Supabase
-- ケース ID 凡例: AUTH=認証・アクセス制御、DSH=ダッシュボード、ADM=管理（マスタ・ログ・削除済み・メンバー）、PRF=プロフィール、CMN=共通基盤
+- ケース ID 凡例: AUTH=認証・アクセス制御、DSH=ダッシュボード、ADM=管理（マスタ・ログ・削除済み・メンバー）、FRE=freee 連携、PRF=プロフィール、CMN=共通基盤
 - 自動化区分: 「自動(Playwright)」「自動(API)」「手動」
 
 ### マスタ管理のタブ構成（実装 `admin-view.tsx` の `TAB_KEYS` / `GROUPS` より）
@@ -716,6 +716,109 @@
 
 ---
 
+### FRE-01: freee 連携設定画面の表示（未設定 / 未接続 / 接続済み）
+
+- 対象: `/admin/freee`（`getFreeeConnection` / `freee-settings-view.tsx`）
+- 権限: admin
+- 手順:
+  1. 環境変数が未設定の状態で開く
+  2. 環境変数を設定して開く（未接続）
+  3. 接続済みの状態で開く
+- 期待結果:
+  - 未設定: 「freee 連携が未設定です」と環境変数名 3 つが出て、**接続ボタンは出ない**
+  - 未接続: 「freee と接続する」が出る
+  - 接続済み: 事業所名・ID・接続日時・最終同期・最終の全件同期が並び、同期／全件同期／接続解除の 3 ボタンが出る
+  - **画面のどこにもトークンが出ないこと**（`getFreeeConnection` の戻り値に含まれない）
+- 自動化区分: 自動(Playwright)
+
+### FRE-02: freee 連携は admin 以外に見えない
+
+- 対象: `/admin/freee` / `/admin/freee/partners` / `/api/freee/auth`
+- 権限: member / manager
+- 手順:
+  1. member でサイドバーを確認する
+  2. URL を直接開く
+  3. member のセッションで `listFreeePartners({})` / `confirmFreeePartnerLink(...)` /
+     `runFreeeSyncNow()` を直接呼ぶ
+- 期待結果:
+  - サイドバーに「freee 連携」が出ない（manager も同じ）
+  - 直接アクセスは `/dashboard` へリダイレクト。`/api/freee/auth` は
+    「freee 連携の操作は admin だけが行えます」で設定画面へ戻る
+  - Server Action はすべて `error: "この操作を行う権限がありません"`。RLS でも 0 件
+- 自動化区分: 自動(Playwright + API)
+
+### FRE-03: 取引先の突合 — 一覧・絞り込み・状態表示
+
+- 対象: `/admin/freee/partners`（`listFreeePartners` / `freee-partners-view.tsx`）
+- 権限: admin
+- 手順:
+  1. 同期後に開く
+  2. 「紐付け状態」を切り替える
+  3. 「使用停止・削除」を「含める」にする
+  4. 取引先名・インボイス番号で検索する
+  5. 行を開いて詳細を見る
+  6. 詳細ページへ遷移してからブラウザの戻るで戻る
+- 期待結果:
+  - 既定は **未紐付け**だけが出る。状態バッジ（未紐付け / 自動 / 確定済み / 対象外）が付く
+  - 既定では `available = false` と freee 側削除の行が隠れ、「含める」で「使用停止」「freee 側で削除」バッジ付きで出る
+  - **条件が URL クエリに載り、戻ったときに保持される**（`useListView` の規約）
+  - 個人事業主の行の法人番号欄に「（個人事業主のため導出しません）」と出る
+  - インボイス番号が CRM と食い違う行に警告が出て、**CRM の値が正**と読める
+- 自動化区分: 自動(Playwright)
+
+### FRE-04: 取引先の突合 — 3 つの操作
+
+- 対象: `confirmFreeePartnerLink` / `registerFreeePartnerCompany` / `excludeFreeePartner` / `unlinkFreeePartner`
+- 権限: admin
+- 手順:
+  1. 未紐付けの行を開き、候補の「これに紐付ける」を押す
+  2. 別の行で「事業者情報として登録」→ 確認ダイアログで「登録する」
+  3. 別の行で「対象外にする」
+  4. 1〜3 の行をそれぞれ開き直して解除・取り消しをする
+- 期待結果:
+  - 1: 状態が「確定済み」になり、CRM の紐付け先に事業者情報へのリンクが出る
+  - 2: 事業者情報が新規作成されて紐付き、トーストに「取引先は契約時に作られます」と出る。
+    **`/accounts` に取引先が増えていないこと**（契約成立時にだけ作られる原則）
+  - 3: 状態が「対象外」になり、既定の絞り込み（未紐付け）から消える
+  - 4: いずれも「未紐付け」に戻り、`company_id` / `account_id` が外れる
+  - 候補は**同じ会社が複数行に並ばない**（名称も電話も一致する場合は 1 行）
+- 自動化区分: 自動(Playwright)
+
+### FRE-05: 手動同期と失敗の表示
+
+- 対象: `runFreeeSyncNow` / `freee_connections.last_error`
+- 権限: admin
+- 手順:
+  1. 「今すぐ同期」を押す
+  2. 「全件同期（削除も検出）」を押す
+  3. freee 側でアプリの許可を取り消してから同期する
+- 期待結果:
+  - 1: 「freee から n 件を取り込みました（自動で紐付いた n 件）」のトースト。最終同期が更新される
+  - 2: 同じトーストに「freee 側で消えていた n 件」が加わり、最終の全件同期が更新される
+  - 3: 「freee との接続が切れています。管理画面から接続し直してください」が
+    トーストと画面上部の赤枠（`last_error`）の両方に出る。**再接続すると赤枠が消えること**
+  - 同期中は 3 つのボタンがすべて無効になり、二重実行できないこと
+- 自動化区分: 手動（3 は freee 側の操作が要る）
+
+### FRE-06: 定期同期エンドポイントの認証
+
+- 対象: `/api/freee/sync`（`POST`）
+- 権限: なし（Bearer 認証）
+- 手順:
+  1. Authorization なしで叩く
+  2. 誤った合言葉で叩く
+  3. 正しい合言葉で叩く / `?full=1` を付けて叩く
+  4. `FREEE_SYNC_CRON_SECRET` を外して叩く
+- 期待結果:
+  - 1・2: 401 `{"error":"認証に失敗しました"}`
+  - 3: 200 で `{"connections":n,"full":false|true,"failed":0,"results":[...]}`
+  - 4: 503 `{"error":"定期同期は無効です（FREEE_SYNC_CRON_SECRET が未設定）"}`
+  - **middleware にリダイレクトされないこと**（Cookie 無しでも `/login` に飛ばない）
+  - 1 接続の失敗が他を止めないこと（`results[].error` に残って続行する）
+- 自動化区分: 自動(API)
+
+---
+
 ### PRF-01: プロフィール表示
 
 - 対象: `/profile`（`getCurrentUser` / `profile-form.tsx`）
@@ -1032,9 +1135,9 @@
 - 対象: `src/middleware.ts` の matcher
 - 権限: 未認証
 - 手順:
-  1. 未認証で `/api/health`・`/api/gmail/sync`・`/api/leads/inquiry-sync` に GET/POST する
+  1. 未認証で `/api/health`・`/api/gmail/sync`・`/api/leads/inquiry-sync`・`/api/freee/sync` に GET/POST する
 - 期待結果:
-  - いずれも `/login` へリダイレクトされない（health は 200、gmail/inquiry-sync は各ルートの Bearer トークン検証結果のステータスが直接返る）
+  - いずれも `/login` へリダイレクトされない（health は 200、gmail/inquiry-sync/freee sync は各ルートの Bearer トークン検証結果のステータスが直接返る）
 - 自動化区分: 自動(API)
 
 ## 3. 実装を読んで気づいた仕様上の懸念

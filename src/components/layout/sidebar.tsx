@@ -24,6 +24,7 @@ import {
   UsersRound,
   Upload,
   ScrollText,
+  Landmark,
   X,
 } from "lucide-react";
 import { useState } from "react";
@@ -175,6 +176,13 @@ const navGroups: NavGroup[] = [
         icon: Upload,
         roles: ["admin"],
         description: "Eight 名刺データの取込",
+      },
+      {
+        label: "freee 連携",
+        href: "/admin/freee",
+        icon: Landmark,
+        roles: ["admin"],
+        description: "会計の取引先と突き合わせる",
       },
       // ログは自分の操作を追えるよう admin 限定にしない。
       // 参照できる範囲は RLS が決める（manager 以上は全件、他は自分の変更のみ）

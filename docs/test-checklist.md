@@ -41,6 +41,66 @@
 
 （新しいリリースを上に追記）
 
+## リリース候補: 2026-08-04（4 回目） freee 会計連携（取引先の突合）
+
+- 対象コミット: 未コミット（作業ツリー。T-0021）
+- 変更領域: `supabase/migrations` 1 本（`20260805000001`）/ `src/lib/freee/*` /
+  `src/actions/freee.ts` / `src/app/api/freee/{auth,callback,sync}` /
+  `src/app/(app)/admin/freee/**` / `middleware.ts`（matcher に `api/freee/sync`）/
+  `sidebar.tsx` / `header.tsx` / `list-sort.ts` / `relations.ts` / `database.generated.ts` /
+  `.env.example` / `.env.local.example` / `docker-compose.yml`
+- 回帰範囲の判定: test-strategy.md §5 により **02（freee の DB 関数）+ 07（管理・共通基盤）
+  + E2E スモーク**。共通部分（middleware / サイドバー）に触れたため E2E は省略しない
+
+| ゲート | 実施日 | 実施者 | 結果 | 備考 |
+|---|---|---|---|---|
+| Gate 1 コミット前 4 チェック | 2026-08-04 | Claude | 通過 | typecheck 0 / Vitest **29 files 341 tests** / build 成功 / lint 0 |
+| Gate 2 CI | — | — | **未実施** | 未コミットのため |
+| Gate 3-1 db reset + 結合 (02) | 2026-08-04 | Claude | 通過 | **IT-FREEE-01 / IT-FREEE-02**（下記）。`migration up` で正規適用し直して検証 |
+| Gate 3-2 システム (03〜07 該当章) | 2026-08-04 | Claude | **一部未実施** | FRE-01〜06 は **freee の実接続が要るため未実施**（本番の認証情報とアプリ登録待ち） |
+| Gate 3-3 E2E スモーク (08 ランク S) | 2026-08-04 | Claude | 通過 | **5 本全緑**（1.9 分）。middleware / サイドバーの変更による回帰なし |
+| Gate 4 受入 (09) | — | — | 未実施 | 実接続後にまとめて |
+| Gate 5 デプロイ後スモーク | — | — | 未実施 | — |
+
+### 検出した不具合と処置
+
+1. **マイグレーションがローカル DB に手で流されただけで履歴に無かった**（前セッションの
+   中断による）。`supabase migration up` が `relation "freee_connections" already exists` で
+   落ちて発覚。オブジェクトを DROP して `migration up` で正規に適用し直し、**SQL 全体が
+   最初から最後まで通ることを確認**した。→ 処置済み
+2. **`is_admin()` の NULL 伝播で権限チェックがすり抜ける**（`confirm_freee_partner_link` /
+   `register_freee_partner_company`）。`is_admin()` は `crm_users` に行の無い認証ユーザーに
+   対して NULL を返し、`IF NOT is_admin()` は分岐しない。検証中、拒否の理由が権限では
+   なく外部キー違反だったことから判明。`COALESCE(is_admin(), FALSE)` に修正。あわせて
+   確定系 3 関数に `REVOKE ALL FROM PUBLIC` + `GRANT EXECUTE TO authenticated` を追加。→ 処置済み
+3. **候補検出が同じ会社を複数行返していた**（名称も電話も一致する場合）。画面に同じ会社が
+   並んで選択の助けにならないため、`DISTINCT ON` で 1 社 1 行にし、最も強い理由
+   （名称 > ドメイン > 電話）を返すよう修正。→ 処置済み
+4. **突合一覧の検索語をサニタイズしていなかった**。`.or()` に生の入力を埋めており、
+   `,` `(` `)` `.` を含む語でフィルタ式が壊れる。他の一覧と同じく
+   `buildIlikePattern()`（`src/lib/search-query.ts`）を通すよう修正。→ 処置済み
+5. `linked_by` に呼び出し元が渡した値を優先していた（`COALESCE(p_actor, auth.uid())`）。
+   監査証跡なので実行者を優先する順（`COALESCE(auth.uid(), p_actor)`）に変更。→ 処置済み
+
+### テストケースへの追記
+
+- `01-unit.md` **UT-61 / UT-62**（インボイス番号の形式判定と法人番号の導出 / `toPartnerRow`）
+- `02-integration-db.md` **IT-FREEE-01 / IT-FREEE-02**（取込と自動紐付け / 紐付け操作の権限と副作用）。
+  IT-FREEE-02 には「**拒否が権限の文言で起きること**を確認する」を明記した（上記 2 の再発防止）
+- `07-system-platform-admin.md` **FRE-01〜06**（設定画面・権限・突合一覧・3 つの操作・手動同期・定期同期エンドポイント）
+
+### 残作業（本番反映の前に必要）
+
+1. freee 開発者コンソールでアプリを作成し、コールバック URI に
+   `https://hub.iterra.online/api/freee/callback`（開発機を使う場合は
+   `http://localhost:2000/api/freee/callback` も）を登録する — **ユーザー作業**
+2. `FREEE_CLIENT_ID` / `FREEE_CLIENT_SECRET` / `FREEE_TOKEN_ENCRYPTION_KEY` /
+   `FREEE_SYNC_CRON_SECRET` を Bitwarden へ登録し、NAS の `.env` へ転記する
+   （`docs/secrets-management.md`）— **ユーザー作業**
+3. 本番 DB へ `20260805000001` を適用する
+4. NAS のタスクスケジューラに日次（差分）・週次（全件）を登録する（`deployment-nas.md` §8.0.1）
+5. 接続後に FRE-01〜06 を実施する
+
 ## リリース候補: 2026-08-04（3 回目） 名刺取込の非同期化
 
 - 対象コミット: `f9ccd1e`

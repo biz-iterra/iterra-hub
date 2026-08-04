@@ -3645,3 +3645,73 @@ DB は `deals_counterparty_check` で「account / company / contact のいずれ
 | ファイル | 内容 |
 |---|---|
 | `20260805000003_create_contact_with_details.sql` | 連絡先と連絡手段・住所・取引先紐づけを 1 トランザクションで作る関数 |
+
+## 26. freee との相互同期（2026-08-04）
+
+### 26.1 方針の変更
+
+§23.2 では「**freee 側には一切書かない**」と決めていた。会計は確定した数字を扱うため、
+CRM 側の編集が伝播すると仕訳の前提が崩れる、という判断による。
+
+2026-08-04 に利用者の判断で**書き込みを許す**方針へ変えた。ただし条件を付ける。
+
+- **CRM を正とする**（既定は CRM の値を freee へ）
+- **自動では書かない。** 差分を画面に出し、項目ごとに人が確定したものだけを書く
+- 会計側の修正を残したい項目は「freee → CRM」か「触らない」を選べる
+- **書いた記録を必ず残す**（成功も失敗も）
+
+取り込み（freee → CRM）は従来どおり自動で回る。変わったのは書き込みの経路だけ。
+
+### 26.2 差分の出し方
+
+`detect_freee_partner_diffs(freee_company_id)` が、紐付け済み（`auto` / `confirmed`）の
+相手について**項目ごと**の差分を返す。保存せず都度計算する（どちらの変化でも陳腐化するため）。
+
+| 比較する項目 | CRM 側 | freee 側 |
+|---|---|---|
+| 名称 | `companies.name` | `long_name`（無ければ `name`） |
+| カナ | `companies.name_kana` | `name_kana` |
+| 電話番号 | `companies.phone` | `phone`（**数字だけで比較**） |
+| インボイス番号 | `companies.invoice_registration_number` | `invoice_registration_number` |
+| 郵便番号 | 主住所の `postal_code` | `address_zipcode`（数字だけで比較） |
+| 住所 | 主住所の `address_line1` | `address_street_name1` |
+
+**空文字と NULL は同じ「未入力」として扱う。** 片方が空文字、片方が NULL というだけで
+差分に出すと、直しようのない差分が並び続ける。
+
+CRM にしか無い項目（社内メモ・担当者・実在確認の状態など）は同期の対象にしない。
+
+### 26.3 反映のしかた
+
+| 方向 | 実装 | 備考 |
+|---|---|---|
+| freee → CRM | `apply_freee_values_to_crm()` | 選んだ項目だけ `companies` を更新。インボイス番号が他社と重複するときは例外にして中断する（UNIQUE 制約） |
+| CRM → freee | `pushPartnerToFreee()`（アプリ） | `PUT /api/1/partners/{id}` の部分更新。送った項目だけが変わる |
+
+画面は**先に CRM への取り込みを済ませてから freee へ送る。** 逆にすると、freee へ送った
+直後に CRM 側を書き換えることになり、どちらが最新か分からなくなる。
+
+### 26.4 記録
+
+`freee_sync_logs` に 1 操作 1 行で残す。会計データを触るので、**失敗も残す**
+（送ったが弾かれた、を後から追えないと原因が分からなくなる）。
+
+| 列 | 内容 |
+|---|---|
+| `direction` | `to_freee` / `to_crm` |
+| `changes` | `{"name": {"from": "旧", "to": "新"}}` |
+| `succeeded` / `error_message` | 結果 |
+| `performed_by` / `performed_at` | 誰がいつ |
+
+RLS は SELECT が admin のみ。書き込みは service_role と SECURITY DEFINER の関数が行う。
+
+### 26.5 freee の権限
+
+書き込みには freee 側のアプリに**取引先の更新権限**が要る。読み取りだけの設定だと
+`403` が返る。文言でその旨を案内する（`docs/error-messages.md` §6）。
+
+### 26.6 マイグレーション
+
+| ファイル | 内容 |
+|---|---|
+| `20260805000006_freee_two_way_sync.sql` | `freee_sync_logs` + 差分検出 + 取り込み + 記録の関数 |

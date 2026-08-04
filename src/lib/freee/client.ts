@@ -189,3 +189,92 @@ export async function fetchPartners(params: {
 
   return all;
 }
+
+// ---------------------------------------------------------------------------
+// 書き込み（2026-08-04 追加）
+//
+// **自動では呼ばない。** 画面で人が差分を確認して確定したときだけ送る
+// （docs/database-design.md §26）。会計データを触るため、
+// 送った内容と結果は freee_sync_logs に必ず残すこと。
+// ---------------------------------------------------------------------------
+
+/** freee の取引先へ書ける項目。CRM にしか無いものは送らない */
+export type FreeePartnerPayload = {
+  name?: string;
+  long_name?: string | null;
+  name_kana?: string | null;
+  phone?: string | null;
+  invoice_registration_number?: string | null;
+  address_attributes?: {
+    zipcode?: string | null;
+    prefecture_code?: number | null;
+    street_name1?: string | null;
+    street_name2?: string | null;
+  };
+};
+
+async function apiSend<T>(
+  path: string,
+  method: "POST" | "PUT",
+  accessToken: string,
+  body: unknown
+): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, {
+    method,
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+    cache: "no-store",
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    if (res.status === 401) {
+      throw new Error("freee のアクセストークンが無効です（期限切れの可能性）");
+    }
+    if (res.status === 403) {
+      throw new Error(
+        "freee への書き込みが許可されていません。アプリの権限に取引先の更新が含まれているか確認してください"
+      );
+    }
+    // freee は 400 で理由を返す。原因の切り分けに要るので本文を残す
+    throw new Error(
+      `freee への書き込みに失敗しました: HTTP ${res.status} ${text.slice(0, 300)}`
+    );
+  }
+  return (await res.json()) as T;
+}
+
+/** 取引先を新しく作る。CRM にあって freee に無い相手を登録するとき */
+export async function createPartner(params: {
+  accessToken: string;
+  freeeCompanyId: number;
+  payload: FreeePartnerPayload;
+}): Promise<FreeePartner> {
+  const json = await apiSend<{ partner: FreeePartner }>(
+    "/api/1/partners",
+    "POST",
+    params.accessToken,
+    { company_id: params.freeeCompanyId, ...params.payload }
+  );
+  return json.partner;
+}
+
+/** 取引先を更新する。**送った項目だけが変わる**（部分更新） */
+export async function updatePartner(params: {
+  accessToken: string;
+  freeeCompanyId: number;
+  freeePartnerId: number;
+  payload: FreeePartnerPayload;
+}): Promise<FreeePartner> {
+  const json = await apiSend<{ partner: FreeePartner }>(
+    `/api/1/partners/${params.freeePartnerId}`,
+    "PUT",
+    params.accessToken,
+    { company_id: params.freeeCompanyId, ...params.payload }
+  );
+  return json.partner;
+}

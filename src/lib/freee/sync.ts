@@ -4,7 +4,8 @@
  * 流れ: アクセストークン確保 → Partner 全件/差分取得 →
  *        upsert_freee_partners（DB 関数）へ JSONB で一括反映。
  *
- * **freee 側には一切書かない**（読み取り専用の同期。設計の決定事項）。
+ * 取り込みは freee → CRM の一方向。**freee への書き込みは pushPartnerToFreee だけ**が行い、
+ * 画面で人が確定したときにしか呼ばれない（§26）。
  *
  * トークンの扱いが Gmail と違う:
  *   freee のリフレッシュトークンはローテーション式（使うと古い値が失効する）。
@@ -23,7 +24,12 @@ import {
   toByteaLiteral,
 } from "@/lib/gmail/crypto";
 import { getFreeeConfig, type FreeeConfig } from "./config";
-import { fetchPartners, refreshTokens } from "./client";
+import {
+  fetchPartners,
+  refreshTokens,
+  updatePartner,
+  type FreeePartnerPayload,
+} from "./client";
 import { toPartnerRow } from "./partner";
 
 /** アクセストークンの残り有効期間がこれ未満ならリフレッシュする */
@@ -195,5 +201,69 @@ export async function syncFreeeConnection(
       .update({ last_error: message })
       .eq("id", conn.id);
     return { data: null, error: message };
+  }
+}
+
+/**
+ * CRM の値を freee へ書く。
+ *
+ * **画面で人が確定した項目だけ**を送る（自動では呼ばない）。
+ * 送信の成否は必ず freee_sync_logs に残す。会計データを触る操作なので、
+ * 「送ったが弾かれた」を後から追えないと原因が分からなくなる。
+ */
+export async function pushPartnerToFreee(params: {
+  partnerId: string;
+  /** 送る項目と値。差分画面で CRM 側を選んだものだけが入る */
+  payload: FreeePartnerPayload;
+  /** 記録用。{"name": {"from": "...", "to": "..."}} */
+  changes: Record<string, { from: unknown; to: unknown }>;
+  actorId: string;
+}): Promise<{ error: string | null }> {
+  const config = getFreeeConfig();
+  if (!config) return { error: "freee 連携が未設定です" };
+
+  const admin = createAdminClient();
+
+  const { data: partner } = await admin
+    .from("freee_partners")
+    .select("id, freee_company_id, freee_partner_id")
+    .eq("id", params.partnerId)
+    .maybeSingle();
+  if (!partner) return { error: "freee 取引先が見つかりません" };
+
+  const { data: conn } = await admin
+    .from("freee_connections")
+    .select(
+      "id, freee_company_id, refresh_token_enc, access_token_enc, access_token_expires_at, last_synced_at"
+    )
+    .eq("freee_company_id", partner.freee_company_id)
+    .eq("is_active", true)
+    .maybeSingle<ConnectionRow>();
+  if (!conn) return { error: "freee との接続が見つかりません" };
+
+  const record = async (succeeded: boolean, error: string | null) => {
+    await admin.rpc("record_freee_push", {
+      p_partner_id: params.partnerId,
+      p_changes: params.changes as never,
+      p_succeeded: succeeded,
+      p_error: error ?? undefined,
+      p_actor: params.actorId,
+    });
+  };
+
+  try {
+    const accessToken = await ensureAccessToken(admin, conn, config);
+    await updatePartner({
+      accessToken,
+      freeeCompanyId: partner.freee_company_id,
+      freeePartnerId: partner.freee_partner_id,
+      payload: params.payload,
+    });
+    await record(true, null);
+    return { error: null };
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "freee への書き込みに失敗しました";
+    await record(false, message);
+    return { error: message };
   }
 }

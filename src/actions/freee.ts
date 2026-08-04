@@ -3,7 +3,9 @@
 /**
  * freee 会計連携の Server Action。
  *
- * **freee 側へは書き込まない**（読み取り専用の同期）。
+ * 取り込み（freee → CRM）は自動で回るが、**freee への書き込みは自動では行わない**。
+ * 差分を画面に出し、項目ごとに人が確定したものだけを書く（2026-08-04 に方針変更。
+ * それまでは読み取り専用だった。docs/database-design.md §26）。
  * すべて admin 限定。会計データに繋がる操作のため範囲を絞る。
  */
 
@@ -12,9 +14,10 @@ import { toUserMessage } from "@/lib/db-error";
 import { createClient } from "@/lib/supabase/server";
 import { buildIlikePattern } from "@/lib/search-query";
 import { isFreeeConfigured } from "@/lib/freee/config";
-import { syncFreeeConnection } from "@/lib/freee/sync";
+import { pushPartnerToFreee, syncFreeeConnection } from "@/lib/freee/sync";
 import type {
   FreeeConnectionStatus,
+  FreeePartnerDiff,
   FreeePartnerCandidate,
   FreeePartnerListItem,
   FreeeSyncSummary,
@@ -409,5 +412,166 @@ export async function unlinkFreeePartner(partnerId: string): Promise<ActionResul
   }
 
   revalidatePath("/admin/freee/partners");
+  return { data: true, error: null };
+}
+
+// ---------------------------------------------------------------------------
+// 相互同期（2026-08-04 追加）
+//
+// **CRM を正とする。ただし自動では書かない。**
+// 差分を出して人が項目ごとに選び、確定したものだけを書く。
+// ---------------------------------------------------------------------------
+
+/** 紐付け済みの相手について、CRM と freee の差分を項目ごとに返す */
+export async function getFreeePartnerDiffs(): Promise<
+  ActionResult<FreeePartnerDiff[]>
+> {
+  const auth = await requireAdmin();
+  if ("error" in auth) return { data: null, error: auth.error };
+
+  const { data: conn, error: connError } = await auth.supabase
+    .from("freee_connections")
+    .select("freee_company_id")
+    .eq("is_active", true)
+    .order("created_at")
+    .maybeSingle();
+
+  if (connError) {
+    return { data: null, error: toUserMessage(connError, { entityLabel: "freee 連携" }) };
+  }
+  if (!conn) return { data: null, error: "freee と接続されていません" };
+
+  const { data, error } = await auth.supabase.rpc("detect_freee_partner_diffs", {
+    p_freee_company_id: conn.freee_company_id,
+  });
+
+  if (error) {
+    return { data: null, error: toUserMessage(error, { entityLabel: "freee 取引先" }) };
+  }
+
+  const rows = (data ?? []) as {
+    partner_id: string;
+    company_id: string;
+    partner_name: string;
+    company_name: string;
+    diffs: { field: string; label: string; crm: string | null; freee: string | null }[];
+  }[];
+
+  return {
+    data: rows.map((r) => ({
+      partnerId: r.partner_id,
+      companyId: r.company_id,
+      partnerName: r.partner_name,
+      companyName: r.company_name,
+      fields: r.diffs ?? [],
+    })),
+    error: null,
+  };
+}
+
+/** 人が選んだ項目を freee へ書く（CRM の値で上書き） */
+export async function pushFieldsToFreee(params: {
+  partnerId: string;
+  fields: string[];
+}): Promise<ActionResult<true>> {
+  const auth = await requireAdmin();
+  if ("error" in auth) return { data: null, error: auth.error };
+  if (!UUID_RE.test(params.partnerId)) {
+    return { data: null, error: "不正なパラメータです" };
+  }
+  if (params.fields.length === 0) {
+    return { data: null, error: "反映する項目を選んでください" };
+  }
+
+  // 送る値は**その場で引き直す**。画面が古い値を握っていても、
+  // 実際に書くのは現在の CRM の値にする
+  const { data: diffs, error: diffError } = await getFreeePartnerDiffs();
+  if (diffError) return { data: null, error: diffError };
+
+  const target = diffs?.find((d) => d.partnerId === params.partnerId);
+  if (!target) {
+    return { data: null, error: "差分が見つかりません。画面を再読み込みしてください" };
+  }
+
+  const payload: Record<string, unknown> = {};
+  const changes: Record<string, { from: unknown; to: unknown }> = {};
+
+  for (const f of target.fields) {
+    if (!params.fields.includes(f.field)) continue;
+    changes[f.field] = { from: f.freee, to: f.crm };
+    switch (f.field) {
+      case "name":
+        // freee の name は表示名、long_name が正式名称。両方を揃える
+        payload.name = f.crm;
+        payload.long_name = f.crm;
+        break;
+      case "name_kana":
+        payload.name_kana = f.crm;
+        break;
+      case "phone":
+        payload.phone = f.crm;
+        break;
+      case "invoice_registration_number":
+        payload.invoice_registration_number = f.crm;
+        break;
+      case "zipcode":
+        payload.address_attributes = {
+          ...(payload.address_attributes as object | undefined),
+          zipcode: f.crm,
+        };
+        break;
+      case "street":
+        payload.address_attributes = {
+          ...(payload.address_attributes as object | undefined),
+          street_name1: f.crm,
+        };
+        break;
+      default:
+        break;
+    }
+  }
+
+  if (Object.keys(payload).length === 0) {
+    return { data: null, error: "反映できる項目がありませんでした" };
+  }
+
+  const { error } = await pushPartnerToFreee({
+    partnerId: params.partnerId,
+    payload,
+    changes,
+    actorId: auth.userId,
+  });
+  if (error) return { data: null, error };
+
+  revalidatePath("/admin/freee/sync");
+  return { data: true, error: null };
+}
+
+/** 人が選んだ項目を freee の値で CRM へ取り込む */
+export async function pullFieldsFromFreee(params: {
+  partnerId: string;
+  fields: string[];
+}): Promise<ActionResult<true>> {
+  const auth = await requireAdmin();
+  if ("error" in auth) return { data: null, error: auth.error };
+  if (!UUID_RE.test(params.partnerId)) {
+    return { data: null, error: "不正なパラメータです" };
+  }
+  if (params.fields.length === 0) {
+    return { data: null, error: "取り込む項目を選んでください" };
+  }
+
+  const { error } = await auth.supabase.rpc("apply_freee_values_to_crm", {
+    p_partner_id: params.partnerId,
+    p_fields: params.fields,
+    p_actor: auth.userId,
+  });
+
+  if (error) {
+    return { data: null, error: toUserMessage(error, { entityLabel: "事業者情報" }) };
+  }
+
+  revalidatePath("/admin/freee/sync");
+  revalidatePath("/companies");
   return { data: true, error: null };
 }

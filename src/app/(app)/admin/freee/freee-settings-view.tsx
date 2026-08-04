@@ -203,7 +203,8 @@ export function FreeeSettingsView({
         </h1>
         <p style={styles.hint}>
           freee の取引先を取り込み、事業者情報・取引先と突き合わせます。
-          <strong>freee 側のデータは変更しません</strong>（読み取りのみ）。
+          <strong>freee 側へは自動で書き込みません。</strong>
+          差分の画面で項目ごとに確認して確定したものだけを反映します。
         </p>
       </div>
 
@@ -324,10 +325,16 @@ export function FreeeSettingsView({
           </strong>
           — 契約が成立したときにだけ作られる仕組みを守るためです。
         </p>
-        <Link href="/admin/freee/partners" style={styles.link}>
-          突合画面を開く
-          <ArrowUpRight size={14} />
-        </Link>
+        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+          <Link href="/admin/freee/partners" style={styles.link}>
+            突合画面を開く
+            <ArrowUpRight size={14} />
+          </Link>
+          <Link href="/admin/freee/sync" style={styles.link}>
+            差分を確認して反映する
+            <ArrowUpRight size={14} />
+          </Link>
+        </div>
       </div>
     </div>
   );

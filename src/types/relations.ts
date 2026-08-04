@@ -804,3 +804,19 @@ export type FreeePartnerCandidate = {
   /** その事業者に紐づく取引先の数（0 なら契約前） */
   accountCount: number;
 };
+
+/** freee と CRM の差分（1 相手分）。項目ごとに人がどちらを採るか選ぶ */
+export type FreeePartnerDiff = {
+  partnerId: string;
+  companyId: string;
+  /** freee 側の取引先名 */
+  partnerName: string;
+  /** CRM 側の事業者情報名 */
+  companyName: string;
+  fields: {
+    field: string;
+    label: string;
+    crm: string | null;
+    freee: string | null;
+  }[];
+};

@@ -3404,6 +3404,54 @@ export type Database = {
           },
         ]
       }
+      freee_sync_logs: {
+        Row: {
+          changes: Json
+          direction: string
+          error_message: string | null
+          freee_partner_id: string
+          id: string
+          performed_at: string
+          performed_by: string | null
+          succeeded: boolean
+        }
+        Insert: {
+          changes: Json
+          direction: string
+          error_message?: string | null
+          freee_partner_id: string
+          id?: string
+          performed_at?: string
+          performed_by?: string | null
+          succeeded: boolean
+        }
+        Update: {
+          changes?: Json
+          direction?: string
+          error_message?: string | null
+          freee_partner_id?: string
+          id?: string
+          performed_at?: string
+          performed_by?: string | null
+          succeeded?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "freee_sync_logs_freee_partner_id_fkey"
+            columns: ["freee_partner_id"]
+            isOneToOne: false
+            referencedRelation: "freee_partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "freee_sync_logs_performed_by_fkey"
+            columns: ["performed_by"]
+            isOneToOne: false
+            referencedRelation: "crm_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gmail_connections: {
         Row: {
           created_at: string
@@ -6524,6 +6572,10 @@ export type Database = {
         Returns: undefined
       }
       apply_default_status_colors: { Args: never; Returns: undefined }
+      apply_freee_values_to_crm: {
+        Args: { p_actor?: string; p_fields: string[]; p_partner_id: string }
+        Returns: Json
+      }
       approve_email_contact_candidate: {
         Args: {
           p_candidate_id: string
@@ -6579,6 +6631,16 @@ export type Database = {
           company_name: string
           detail: Json
           reason: string
+        }[]
+      }
+      detect_freee_partner_diffs: {
+        Args: { p_freee_company_id: number }
+        Returns: {
+          company_id: string
+          company_name: string
+          diffs: Json
+          partner_id: string
+          partner_name: string
         }[]
       }
       expand_corporate_abbreviations: {
@@ -6719,8 +6781,23 @@ export type Database = {
         }
         Returns: string
       }
+      record_freee_push: {
+        Args: {
+          p_actor?: string
+          p_changes: Json
+          p_error?: string
+          p_partner_id: string
+          p_succeeded: boolean
+        }
+        Returns: undefined
+      }
+      refresh_all_account_statuses: { Args: never; Returns: number }
       register_freee_partner_company: {
         Args: { p_actor?: string; p_partner_id: string }
+        Returns: string
+      }
+      resolve_account_status: {
+        Args: { p_account_id: string }
         Returns: string
       }
       resolve_corporate_type_id: {

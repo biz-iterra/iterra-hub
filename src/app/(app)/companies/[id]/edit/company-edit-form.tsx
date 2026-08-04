@@ -405,7 +405,9 @@ export function CompanyEditForm({
                   margin: "0.25rem 0 0 0",
                 }}
               >
-                法人番号の照合結果から自動で決まります。
+                {isSoleProprietor
+                  ? "個人事業主は実在確認の対象外です。"
+                  : "法人番号の照合結果から自動で決まります。"}
               </p>
             </div>
             <div>
@@ -484,7 +486,9 @@ export function CompanyEditForm({
         <div style={styles.card}>
           <h2 style={styles.sectionTitle}>インボイス</h2>
           <p style={{ color: "var(--color-sumi600)", fontSize: "0.75rem", margin: "0 0 0.75rem 0" }}>
-            登録番号の有無で登録ステータスを自動判定します。基本情報の法人番号を 13 桁入力すると登録番号が自動で補完されます。
+            {isSoleProprietor
+              ? "登録番号の有無で登録ステータスを自動判定します。"
+              : "登録番号の有無で登録ステータスを自動判定します。基本情報の法人番号を 13 桁入力すると登録番号が自動で補完されます。"}
           </p>
           <div>
             <label style={styles.label}>インボイス登録番号（T+13桁）</label>

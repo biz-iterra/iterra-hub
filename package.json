@@ -10,9 +10,10 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test",
+    "test:e2e": "playwright test --grep-invert @sweep",
     "db:types": "supabase gen types typescript --local > src/types/database.generated.ts",
-    "db:er": "node scripts/generate-er-diagram.mjs"
+    "db:er": "node scripts/generate-er-diagram.mjs",
+    "test:sweep": "playwright test e2e/zz-sweep.e2e.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.2",

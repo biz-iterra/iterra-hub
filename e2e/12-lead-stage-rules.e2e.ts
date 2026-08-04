@@ -63,6 +63,12 @@ test.describe("E2E-12", () => {
 
     // ---- 3. Sales へ進めると商談が作られ、ステータスも残る（LD-24）----
     await page.goto(`/leads/${leadId}/edit`);
+    // **同じ保存でリード名も変える。** 昇格は DB の値を読むため、
+    // 「今回入力した値」が届かないと商談に古い名前が付く。
+    // 2026-08-04 に、昇格を先に動かしたせいで編集値が届かず
+    // 「リード名と事業者種別が必要です」で全リードの昇格が失敗した回帰の再発防止
+    const renamed = `${leadName}-改`;
+    await fieldByLabel(page, "リード名 *").fill(renamed);
     await fieldByLabel(page, "ステージ *").selectOption({ label: "Sales" });
     // Sales はステータスを持つ。**昇格ステージでもステータス欄が消えないこと**が要点
     // （auto_promote_to_deal で判定していた頃はここが消えていた）
@@ -85,6 +91,9 @@ test.describe("E2E-12", () => {
     const dealId = (await promotedLink.getAttribute("href"))!.split("/").pop()!;
     // ステータスが消えていない
     await expect(page.getByText("商談化").first()).toBeVisible();
+    // **同じ保存で変えたリード名が昇格に届いていること**（商談名は lead_name から作る）
+    await page.goto(`/deals/${dealId}`);
+    await expect(page.getByRole("heading", { name: new RegExp(renamed), level: 1 })).toBeVisible();
 
     // ---- 4. 商談はあるが契約が無いので「取引先」へはまだ進めない（LD-23）----
     await page.goto(`/leads/${leadId}/edit`);

@@ -468,30 +468,49 @@ export async function updateLead(
   // ---------- 商談の先行生成 ----------
   // **leads を更新する前に商談を作る。** DB トリガー trg_lead_stage_requirements が
   // 「商談なしで Sales 以降へ進める」ことを拒否するため、順序が逆だと保存自体が失敗する。
-  // 先に作れば、昇格が失敗したときも leads は手つかずのままなので
+  // 先に作れば、昇格が失敗したときも leads はステージが元のままなので
   // 巻き戻し（旧実装の補償処理）が要らない。
+  //
+  // ただし**昇格は DB の値を読む**（事業者種別・社名・担当者名など）。
+  // 今回の編集で入力した値が届かないと「lead_name と account_type_id が必要です」で
+  // 失敗するため、**ステージ以外の項目は昇格より先に保存する**。
+  // ステージを据え置けばトリガーは発火しない（UPDATE OF stage_id のため）。
   const willPromote = isPromoteStage && !existing.promoted_deal_id;
   let lockValue = expectedUpdatedAt;
 
   if (willPromote) {
-    // 昇格は leads も触る（promoted_deal_id）。競合は昇格の前に見ておかないと、
-    // 自分が進めた updated_at を他人の更新と区別できなくなる
+    // ステージだけ元の値に据え置いて、他の項目を先に保存する
+    const { stage_id: _stageForLater, ...beforePromotePayload } = updatePayload;
+
+    let preQuery = supabase.from("leads").update(beforePromotePayload).eq("id", id);
     if (expectedUpdatedAt) {
-      const { data: current } = await supabase
-        .from("leads")
-        .select("updated_at")
-        .eq("id", id)
-        .maybeSingle();
-      if (current && current.updated_at !== expectedUpdatedAt) {
-        return { ok: false, errors: { _: [conflictErrorMessage("このリード")] } };
-      }
+      preQuery = preQuery.eq("updated_at", expectedUpdatedAt);
     }
+    const { data: preSaved, error: preError } = await preQuery
+      .select("updated_at")
+      .maybeSingle();
+
+    if (preError) {
+      return {
+        ok: false,
+        errors: { _: [toUserMessage(preError, { entityLabel: "リード" })] },
+      };
+    }
+    if (!preSaved) {
+      return { ok: false, errors: { _: [conflictErrorMessage("このリード")] } };
+    }
+    // この後の楽観ロックは、今保存した時点の値で行う
+    lockValue = preSaved.updated_at;
 
     const promoteResult = await promoteLeadToDeal(id, { targetStageId: newStageId });
     if (promoteResult.error) {
-      // leads はまだ変更していないので、ステージも元のまま。復旧処理は不要
-      if (promoteResult.error.includes("[corporate_number]")) {
-        return { ok: false, errors: { corporate_number: [promoteResult.error] } };
+      // ステージは据え置いたままなので、昇格しないまま項目だけ保存された状態になる。
+      // 中途半端なデータは作られないため復旧処理は不要（利用者は直して再保存できる）
+      // `[field] 本文` で返ってきたものは、その入力欄の下に出す（規約どおり）。
+      // 特定の欄に紐づかないものだけトーストへ回す
+      const fieldMatch = promoteResult.error.match(/^\[([a-z_]+)\]/);
+      if (fieldMatch) {
+        return { ok: false, errors: { [fieldMatch[1]]: [promoteResult.error] } };
       }
       return {
         ok: false,
@@ -499,15 +518,13 @@ export async function updateLead(
       };
     }
 
-    // 昇格で updated_at が進んでいる。この後の楽観ロックは新しい値で行う
-    if (expectedUpdatedAt) {
-      const { data: afterPromoteRow } = await supabase
-        .from("leads")
-        .select("updated_at")
-        .eq("id", id)
-        .maybeSingle();
-      lockValue = afterPromoteRow?.updated_at ?? expectedUpdatedAt;
-    }
+    // 昇格で updated_at がさらに進む。最後のステージ更新はその値で行う
+    const { data: afterPromoteRow } = await supabase
+      .from("leads")
+      .select("updated_at")
+      .eq("id", id)
+      .maybeSingle();
+    lockValue = afterPromoteRow?.updated_at ?? lockValue;
   }
 
   // 楽観ロック: 編集開始時点から updated_at が変わっていれば 0 行更新になる
@@ -711,11 +728,20 @@ export async function promoteLeadToDeal(
     return { data: null, error: "このリードはすでに商談に昇格済みです" };
   }
 
-  // 必須情報チェック
-  if (!lead.lead_name || !lead.account_type_id) {
+  // 必須情報チェック。
+  // **何が足りないかを個別に、入力欄の名前で返す。** 旧実装は
+  // 「[ステージ遷移] Opportunity 昇格には lead_name と account_type_id が必要です」で、
+  // 列名が英語のうえ [ステージ遷移] は入力欄ではないため、画面が欄に紐づけられなかった
+  if (!lead.lead_name) {
     return {
       data: null,
-      error: "[ステージ遷移] Opportunity 昇格には lead_name と account_type_id が必要です",
+      error: "[lead_name] リード名を入力してください。商談に昇格するには必要です",
+    };
+  }
+  if (!lead.account_type_id) {
+    return {
+      data: null,
+      error: "[account_type_id] 事業者種別を選択してください。商談に昇格するには必要です",
     };
   }
 

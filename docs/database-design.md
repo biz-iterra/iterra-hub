@@ -3764,6 +3764,56 @@ freee の `code`（取引先コード）に **CRM の事業者コード（`compa
 多くの相手で空になるため。契約成立を境にコードが入れ替わると、freee 側でコードを
 鍵にしている運用と食い違う。
 
+### 26.10 連携する項目の一覧（2026-08-04 に全面見直し）
+
+freee の取引先は 25 項目（＋ネスト）ある。**CRM に正本があるものだけ双方向にし、
+freee にしかないものはミラーに取り込むだけ**にする。CRM に持たせると二重管理になる。
+
+**① 双方向（差分画面に出る）**
+
+| freee | CRM |
+|---|---|
+| `long_name`（無ければ `name`） | `companies.name` |
+| `name_kana` | `companies.name_kana` |
+| `phone` | `companies.phone` |
+| `invoice_registration_number` | `companies.invoice_registration_number` |
+| `qualified_invoice_issuer` | `companies.invoice_registered`（該当する / 該当しない） |
+| `org_code` | 法人格（個人事業主なら個人、それ以外は法人） |
+| `code` | `companies.company_code` |
+| `address_attributes.*` | 主住所（郵便番号・都道府県・市区町村＋番地・建物名） |
+| `partner_bank_account_attributes.*` | `financial_info` の主口座（銀行名・支店・口座番号・名義・種別） |
+
+**② CRM → freee の一方向**
+
+| freee | CRM | なぜ一方向か |
+|---|---|---|
+| `contact_name` | 主担当の**姓・ミドル名・名を続けた文字列** | freee は氏名を 1 項目で持ち、姓と名の切れ目が分からない。取り込むと別人に上書きしかねない |
+| `email` | 主担当の主メール | 同上（連絡先が正本） |
+
+**③ ミラーに取り込むだけ（CRM に正本を持たない）**
+
+`shortcut1` / `shortcut2` / `default_title`（敬称）/ `payer_walletable_id` /
+`transfer_fee_handling_side` / `partner_doc_setting_attributes`（送付方法）/
+`payment_term_attributes`（支払条件）/ `invoice_payment_term_attributes`（請求条件）/
+`available` / `country_code` / `update_date`
+
+**④ freee に対応項目が無い（送らない）**
+
+`corporate_number`（法人番号。CRM では法人格が法人のときだけ入力できる）/
+代表者 / FAX / `website_url` / 業種
+
+### 26.11 変換が要るもの
+
+| 項目 | freee | CRM | 注意 |
+|---|---|---|---|
+| 都道府県 | コード（0: 北海道 〜 46） | 和名 | **0 始まり。**1 始まりと取り違えると全県ずれる |
+| 市区町村・番地 | `street_name1` の 1 項目 | `city` ＋ `address_line1` | §26.7 |
+| 口座種別 | `ordinary` / **`checking`** / `earmarked` / `savings` | `ordinary` / **`current`** / `savings` | **当座の綴りが違う。** 納税準備預金は CRM に無いので取り込まない（普通預金に寄せない） |
+| 適格請求書発行事業者 | 真偽値 | `invoice_registered` | **番号とセットでしか動かせない**（CHECK 制約が「該当する なら番号あり」を要求する） |
+
+変換表は **DB と TS の両方**にある（取り込みは DB 関数、送信は TS）。
+**片方だけ直さないこと。**
+
 ### 26.9 連携状態の見せ方
 
 事業者情報の**一覧と詳細**に、freee と紐づいているかをアイコンで出す。
@@ -3791,3 +3841,6 @@ title 属性で状態の違いを補う。
 | `20260805000006_freee_two_way_sync.sql` | `freee_sync_logs` + 差分検出 + 取り込み + 記録の関数 |
 | `20260805000007_freee_address_and_code.sql` | 住所の分解・都道府県の変換・取引先コード。差分検出と取り込みを差し替え |
 | `20260805000008_freee_code_use_company_code.sql` | 取引先コードを UUID から事業者コード（`CMP-000001`）へ |
+| `20260805000009_freee_full_mirror.sql` | ミラーを全 25 項目へ拡張。口座種別の変換関数 |
+| `20260805000010_freee_diff_full.sql` | 法人/個人・担当者名・メール・適格・口座を差分対象に |
+| `20260805000011_freee_apply_full.sql` | 追加項目の取り込み。担当者名とメールは取り込まない |

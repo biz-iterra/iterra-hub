@@ -32,6 +32,46 @@ export type FreeePartner = {
   available: boolean;
   /** yyyy-mm-dd */
   update_date: string;
+
+  // ---- ここから下は CRM に正本が無い項目（ミラーとして持つだけ）----
+  shortcut1?: string | null;
+  shortcut2?: string | null;
+  /** 敬称（御中 / 様 / 空白） */
+  default_title?: string | null;
+  payer_walletable_id?: number | null;
+  /** payer: 振込元（当方）/ payee: 振込先（先方） */
+  transfer_fee_handling_side?: string | null;
+  partner_doc_setting_attributes?: {
+    sending_method?: string | null;
+  } | null;
+  /** CRM の financial_info と対応する */
+  partner_bank_account_attributes?: {
+    bank_name?: string | null;
+    bank_name_kana?: string | null;
+    bank_code?: string | null;
+    branch_name?: string | null;
+    branch_kana?: string | null;
+    branch_code?: string | null;
+    /** ordinary / checking / earmarked / savings */
+    account_type?: string | null;
+    account_number?: string | null;
+    /** 口座名義（カナ） */
+    account_name?: string | null;
+    /** 口座名義 */
+    long_account_name?: string | null;
+  } | null;
+  /** 支払条件。締日は月末を 32 で表す */
+  payment_term_attributes?: {
+    cutoff_day?: number | null;
+    additional_months?: number | null;
+    fixed_day?: number | null;
+  } | null;
+  /** 請求条件 */
+  invoice_payment_term_attributes?: {
+    cutoff_day?: number | null;
+    additional_months?: number | null;
+    fixed_day?: number | null;
+  } | null;
 };
 
 /** upsert_freee_partners（DB 関数）へ渡す 1 行 */
@@ -54,6 +94,30 @@ export type FreeePartnerRow = {
   address_street_name2: string | null;
   available: boolean;
   freee_update_date: string | null;
+
+  // CRM に正本が無い項目。ミラーとして持ち、突合画面で参照できるようにする
+  shortcut1: string | null;
+  shortcut2: string | null;
+  default_title: string | null;
+  payer_walletable_id: number | null;
+  transfer_fee_handling_side: string | null;
+  doc_sending_method: string | null;
+  bank_name: string | null;
+  bank_name_kana: string | null;
+  bank_code: string | null;
+  branch_name: string | null;
+  branch_kana: string | null;
+  branch_code: string | null;
+  account_type: string | null;
+  account_number: string | null;
+  account_name: string | null;
+  long_account_name: string | null;
+  payment_cutoff_day: number | null;
+  payment_additional_months: number | null;
+  payment_fixed_day: number | null;
+  invoice_cutoff_day: number | null;
+  invoice_additional_months: number | null;
+  invoice_fixed_day: number | null;
 };
 
 /** インボイス登録番号の形式（T + 13 桁）か */
@@ -105,6 +169,9 @@ export function toPartnerRow(partner: FreeePartner): FreeePartnerRow {
       : null;
 
   const invoice = clean(partner.invoice_registration_number);
+  const bank = partner.partner_bank_account_attributes ?? null;
+  const pay = partner.payment_term_attributes ?? null;
+  const inv = partner.invoice_payment_term_attributes ?? null;
 
   return {
     freee_partner_id: partner.id,
@@ -127,5 +194,30 @@ export function toPartnerRow(partner: FreeePartner): FreeePartnerRow {
     address_street_name2: clean(addr?.street_name2),
     available: partner.available !== false,
     freee_update_date: cleanDate(partner.update_date),
+
+    shortcut1: clean(partner.shortcut1),
+    shortcut2: clean(partner.shortcut2),
+    default_title: clean(partner.default_title),
+    payer_walletable_id: partner.payer_walletable_id ?? null,
+    transfer_fee_handling_side: clean(partner.transfer_fee_handling_side),
+    doc_sending_method: clean(partner.partner_doc_setting_attributes?.sending_method),
+
+    bank_name: clean(bank?.bank_name),
+    bank_name_kana: clean(bank?.bank_name_kana),
+    bank_code: clean(bank?.bank_code),
+    branch_name: clean(bank?.branch_name),
+    branch_kana: clean(bank?.branch_kana),
+    branch_code: clean(bank?.branch_code),
+    account_type: clean(bank?.account_type),
+    account_number: clean(bank?.account_number),
+    account_name: clean(bank?.account_name),
+    long_account_name: clean(bank?.long_account_name),
+
+    payment_cutoff_day: pay?.cutoff_day ?? null,
+    payment_additional_months: pay?.additional_months ?? null,
+    payment_fixed_day: pay?.fixed_day ?? null,
+    invoice_cutoff_day: inv?.cutoff_day ?? null,
+    invoice_additional_months: inv?.additional_months ?? null,
+    invoice_fixed_day: inv?.fixed_day ?? null,
   };
 }

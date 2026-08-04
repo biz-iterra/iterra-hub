@@ -16,6 +16,7 @@ import { buildIlikePattern } from "@/lib/search-query";
 import { isFreeeConfigured } from "@/lib/freee/config";
 import { pushPartnerToFreee, syncFreeeConnection } from "@/lib/freee/sync";
 import { freeePrefectureCode } from "@/lib/freee/prefecture";
+import { crmAccountTypeToFreee } from "@/lib/freee/account-type";
 import type {
   FreeeConnectionStatus,
   FreeePartnerDiff,
@@ -547,6 +548,38 @@ export async function pushFieldsToFreee(params: {
           street_name2: f.crm,
         };
         break;
+      case "qualified_invoice_issuer":
+        // 画面には「該当する / 該当しない」で出しているので真偽値へ戻す
+        payload.qualified_invoice_issuer = f.crm === "該当する";
+        break;
+      case "org_code":
+        payload.org_code = f.crm === "個人" ? 2 : 1;
+        break;
+      case "contact_name":
+        // **姓・ミドル名・名を続けたもの**（DB 側で組み立て済み）
+        payload.contact_name = f.crm;
+        break;
+      case "email":
+        payload.email = f.crm;
+        break;
+      case "bank_name":
+      case "branch_name":
+      case "account_number":
+      case "account_holder":
+      case "account_type": {
+        // freee は口座をまとめて受け取る。**送る分だけ組み立てる**
+        const bank = (payload.partner_bank_account_attributes ?? {}) as Record<
+          string,
+          unknown
+        >;
+        if (f.field === "bank_name") bank.bank_name = f.crm;
+        if (f.field === "branch_name") bank.branch_name = f.crm;
+        if (f.field === "account_number") bank.account_number = f.crm;
+        if (f.field === "account_holder") bank.long_account_name = f.crm;
+        if (f.field === "account_type") bank.account_type = crmAccountTypeToFreee(f.crm);
+        payload.partner_bank_account_attributes = bank;
+        break;
+      }
       default:
         break;
     }

@@ -201,6 +201,17 @@ export async function fetchPartners(params: {
 /** freee の取引先へ書ける項目。CRM にしか無いものは送らない */
 export type FreeePartnerPayload = {
   name?: string;
+  org_code?: number | null;
+  contact_name?: string | null;
+  email?: string | null;
+  qualified_invoice_issuer?: boolean | null;
+  partner_bank_account_attributes?: {
+    bank_name?: string | null;
+    branch_name?: string | null;
+    account_type?: string | null;
+    account_number?: string | null;
+    long_account_name?: string | null;
+  };
   /** 取引先コード。CRM の事業者情報 UID を入れて対応付けを見えるようにする */
   code?: string | null;
   long_name?: string | null;

@@ -270,23 +270,34 @@ export function AccountEditForm({
                 ))}
               </select>
             </div>
+            {/*
+              ステータスは契約とリードの実態から自動で決まる（20260805000005）。
+                アクティブ … 期間内の契約がある
+                解約       … 契約はあるがすべて終了している
+                見込み     … 契約が無く、リードが Sales 以上まで進んでいる
+              人が選べると実態と食い違うため、**編集項目としては出さない**
+            */}
             <div>
-              <label style={styles.label}>ステータス<RequiredMark /></label>
-              <select
-                style={styles.input}
-                value={values.account_status_id}
-                onChange={(e) => set("account_status_id", e.target.value)}
-                required
-                onFocus={onFocus}
-                onBlur={onBlur}
+              <label style={styles.label}>ステータス</label>
+              <input
+                style={{ ...styles.input, backgroundColor: "var(--color-sumi50)" }}
+                value={
+                  masters.accountStatuses.find(
+                    (o) => o.value === values.account_status_id
+                  )?.label ?? "—"
+                }
+                readOnly
+                aria-label="ステータス（自動付与）"
+              />
+              <p
+                style={{
+                  fontSize: "0.6875rem",
+                  color: "var(--color-sumi500)",
+                  margin: "0.25rem 0 0 0",
+                }}
               >
-                <option value="">-- 選択 --</option>
-                {masters.accountStatuses.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
+                契約の状況から自動で決まります（期間内の契約があればアクティブ）。
+              </p>
             </div>
             <div>
               <label style={styles.label}>リードソース</label>

@@ -6,7 +6,7 @@ import {
 } from "@/actions/accounts";
 import { getContacts } from "@/actions/contacts";
 import { RelationListSection } from "@/components/ui/RelationListSection";
-import { ACCOUNT_CONTACT_ROLES, accountContactRoleLabel } from "@/lib/account-contact-roles";
+import { accountContactRoleLabel } from "@/lib/account-contact-roles";
 import { getCompanies } from "@/actions/companies";
 import { getCrmUsers, getCurrentUser } from "@/actions/users";
 import { buildCompanyOptions } from "@/lib/company-options";
@@ -17,6 +17,7 @@ import {
   Briefcase,
   Handshake,
   Layers,
+  Receipt,
   Pencil,
   Users,
 } from "lucide-react";
@@ -155,14 +156,41 @@ export default async function AccountDetailPage({
 
   const linkedContactIds = new Set(contacts.map((c) => c.id).filter(Boolean) as string[]);
 
-  async function addContact(contactId: string, role?: string) {
+  // 窓口を役割で分ける。担当者・請求者のどちらでもないもの（過去の
+  // technical / other）は受け皿のセクションに出す
+  const primaryContacts = contacts.filter((c) => c.role === "primary");
+  const billingContacts = contacts.filter((c) => c.role === "billing");
+  const otherContacts = contacts.filter(
+    (c) => c.role !== "primary" && c.role !== "billing"
+  );
+
+  /** 役割はセクションが決めるので、呼び出し側から渡された値は使わない */
+  async function addContactAs(role: "primary" | "billing", contactId: string) {
     "use server";
     const { error: saveError } = await addAccountContact({
       account_id: id,
       contact_id: contactId,
-      role: (role ?? null) as "primary" | "billing" | "technical" | "other" | null,
+      role,
     });
     return { error: saveError };
+  }
+
+  async function addPrimaryContact(contactId: string) {
+    "use server";
+    return addContactAs("primary", contactId);
+  }
+
+  async function addBillingContact(contactId: string) {
+    "use server";
+    return addContactAs("billing", contactId);
+  }
+
+  async function rejectOtherRoleAdd() {
+    "use server";
+    return {
+      error:
+        "この区分には追加できません。担当者情報か請求者情報から追加してください",
+    };
   }
 
   async function removeContact(contactId: string) {
@@ -170,6 +198,13 @@ export default async function AccountDetailPage({
     const { error: saveError } = await removeAccountContact(id, contactId);
     return { error: saveError };
   }
+
+  const availableContactOptions = (contactsResult?.rows ?? [])
+    .filter((c) => !linkedContactIds.has(c.id))
+    .map((c) => ({
+      value: c.id,
+      label: [c.last_name, c.first_name].filter(Boolean).join(" ") || "(無名)",
+    }));
 
   // 紐づけの付け替え。編集ページ側からは外してあり、ここが唯一の入口になる
   const canEdit = me?.role === "admin" || a.owner_user_id === me?.id;
@@ -380,8 +415,14 @@ export default async function AccountDetailPage({
             自動で入る。以降に窓口が増えたり役割が変わったりしたときは
             ここで直す（連絡先側は閲覧のみ。同じ紐づけの入口を 2 つにしない）。
           */}
+          {/*
+            窓口を「担当者情報」「請求者情報」の 2 つに分ける（2026-08-04）。
+            役割はセクションが決めるので、追加時に区分を選ばせない。
+            連絡先側の「窓口になっている取引先」は、このどちらかに
+            入っているものだけを出す（isCounterpartyRole）。
+          */}
           <DetailSection
-            title="窓口の連絡先"
+            title="担当者情報"
             icon={Users}
             action={
               <AddRelatedLink
@@ -391,32 +432,61 @@ export default async function AccountDetailPage({
             }
           >
             <RelationListSection
-              label="窓口の連絡先"
-              rows={contacts.map((c) => ({
+              label="担当者"
+              rows={primaryContacts.map((c) => ({
                 id: c.id,
                 href: `/contacts/${c.id}`,
                 label: [c.last_name, c.first_name].filter(Boolean).join(" ") || "—",
                 code: [c.department, c.job_title].filter(Boolean).join(" / ") || null,
                 badge: accountContactRoleLabel(c.role),
               }))}
-              options={(contactsResult?.rows ?? [])
-                .filter((c) => !linkedContactIds.has(c.id))
-                .map((c) => ({
-                  value: c.id,
-                  label:
-                    [c.last_name, c.first_name].filter(Boolean).join(" ") || "(無名)",
-                }))}
-              extra={{
-                label: "区分",
-                options: ACCOUNT_CONTACT_ROLES,
-                defaultValue: "other",
-              }}
+              options={availableContactOptions}
               searchKind="contact"
-              onAdd={addContact}
+              onAdd={addPrimaryContact}
               onRemove={removeContact}
               editable={canEdit}
             />
           </DetailSection>
+
+          <DetailSection title="請求者情報" icon={Receipt}>
+            <RelationListSection
+              label="請求者"
+              rows={billingContacts.map((c) => ({
+                id: c.id,
+                href: `/contacts/${c.id}`,
+                label: [c.last_name, c.first_name].filter(Boolean).join(" ") || "—",
+                code: [c.department, c.job_title].filter(Boolean).join(" / ") || null,
+                badge: accountContactRoleLabel(c.role),
+              }))}
+              options={availableContactOptions}
+              searchKind="contact"
+              onAdd={addBillingContact}
+              onRemove={removeContact}
+              editable={canEdit}
+            />
+          </DetailSection>
+
+          {/* 選択肢から外した過去の役割（technical / other）が残っている場合の受け皿 */}
+          {otherContacts.length > 0 && (
+            <DetailSection title="その他の窓口" icon={Users}>
+              <RelationListSection
+                label="その他の窓口"
+                rows={otherContacts.map((c) => ({
+                  id: c.id,
+                  href: `/contacts/${c.id}`,
+                  label: [c.last_name, c.first_name].filter(Boolean).join(" ") || "—",
+                  code: [c.department, c.job_title].filter(Boolean).join(" / ") || null,
+                  badge: accountContactRoleLabel(c.role),
+                }))}
+                options={[]}
+                searchKind="contact"
+                // 受け皿なので新しくは足せない。担当者か請求者として足してもらう
+                onAdd={rejectOtherRoleAdd}
+                onRemove={removeContact}
+                editable={canEdit}
+              />
+            </DetailSection>
+          )}
         </div>
       </div>
     </div>

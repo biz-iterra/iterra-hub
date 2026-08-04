@@ -18,6 +18,7 @@ import {
 import { SocialLinks } from "@/components/contacts/SocialLinks";
 import { getDeals } from "@/actions/deals";
 import { AddRelatedLink } from "@/components/ui/AddRelatedLink";
+import { isCounterpartyRole } from "@/lib/account-contact-roles";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -173,7 +174,12 @@ export default async function ContactDetailPage({
 
   const emails = c.contact_emails ?? [];
   const phones = c.contact_phones ?? [];
-  const accountContacts = c.account_contacts ?? [];
+  // 「窓口」として出すのは担当者か請求者に入っているものだけ（2026-08-04）。
+  // 取引先側は担当者情報・請求者情報の 2 セクションで管理しており、
+  // どちらにも入っていない紐づけを窓口として見せると実態と食い違う
+  const accountContacts = (c.account_contacts ?? []).filter((ac) =>
+    isCounterpartyRole(ac.role)
+  );
   // contacts : talents は 1 対 1（talents.contact_id に unique 制約）
   const talent = c.talent;
   const talentSkills = talent?.talent_skills ?? [];

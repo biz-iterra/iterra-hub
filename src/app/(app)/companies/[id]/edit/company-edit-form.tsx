@@ -377,21 +377,32 @@ export function CompanyEditForm({
                 />
               </div>
             )}
+            {/*
+              ステータス（実在性）は法人番号 Web-API の照合結果で自動付与する。
+              人が選べると照合結果と食い違うため、**編集項目としては出さない**
+              （2026-08-04）。現在値は読み取りで見せる
+            */}
             <div>
-              <label style={styles.label}>ステータス<RequiredMark /></label>
-              <select
-                style={styles.input}
-                value={values.company_status_id}
-                onChange={(e) => set("company_status_id", e.target.value)}
-                required
-                onFocus={onFocus}
-                onBlur={onBlur}
+              <label style={styles.label}>ステータス</label>
+              <input
+                style={{ ...styles.input, backgroundColor: "var(--color-sumi50)" }}
+                value={
+                  masters.companyStatuses.find(
+                    (o) => o.value === values.company_status_id
+                  )?.label ?? "未確認"
+                }
+                readOnly
+                aria-label="ステータス（自動付与）"
+              />
+              <p
+                style={{
+                  fontSize: "0.6875rem",
+                  color: "var(--color-sumi500)",
+                  margin: "0.25rem 0 0 0",
+                }}
               >
-                <option value="">-- 選択 --</option>
-                {masters.companyStatuses.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </select>
+                法人番号の照合結果から自動で決まります。
+              </p>
             </div>
             <div>
               <label style={styles.label}>リードソース</label>

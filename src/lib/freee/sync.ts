@@ -226,7 +226,7 @@ export async function pushPartnerToFreee(params: {
 
   const { data: partner } = await admin
     .from("freee_partners")
-    .select("id, freee_company_id, freee_partner_id")
+    .select("id, freee_company_id, freee_partner_id, name")
     .eq("id", params.partnerId)
     .maybeSingle();
   if (!partner) return { error: "freee 取引先が見つかりません" };
@@ -257,7 +257,12 @@ export async function pushPartnerToFreee(params: {
       accessToken,
       freeeCompanyId: partner.freee_company_id,
       freeePartnerId: partner.freee_partner_id,
-      payload: params.payload,
+      payload: {
+        ...params.payload,
+        // **name は毎回必須**（省くと freee が「name が指定されていません。」で 400）。
+        // 名称を変えない回は、freee 側の現在の名称をそのまま送り返す
+        name: params.payload.name ?? partner.name,
+      },
     });
     await record(true, null);
     return { error: null };

@@ -242,12 +242,38 @@ async function apiSend<T>(
         "freee への書き込みが許可されていません。アプリの権限に取引先の更新が含まれているか確認してください"
       );
     }
-    // freee は 400 で理由を返す。原因の切り分けに要るので本文を残す
+    // freee は 400 の本文に理由を日本語で入れてくる。
+    // JSON をそのまま画面に出すと読めないので、messages だけを取り出す
     throw new Error(
-      `freee への書き込みに失敗しました: HTTP ${res.status} ${text.slice(0, 300)}`
+      `freee に拒否されました: ${describeFreeeValidationError(text, res.status)}`
     );
   }
   return (await res.json()) as T;
+}
+
+/**
+ * freee のエラー本文から理由だけを取り出す。
+ *
+ * 例: {"status_code":400,"errors":[{"type":"validation","messages":["name が指定されていません。"]}]}
+ *  → 「name が指定されていません。」
+ *
+ * 読めない形なら、切り分けに使えるよう本文の先頭を残す。
+ */
+export function describeFreeeValidationError(body: string, status: number): string {
+  try {
+    const json = JSON.parse(body) as {
+      errors?: { messages?: string[] }[];
+      message?: string;
+    };
+    const messages = (json.errors ?? [])
+      .flatMap((e) => e.messages ?? [])
+      .filter(Boolean);
+    if (messages.length > 0) return messages.join(" / ");
+    if (json.message) return json.message;
+  } catch {
+    // JSON でない場合は下へ
+  }
+  return `HTTP ${status} ${body.slice(0, 200)}`;
 }
 
 /** 取引先を新しく作る。CRM にあって freee に無い相手を登録するとき */
@@ -265,12 +291,16 @@ export async function createPartner(params: {
   return json.partner;
 }
 
-/** 取引先を更新する。**送った項目だけが変わる**（部分更新） */
+/**
+ * 取引先を更新する。送った項目だけが変わるが、
+ * **`name` だけは毎回必須**（省くと freee が 400 で
+ * 「name が指定されていません。」を返す）。呼び出し側で必ず埋めること。
+ */
 export async function updatePartner(params: {
   accessToken: string;
   freeeCompanyId: number;
   freeePartnerId: number;
-  payload: FreeePartnerPayload;
+  payload: FreeePartnerPayload & { name: string };
 }): Promise<FreeePartner> {
   const json = await apiSend<{ partner: FreeePartner }>(
     `/api/1/partners/${params.freeePartnerId}`,

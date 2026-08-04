@@ -10,6 +10,7 @@ import { detectCorporateType } from "@/lib/company-name";
 import { isFieldValidationError } from "@/lib/errors";
 import { formContainerClass, fieldGridClass, formActionsClass } from "@/lib/layout";
 import { RequiredMark } from "@/components/ui/RequiredMark";
+import { isSoleProprietorSelected } from "@/lib/company-type";
 
 type SelectOption = { value: string; label: string };
 
@@ -153,9 +154,10 @@ export function CompanyNewForm({ masters }: { masters: Masters }) {
   };
 
   // 個人事業主は法人番号を持たないので、法人番号の欄を出さない
-  const isSoleProprietor =
-    masters.corporateTypes.find((o) => o.value === values.corporate_type_id)?.label ===
-    "個人事業主";
+  const isSoleProprietor = isSoleProprietorSelected(
+    masters.corporateTypes,
+    values.corporate_type_id
+  );
 
   // 会社名に法人格の綴りが含まれていれば法人格を選んでおく。
   // 既に選ばれていれば触らない（人が選んだ値を上書きしない）。
@@ -278,17 +280,31 @@ export function CompanyNewForm({ masters }: { masters: Masters }) {
                 onBlur={onBlur}
               />
             </div>
-            <div>
-              <label style={styles.label}>代表者名</label>
-              <input
-                type="text"
-                style={styles.input}
-                value={values.representative_name}
-                onChange={(e) => set("representative_name", e.target.value)}
-                onFocus={onFocus}
-                onBlur={onBlur}
-              />
-            </div>
+            {/* 個人事業主は本人しかいないので代表者を別に持たない。
+                代表者の連絡先への紐づけは詳細画面から行う（作成時点では
+                その会社の連絡先がまだ無いため、ここは自由入力のまま） */}
+            {!isSoleProprietor && (
+              <div>
+                <label style={styles.label}>代表者名</label>
+                <input
+                  type="text"
+                  style={styles.input}
+                  value={values.representative_name}
+                  onChange={(e) => set("representative_name", e.target.value)}
+                  onFocus={onFocus}
+                  onBlur={onBlur}
+                />
+                <p
+                  style={{
+                    fontSize: "0.6875rem",
+                    color: "var(--color-sumi500)",
+                    margin: "0.25rem 0 0 0",
+                  }}
+                >
+                  連絡先（法人代表）への紐づけは、作成後に詳細画面から選べます。
+                </p>
+              </div>
+            )}
             <div>
               <label style={styles.label}>法人格</label>
               <select

@@ -279,6 +279,11 @@ export type CompanyDetail = Row<"companies"> & {
     "contacts",
     "id" | "contact_code" | "last_name" | "first_name"
   > | null;
+  /** 代表者の連絡先。これがあれば氏名はこちらから引く */
+  representative_contact: Ref<
+    "contacts",
+    "id" | "contact_code" | "last_name" | "first_name"
+  > | null;
   accounts: Ref<"accounts", "id" | "account_code" | "name" | "deleted_at">[];
   contacts: Ref<
     "contacts",
@@ -286,6 +291,8 @@ export type CompanyDetail = Row<"companies"> & {
     | "contact_code"
     | "last_name"
     | "first_name"
+    // 代表者に選べるのは法人代表だけなので種別まで持つ
+    | "contact_type"
     | "department"
     | "job_title"
     | "deleted_at"

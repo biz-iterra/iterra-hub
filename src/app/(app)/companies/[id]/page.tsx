@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { DetailSection } from "@/components/ui/DetailSection";
 import { AddRelatedLink } from "@/components/ui/AddRelatedLink";
+import { isSoleProprietorTypeName } from "@/lib/company-type";
 import { InfoField } from "@/components/ui/InfoField";
 import { ExternalLinkText } from "@/components/ui/ExternalLinkText";
 import { EntityLink } from "@/components/ui/EntityLink";
@@ -124,7 +125,7 @@ export default async function CompanyDetailPage({
 
   /** 楽観ロックに使う updated_at は、この画面を出した時点の値で閉じ込める */
   async function saveRelation(
-    field: "primary_contact_id" | "owner_user_id",
+    field: "primary_contact_id" | "owner_user_id" | "representative_contact_id",
     value: string | null
   ) {
     "use server";
@@ -140,8 +141,18 @@ export default async function CompanyDetailPage({
   const activeContacts =
     company.contacts?.filter((c) => c.deleted_at === null) ?? [];
 
+  // 代表者に選べるのは法人代表の連絡先だけ。所属していても従業員は代表ではない
+  const representativeOptions = activeContacts
+    .filter((c) => c.contact_type === "corporate_rep")
+    .map((c) => ({
+      value: c.id,
+      label:
+        `${c.last_name ?? ""} ${c.first_name ?? ""}`.trim() +
+        (c.contact_code ? ` (${c.contact_code})` : ""),
+    }));
+
   // 個人事業主は法人番号を持たず、国税庁の台帳にも載らない
-  const isSoleProprietor = company.corporate_types?.name === "個人事業主";
+  const isSoleProprietor = isSoleProprietorTypeName(company.corporate_types?.name);
 
   const industryLabel = company.industry_classifications
     ? [
@@ -210,11 +221,35 @@ export default async function CompanyDetailPage({
             >
               <InfoField label="会社名" value={company.name} />
               <InfoField label="フリガナ" value={company.name_kana} />
-              <InfoField label="代表者名" value={company.representative_name} />
+              {/* 個人事業主は本人しかいないので代表者・担当者を別に持たない。
+                  代表者は連絡先（法人代表）から選ぶ。連絡先がまだ無い場合に備えて
+                  自由入力の representative_name も表示に残す */}
+              {!isSoleProprietor && (
+                <RelationField
+                  label="代表者"
+                  value={company.representative_contact_id}
+                  display={
+                    company.representative_contact ? (
+                      <EntityLink href={`/contacts/${company.representative_contact.id}`}>
+                        {company.representative_contact.last_name}{" "}
+                        {company.representative_contact.first_name}
+                      </EntityLink>
+                    ) : company.representative_name ? (
+                      <span>{company.representative_name}</span>
+                    ) : null
+                  }
+                  // 代表として選べるのは、この会社に紐づく「法人代表」の連絡先だけ
+                  options={representativeOptions}
+                  action={saveRelation.bind(null, "representative_contact_id")}
+                  editable={canEdit}
+                />
+              )}
               {!isSoleProprietor && (
                 <InfoField label="法人番号" value={company.corporate_number} />
               )}
-              {/* 担当者と社内担当者は別レコードへの紐づけ。ここで直す */}
+              {/* 担当者と社内担当者は別レコードへの紐づけ。ここで直す。
+                  担当者は個人事業主には出さない（本人しかいないため） */}
+              {!isSoleProprietor && (
               <RelationField
                 label="担当者"
                 value={company.primary_contact_id}
@@ -236,6 +271,7 @@ export default async function CompanyDetailPage({
                 action={saveRelation.bind(null, "primary_contact_id")}
                 editable={canEdit}
               />
+              )}
               <RelationField
                 label="社内担当者"
                 value={company.owner_user_id}
@@ -255,7 +291,10 @@ export default async function CompanyDetailPage({
             <div
               className={fieldGridClass}
             >
-              <InfoField label="法人格" value={company.corporate_types?.name} />
+              {/* 個人事業主のときは自明なので出さない */}
+              {!isSoleProprietor && (
+                <InfoField label="法人格" value={company.corporate_types?.name} />
+              )}
               <InfoField label="業種" value={industryLabel} />
               <InfoField label="ステータス" value={company.company_status?.name} />
               <InfoField label="リードソース" value={company.lead_sources?.name} />

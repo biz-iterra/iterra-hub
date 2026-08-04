@@ -858,6 +858,7 @@ export type Database = {
           phone: string | null
           primary_contact_id: string | null
           registration_certificate_url: string | null
+          representative_contact_id: string | null
           representative_name: string | null
           sort_key: string | null
           status_updated_at: string | null
@@ -892,6 +893,7 @@ export type Database = {
           phone?: string | null
           primary_contact_id?: string | null
           registration_certificate_url?: string | null
+          representative_contact_id?: string | null
           representative_name?: string | null
           sort_key?: string | null
           status_updated_at?: string | null
@@ -926,6 +928,7 @@ export type Database = {
           phone?: string | null
           primary_contact_id?: string | null
           registration_certificate_url?: string | null
+          representative_contact_id?: string | null
           representative_name?: string | null
           sort_key?: string | null
           status_updated_at?: string | null
@@ -996,6 +999,13 @@ export type Database = {
           {
             foreignKeyName: "companies_primary_contact_id_fkey"
             columns: ["primary_contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "companies_representative_contact_id_fkey"
+            columns: ["representative_contact_id"]
             isOneToOne: false
             referencedRelation: "contacts"
             referencedColumns: ["id"]

@@ -2,7 +2,8 @@
 
 import { useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
-import { MapPin, Plus, Star, Trash2, X } from "lucide-react";
+import { MapPin, Plus, Search, Star, Trash2, X } from "lucide-react";
+import { lookupPostalCode } from "@/actions/postal-code";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import {
@@ -290,6 +291,33 @@ function AddressFields({
   values: AddressInput;
   onChange: (key: keyof AddressInput, value: string) => void;
 }) {
+  const { showToast } = useToast();
+  const [looking, setLooking] = useState(false);
+
+  /**
+   * 郵便番号から都道府県・市区町村・町域を引いて埋める。
+   * **入力の補助でしかない**ので、失敗しても欄は触れるままにする
+   * （外部サービスが落ちていても住所は手で入れられる）。
+   */
+  const lookup = async () => {
+    setLooking(true);
+    try {
+      const res = await lookupPostalCode(values.postal_code ?? "");
+      if (res.error || !res.data) {
+        showToast({ type: "error", message: res.error ?? "住所を取得できませんでした" });
+        return;
+      }
+      onChange("prefecture", res.data.prefecture);
+      onChange("city", res.data.city);
+      // 町域は番地の前まで。既に入力があるときは邪魔しない
+      if (!values.address_line1) {
+        onChange("address_line1", res.data.town);
+      }
+    } finally {
+      setLooking(false);
+    }
+  };
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "0.625rem" }}>
       <div className={autoGridClass}>
@@ -309,12 +337,44 @@ function AddressFields({
         </div>
         <div>
           <label style={styles.label}>郵便番号</label>
-          <input
-            style={styles.input}
-            placeholder="000-0000"
-            value={values.postal_code ?? ""}
-            onChange={(e) => onChange("postal_code", e.target.value)}
-          />
+          <div style={{ display: "flex", gap: "0.375rem" }}>
+            <input
+              style={{ ...styles.input, flex: 1, minWidth: 0 }}
+              placeholder="000-0000"
+              value={values.postal_code ?? ""}
+              onChange={(e) => onChange("postal_code", e.target.value)}
+              onKeyDown={(e) => {
+                // Enter でフォーム全体が送信されないようにしてから検索する
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  void lookup();
+                }
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => void lookup()}
+              disabled={looking}
+              title="郵便番号から住所を検索"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.25rem",
+                border: "1px solid var(--color-border-default)",
+                borderRadius: "var(--radius-input)",
+                backgroundColor: "#fff",
+                padding: "0 0.625rem",
+                fontSize: "0.75rem",
+                color: "var(--color-terra)",
+                cursor: looking ? "not-allowed" : "pointer",
+                whiteSpace: "nowrap",
+                opacity: looking ? 0.6 : 1,
+              }}
+            >
+              <Search size={13} />
+              {looking ? "検索中" : "住所検索"}
+            </button>
+          </div>
         </div>
         <div>
           <label style={styles.label}>都道府県</label>

@@ -18,6 +18,8 @@ const companyBaseSchema = z.object({
   lead_source_id: uuidString().nullable().optional(),
   owner_user_id: uuidString().nullable().optional(),
   primary_contact_id: uuidString().nullable().optional(),
+  /** 代表者の連絡先。これがあれば氏名はこちらから引く（representative_name は自由入力の逃げ道） */
+  representative_contact_id: uuidString().nullable().optional(),
   company_status_id: uuidString("ステータスは必須です"),
 });
 

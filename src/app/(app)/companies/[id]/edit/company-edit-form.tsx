@@ -297,7 +297,11 @@ export function CompanyEditForm({
           <h2 style={styles.sectionTitle}>基本情報</h2>
           <div className={styles.grid}>
             <div>
-              <label style={styles.label}>会社名<RequiredMark /></label>
+              {/* 個人事業主は法人ではないので「会社名」と呼ばない（§22.2.1） */}
+              <label style={styles.label}>
+                {isSoleProprietor ? "屋号" : "会社名"}
+                <RequiredMark />
+              </label>
               <input
                 type="text"
                 style={styles.input}

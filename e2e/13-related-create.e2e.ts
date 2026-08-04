@@ -86,6 +86,27 @@ test.describe("E2E-13", () => {
     // 相手先が 3 択で、連絡先が選ばれた状態で始まること
     await expect(page.getByRole("radio", { name: "連絡先" })).toBeChecked();
 
+    // ---- 6. 事業者情報の住所を登録できること（2026-08-04 の回帰）----
+    // 住所エディタは <form> の中にあり、Enter でフォームが送信されると
+    // 入力途中の住所が消える。IME の変換確定でも起きていた
+    await page.goto(`/companies/${companyId}/edit`);
+    await page.getByRole("button", { name: "住所を追加" }).click();
+
+    await page.getByLabel("郵便番号").fill("100-0001");
+    await page.getByLabel("都道府県").selectOption("東京都");
+    await page.getByLabel("市区町村").fill("千代田区");
+    await page.getByLabel("町名・番地").fill("丸の内1-1-1");
+    // **Enter を押してもフォームが飛ばないこと**（飛ぶと入力が消える）
+    await page.getByLabel("町名・番地").press("Enter");
+    await expect(page.getByLabel("町名・番地")).toHaveValue("丸の内1-1-1");
+
+    await page.getByRole("button", { name: "追加する" }).click();
+    await expectSuccessToast(page, "住所を追加しました");
+
+    // 保存されて一覧に出ること
+    await page.goto(`/companies/${companyId}`);
+    await expect(page.getByText("千代田区").first()).toBeVisible();
+
     // ---- 後片付け ----
     await page.goto(`/contacts/${contactId}/edit`);
     await page.getByRole("button", { name: "削除", exact: true }).click();

@@ -237,7 +237,11 @@ export default async function CompanyDetailPage({
             <div
               className={fieldGridClass}
             >
-              <InfoField label="会社名" value={company.name} />
+              {/* 個人事業主は法人ではないので「会社名」と呼ばない（§22.2.1） */}
+              <InfoField
+                label={isSoleProprietor ? "屋号" : "会社名"}
+                value={company.name}
+              />
               <InfoField label="フリガナ" value={company.name_kana} />
               {/* 個人事業主は本人しかいないので代表者・担当者を別に持たない。
                   代表者は連絡先（法人代表）から選ぶ。連絡先がまだ無い場合に備えて
@@ -337,11 +341,14 @@ export default async function CompanyDetailPage({
                 value={formatDate(company.status_updated_at)}
               />
               <InfoField label="確認メモ" value={company.verification_note} full />
-              <InfoField
-                label="登記事項証明書URL"
-                full
-                value={<ExternalLinkText value={company.registration_certificate_url} />}
-              />
+              {/* 個人事業主は登記されないので登記事項証明書も無い */}
+              {!isSoleProprietor && (
+                <InfoField
+                  label="登記事項証明書URL"
+                  full
+                  value={<ExternalLinkText value={company.registration_certificate_url} />}
+                />
+              )}
             </div>
           </DetailSection>
 

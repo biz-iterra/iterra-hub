@@ -695,3 +695,32 @@
 6. ~~financial_info の更新に楽観ロックがない~~ **2026-08-03 対応済み**: `financial_info` に `updated_at` 列とトリガー（`trg_financial_info_updated_at`）が既にあるため、`updateCompany` と同じパターンで `updateFinancialInfo` に `expected_updated_at` を追加（`src/actions/financial-info.ts`、`src/lib/validators/financial-info.ts`）。0 行更新時は `conflictErrorMessage("この金融機関情報")` を返す。未指定なら従来どおりロックなし（後方互換）。**画面側も同日中に対応済み**: `FinancialInfoRow` と `SELECT_COLUMNS` に `updated_at` を追加し、`FinancialInfoEditor.tsx` の編集保存と「主口座にする」の両方が `expected_updated_at` を送るようにした。競合時は `conflictErrorMessage` がエラートースト（約 10 秒で自動消滅）で表示される。
 7. **verifyCompaniesBatch は manager 以上で実行可能だが、UI は admin 配下のみ**: `/admin` の「実在確認」タブにしか入口がなく、manager は Action を直接呼ばない限り使えない。権限設計（manager 以上）と画面配置（admin のみ）の意図の確認を推奨。
 8. **削除済み事業者のドメイン・住所・口座**: deleteCompany は本体の論理削除のみで、company_domains は残る。削除済み法人のドメインが名刺取込の判定（ドメイン名寄せ）に使われ続ける可能性がある。運用上問題ないかの確認を推奨。
+
+### COM-41: 住所は Enter で消えない（2026-08-04 追加）
+
+- 対象: `AddressesEditor`（事業者情報・連絡先の編集画面）
+- 背景: **住所エディタは `<form>` の中にある。** Enter でフォームが送信されると
+  入力途中の住所が消える。郵便番号の検索を足した際、IME の変換確定の Enter まで
+  奪ってしまい、変換前のテキストが入る不具合も出た
+- 手順:
+  1. 「住所を追加」で欄を開き、各項目を入力する
+  2. **日本語入力の変換中に Enter**（変換確定）を押す
+  3. 変換が終わった状態で郵便番号欄の Enter を押す
+  4. 「追加する」で保存する
+- 期待結果:
+  - 2: **変換が確定するだけ**。検索は走らず、フォームも送信されない
+  - 3: 郵便番号から住所が引かれる
+  - 1〜3 のどこでも入力値が消えない
+  - 4: 「住所を追加しました」が出て、詳細に反映される
+- 自動化区分: 自動(Playwright)（E2E-13 が Enter の抑止と保存を担保。IME は手動）
+
+### COM-42: 個人事業主に法人向けの項目を出さない（2026-08-04 追加）
+
+- 対象: 事業者情報の詳細・編集・新規作成
+- 手順: 法人格を「個人事業主」にして各画面を開く
+- 期待結果:
+  - **「会社名」が「屋号」**になる
+  - 法人番号・代表者・担当者・登記事項証明書 URL が出ない
+  - 詳細では法人格も出ない（自明なため）
+  - **フォームの法人格の選択欄は残る**（そこで個人事業主を選ぶため）
+- 自動化区分: 手動

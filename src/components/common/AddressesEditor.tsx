@@ -299,6 +299,32 @@ function AddressFields({
    * **入力の補助でしかない**ので、失敗しても欄は触れるままにする
    * （外部サービスが落ちていても住所は手で入れられる）。
    */
+  /**
+   * Enter の扱い。
+   *
+   * **日本語入力の変換確定を奪わないこと。** `isComposing` の間に
+   * preventDefault すると、変換中の文字が確定されずに検索が走り、
+   * 変換前のテキストがそのまま入ってしまう（2026-08-04 に発生）。
+   *
+   * 変換が終わっている Enter だけを拾い、**フォームの送信は必ず止める**。
+   * このエディタは form の中にあり、Enter で送信されると入力途中の住所が消える。
+   */
+  const handlePostalKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== "Enter") return;
+    if (e.nativeEvent.isComposing) return; // 変換中は何もしない
+    e.preventDefault();
+    void lookup();
+  };
+
+  /** 住所の各欄。Enter でフォームが送信されると入力が消えるので止めるだけ */
+  const blockEnterSubmit = (
+    e: React.KeyboardEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
+    if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+      e.preventDefault();
+    }
+  };
+
   const lookup = async () => {
     setLooking(true);
     try {
@@ -327,6 +353,7 @@ function AddressFields({
             style={styles.input}
             value={values.label ?? "main"}
             onChange={(e) => onChange("label", e.target.value)}
+            aria-label="住所の種別"
           >
             {ADDRESS_LABELS.map((l) => (
               <option key={l.value} value={l.value}>
@@ -341,15 +368,10 @@ function AddressFields({
             <input
               style={{ ...styles.input, flex: 1, minWidth: 0 }}
               placeholder="000-0000"
+            aria-label="郵便番号"
               value={values.postal_code ?? ""}
               onChange={(e) => onChange("postal_code", e.target.value)}
-              onKeyDown={(e) => {
-                // Enter でフォーム全体が送信されないようにしてから検索する
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  void lookup();
-                }
-              }}
+              onKeyDown={handlePostalKeyDown}
             />
             <button
               type="button"
@@ -382,6 +404,8 @@ function AddressFields({
             style={styles.input}
             value={values.prefecture ?? ""}
             onChange={(e) => onChange("prefecture", e.target.value)}
+            aria-label="都道府県"
+            onKeyDown={blockEnterSubmit}
           >
             <option value="">-- 選択 --</option>
             {PREFECTURES.map((p) => (
@@ -397,6 +421,8 @@ function AddressFields({
             style={styles.input}
             value={values.city ?? ""}
             onChange={(e) => onChange("city", e.target.value)}
+            aria-label="市区町村"
+            onKeyDown={blockEnterSubmit}
           />
         </div>
         <div>
@@ -405,6 +431,8 @@ function AddressFields({
             style={styles.input}
             value={values.address_line1 ?? ""}
             onChange={(e) => onChange("address_line1", e.target.value)}
+            aria-label="町名・番地"
+            onKeyDown={blockEnterSubmit}
           />
         </div>
         <div>
@@ -413,6 +441,8 @@ function AddressFields({
             style={styles.input}
             value={values.address_line2 ?? ""}
             onChange={(e) => onChange("address_line2", e.target.value)}
+            aria-label="建物名・部屋番号"
+            onKeyDown={blockEnterSubmit}
           />
         </div>
         <div>

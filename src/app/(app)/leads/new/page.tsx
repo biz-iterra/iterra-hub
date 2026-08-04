@@ -42,10 +42,15 @@ export default async function LeadNewPage() {
   }
 
   const masters = {
-    stages: (stagesResult.data ?? []).map((s) => ({
-      value: s.id,
-      label: s.name,
-    })),
+    // 商談が要るステージ（Sales 以降）は新規作成では選べない。
+    // 新規リードに商談は無く、選ばせても DB トリガーに弾かれるだけになる。
+    // 商談化はリードを作ったあとステージを進める操作で行う
+    stages: (stagesResult.data ?? [])
+      .filter((s) => !s.requires_deal)
+      .map((s) => ({
+        value: s.id,
+        label: s.name,
+      })),
     statuses: (statusesResult.data ?? []).map((s) => ({
       value: s.id,
       label: s.name,

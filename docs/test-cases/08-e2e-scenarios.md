@@ -16,6 +16,7 @@
 | 前提 | `npx supabase start` 済み + `npx supabase db reset` 直後の状態 + `npm run dev` 起動中 |
 | 認証 | ロール別に `storageState`（admin / manager / member）を global setup で作成し再利用 |
 | データ規約 | 生成データは名称に接頭辞 `E2E-` を付け、シナリオ末尾で論理削除する |
+| 後片付けの順序 | **リードを先に消す。** リードがステージ要件で商談・契約を参照している間は、それらの削除がトリガーに拒否される（`docs/database-design.md` §24.3）。業務では「ステージを下げてから消す」が正規の手順 |
 | 実行コマンド | `npm run test:e2e`（スモークのみ: `npm run test:e2e -- --grep @smoke`） |
 
 ## 2. ランク定義

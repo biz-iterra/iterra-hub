@@ -1987,15 +1987,20 @@ Lead は Deal より上流の「見込み客」を管理するエンティティ
 
 ### 11.2 ステージ階層（M18 lead_stages）
 
-| slug | 名称 | is_terminal | auto_promote_to_deal | 説明 |
-|------|------|-------------|---------------------|------|
-| `generation` | 獲得 | false | false | リスト化〜未架電段階 |
-| `nurturing` | 育成 | false | false | 架電試行〜資料送付段階 |
-| `qualification` | 選定 | false | false | アポ獲得〜確定段階 |
-| `sales` | Sales | false | false | 商談化〜引継段階（旧 `sql` → `sales` に rename: 20260419000013） |
-| `opportunity` | Opportunity | false | **true** | Deal 昇格トリガー |
-| `customer` | Customer | **true** | false | 成約済み（端末） |
-| `dead` | Dead | **true** | false | 失注・辞退等（端末） |
+| slug | 名称 | is_terminal | auto_promote_to_deal | requires_deal | requires_contract | 説明 |
+|------|------|-------------|---------------------|---------------|-------------------|------|
+| `generation` | 獲得 | false | false | false | false | リスト化〜未架電段階 |
+| `nurturing` | 育成 | false | false | false | false | 架電試行〜資料送付段階 |
+| `qualification` | 選定 | false | false | false | false | アポ獲得〜確定段階 |
+| `sales` | Sales | false | **true** | **true** | false | 商談が動いている段階（旧 `sql` → `sales` に rename: 20260419000013） |
+| `opportunity` | Opportunity | false | **true** | **true** | false | Deal 昇格トリガー |
+| `customer` | **取引先** | **true** | false | **true** | **true** | 契約が成立し取引が始まった相手（端末） |
+| `dead` | Dead | **true** | false | false | false | 失注・辞退等（端末） |
+
+**`customer` の表示名は「取引先」**（2026-08-04 変更）。顧客・仕入れ先・協業パートナーの
+いずれもありうるため、関係の方向を名前で決め打たない。方向は取引先区分（`account_roles`）が表す。
+**slug は `customer` のまま**変えていない（DB 関数 `resolve_lead_category` /
+`lead_source_category` の分岐に使われているため。§24 参照）。
 
 ### 11.3 ステータス一覧（M19 lead_statuses）
 
@@ -2016,7 +2021,7 @@ Lead は Deal より上流の「見込み客」を管理するエンティティ
 | Sales | `negotiation` | 商談化 |
 | Sales | `handed_over` | 引継済 |
 | **Opportunity** | —（なし） | **status_id = NULL**（Deal 昇格トリガーステージ。Deal 側で進捗管理） |
-| Customer | `closed_won` | 成約 |
+| 取引先 | `closed_won` | 成約 |
 | Dead | `lost` | 失注 |
 | Dead | `declined` | 辞退 |
 | Dead | `unreachable` | 連絡不能 |
@@ -2340,7 +2345,7 @@ Phase D で実施する移行の参考として、既存 deal_stages/deal_status
 | 再架電待ち | `nurturing` | 再架電待ち | `awaiting_recall` |
 | アポ獲得 | `qualification` | アポ確定 | `appointment_confirmed` |
 | 商談化 | `sales` | 引継済 | `handed_over` |
-| クローズ（成約） | `customer` | 成約 | `closed_won` |
+| クローズ（成約） | `customer`（取引先） | 成約 | `closed_won` |
 | クローズ（失注） | `dead` | 失注 | `lost` |
 
 ---
@@ -3487,3 +3492,95 @@ member / manager には見せない。同期は service_role が RLS をバイ�
 | ファイル | 内容 |
 |---|---|
 | `20260805000001_create_freee_sync.sql` | 2 テーブル + RLS + 4 関数 |
+
+## 24. リードステージと実体の整合規則（2026-08-04）
+
+### 24.1 背景
+
+ステージが Sales / Opportunity / Customer なのに商談も契約も無いリードを作れてしまった。
+穴は 3 つあった。
+
+1. **Customer へ直行できた。** 獲得 → Customer とステージだけ変えれば、商談も契約も無いまま「成約済み」になる
+2. **Sales は「商談化」という名前なのに商談を要求していなかった**
+3. **Opportunity の不変条件が `src/actions/leads.ts` の中にしか無かった。**
+   SQL 直接・service_role 経由・将来の別経路ですり抜ける状態で、多層防御になっていなかった
+
+### 24.2 規則
+
+**ステージが要求する実体を、そのステージへ進む時点で満たしていること。**
+
+| ステージ | 商談 | 契約 |
+|---|---|---|
+| 獲得 / 育成 / 選定 | 不要 | 不要 |
+| Sales | **必須** | 不要 |
+| Opportunity | **必須** | 不要 |
+| 取引先（`customer`） | **必須** | **必須**（商談に紐づく契約が 1 件以上） |
+| Dead | 不要 | 不要 |
+
+規則はハードコードせず `lead_stages.requires_deal` / `requires_contract` で持つ。
+判定をコードに書かないので、ステージを増やしても分岐を足さずに済む。
+**契約を求めるなら商談も要る**（契約は商談にぶら下がるため）を CHECK 制約で担保している。
+
+**この 2 つのフラグはマスタ管理画面からは編集できない**（`auto_promote_to_deal` /
+`is_terminal` と同じ扱い。`leadStageCreateSchema` に含めていない）。業務の骨格に関わる
+設定で、画面から気軽に変えられると整合が崩れるため、変更はマイグレーションで行う。
+
+### 24.3 強制のしかた（多層防御）
+
+| 層 | 実装 | 役割 |
+|---|---|---|
+| DB | `check_lead_stage_requirements()` + `trg_lead_stage_requirements` | **どの経路からも**違反を作らせない。`BEFORE INSERT OR UPDATE OF stage_id ON leads` |
+| DB | `check_deal_deletion_against_leads()` / `check_contract_deletion_against_leads()` | 逆向きの穴（実体を消して不整合を作る）を塞ぐ |
+| Server Action | `createLead` | 商談が要るステージを新規作成では拒否（何をすればよいかまで文言にする） |
+| Server Action | `updateLead` | **商談を先に作ってから** leads を更新する（下記） |
+| 画面 | `/leads/new` | `requires_deal` のステージを選択肢から外す |
+
+**ステージが変わるときだけ検査する。** 常時検査にすると、規則の導入前から不整合だった行の
+「ステージと無関係な項目の修正」まで塞がり、是正の手段そのものが無くなる。ステージを下げる
+操作も塞がってしまう。既存の不整合は `v_lead_stage_violations` で洗い出して個別に直す。
+
+### 24.4 昇格の順序（2026-08-04 変更）
+
+**商談の生成を leads の更新より先に行う。**
+
+```
+旧: leads を UPDATE → promote_lead_to_deal → 失敗したらステージを手で戻す（補償処理）
+新: promote_lead_to_deal → leads を UPDATE（失敗しても leads は手つかず）
+```
+
+トリガーが「商談なしで Sales 以降へ進む」ことを拒否するため、旧順序では保存自体が通らない。
+先に作れば、昇格が失敗しても leads は元のままなので**補償処理が要らなくなる**
+（CLAUDE.md の「複数テーブルへの書き込みは DB 関数にまとめる」に対する応急処置を 1 つ解消）。
+
+楽観ロックは、昇格が `leads.promoted_deal_id` を更新して `updated_at` を進めるため、
+**昇格の前に競合を確認し、昇格の後に新しい `updated_at` を取り直して**条件に使う。
+
+### 24.5 ステータスの有無で分岐する
+
+`status_id` を NULL にするかは **「そのステージにステータスが定義されているか」** で決める。
+`auto_promote_to_deal` で判定していたが、Sales も商談を自動生成するようになったため、
+そのままだと Sales のステータス（商談化 / 引継済）が消えてしまう。
+
+| ステージ | ステータス定義 | `status_id` |
+|---|---|---|
+| Opportunity | なし | NULL に強制 |
+| Sales ほか | あり | 必須（親子整合をチェック） |
+
+### 24.6 規則の値は seed が正本（db reset の罠）
+
+**マイグレーションの `UPDATE lead_stages SET requires_deal = ...` は `db reset` では効かない。**
+reset は「マイグレーション → seed」の順で走るため、UPDATE の時点で対象行が無く、
+その後 seed の INSERT が既定値（`FALSE`）で入れ直す。
+
+そのため **`supabase/seeds/01-masters.sql` の `lead_stages` にフラグを直接書いてある**。
+本番は既存行があるのでマイグレーションの UPDATE が効き、ローカルは seed が入れる。
+**片方だけ直すと本番とローカルで規則が食い違う。必ず両方を揃えること。**
+
+同じ罠は `lead_statuses`（`card_exchanged`）でも踏んでいる（seed 内にコメントあり）。
+マスタの値をマイグレーションで足すときは、seed 側にも同じ値を入れる。
+
+### 24.7 マイグレーション
+
+| ファイル | 内容 |
+|---|---|
+| `20260805000002_lead_stage_requirements.sql` | フラグ 2 つ + トリガー 3 つ + `v_lead_stage_violations` |

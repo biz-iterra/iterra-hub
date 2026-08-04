@@ -109,7 +109,16 @@ test.describe("E2E-03", () => {
     expect(contactHref).toMatch(new RegExp(`^/contacts/${UUID_RE}$`));
     const contactId = extractIdFromHref(contactHref!);
 
-    // ---- 後片付け（論理削除。依存関係の都合上 Deal → 連絡先 → 事業者情報 → リードの順）----
+    // ---- 後片付け（論理削除。リード → Deal → 連絡先 → 事業者情報 の順）----
+    // **リードを先に消す。** リードが Opportunity のまま商談を参照していると、
+    // ステージ要件のトリガーが商談の削除を拒否する（docs/database-design.md §24.3）。
+    // 業務では「リードのステージを下げてから商談を消す」が正規の手順だが、
+    // ここは後片付けなのでリードごと消す
+    await page.goto(`/leads/${leadId}/edit`);
+    await page.getByRole("button", { name: "削除", exact: true }).click();
+    await page.getByRole("button", { name: "削除する" }).click();
+    await expectSuccessToast(page, "リードを削除しました");
+
     await page.goto(`/deals/${dealId}/edit`);
     await page.getByRole("button", { name: "削除", exact: true }).click();
     await page.getByRole("button", { name: "削除する" }).click();
@@ -124,10 +133,5 @@ test.describe("E2E-03", () => {
     await page.getByRole("button", { name: "削除", exact: true }).click();
     await page.getByRole("button", { name: "削除する" }).click();
     await expectSuccessToast(page, "事業者情報を削除しました");
-
-    await page.goto(`/leads/${leadId}/edit`);
-    await page.getByRole("button", { name: "削除", exact: true }).click();
-    await page.getByRole("button", { name: "削除する" }).click();
-    await expectSuccessToast(page, "リードを削除しました");
   });
 });

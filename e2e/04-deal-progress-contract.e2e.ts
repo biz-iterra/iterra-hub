@@ -128,6 +128,14 @@ test.describe("E2E-04", () => {
       await expect(managerPage.getByRole("link", { name: companyName }).first()).toBeVisible();
 
       // ---- 後片付け（admin。削除操作は admin 限定）----
+      // **リードを先に消す。** リードが商談・契約を参照したままだと、
+      // ステージ要件のトリガーが契約・商談の削除を拒否する
+      // （docs/database-design.md §24.3）
+      await adminPage.goto(`/leads/${leadId}/edit`);
+      await adminPage.getByRole("button", { name: "削除", exact: true }).click();
+      await adminPage.getByRole("button", { name: "削除する" }).click();
+      await expectSuccessToast(adminPage, "リードを削除しました");
+
       await adminPage.goto(`/contracts/${contractId}/edit`);
       await adminPage.getByRole("button", { name: "削除", exact: true }).click();
       await adminPage.getByRole("button", { name: "削除する" }).click();
@@ -167,10 +175,6 @@ test.describe("E2E-04", () => {
       await adminPage.getByRole("button", { name: "削除する" }).click();
       await expectSuccessToast(adminPage, "事業者情報を削除しました");
 
-      await adminPage.goto(`/leads/${leadId}/edit`);
-      await adminPage.getByRole("button", { name: "削除", exact: true }).click();
-      await adminPage.getByRole("button", { name: "削除する" }).click();
-      await expectSuccessToast(adminPage, "リードを削除しました");
     } finally {
       await adminCtx.close();
       await managerCtx.close();

@@ -226,18 +226,23 @@ INSERT INTO lead_score_thresholds (temperature_id, min_score, max_score, sort_or
 -- ============================================================
 -- M18: lead_stages（リードステージ 7段階）
 -- ============================================================
-INSERT INTO lead_stages (id, slug, name, sort_order, is_terminal, auto_promote_to_deal) VALUES
-  ('a1000000-0000-0000-0000-000000000001', 'generation',    '獲得',       1, FALSE, FALSE),
-  ('a1000000-0000-0000-0000-000000000002', 'nurturing',     '育成',       2, FALSE, FALSE),
-  ('a1000000-0000-0000-0000-000000000003', 'qualification', '選定',       3, FALSE, FALSE),
-  ('a1000000-0000-0000-0000-000000000004', 'sales',         'Sales',      4, FALSE, FALSE),
-  ('a1000000-0000-0000-0000-000000000005', 'opportunity',   'Opportunity',5, FALSE, TRUE),
-  ('a1000000-0000-0000-0000-000000000006', 'customer',      'Customer',   6, TRUE,  FALSE),
-  ('a1000000-0000-0000-0000-000000000007', 'dead',          'Dead',       7, TRUE,  FALSE);
+-- requires_deal / requires_contract はステージ要件の規則（20260805000002。設計は
+-- database-design.md §24）。**マイグレーションの UPDATE は db reset では効かない**
+-- （seed より前に走り、対象 0 行になるか後で上書きされる）ため、ここが正本になる。
+-- 片方だけ直すと本番とローカルで規則が食い違うので、必ず両方を揃えること
+INSERT INTO lead_stages (id, slug, name, sort_order, is_terminal, auto_promote_to_deal, requires_deal, requires_contract) VALUES
+  ('a1000000-0000-0000-0000-000000000001', 'generation',    '獲得',       1, FALSE, FALSE, FALSE, FALSE),
+  ('a1000000-0000-0000-0000-000000000002', 'nurturing',     '育成',       2, FALSE, FALSE, FALSE, FALSE),
+  ('a1000000-0000-0000-0000-000000000003', 'qualification', '選定',       3, FALSE, FALSE, FALSE, FALSE),
+  ('a1000000-0000-0000-0000-000000000004', 'sales',         'Sales',      4, FALSE, TRUE,  TRUE,  FALSE),
+  ('a1000000-0000-0000-0000-000000000005', 'opportunity',   'Opportunity',5, FALSE, TRUE,  TRUE,  FALSE),
+  -- 「取引先」。顧客・仕入れ先・協業パートナーのいずれもありうるため方向を名前で決めない
+  ('a1000000-0000-0000-0000-000000000006', 'customer',      '取引先',     6, TRUE,  FALSE, TRUE,  TRUE),
+  ('a1000000-0000-0000-0000-000000000007', 'dead',          'Dead',       7, TRUE,  FALSE, FALSE, FALSE);
 
 -- ============================================================
 -- M19: lead_statuses（リードステータス、ステージごと）
--- 獲得(4), 育成(4), 選定(2), SQL(2), Opportunity(0), Customer(1), Dead(5)
+-- 獲得(4), 育成(4), 選定(2), Sales(2), Opportunity(0), 取引先(1), Dead(5)
 -- ============================================================
 INSERT INTO lead_statuses (id, stage_id, code, name, sort_order) VALUES
   -- 獲得ステージ
@@ -260,7 +265,7 @@ INSERT INTO lead_statuses (id, stage_id, code, name, sort_order) VALUES
   -- SQL ステージ
   ('a2000000-0000-0000-0000-000000000011', 'a1000000-0000-0000-0000-000000000004', 'negotiation',        '商談化',       1),
   ('a2000000-0000-0000-0000-000000000012', 'a1000000-0000-0000-0000-000000000004', 'handed_over',        '引継済',       2),
-  -- Customer ステージ
+  -- 取引先ステージ
   ('a2000000-0000-0000-0000-000000000013', 'a1000000-0000-0000-0000-000000000006', 'closed_won',         '成約',         1),
   -- Dead ステージ
   ('a2000000-0000-0000-0000-000000000014', 'a1000000-0000-0000-0000-000000000007', 'lost',               '失注',         1),

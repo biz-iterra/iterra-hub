@@ -3584,6 +3584,13 @@ export type Database = {
             foreignKeyName: "lead_activities_lead_id_fkey"
             columns: ["lead_id"]
             isOneToOne: false
+            referencedRelation: "v_lead_stage_violations"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "lead_activities_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
             referencedRelation: "v_leads_with_category"
             referencedColumns: ["id"]
           },
@@ -3739,6 +3746,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_campaigns_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_lead_stage_violations"
+            referencedColumns: ["lead_id"]
           },
           {
             foreignKeyName: "lead_campaigns_lead_id_fkey"
@@ -3917,6 +3931,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_customer_activities_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_lead_stage_violations"
+            referencedColumns: ["lead_id"]
           },
           {
             foreignKeyName: "lead_customer_activities_lead_id_fkey"
@@ -4164,6 +4185,13 @@ export type Database = {
             foreignKeyName: "lead_import_records_lead_id_fkey"
             columns: ["lead_id"]
             isOneToOne: false
+            referencedRelation: "v_lead_stage_violations"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "lead_import_records_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
             referencedRelation: "v_leads_with_category"
             referencedColumns: ["id"]
           },
@@ -4264,6 +4292,13 @@ export type Database = {
             foreignKeyName: "lead_owners_lead_id_fkey"
             columns: ["lead_id"]
             isOneToOne: false
+            referencedRelation: "v_lead_stage_violations"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "lead_owners_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
             referencedRelation: "v_leads_with_category"
             referencedColumns: ["id"]
           },
@@ -4305,6 +4340,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_score_breakdowns_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_lead_stage_violations"
+            referencedColumns: ["lead_id"]
           },
           {
             foreignKeyName: "lead_score_breakdowns_lead_id_fkey"
@@ -4592,6 +4634,8 @@ export type Database = {
           id: string
           is_terminal: boolean
           name: string
+          requires_contract: boolean
+          requires_deal: boolean
           slug: string
           sort_order: number
           updated_at: string
@@ -4607,6 +4651,8 @@ export type Database = {
           id?: string
           is_terminal?: boolean
           name: string
+          requires_contract?: boolean
+          requires_deal?: boolean
           slug: string
           sort_order?: number
           updated_at?: string
@@ -4622,6 +4668,8 @@ export type Database = {
           id?: string
           is_terminal?: boolean
           name?: string
+          requires_contract?: boolean
+          requires_deal?: boolean
           slug?: string
           sort_order?: number
           updated_at?: string
@@ -6218,6 +6266,34 @@ export type Database = {
           source_kind: string | null
         }
         Relationships: []
+      }
+      v_lead_stage_violations: {
+        Row: {
+          lead_id: string | null
+          lead_name: string | null
+          owner_user_id: string | null
+          promoted_deal_id: string | null
+          stage_name: string | null
+          stage_slug: string | null
+          updated_at: string | null
+          violation: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leads_owner_user_id_fkey"
+            columns: ["owner_user_id"]
+            isOneToOne: false
+            referencedRelation: "crm_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_promoted_deal_id_fkey"
+            columns: ["promoted_deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       v_leads_with_category: {
         Row: {

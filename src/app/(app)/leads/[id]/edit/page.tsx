@@ -131,6 +131,8 @@ export default async function LeadEditPage({
       value: s.id,
       label: s.name,
       slug: s.slug,
+      // 昇格の予告を出すかの判定に使う。slug で決め打たない（規則はマスタが持つ）
+      auto_promote_to_deal: s.auto_promote_to_deal,
     })),
     statuses: (statusesResult.data ?? []).map((s) => ({
       value: s.id,

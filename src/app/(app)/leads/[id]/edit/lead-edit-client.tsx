@@ -19,7 +19,7 @@ import { formActionsClass, formContainerClass, fieldGridClass, fieldGrid3Class }
 type SelectOption = { value: string; label: string };
 type StatusOption = SelectOption & { stage_id: string };
 type SmallSegmentOption = SelectOption & { large_segment_id: string | null };
-type StageOption = SelectOption & { slug?: string };
+type StageOption = SelectOption & { slug?: string; auto_promote_to_deal?: boolean };
 type TempOption = SelectOption & { code: string };
 type AccountTypeOption = SelectOption & { slug?: string | null };
 
@@ -199,11 +199,23 @@ export function LeadEditClient({
     [masters.statuses, values.stage_id]
   );
 
-  const isOpportunityStage = useMemo(
+  // **ステータス欄を出すかは「そのステージにステータスが定義されているか」で決める。**
+  // slug === "opportunity" で決め打つと、ステータスを持つ昇格ステージ（Sales）で
+  // 欄が消える。規則はマスタが持つ（docs/database-design.md §24.5）
+  const stageHasStatuses = useMemo(
+    () =>
+      values.stage_id
+        ? masters.statuses.some((s) => s.stage_id === values.stage_id)
+        : true,
+    [masters.statuses, values.stage_id]
+  );
+
+  // 保存すると商談が自動生成されるステージか（昇格の予告に使う）
+  const isPromoteStage = useMemo(
     () =>
       values.stage_id
         ? masters.stages.some(
-            (s) => s.value === values.stage_id && s.slug === "opportunity"
+            (s) => s.value === values.stage_id && s.auto_promote_to_deal === true
           )
         : false,
     [masters.stages, values.stage_id]
@@ -228,8 +240,8 @@ export function LeadEditClient({
   // （既に promoted_deal_id がある場合はモーダル不要）
   const needsPromoteConfirm = useMemo(() => {
     if (promotedDealId) return false;
-    return isOpportunityStage && values.stage_id !== (lead.stage_id ?? "");
-  }, [isOpportunityStage, values.stage_id, lead.stage_id, promotedDealId]);
+    return isPromoteStage && values.stage_id !== (lead.stage_id ?? "");
+  }, [isPromoteStage, values.stage_id, lead.stage_id, promotedDealId]);
 
   // 昇格する事業者種別を判定（法人か個人か）
   const isCorporateSelected = useMemo(() => {
@@ -238,9 +250,9 @@ export function LeadEditClient({
   }, [masters.accountTypes, values.account_type_id]);
 
   // 保存ボタンの disabled 判定:
-  // 通常ステージ（非 Opportunity）でステータスが未選択の場合はサーバー側でエラーになるため先制制御
+  // ステータスを持つステージで未選択の場合はサーバー側でエラーになるため先制制御
   const isSaveDisabled =
-    saving || (!isOpportunityStage && !!values.stage_id && !values.status_id);
+    saving || (stageHasStatuses && !!values.stage_id && !values.status_id);
 
 
   // 保存処理の本体（昇格確認後または昇格不要時に呼ばれる）
@@ -562,7 +574,7 @@ export function LeadEditClient({
           </div>
           <div>
             <label style={styles.label}>ステータス</label>
-            {isOpportunityStage ? (
+            {!stageHasStatuses ? (
               <div
                 style={{
                   border: "1px solid var(--color-border-default)",
@@ -592,12 +604,12 @@ export function LeadEditClient({
                 ))}
               </select>
             )}
-            {isOpportunityStage && (
+            {!stageHasStatuses && (
               <p style={{ ...styles.helpText, color: "var(--color-terra)" }}>
                 このステージでは商談が自動生成されます
               </p>
             )}
-            {!isOpportunityStage && values.stage_id && !values.status_id && (
+            {stageHasStatuses && values.stage_id && !values.status_id && (
               <p style={{ ...styles.helpText, color: "var(--color-error)" }}>
                 ステータスを選択してください
               </p>

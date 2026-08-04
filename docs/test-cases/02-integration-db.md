@@ -1029,6 +1029,54 @@ SELECT register_freee_partner_company('<紐付け済みの partner_id>');
 - RLS: member / manager から `freee_partners` / `freee_connections` が 0 件に見えること
 - 自動化区分: SQL 検証
 
+### IT-LEADSTAGE-01: ステージが要求する実体を欠く遷移を拒否する（2026-08-04 追加）
+
+- 対象: マイグレーション `20260805000002`（`check_lead_stage_requirements` / `trg_lead_stage_requirements`）
+- 背景: ステージが Sales / Opportunity / 取引先なのに商談も契約も無いリードを作れていた。
+  規則と根拠は `docs/database-design.md` §24
+- 手順・期待:
+
+```sql
+-- 1. 規則がマスタに入っていること
+SELECT slug, name, auto_promote_to_deal, requires_deal, requires_contract
+  FROM lead_stages WHERE deleted_at IS NULL ORDER BY sort_order;
+--   sales / opportunity / customer が requires_deal = t
+--   customer だけ requires_contract = t、name は「取引先」
+
+-- 2. 商談なしで Sales へ → 拒否
+UPDATE leads SET stage_id = (SELECT id FROM lead_stages WHERE slug='sales') WHERE id = '<商談なしの lead>';
+--   ERROR: 「Sales」へ進めるには商談が必要です。…
+
+-- 3. 商談なしで 取引先 へ → 拒否（Opportunity を飛ばした直行も塞がれる）
+--   ERROR: 「取引先」へ進めるには商談が必要です。…
+
+-- 4. 商談ありで Sales へ → 通る。**ステータス（商談化）が消えないこと**
+--   auto_promote_to_deal で status を NULL にしていた旧実装の名残がないか確認する
+
+-- 5. 契約なしで 取引先 へ → 拒否
+--   ERROR: 「取引先」へ進めるには契約が必要です。…
+
+-- 6. 契約を作ってから 取引先 へ → 通る
+
+-- 7. 逆向き: 参照中の商談 / 唯一の契約の論理削除 → 拒否
+UPDATE deals     SET deleted_at = now() WHERE id = '<参照中の商談>';
+UPDATE contracts SET deleted_at = now() WHERE id = '<唯一の契約>';
+--   ERROR: …先にリードのステージを下げてから削除してください
+
+-- 8. ステージを下げてからなら削除できる
+```
+
+- **`promoted_deal_id` だけの更新でトリガーが走らないこと**を確認する。
+  トリガーは `UPDATE OF stage_id` なので、昇格処理自身が自分に弾かれない
+- **既存の不整合行の是正手段を塞いでいないこと**（重要）:
+  トリガーを一時的に外して不整合行を作り、
+  ① ステージ以外の項目を更新できる ② ステージを下げられる ことを確認する。
+  常時検査にすると、規則の導入前から不整合だった行が凍結して直せなくなる
+- 検出ビュー: `SELECT * FROM v_lead_stage_violations;` が
+  `no_deal` / `deal_deleted` / `no_contract` を区別して返すこと。
+  `security_invoker` なので member には自分の見える範囲だけが出ること
+- 自動化区分: SQL 検証
+
 ---
 
 ## 6. 整合性チェッククエリ集

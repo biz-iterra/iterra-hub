@@ -7,7 +7,23 @@ import { getContacts } from "@/actions/contacts";
 import { getCrmUsers, getCurrentUser } from "@/actions/users";
 import { ContractNewForm } from "./contract-new-form";
 
-export default async function ContractNewPage() {
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * 契約の新規作成。
+ *
+ * 商談の詳細から「契約を追加」で来たときは `?deal_id=` が渡る。
+ * **初期選択にするだけで固定しない**（別の商談に付け替えられるようにする）。
+ */
+export default async function ContractNewPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
+  const rawDealId = Array.isArray(params.deal_id) ? params.deal_id[0] : params.deal_id;
+  const initialDealId = rawDealId && UUID_RE.test(rawDealId) ? rawDealId : "";
+
   const meResult = await getCurrentUser();
   const role = meResult.data?.role ?? null;
   const isManagerOrAbove = role === "manager" || role === "admin";
@@ -92,6 +108,7 @@ export default async function ContractNewPage() {
         contacts,
         users,
       }}
+      initialDealId={initialDealId}
     />
   );
 }

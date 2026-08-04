@@ -10,6 +10,10 @@ import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { isFieldValidationError } from "@/lib/errors";
 import { formContainerClass, fieldGridClass, fieldGrid3Class, formActionsClass } from "@/lib/layout";
 import { RequiredMark } from "@/components/ui/RequiredMark";
+import {
+  ContactChannelsDraft,
+  type ChannelDraft,
+} from "@/components/contacts/ContactChannelsDraft";
 
 type SelectOption = { value: string; label: string };
 
@@ -139,7 +143,17 @@ function onBlur(
   e.currentTarget.style.boxShadow = "";
 }
 
-export function ContactNewForm({ masters }: { masters: Masters }) {
+export function ContactNewForm({
+  masters,
+  initialCompanyId = "",
+  initialAccountId = "",
+}: {
+  masters: Masters;
+  /** 事業者情報の詳細から来たときの初期選択。固定はしない（付け替えられる） */
+  initialCompanyId?: string;
+  /** 取引先の詳細から来たときの紐づけ先。account_contacts に張られる */
+  initialAccountId?: string;
+}) {
   const router = useRouter();
   const { showToast } = useToast();
   const [values, setValues] = useState({
@@ -151,7 +165,7 @@ export function ContactNewForm({ masters }: { masters: Masters }) {
     first_name_kana: "",
     contact_status_id: "",
     contact_type: "" as ContactType,
-    company_id: "",
+    company_id: initialCompanyId,
     department: "",
     job_title: "",
     birth_date: "",
@@ -160,6 +174,18 @@ export function ContactNewForm({ masters }: { masters: Masters }) {
     line_user_id: "",
     owner_user_id: "",
     internal_memo: "",
+  });
+  // 連絡手段と住所は別テーブルだが、**作成時にまとめて登録する**（編集画面と揃える）。
+  // 書き込みは DB 関数 create_contact_with_details が単一トランザクションで行う
+  const [emails, setEmails] = useState<ChannelDraft[]>([]);
+  const [phones, setPhones] = useState<ChannelDraft[]>([]);
+  const [address, setAddress] = useState({
+    postal_code: "",
+    prefecture: "",
+    city: "",
+    address_line1: "",
+    address_line2: "",
+    label: "main",
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -194,6 +220,16 @@ export function ContactNewForm({ masters }: { masters: Masters }) {
       line_user_id: values.line_user_id || null,
       owner_user_id: values.owner_user_id || null,
       internal_memo: values.internal_memo || null,
+      // 取引先から来たときだけ紐づけを渡す（account_contacts は DB 関数が張る）
+      account_id: initialAccountId || null,
+      // 空行は送らない。DB 関数は受け取った分だけ書く
+      emails: emails
+        .filter((r) => r.value.trim() !== "")
+        .map((r) => ({ email: r.value.trim(), label: r.label, is_primary: r.is_primary })),
+      phones: phones
+        .filter((r) => r.value.trim() !== "")
+        .map((r) => ({ phone: r.value.trim(), label: r.label, is_primary: r.is_primary })),
+      address,
     };
 
     const result = await createContact(payload);
@@ -441,11 +477,88 @@ export function ContactNewForm({ masters }: { masters: Masters }) {
           </div>
         </div>
 
-        {/* 住所は作成後に登録する。addresses マスタへ紐づけるため相手の ID が要る */}
+        {/* 連絡手段。編集画面と同じ項目を作成時にも置く */}
+        <div style={styles.card}>
+          <h2 style={styles.sectionTitle}>連絡手段</h2>
+          <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+            <ContactChannelsDraft channel="email" rows={emails} onChange={setEmails} />
+            <ContactChannelsDraft channel="phone" rows={phones} onChange={setPhones} />
+          </div>
+        </div>
+
+        {/* 住所。作成時は 1 件だけ。2 件目以降は編集画面で足す */}
         <div style={styles.card}>
           <h2 style={styles.sectionTitle}>住所</h2>
-          <p style={{ color: "var(--color-sumi600)", fontSize: "0.875rem", margin: 0 }}>
-            住所は作成後に編集画面から登録できます（本社・支店・請求先など複数を登録できます）。
+          <div className={styles.grid}>
+            <div>
+              <label style={styles.label} htmlFor="postal_code">郵便番号</label>
+              <input
+                id="postal_code"
+                value={address.postal_code}
+                onChange={(e) => setAddress((a) => ({ ...a, postal_code: e.target.value }))}
+                style={styles.input}
+                placeholder="100-0001"
+              />
+            </div>
+            <div>
+              <label style={styles.label} htmlFor="prefecture">都道府県</label>
+              <input
+                id="prefecture"
+                value={address.prefecture}
+                onChange={(e) => setAddress((a) => ({ ...a, prefecture: e.target.value }))}
+                style={styles.input}
+                placeholder="東京都"
+              />
+            </div>
+            <div>
+              <label style={styles.label} htmlFor="city">市区町村</label>
+              <input
+                id="city"
+                value={address.city}
+                onChange={(e) => setAddress((a) => ({ ...a, city: e.target.value }))}
+                style={styles.input}
+                placeholder="千代田区"
+              />
+            </div>
+            <div>
+              <label style={styles.label} htmlFor="address_line1">町名・番地</label>
+              <input
+                id="address_line1"
+                value={address.address_line1}
+                onChange={(e) => setAddress((a) => ({ ...a, address_line1: e.target.value }))}
+                style={styles.input}
+                placeholder="丸の内1-1-1"
+              />
+            </div>
+            <div>
+              <label style={styles.label} htmlFor="address_line2">建物名・部屋番号</label>
+              <input
+                id="address_line2"
+                value={address.address_line2}
+                onChange={(e) => setAddress((a) => ({ ...a, address_line2: e.target.value }))}
+                style={styles.input}
+                placeholder="ITERRA ビル 5F"
+              />
+            </div>
+            <div>
+              <label style={styles.label} htmlFor="address_label">種別</label>
+              <select
+                id="address_label"
+                value={address.label}
+                onChange={(e) => setAddress((a) => ({ ...a, label: e.target.value }))}
+                style={styles.input}
+              >
+                <option value="main">主住所</option>
+                <option value="home">自宅</option>
+                <option value="billing">請求先</option>
+                <option value="shipping">配送先</option>
+                <option value="branch">支店</option>
+                <option value="other">その他</option>
+              </select>
+            </div>
+          </div>
+          <p style={{ color: "var(--color-sumi500)", fontSize: "0.75rem", margin: "0.5rem 0 0 0" }}>
+            2 件目以降の住所は作成後に編集画面から追加できます。
           </p>
         </div>
 

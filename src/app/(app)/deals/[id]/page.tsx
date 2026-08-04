@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { DetailSection } from "@/components/ui/DetailSection";
+import { AddRelatedLink } from "@/components/ui/AddRelatedLink";
 import { InfoField } from "@/components/ui/InfoField";
 import { EntityLink } from "@/components/ui/EntityLink";
 import { ACTIVITY_ICON } from "@/lib/activity";
@@ -425,7 +426,16 @@ export default async function DealDetailPage({
             />
           </DetailSection>
 
-          <DetailSection title="契約" icon={FileText}>
+          <DetailSection
+            title="契約"
+            icon={FileText}
+            action={
+              <AddRelatedLink
+                href={`/contracts/new?deal_id=${deal.id}`}
+                label="契約を追加"
+              />
+            }
+          >
             {contracts.length === 0 ? (
               <p
                 style={{

@@ -1,6 +1,7 @@
 "use server";
 
 import { toUserMessage } from "@/lib/db-error";
+import { buildIlikePattern } from "@/lib/search-query";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -55,6 +56,10 @@ export async function getDeals(params?: {
   stageId?: string;
   statusId?: string;
   ownerUserId?: string;
+  /** 相手先での絞り込み。各詳細ページの「商談」セクションが使う */
+  accountId?: string;
+  companyId?: string;
+  contactId?: string;
   page?: number;
   perPage?: number;
 } & SortParams): Promise<ActionResult<Paged<DealWithRelations>>> {
@@ -77,9 +82,12 @@ export async function getDeals(params?: {
     .order(...toOrderArgs(sort))
     .range(from, to);
 
-  if (params?.search) {
+  // `.or()` は `,` `(` `)` `.` を文法に使う。生の入力を埋めると式が壊れるため
+  // 他の一覧と同じく buildIlikePattern を通す（2026-08-04 修正）
+  const searchPattern = buildIlikePattern(params?.search);
+  if (searchPattern) {
     query = query.or(
-      `name.ilike.%${params.search}%,deal_code.ilike.%${params.search}%`
+      `name.ilike.${searchPattern},deal_code.ilike.${searchPattern}`
     );
   }
   if (params?.pipelineTypeId) {
@@ -93,6 +101,15 @@ export async function getDeals(params?: {
   }
   if (params?.ownerUserId) {
     query = query.eq("owner_user_id", params.ownerUserId);
+  }
+  if (params?.accountId) {
+    query = query.eq("account_id", params.accountId);
+  }
+  if (params?.companyId) {
+    query = query.eq("company_id", params.companyId);
+  }
+  if (params?.contactId) {
+    query = query.eq("contact_id", params.contactId);
   }
 
   const { data, error, count } = await query;
@@ -203,9 +220,12 @@ export async function createDeal(
   const parsed = createDealSchema.safeParse(input);
   if (!parsed.success) return { data: null, error: parsed.error.issues[0].message };
 
+  // project_id は deals の列ではない（deal_projects で N:M）。切り離してから insert する
+  const { project_id: projectId, ...dealFields } = parsed.data;
+
   const dealData = {
-    ...parsed.data,
-    owner_user_id: parsed.data.owner_user_id ?? user.id,
+    ...dealFields,
+    owner_user_id: dealFields.owner_user_id ?? user.id,
     created_by: user.id,
     last_updated_by: user.id,
   };
@@ -217,6 +237,18 @@ export async function createDeal(
     .single();
 
   if (error) return { data: null, error: toUserMessage(error, { entityLabel: "商談" }) };
+
+  // プロジェクトから作ったときは紐づけまで張る。
+  // 失敗しても商談自体は残す（履歴と同じ扱い。利用者は画面から張り直せる）
+  if (projectId) {
+    const { error: linkErr } = await supabase
+      .from("deal_projects")
+      .insert({ deal_id: deal.id, project_id: projectId, created_by: user.id });
+    if (linkErr) {
+      console.warn("[createDeal] deal_projects insert WARN:", linkErr.message);
+    }
+    revalidatePath(`/projects/${projectId}`);
+  }
 
   // deal_stage_histories に初回エントリ
   await supabase.from("deal_stage_histories").insert({

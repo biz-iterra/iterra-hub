@@ -4,7 +4,7 @@ import { toUserMessage } from "@/lib/db-error";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { conflictErrorMessage } from "@/lib/validators/common";
-import type { Database } from "@/types/database.generated";
+import type { Json } from "@/types/database.generated";
 import { createContactSchema, updateContactSchema } from "@/lib/validators/contacts";
 import { calcPotentialNumber, calcZodiacSign } from "@/lib/diagnosis";
 import type {
@@ -182,10 +182,13 @@ export async function createContact(
     return { data: null, error: `[${field}] ${issue.message}` };
   }
 
+  // 連絡手段・住所は連絡先本体とは別のテーブルなので、値をここで切り離して
+  // DB 関数へ渡す（アプリ側で順に INSERT すると途中失敗で中途半端に残る）
+  const { emails, phones, address, account_id: accountId, ...contactFields } = parsed.data;
+
   const values: Record<string, unknown> = {
-    ...parsed.data,
-    owner_user_id: parsed.data.owner_user_id ?? user.id,
-    created_by: user.id,
+    ...contactFields,
+    owner_user_id: contactFields.owner_user_id ?? user.id,
   };
 
   if (parsed.data.birth_date) {
@@ -194,14 +197,40 @@ export async function createContact(
     if (diagErr) return { data: null, error: diagErr };
   }
 
-  const { data, error } = await supabase
-    .from("contacts")
-    .insert(values as Database["public"]["Tables"]["contacts"]["Insert"])
-    .select()
-    .single();
+  // 住所は全欄が空なら渡さない（空の住所レコードを作らないため）
+  const hasAddress =
+    !!address &&
+    [address.postal_code, address.prefecture, address.city, address.address_line1].some(
+      (v) => (v ?? "").trim() !== ""
+    );
+
+  // rpc の JSONB 引数は Json 型を期待する。values は診断結果の付与で
+  // Record<string, unknown> になっているため、ここで一度だけ橋渡しする
+  const { data: newId, error } = await supabase.rpc("create_contact_with_details", {
+    p_contact: values as Json,
+    p_emails: (emails ?? []) as Json,
+    p_phones: (phones ?? []) as Json,
+    p_address: hasAddress ? (address as Json) : undefined,
+    p_account_id: accountId ?? undefined,
+  });
 
   if (error) return { data: null, error: toUserMessage(error, { entityLabel: "連絡先" }) };
+
+  const { data, error: fetchErr } = await supabase
+    .from("contacts")
+    .select()
+    .eq("id", newId as string)
+    .single();
+  if (fetchErr) return { data: null, error: toUserMessage(fetchErr, { entityLabel: "連絡先" }) };
+
   revalidatePath("/contacts");
+  // 事業者情報の詳細に連絡先一覧が出るため、紐づけたときはそちらも作り直す
+  if (contactFields.company_id) {
+    revalidatePath(`/companies/${contactFields.company_id}`);
+  }
+  if (accountId) {
+    revalidatePath(`/accounts/${accountId}`);
+  }
   return { data, error: null };
 }
 

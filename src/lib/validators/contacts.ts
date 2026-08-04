@@ -29,9 +29,54 @@ const contactBaseSchema = z.object({
   website_url: urlSchema,
 });
 
+/**
+ * 新規作成時にまとめて登録する連絡手段・住所。
+ *
+ * 既存の連絡先に足すときは `src/actions/contact-channels.ts` が担う（その場で反映）。
+ * こちらは**まだ ID の無い相手**に対する下書きなので、値だけを受け取り
+ * DB 関数 create_contact_with_details が親子まとめて書き込む。
+ * 形式のルール（メールの正規表現・ラベルの許可値）は両者で揃える。
+ */
+const EMAIL_LABELS = ["work", "personal", "other"] as const;
+const PHONE_LABELS = ["work", "mobile", "home", "fax", "other"] as const;
+
+export const contactEmailDraftSchema = z.object({
+  email: z
+    .string()
+    .trim()
+    .min(1, "メールアドレスを入力してください")
+    .regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, "メールアドレスの形式が正しくありません"),
+  label: z.enum(EMAIL_LABELS).default("work"),
+});
+
+export const contactPhoneDraftSchema = z.object({
+  phone: z.string().trim().min(1, "電話番号を入力してください").max(50),
+  label: z.enum(PHONE_LABELS).default("work"),
+});
+
+export const contactAddressDraftSchema = z.object({
+  postal_code: z.string().trim().max(20).nullable().optional(),
+  prefecture: z.string().trim().max(20).nullable().optional(),
+  city: z.string().trim().max(100).nullable().optional(),
+  address_line1: z.string().trim().max(200).nullable().optional(),
+  address_line2: z.string().trim().max(200).nullable().optional(),
+  label: z
+    .enum(["main", "billing", "shipping", "branch", "home", "other"])
+    .default("main"),
+});
+
 // インボイス登録番号は取引の主体（取引先）に紐づく情報なので連絡先では扱わない。
-// 住所も entity_addresses へ移したためここには無い
-export const createContactSchema = contactBaseSchema;
+// 住所は entity_addresses が持つため、ここでは作成時の下書きとしてだけ受け取る
+export const createContactSchema = contactBaseSchema.extend({
+  emails: z.array(contactEmailDraftSchema).max(10).optional(),
+  phones: z.array(contactPhoneDraftSchema).max(10).optional(),
+  address: contactAddressDraftSchema.nullable().optional(),
+  /**
+   * 取引先の詳細から追加したときの紐づけ先。**contacts の列ではない**
+   * （連絡先と取引先は account_contacts で N:M）。DB 関数が紐づけを張る
+   */
+  account_id: uuidString().nullable().optional(),
+});
 
 export const updateContactSchema = contactBaseSchema
   .partial()

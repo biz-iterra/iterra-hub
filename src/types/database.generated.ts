@@ -6546,6 +6546,16 @@ export type Database = {
           contact_id: string
         }[]
       }
+      create_contact_with_details: {
+        Args: {
+          p_account_id?: string
+          p_address?: Json
+          p_contact: Json
+          p_emails?: Json
+          p_phones?: Json
+        }
+        Returns: string
+      }
       default_phone_label: { Args: { p_phone: string }; Returns: string }
       detect_all_contact_merge_candidates: { Args: never; Returns: number }
       detect_contact_merge_candidates: {

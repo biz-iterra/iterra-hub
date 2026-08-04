@@ -21,6 +21,7 @@ import {
   Users,
 } from "lucide-react";
 import { DetailSection } from "@/components/ui/DetailSection";
+import { AddRelatedLink } from "@/components/ui/AddRelatedLink";
 import { InfoField } from "@/components/ui/InfoField";
 import { EntityLink } from "@/components/ui/EntityLink";
 import { LabelBadge } from "@/components/ui/badges";
@@ -319,7 +320,16 @@ export default async function AccountDetailPage({
             </div>
           </DetailSection>
 
-          <DetailSection title="商談一覧" icon={Handshake}>
+          <DetailSection
+            title="商談一覧"
+            icon={Handshake}
+            action={
+              <AddRelatedLink
+                href={`/deals/new?account_id=${account.id}`}
+                label="商談を追加"
+              />
+            }
+          >
             {deals.length > 0 ? (
               <div className={tableScrollClass}>
               <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "36rem" }}>
@@ -370,7 +380,16 @@ export default async function AccountDetailPage({
             自動で入る。以降に窓口が増えたり役割が変わったりしたときは
             ここで直す（連絡先側は閲覧のみ。同じ紐づけの入口を 2 つにしない）。
           */}
-          <DetailSection title="窓口の連絡先" icon={Users}>
+          <DetailSection
+            title="窓口の連絡先"
+            icon={Users}
+            action={
+              <AddRelatedLink
+                href={`/contacts/new?account_id=${account.id}`}
+                label="連絡先を追加"
+              />
+            }
+          >
             <RelationListSection
               label="窓口の連絡先"
               rows={contacts.map((c) => ({

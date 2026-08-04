@@ -2,6 +2,7 @@ import { getCompany, updateCompany } from "@/actions/companies";
 import { getCrmUsers, getCurrentUser } from "@/actions/users";
 import { RelationField } from "@/components/ui/RelationField";
 import { getCompanyFinancialInfo } from "@/actions/financial-info";
+import { getDeals } from "@/actions/deals";
 import { accountTypeLabel } from "@/lib/validators/financial-info";
 import { getEntityAddresses } from "@/actions/entity-addresses";
 import { AddressList } from "@/components/common/AddressesEditor";
@@ -11,6 +12,7 @@ import {
   Briefcase,
   Building2,
   FileText,
+  Handshake,
   Landmark,
   Layers,
   Mail,
@@ -20,6 +22,7 @@ import {
   Users,
 } from "lucide-react";
 import { DetailSection } from "@/components/ui/DetailSection";
+import { AddRelatedLink } from "@/components/ui/AddRelatedLink";
 import { InfoField } from "@/components/ui/InfoField";
 import { ExternalLinkText } from "@/components/ui/ExternalLinkText";
 import { EntityLink } from "@/components/ui/EntityLink";
@@ -86,6 +89,7 @@ export default async function CompanyDetailPage({
     { data: users },
     { data: me },
     { data: financialInfo },
+    { data: dealsPage },
   ] =
     await Promise.all([
       getCompany(id),
@@ -94,7 +98,10 @@ export default async function CompanyDetailPage({
       getCurrentUser(),
       // 口座番号を含むので manager 未満には返らない（null になる）
       getCompanyFinancialInfo(id),
+      // 契約前の商談は取引先ではなくこの事業者に紐づく（database-design.md §16）
+      getDeals({ companyId: id, perPage: 50 }),
     ]);
+  const companyDeals = dealsPage?.rows ?? [];
   const addresses = addressRows ?? [];
 
   if (error || !company) {
@@ -459,7 +466,16 @@ export default async function CompanyDetailPage({
             )}
           </DetailSection>
 
-          <DetailSection title="連絡先一覧" icon={Users}>
+          <DetailSection
+            title="連絡先一覧"
+            icon={Users}
+            action={
+              <AddRelatedLink
+                href={`/contacts/new?company_id=${company.id}`}
+                label="連絡先を追加"
+              />
+            }
+          >
             {activeContacts.length > 0 ? (
               <div
                 style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}
@@ -489,6 +505,59 @@ export default async function CompanyDetailPage({
                           .join(" / ")}
                       </span>
                     )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p
+                style={{
+                  color: "var(--color-sumi400)",
+                  fontSize: "0.875rem",
+                  margin: 0,
+                }}
+              >
+                —
+              </p>
+            )}
+          </DetailSection>
+
+          {/*
+            商談。取引先は契約成立まで作られないため、契約前の商談は
+            この事業者情報に紐づく。ここから起こせるようにしておく
+          */}
+          <DetailSection
+            title="商談"
+            icon={Handshake}
+            action={
+              <AddRelatedLink
+                href={`/deals/new?company_id=${company.id}`}
+                label="商談を追加"
+              />
+            }
+          >
+            {companyDeals.length > 0 ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                {companyDeals.map((deal) => (
+                  <div
+                    key={deal.id}
+                    style={{
+                      borderBottom: "1px solid var(--color-border-default)",
+                      paddingBottom: "0.5rem",
+                    }}
+                  >
+                    <EntityLink href={`/deals/${deal.id}`} compact>
+                      {deal.name}
+                    </EntityLink>
+                    <span
+                      style={{
+                        display: "block",
+                        color: "var(--color-sumi600)",
+                        fontSize: "0.75rem",
+                        marginTop: "0.125rem",
+                      }}
+                    >
+                      {deal.deal_stage?.name ?? "—"}
+                    </span>
                   </div>
                 ))}
               </div>

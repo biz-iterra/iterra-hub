@@ -16,10 +16,13 @@ import {
   getSocialServices,
 } from "@/actions/contact-social-accounts";
 import { SocialLinks } from "@/components/contacts/SocialLinks";
+import { getDeals } from "@/actions/deals";
+import { AddRelatedLink } from "@/components/ui/AddRelatedLink";
 import Link from "next/link";
 import {
   ArrowLeft,
   Briefcase,
+  Handshake,
   Layers,
   Mail,
   Pencil,
@@ -117,6 +120,7 @@ export default async function ContactDetailPage({
     { data: me },
     { data: socialServices },
     { data: socialAccounts },
+    { data: contactDealsPage },
   ] = await Promise.all([
     getContact(id),
     getContactEmailMessages(id),
@@ -128,7 +132,10 @@ export default async function ContactDetailPage({
     getCurrentUser(),
     getSocialServices(),
     getContactSocialAccounts(id),
+    // 契約前の商談は連絡先に紐づくことがある（database-design.md §16）
+    getDeals({ contactId: id, perPage: 50 }),
   ]);
+  const contactDeals = contactDealsPage?.rows ?? [];
   const emailMessages = emailMessagesRaw ?? [];
   const addresses = addressRows ?? [];
   const referred = referredRows ?? [];
@@ -444,6 +451,67 @@ export default async function ContactDetailPage({
               </div>
             )}
           </DetailSection>
+
+          <DetailSection
+            title="商談"
+            icon={Handshake}
+            action={
+              <AddRelatedLink
+                href={`/deals/new?contact_id=${c.id}`}
+                label="商談を追加"
+              />
+            }
+          >
+            {contactDeals.length > 0 ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                {contactDeals.map((deal) => (
+                  <div
+                    key={deal.id}
+                    style={{
+                      borderBottom: "1px solid var(--color-border-default)",
+                      paddingBottom: "0.5rem",
+                    }}
+                  >
+                    <EntityLink href={`/deals/${deal.id}`} compact>
+                      {deal.name}
+                    </EntityLink>
+                    <span
+                      style={{
+                        display: "block",
+                        color: "var(--color-sumi600)",
+                        fontSize: "0.75rem",
+                        marginTop: "0.125rem",
+                      }}
+                    >
+                      {deal.deal_stage?.name ?? "—"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p style={{ color: "var(--color-sumi400)", fontSize: "0.875rem", margin: 0 }}>
+                —
+              </p>
+            )}
+          </DetailSection>
+
+          {/* タレントは連絡先 1 人に 1 件。未登録なら登録の導線を出す */}
+          {!talent && (
+            <DetailSection
+              title="タレント情報"
+              icon={Star}
+              action={
+                <AddRelatedLink
+                  href={`/talents/new?contact_id=${c.id}`}
+                  label="タレントとして登録"
+                />
+              }
+            >
+              <p style={{ color: "var(--color-sumi400)", fontSize: "0.875rem", margin: 0 }}>
+                未登録です。スキル・経歴・適性を管理する場合は登録してください。
+              </p>
+            </DetailSection>
+          )}
 
           {talent && (
             <DetailSection title="タレント情報" icon={Star}>

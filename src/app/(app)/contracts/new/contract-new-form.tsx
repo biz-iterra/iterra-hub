@@ -135,11 +135,18 @@ const COUNTERPARTY_TYPES: SelectOption[] = [
   { value: "individual", label: "個人" },
 ];
 
-export function ContractNewForm({ masters }: { masters: Masters }) {
+export function ContractNewForm({
+  masters,
+  initialDealId = "",
+}: {
+  masters: Masters;
+  /** 商談の詳細から来たときの初期選択。固定はしない */
+  initialDealId?: string;
+}) {
   const router = useRouter();
   const { showToast } = useToast();
   const [values, setValues] = useState({
-    deal_id: "",
+    deal_id: initialDealId,
     contract_method: "",
     contract_type_id: "",
     contract_name: "",

@@ -22,8 +22,19 @@ type Masters = {
   dealStages: StageOption[];
   dealStatuses: StatusOption[];
   accounts: SelectOption[];
+  companies: SelectOption[];
+  contacts: SelectOption[];
   owners: SelectOption[];
 };
+
+/** 相手先の種別。取引先は契約成立まで存在しないため 3 択にする */
+type CounterpartyKind = "account" | "company" | "contact";
+
+const COUNTERPARTY_OPTIONS: { value: CounterpartyKind; label: string }[] = [
+  { value: "company", label: "事業者情報" },
+  { value: "contact", label: "連絡先" },
+  { value: "account", label: "取引先" },
+];
 
 const styles = {
   container: formContainerClass,
@@ -128,7 +139,21 @@ function onBlur(
   e.currentTarget.style.boxShadow = "";
 }
 
-export function DealNewForm({ masters }: { masters: Masters }) {
+export function DealNewForm({
+  masters,
+  initialAccountId = "",
+  initialCompanyId = "",
+  initialContactId = "",
+  initialProjectId = "",
+}: {
+  masters: Masters;
+  /** 各詳細から「商談を追加」で来たときの初期選択。いずれも固定はしない */
+  initialAccountId?: string;
+  initialCompanyId?: string;
+  initialContactId?: string;
+  /** プロジェクトから来たときの紐づけ先。作成後に deal_projects が張られる */
+  initialProjectId?: string;
+}) {
   const router = useRouter();
   const { showToast } = useToast();
   const [values, setValues] = useState({
@@ -137,13 +162,20 @@ export function DealNewForm({ masters }: { masters: Masters }) {
     deal_stage_id: "",
     deal_status_id: "",
     amount: "",
-    account_id: "",
+    account_id: initialAccountId,
+    company_id: initialCompanyId,
+    contact_id: initialContactId,
     owner_user_id: "",
     contract_name: "",
     application_date: "",
     review_completed_date: "",
     expected_close_date: "",
   });
+  // 来歴から相手先の種別を決める。何も無ければ事業者情報（契約前が普通のため）
+  const [counterpartyKind, setCounterpartyKind] = useState<CounterpartyKind>(
+    initialAccountId ? "account" : initialContactId ? "contact" : "company"
+  );
+
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [autoCloseDateNote, setAutoCloseDateNote] = useState<string | null>(null);
@@ -228,7 +260,13 @@ export function DealNewForm({ masters }: { masters: Masters }) {
       deal_stage_id: values.deal_stage_id,
       deal_status_id: values.deal_status_id,
       amount: amountNum,
-      account_id: values.account_id,
+      // 選んだ種別のものだけ送る。DB の deals_counterparty_check は
+      // account / company / contact のいずれか 1 つ以上を要求する
+      account_id: counterpartyKind === "account" ? values.account_id || null : null,
+      company_id: counterpartyKind === "company" ? values.company_id || null : null,
+      contact_id: counterpartyKind === "contact" ? values.contact_id || null : null,
+      // プロジェクトから来たときだけ渡す（deals の列ではなく deal_projects に張られる）
+      project_id: initialProjectId || null,
       owner_user_id: values.owner_user_id || null,
       contract_name: values.contract_name || null,
       application_date: values.application_date || null,
@@ -319,15 +357,69 @@ export function DealNewForm({ masters }: { masters: Masters }) {
               />
             </div>
             <div>
-              <label style={styles.label}>取引先<RequiredMark /></label>
-              <SearchableSelect
-                value={values.account_id}
-                onChange={(v) => set("account_id", v)}
-                options={masters.accounts}
-                nullable={false}
-                searchKind="account"
-                ariaLabel="取引先"
-              />
+              <label style={styles.label}>相手先<RequiredMark /></label>
+              <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.5rem" }}>
+                {COUNTERPARTY_OPTIONS.map((o) => (
+                  <label
+                    key={o.value}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "0.25rem",
+                      fontSize: "0.8125rem",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      name="counterparty_kind"
+                      value={o.value}
+                      checked={counterpartyKind === o.value}
+                      onChange={() => setCounterpartyKind(o.value)}
+                    />
+                    {o.label}
+                  </label>
+                ))}
+              </div>
+              {counterpartyKind === "account" && (
+                <SearchableSelect
+                  value={values.account_id}
+                  onChange={(v) => set("account_id", v)}
+                  options={masters.accounts}
+                  nullable={false}
+                  searchKind="account"
+                  ariaLabel="取引先"
+                />
+              )}
+              {counterpartyKind === "company" && (
+                <SearchableSelect
+                  value={values.company_id}
+                  onChange={(v) => set("company_id", v)}
+                  options={masters.companies}
+                  nullable={false}
+                  searchKind="company"
+                  ariaLabel="事業者情報"
+                />
+              )}
+              {counterpartyKind === "contact" && (
+                <SearchableSelect
+                  value={values.contact_id}
+                  onChange={(v) => set("contact_id", v)}
+                  options={masters.contacts}
+                  nullable={false}
+                  searchKind="contact"
+                  ariaLabel="連絡先"
+                />
+              )}
+              <p
+                style={{
+                  fontSize: "0.6875rem",
+                  color: "var(--color-sumi500)",
+                  margin: "0.375rem 0 0 0",
+                }}
+              >
+                取引先は契約が成立したときに作られます。契約前は事業者情報か連絡先を選んでください。
+              </p>
             </div>
             <div>
               <label style={styles.label}>担当者</label>

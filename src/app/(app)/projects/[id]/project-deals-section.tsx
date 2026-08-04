@@ -7,6 +7,7 @@ import { ArrowUpRight, Handshake, Plus, X } from "lucide-react";
 
 import { addDealProject, removeDealProject } from "@/actions/projects";
 import { DetailSection } from "@/components/ui/DetailSection";
+import { AddRelatedLink } from "@/components/ui/AddRelatedLink";
 import { PipelineBadge, StageBadge } from "@/components/ui/badges";
 import { useToast } from "@/components/ui/toast";
 import { SearchableSelect } from "@/components/ui/SearchableSelect";
@@ -128,8 +129,23 @@ export function ProjectDealsSection({
       title={`紐づく商談（${deals.length}件）`}
       icon={Handshake}
       action={
-        <span style={{ fontSize: "0.75rem", color: "var(--color-sumi600)" }}>
-          合計金額: ¥{totalAmount.toLocaleString()}
+        <span
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "0.75rem",
+          }}
+        >
+          <span style={{ fontSize: "0.75rem", color: "var(--color-sumi600)" }}>
+            合計金額: ¥{totalAmount.toLocaleString()}
+          </span>
+          {/* 既存の商談は下の「紐づけを追加」で選ぶ。ここは新しく起こす導線 */}
+          {editable && (
+            <AddRelatedLink
+              href={`/deals/new?project_id=${projectId}`}
+              label="商談を新規作成"
+            />
+          )}
         </span>
       }
     >

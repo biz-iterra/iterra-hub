@@ -34,6 +34,7 @@ ITERRA CRM（顧客関係管理）システム。
 │   ├── deployment-nas.md  # 本番Supabase構築 + NASデプロイ手順
 │   ├── lead-import-eight.md # Eight 名刺CSV取込の設計（実装済み: /admin/leads/import）
 │   ├── lead-import-inquiry.md # コーポレートサイトの問い合わせ取込（D1 → /api/leads/inquiry-sync）
+│   ├── google-contacts-sync.md # 連絡先の Google コンタクト同期（設計のみ・実装は T-0045）
 │   ├── operation-manual.md # 操作マニュアル（§13 バックアップと復旧）
 │   ├── test-strategy.md   # テスト戦略（テストレベル定義とデプロイゲートの正本）
 │   ├── test-cases/        # レベル別詳細テストケース（01-unit 〜 09-acceptance）
@@ -95,6 +96,14 @@ ITERRA CRM（顧客関係管理）システム。
   （`src/hooks/useListView.ts`）を使い、`page.tsx` は `searchParams` を見て初回取得する。
   `useState` に置くと詳細から戻ったときに条件が消える。フィルタ名と並び替え可能な列は
   `src/lib/list-sort.ts` に集約する（Server Action と Server Component の両方が参照するため）
+- **検索欄は必ず `useSearchField`（`src/hooks/useSearchField.ts`）を通す。**
+  生の `<input>` に自前の `onChange` を書かない。日本語入力（IME）の変換中は未確定の文字が
+  value に入り、それで検索すると**結果の再描画が変換中の入力を壊す**（「かいしゃ」と打つ途中で
+  「か」「かい」で検索が走る）。仕様は「**変換中は伝えない / 確定したら検索する / 変換を確定させた
+  Enter は無視する**」。判断は `src/lib/search-field.ts`（純粋関数・テストあり）、
+  独自の `onKeyDown` を持つ入力欄は先頭で `isComposingKey(e)` を見て早期 return する。
+  見た目が既定でよければ `SearchInput` をそのまま使う。**同じ不具合を何度も出しているため、
+  検索欄を足すときは E2E-14（`e2e/14-ime-search.e2e.ts`）も一緒に確認すること**
 - **入力必須の印は `RequiredMark`（`src/components/ui/RequiredMark.tsx`）を使う。** ラベル文字列に `*` を直接書かない。
   どの欄に付けるかの正本は Zod スキーマ（`src/lib/validators/`）。スキーマの必須を変えたらフォームの印も同じ作業内で合わせる
 - トーストは種別ごとの時間で自動消滅する（error は約10秒、success/info は約4秒）。

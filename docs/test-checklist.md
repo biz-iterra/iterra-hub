@@ -41,6 +41,47 @@
 
 （新しいリリースを上に追記）
 
+## リリース候補: 2026-08-05 freee の取引先コード（不具合修正 + 新規登録）
+
+T-0038（取引先コードの更新ができない）と T-0041（連携する事業者を追加する）。
+マイグレーション `20260805000014` / `20260805000015`。
+
+### Gate 1: コミット前
+
+| 項目 | 結果 |
+|---|---|
+| `npm run typecheck` | 通過 |
+| `npm test` | 通過（33 files / **372 tests**。`payload.test.ts` の 17 件を追加） |
+| `npm run build` | 通過 |
+| `npm run lint -- --max-warnings 0` | 通過（0 件） |
+
+### Gate 3: リリース前検証（ローカル）
+
+| 確認 | 方法 | 結果 |
+|---|---|---|
+| マイグレーション適用 | `npx supabase migration up` | 2 本とも適用。**型は `npm run db:types` で再生成**（手書きしない） |
+| 取引先コードでの自動紐付け | `upsert_freee_partners` を psql で 3 パターン | コード一致 → `auto`／該当なしコード（`CMP-999999`） → **紐付かない**／既に紐付いた事業者への 2 件目 → **紐付かない** |
+| 送る値の集約 | `get_company_freee_source` | 事業者コード・名称・担当者名が返る。空はそのまま null |
+| 逆向きの候補提示 | `detect_freee_candidates_for_company` | 名称一致で 1 件、`link_status` 付き |
+| 登録後の紐付け | `link_created_freee_partner` | `confirmed` + `company_id` + ログ 1 件 |
+| 取引先コードの取り込み拒否 | `apply_freee_values_to_crm(..., ['code'])` | 例外「事業者コードは CRM が自動で採番します。…」。**無言で成功しない** |
+| 画面の総ざらい | `npx playwright test e2e/zz-sweep.e2e.ts` | 通過（`/admin/freee/register` を巡回先に追加） |
+| 新画面の実操作 | Playwright で一時スクリプトを実行し目視 | 一覧 28 件／行の展開で候補検出／確認ダイアログに**事業者コードと送る項目**／未設定時は理由がダイアログに残り閉じない。**コンソールエラー 0 件** |
+
+### 検証で見つけて直したもの
+
+- **`list_companies_without_freee_partner` が実行時に落ちていた。**
+  `RETURNS TABLE` の宣言が TEXT なのに `phone`（varchar(20)）と
+  `invoice_registration_number`（varchar(14)）をそのまま返しており、
+  「structure of query does not match function result type」。
+  **PL/pgSQL のこの不一致は作成時に検出されない**（適用は成功する）。
+  実際に呼ぶまで分からないため、`RETURNS TABLE` を書いたら必ず 1 回叩くこと
+
+### 未実施（本番）
+
+- Gate 5（デプロイ後スモーク）は未実施。**本番の freee 接続が未着手**（T-0036）のため、
+  実際の登録・コードによる突合は接続後でないと確認できない
+
 ## リリース: 2026-08-05 本番反映（マイグレーション 12 本 + イメージ `df15a76`）
 
 2026-08-04 の一連の変更をまとめて本番へ反映した。

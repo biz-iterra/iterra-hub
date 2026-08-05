@@ -55,6 +55,7 @@ test.describe("変更した画面の総ざらい", () => {
       "/admin/freee",
       "/admin/freee/partners",
       "/admin/freee/sync",
+      "/admin/freee/register",
     ]) {
       await check(`一覧 ${path}`, async () => {
         const res = await page.goto(path);

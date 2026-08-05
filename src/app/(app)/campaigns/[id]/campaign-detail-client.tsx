@@ -39,6 +39,7 @@ import type {
   UnassignedLeadRow,
 } from "@/types/relations";
 import { detailContainerClass, fieldGridClass, tableScrollClass } from "@/lib/layout";
+import { useSearchField } from "@/hooks/useSearchField";
 
 type Tab = "basic" | "leads";
 
@@ -132,6 +133,17 @@ function AttachLeadsModal({
   onClose: () => void;
 }) {
   const [search, setSearch] = useState("");
+  /*
+   * 表示は draft、検索に使うのは search。
+   * **変換中は search を更新しない**（未確定の文字で候補が入れ替わる）。
+   * 検索の待ち時間は下のエフェクトが持つので、確定したら即座に渡す。
+   */
+  const {
+    draft: searchDraft,
+    handleChange: onSearchChange,
+    handleCompositionStart: onSearchCompositionStart,
+    handleCompositionEnd: onSearchCompositionEnd,
+  } = useSearchField({ value: search, onChange: setSearch, debounceMs: 0 });
   const [rows, setRows] = useState<UnassignedLeadRow[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [page, setPage] = useState(1);
@@ -284,8 +296,10 @@ function AttachLeadsModal({
             <input
               type="text"
               placeholder="リード名・会社名で検索..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              value={searchDraft}
+              onChange={onSearchChange}
+              onCompositionStart={onSearchCompositionStart}
+              onCompositionEnd={onSearchCompositionEnd}
               onFocus={onFocus}
               onBlur={onBlur}
               style={{ ...styles.input, paddingLeft: "2rem" }}

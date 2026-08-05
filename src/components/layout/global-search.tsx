@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { Search, Loader2 } from "lucide-react";
 import { globalSearch, type SearchResult, type SearchResultType } from "@/actions/search";
+import { useSearchField } from "@/hooks/useSearchField";
 
 const DEBOUNCE_MS = 300;
 const MIN_QUERY_LENGTH = 2;
@@ -123,6 +124,19 @@ export function GlobalSearch() {
   const requestSeqRef = useRef(0);
 
   const [query, setQuery] = useState("");
+  /*
+   * 表示は draft、検索に使うのは query。
+   * **日本語入力の変換中は query を更新しない**（未確定の文字で検索すると、
+   * 結果の再描画で変換が中断される）。検索そのものの待ち時間は下の
+   * エフェクトが持つので、ここは確定したら即座に渡す（debounceMs: 0）。
+   */
+  const {
+    draft,
+    handleChange,
+    handleCompositionStart,
+    handleCompositionEnd,
+    isComposingKey,
+  } = useSearchField({ value: query, onChange: setQuery, debounceMs: 0 });
   const [results, setResults] = useState<SearchResult[]>([]);
   // results がどの検索語の結果かを保持する。読み込み中かどうかはこれと現在の検索語の
   // 差から導出する（loading を state に持つとエフェクト内 setState が必要になるため）
@@ -203,6 +217,8 @@ export function GlobalSearch() {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // **変換を確定させた Enter で候補を選ばせない**（変換中の矢印キーも同じ）
+    if (isComposingKey(e)) return;
     if (e.key === "Escape") {
       setOpen(false);
       inputRef.current?.blur();
@@ -247,7 +263,7 @@ export function GlobalSearch() {
         <input
           ref={inputRef}
           type="text"
-          value={query}
+          value={draft}
           placeholder="検索 (Ctrl+K)"
           aria-label="横断検索"
           role="combobox"
@@ -256,7 +272,9 @@ export function GlobalSearch() {
           aria-autocomplete="list"
           aria-haspopup="listbox"
           aria-activedescendant={showDropdown && activeItem ? getOptionId(activeItem) : undefined}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={handleChange}
+          onCompositionStart={handleCompositionStart}
+          onCompositionEnd={handleCompositionEnd}
           onKeyDown={handleKeyDown}
           style={styles.input}
           onFocus={(e) => {

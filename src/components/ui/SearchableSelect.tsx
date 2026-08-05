@@ -11,6 +11,7 @@ import {
 } from "react";
 
 import { searchLookupOptions, type LookupKind } from "@/actions/lookup";
+import { useSearchField } from "@/hooks/useSearchField";
 
 /**
  * 打ちながら絞り込める選択欄。
@@ -113,6 +114,18 @@ export function SearchableSelect({
   const inputRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  /*
+   * 表示は draft、絞り込みに使うのは query。
+   * **変換中は query を更新しない**（未確定の文字で候補が入れ替わる）。
+   * 絞り込みの待ち時間は下のエフェクトが持つので、ここは確定したら即座に渡す。
+   */
+  const {
+    draft,
+    handleChange,
+    handleCompositionStart,
+    handleCompositionEnd,
+    isComposingKey,
+  } = useSearchField({ value: query, onChange: setQuery, debounceMs: 0 });
   const [highlight, setHighlight] = useState(0);
   const [remote, setRemote] = useState<SearchableSelectOption[] | null>(null);
   const [searching, setSearching] = useState(false);
@@ -183,6 +196,8 @@ export function SearchableSelect({
   }
 
   function onKeyDown(e: KeyboardEvent<HTMLInputElement>) {
+    // **変換を確定させた Enter で候補を選ばせない**（変換中の矢印キーも同じ）
+    if (isComposingKey(e)) return;
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
       e.preventDefault();
       if (!open) {
@@ -225,13 +240,15 @@ export function SearchableSelect({
         autoFocus={autoFocus}
         disabled={disabled}
         // 開いている間は打った文字、閉じている間は選んだものを見せる
-        value={open ? query : selectedLabel}
+        value={open ? draft : selectedLabel}
         placeholder={selectedLabel || placeholder}
         onChange={(e) => {
-          setQuery(e.target.value);
+          handleChange(e);
           setHighlight(0);
           if (!open) setOpen(true);
         }}
+        onCompositionStart={handleCompositionStart}
+        onCompositionEnd={handleCompositionEnd}
         onFocus={() => {
           setOpen(true);
           setHighlight(0);

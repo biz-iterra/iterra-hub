@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useRef, type CSSProperties } from "react";
 import { Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useSearchField } from "@/hooks/useSearchField";
 
 export interface SearchInputProps {
   value: string;
@@ -12,14 +13,11 @@ export interface SearchInputProps {
 }
 
 /**
- * 入力が止まってから親へ伝えるまでの時間。
+ * 一覧の検索欄。
  *
- * 一覧の条件は URL に載せてサーバーから取り直すため、1 文字ごとに伝えると
- * 打っている途中で再描画が挟まり、入力が取りこぼされる。
- * 打鍵の間隔より長く、待たされたと感じない程度に置く。
+ * 待ち時間と**日本語入力（IME）の扱いは `useSearchField` が持つ**。
+ * ここに自前で onChange を書かないこと（変換中に検索が走り、入力が壊れる）。
  */
-const DEBOUNCE_MS = 300;
-
 export function SearchInput({
   value,
   onChange,
@@ -27,33 +25,7 @@ export function SearchInput({
   className,
 }: SearchInputProps) {
   const inputRef = useRef<HTMLInputElement>(null);
-
-  // 表示は手元の値、親への通知は遅らせる。
-  // 打っている最中に外から値を戻されないよう、直前に見た外の値を覚えておき、
-  // それが変わったときだけ手元の値を合わせる（リセットやブラウザの戻り）。
-  // effect ではなくレンダー中に調整するのは React の推奨する形
-  // （props が変わったときの state 調整）で、余分な再描画が挟まらない
-  const [draft, setDraft] = useState(value);
-  const [syncedValue, setSyncedValue] = useState(value);
-  if (value !== syncedValue) {
-    setSyncedValue(value);
-    setDraft(value);
-  }
-
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(
-    () => () => {
-      if (timer.current) clearTimeout(timer.current);
-    },
-    []
-  );
-
-  const commit = (next: string, immediate = false) => {
-    setDraft(next);
-    if (timer.current) clearTimeout(timer.current);
-    if (immediate) onChange(next);
-    else timer.current = setTimeout(() => onChange(next), DEBOUNCE_MS);
-  };
+  const { draft, commit, inputProps } = useSearchField({ value, onChange });
 
   /*
    * 伸縮は style ではなくクラスで持つ。
@@ -113,10 +85,9 @@ export function SearchInput({
       <input
         ref={inputRef}
         type="text"
-        value={draft}
         placeholder={placeholder}
         aria-label={placeholder}
-        onChange={(e) => commit(e.target.value)}
+        {...inputProps}
         onFocus={(e) => {
           e.currentTarget.style.boxShadow = "0 0 0 3px var(--color-focus-ring)";
         }}

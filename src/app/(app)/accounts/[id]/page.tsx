@@ -25,7 +25,7 @@ import { DetailSection } from "@/components/ui/DetailSection";
 import { AddRelatedLink } from "@/components/ui/AddRelatedLink";
 import { InfoField } from "@/components/ui/InfoField";
 import { EntityLink } from "@/components/ui/EntityLink";
-import { LabelBadge } from "@/components/ui/badges";
+import { AccountTypeBadge, LabelBadge, StatusBadge } from "@/components/ui/badges";
 import { detailContainerClass, detailGridClass, fieldGridClass, sectionStackClass, tableScrollClass } from "@/lib/layout";
 
 /** ステータス更新日の表示。時刻までは要らないので日付だけ出す */
@@ -309,8 +309,26 @@ export default async function AccountDetailPage({
             <div
               className={fieldGridClass}
             >
-              <InfoField label="種別" value={a.account_type?.name} />
-              <InfoField label="ステータス" value={a.account_status?.name} />
+              <InfoField
+                label="種別"
+                value={
+                  a.account_type ? (
+                    <AccountTypeBadge name={a.account_type.name} slug={a.account_type.slug} />
+                  ) : null
+                }
+              />
+              <InfoField
+                label="ステータス"
+                value={
+                  a.account_status ? (
+                    <StatusBadge
+                      name={a.account_status.name}
+                      color={a.account_status.color}
+                      seed={a.account_status.id}
+                    />
+                  ) : null
+                }
+              />
               <InfoField label="リードソース" value={a.lead_source?.name} />
               {/* 登録番号は事業者に付くものなので事業者情報が正本。ここは読み取り */}
               <InfoField

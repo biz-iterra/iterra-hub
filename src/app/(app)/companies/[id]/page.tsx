@@ -26,6 +26,7 @@ import { AddRelatedLink } from "@/components/ui/AddRelatedLink";
 import { isSoleProprietorTypeName } from "@/lib/company-type";
 import { FreeeLinkIcon } from "@/components/freee/FreeeLinkIcon";
 import { InfoField } from "@/components/ui/InfoField";
+import { StatusBadge } from "@/components/ui/badges";
 import { ExternalLinkText } from "@/components/ui/ExternalLinkText";
 import { EntityLink } from "@/components/ui/EntityLink";
 import { detailContainerClass, detailGridClass, fieldGridClass, sectionStackClass } from "@/lib/layout";
@@ -321,7 +322,18 @@ export default async function CompanyDetailPage({
                 <InfoField label="事業種別" value={company.corporate_types?.name} />
               )}
               <InfoField label="業種" value={industryLabel} />
-              <InfoField label="ステータス" value={company.company_status?.name} />
+              <InfoField
+                label="ステータス"
+                value={
+                  company.company_status ? (
+                    <StatusBadge
+                      name={company.company_status.name}
+                      color={company.company_status.color}
+                      seed={company.company_status.id}
+                    />
+                  ) : null
+                }
+              />
               <InfoField label="リードソース" value={company.lead_sources?.name} />
               {/* 実在確認の記録。ステータスがどの確認に基づくかを示す */}
               <InfoField

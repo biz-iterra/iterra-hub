@@ -91,11 +91,12 @@ test.describe("E2E-09", () => {
     await expect(updated).toBeVisible();
     expect(await badgeColor(updated)).toBe(AFTER.rgb);
 
-    // 詳細ページは**バッジではなく素のテキスト**で出している（`InfoField`）。
-    // 色は付かないので、ここでは表示されることだけを見る。
-    // バッジにするかどうかは項目ごとの設計判断なので、勝手に変えない（T-0056）
+    // 詳細ページも同じ色であること。**画面ごとに算出していないこと**を見る
+    // （一覧はバッジ・詳細は素のテキスト、という食い違いを 2026-08-05 に揃えた。T-0056）
     await page.goto(`/companies/${companyId}`);
-    await expect(page.getByText(statusName, { exact: true }).first()).toBeVisible();
+    const detailBadge = page.getByText(statusName, { exact: true }).first();
+    await expect(detailBadge).toBeVisible();
+    expect(await badgeColor(detailBadge)).toBe(AFTER.rgb);
 
     // ---- 後片付け ----
     // **使用中のマスタは削除できない**ので、事業者情報を先に消す

@@ -35,7 +35,7 @@ import {
 import { DetailSection } from "@/components/ui/DetailSection";
 import { InfoField } from "@/components/ui/InfoField";
 import { ExternalLinkText } from "@/components/ui/ExternalLinkText";
-import { LabelBadge } from "@/components/ui/badges";
+import { LabelBadge, StatusBadge } from "@/components/ui/badges";
 import { EntityLink } from "@/components/ui/EntityLink";
 import { detailContainerClass, detailGridClass, fieldGridClass, sectionStackClass } from "@/lib/layout";
 
@@ -322,7 +322,18 @@ export default async function ContactDetailPage({
             <div
               className={fieldGridClass}
             >
-              <InfoField label="ステータス" value={c.contact_status?.name} />
+              <InfoField
+                label="ステータス"
+                value={
+                  c.contact_status ? (
+                    <StatusBadge
+                      name={c.contact_status.name}
+                      color={c.contact_status.color}
+                      seed={c.contact_status.id}
+                    />
+                  ) : null
+                }
+              />
               <InfoField
                 label="種別"
                 value={

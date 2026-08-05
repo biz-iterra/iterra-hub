@@ -168,7 +168,19 @@ export default async function ProjectDetailPage({
           <DetailSection title="基本情報" icon={FolderKanban}>
             <div className={fieldGridClass}>
               <InfoField label="プロジェクト名" value={project.name} />
-              <InfoField label="ステータス" value={project.project_status?.name} />
+              <InfoField
+                label="ステータス"
+                value={
+                  project.project_status ? (
+                    <ProjectStatusBadge
+                      name={project.project_status.name}
+                      color={project.project_status.color}
+                      sortOrder={project.project_status.sort_order}
+                      seed={project.project_status.id}
+                    />
+                  ) : null
+                }
+              />
               <InfoField label="開始日" value={project.start_date} />
               <InfoField label="終了予定日" value={project.end_date} />
               {/* 責任者は別レコードへの紐づけ。ここで直す（変更は manager 以上） */}

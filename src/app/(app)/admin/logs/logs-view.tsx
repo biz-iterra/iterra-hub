@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, type CSSProperties } from "react";
+import { useCallback, useState, useTransition, type CSSProperties } from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
@@ -12,6 +12,8 @@ import { DataTable } from "@/components/ui/DataTable";
 import { Pagination } from "@/components/ui/Pagination";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants/pagination";
 import { detailContainerClass } from "@/lib/layout";
+import { tableLabel } from "@/lib/master-labels";
+import { describeChangeText } from "@/lib/change-log-format";
 import type { Paged } from "@/types/relations";
 
 /**
@@ -19,30 +21,24 @@ import type { Paged } from "@/types/relations";
  * 内部名のまま並べても、どの画面の記録なのか分からない
  * （対応は CLAUDE.md「UI表示名と内部名の対応」が正本）。
  */
-const TABLE_LABELS: Record<string, string> = {
-  companies: "事業者情報",
-  contacts: "連絡先",
-  accounts: "取引先",
-  deals: "商談",
-  contracts: "契約",
-  leads: "リード",
-  campaigns: "キャンペーン",
-  projects: "プロジェクト",
-  talents: "タレント",
-  business_cards: "名刺",
-};
 
 const OPERATION_LABELS: Record<string, { label: string; tone: "success" | "info" | "error" }> =
   {
     INSERT: { label: "作成", tone: "success" },
     UPDATE: { label: "更新", tone: "info" },
-    DELETE: { label: "削除", tone: "error" },
+    // **論理削除は「削除」として見せる。** 以前は deleted_at が入った
+    // UPDATE として残り、一覧では「更新」に見えていた（2026-08-05 の指摘）
+    SOFT_DELETE: { label: "削除", tone: "error" },
+    DELETE: { label: "完全削除", tone: "error" },
+    RESTORE: { label: "復活", tone: "success" },
   };
 
 const OPERATION_OPTIONS = [
   { value: "INSERT", label: "作成" },
   { value: "UPDATE", label: "更新" },
-  { value: "DELETE", label: "削除" },
+  { value: "SOFT_DELETE", label: "削除" },
+  { value: "RESTORE", label: "復活" },
+  { value: "DELETE", label: "完全削除" },
 ];
 
 function formatDateTime(value: string): string {
@@ -53,30 +49,6 @@ function formatDateTime(value: string): string {
   ).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(
     d.getMinutes()
   ).padStart(2, "0")}`;
-}
-
-/** 変更内容は「項目名: 変更前 → 変更後」に開く。生の JSON は読めない */
-function describeChange(changed: unknown): string {
-  if (!changed || typeof changed !== "object") return "—";
-
-  const entries = Object.entries(changed as Record<string, unknown>);
-  if (entries.length === 0) return "—";
-
-  return entries
-    .map(([field, value]) => {
-      if (value && typeof value === "object" && "old" in value && "new" in value) {
-        const v = value as { old: unknown; new: unknown };
-        return `${field}: ${format(v.old)} → ${format(v.new)}`;
-      }
-      return `${field}: ${format(value)}`;
-    })
-    .join(" / ");
-}
-
-function format(v: unknown): string {
-  if (v === null || v === undefined || v === "") return "空";
-  if (typeof v === "string") return v.length > 40 ? `${v.slice(0, 40)}…` : v;
-  return JSON.stringify(v);
 }
 
 /**
@@ -97,6 +69,25 @@ export function ChangeLogsView({
   const [operation, setOperation] = useState("");
   const [page, setPage] = useState(1);
   const [isPending, startTransition] = useTransition();
+
+  /*
+   * UUID を人の名前へ置き換えるための対応表。
+   *
+   * **今表示している記録の「変更者」から作る。** 変更内容に出てくる UUID の
+   * 多くは担当者・作成者・削除者で、同じ画面に名前が載っている。
+   * 引けないものは「他のデータ」と出す（生の UUID は利用者に意味が無い）。
+   * すべての参照先を引くにはテーブルを跨ぐ問い合わせが要るため、ここでは
+   * 費用対効果の高い範囲に留める。
+   */
+  const resolveName = useCallback(
+    (id: string) => {
+      for (const log of data?.rows ?? []) {
+        if (log.changed_by?.id === id) return log.changed_by.full_name;
+      }
+      return undefined;
+    },
+    [data]
+  );
 
   function reload(next: { tableName?: string; operation?: string; page?: number }) {
     const params = {
@@ -131,7 +122,7 @@ export function ChangeLogsView({
         <FilterSelect
           label="対象"
           value={tableName}
-          options={tables.map((t) => ({ value: t, label: TABLE_LABELS[t] ?? t }))}
+          options={tables.map((t) => ({ value: t, label: tableLabel(t) }))}
           onChange={(v) => {
             setTableName(v);
             reload({ tableName: v, page: 1 });
@@ -167,7 +158,7 @@ export function ChangeLogsView({
             label: "対象",
             card: "title",
             className: "w-[14%]",
-            render: (log) => TABLE_LABELS[log.table_name] ?? log.table_name,
+            render: (log) => tableLabel(log.table_name),
           },
           {
             label: "操作",
@@ -184,7 +175,8 @@ export function ChangeLogsView({
           {
             label: "変更内容",
             className: "w-[46%]",
-            render: (log) => describeChange(log.changed_fields),
+            render: (log) =>
+              describeChangeText(log.table_name, log.changed_fields, resolveName),
           },
           {
             label: "変更者",

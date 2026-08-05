@@ -30,6 +30,7 @@ import {
   leadScoreRuleSchema, leadScoreRuleUpdateSchema,
 } from "@/lib/validators";
 import { toUserMessage } from "@/lib/db-error";
+import { MASTER_LABELS } from "@/lib/master-labels";
 import { pickDefaultBadgeColor } from "@/lib/master-color";
 import type { z } from "zod";
 import type { Database } from "@/types/database.generated";
@@ -93,35 +94,6 @@ function hasAuditColumns(tableName: MasterTableName): boolean {
  * テーブル名 → 画面上の名称。DB エラーを日本語に直すときの主語に使う。
  * 画面のタブ名（TAB_LABELS）と同じ言葉にすること。
  */
-const MASTER_LABELS: Record<string, string> = {
-  pipeline_types: "パイプライン種別",
-  deal_stages: "商談ステージ",
-  deal_statuses: "商談ステータス",
-  contract_types: "契約種別",
-  corporate_types: "法人格",
-  services: "サービス",
-  lead_sources: "リードソース",
-  account_types: "取引先種別",
-  account_role_types: "取引先区分",
-  account_statuses: "取引先ステータス",
-  contact_statuses: "連絡先ステータス",
-  company_statuses: "事業者情報ステータス",
-  skill_categories: "スキルカテゴリ",
-  skills: "スキル",
-  project_statuses: "プロジェクトステータス",
-  lead_categories: "リードカテゴリ",
-  lead_activity_types: "対応種別",
-  lead_stages: "リードステージ",
-  lead_statuses: "リードステータス",
-  lead_temperatures: "温度感",
-  lead_call_statuses: "コールステータス",
-  lead_large_segments: "大セグメント",
-  lead_small_segments: "小セグメント",
-  lead_company_sizes: "企業規模",
-  lead_customer_activity_types: "顧客行動タイプ",
-  lead_score_rules: "スコアリングルール",
-  lead_score_thresholds: "スコア変換ルール",
-};
 
 function masterLabel(tableName: MasterTableName): string {
   return MASTER_LABELS[tableName] ?? "マスタ";

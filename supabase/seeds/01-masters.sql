@@ -451,3 +451,20 @@ UPDATE account_role_types art
      (art.code = 'supplier'      AND pt.slug = 'procurement') OR
      (art.code = 'subcontractor' AND pt.slug = 'outsourcing')
    );
+-- ============================================================
+-- 役割フラグの設定（20260805000027）
+--
+-- **マイグレーションは seed より先に走る。** そのため
+-- 「code / slug で行を見つけてフラグを立てる」処理はまっさらな DB では
+-- 全部 0 行更新になり、フラグが 1 つも立たない状態でローカルが出来上がる。
+-- エラーは出ないので、取引先を作ろうとして初めて気づく。
+--
+-- マスタを入れ終えたここで改めて呼ぶ。何度実行しても同じ結果になる。
+-- 名指しの値（code / slug / name）は関数側が唯一の置き場所。
+-- ============================================================
+DO $$
+DECLARE v_result TEXT;
+BEGIN
+  SELECT apply_master_role_flags() INTO v_result;
+  RAISE NOTICE '役割フラグ: %', v_result;
+END $$;

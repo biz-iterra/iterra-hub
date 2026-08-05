@@ -7042,6 +7042,7 @@ export type Database = {
         Args: { p_actor?: string; p_fields: string[]; p_partner_id: string }
         Returns: Json
       }
+      apply_master_role_flags: { Args: never; Returns: string }
       approve_email_contact_candidate: {
         Args: {
           p_candidate_id: string
@@ -7138,6 +7139,7 @@ export type Database = {
           partner_name: string
         }[]
       }
+      entity_display_name: { Args: { p_row: Json }; Returns: string }
       expand_corporate_abbreviations: {
         Args: { p_name: string }
         Returns: string

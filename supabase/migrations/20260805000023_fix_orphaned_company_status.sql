@@ -106,10 +106,22 @@ DECLARE
   v_column TEXT := TG_ARGV[1];
   v_label  TEXT := TG_ARGV[2];
   v_id     UUID;
+  v_old_id UUID;
   v_gone   BOOLEAN;
 BEGIN
   EXECUTE format('SELECT ($1).%I', v_column) INTO v_id USING NEW;
   IF v_id IS NULL THEN RETURN NEW; END IF;
+
+  -- **値が変わらない更新は通す。**
+  -- 既に壊れた参照を持つ行があると、この検査のせいで「その行を一切更新できない」
+  -- 状態になり、業務が止まる。直すまでの間も他の項目は編集できるようにする
+  -- （新しく壊れた参照を作らせないことが目的）
+  IF TG_OP = 'UPDATE' THEN
+    EXECUTE format('SELECT ($1).%I', v_column) INTO v_old_id USING OLD;
+    IF v_old_id IS NOT DISTINCT FROM v_id THEN
+      RETURN NEW;
+    END IF;
+  END IF;
 
   EXECUTE format(
     'SELECT EXISTS (SELECT 1 FROM %I WHERE id = $1 AND deleted_at IS NOT NULL)', v_table

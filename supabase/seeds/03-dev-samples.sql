@@ -21,14 +21,16 @@ INSERT INTO campaigns (id, name, type, description, status, created_by, last_upd
 INSERT INTO companies (id, name, name_kana, corporate_type_id, company_status_id, phone, owner_user_id) VALUES
   ('10000000-0000-0000-0000-000000000001', '株式会社サンプル', 'カブシキガイシャサンプル',
     (SELECT id FROM corporate_types WHERE name = '株式会社'),
-    'c1000000-0000-0000-0000-000000000001',
+    -- **UUID を直書きしない。** 旧ステータスを指したまま残る事故が実際に起きた
+    -- （本番で 27 件。2026-08-05）。役割フラグで引く
+    (SELECT id FROM company_statuses WHERE is_new_default AND deleted_at IS NULL),
     '03-1234-5678', 'a0000000-0000-0000-0000-000000000002');
 
 -- アカウント
 INSERT INTO accounts (id, name, company_id, account_status_id, owner_user_id) VALUES
   ('20000000-0000-0000-0000-000000000001', '株式会社サンプル',
     '10000000-0000-0000-0000-000000000001',
-    'c0000000-0000-0000-0000-000000000001',
+    (SELECT id FROM account_statuses WHERE is_active_default AND deleted_at IS NULL),
     'a0000000-0000-0000-0000-000000000002');
 
 -- コンタクト
@@ -40,7 +42,7 @@ INSERT INTO contacts (
   owner_user_id
 ) VALUES
   ('30000000-0000-0000-0000-000000000001', '山田', '太郎', 'ヤマダ', 'タロウ',
-    'd0000000-0000-0000-0000-000000000001', 'corporate_rep',
+    (SELECT id FROM contact_statuses WHERE is_new_default AND deleted_at IS NULL), 'corporate_rep',
     '10000000-0000-0000-0000-000000000001',
     '営業部', '部長',
     '1975-08-15', 'A', 37,

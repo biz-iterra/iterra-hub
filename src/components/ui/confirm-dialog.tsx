@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type CSSProperties } from "react";
+import { useState, useId, type CSSProperties } from "react";
 import { formActionsClass } from "@/lib/layout";
 
 export type ConfirmDialogProps = {
@@ -103,6 +103,9 @@ function ConfirmDialogInner({
 }: ConfirmDialogProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // 支援技術にモーダルだと伝える（T-0048）。本文も読み上げ対象に含める
+  const titleId = useId();
+  const messageId = useId();
 
   const handleConfirm = async () => {
     setLoading(true);
@@ -118,9 +121,16 @@ function ConfirmDialogInner({
 
   return (
     <div style={styles.overlay} onClick={loading ? undefined : onClose}>
-      <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
-        <h2 style={styles.title}>{title}</h2>
-        <p style={styles.message}>{message}</p>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={messageId}
+        style={styles.modal}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 id={titleId} style={styles.title}>{title}</h2>
+        <p id={messageId} style={styles.message}>{message}</p>
         {error && <p style={styles.error}>{error}</p>}
         <div className={formActionsClass}>
           <button type="button" style={styles.btnOutline} onClick={onClose} disabled={loading}>

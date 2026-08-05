@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useTransition, type CSSProperties } from "react";
+import { useCallback, useEffect, useId, useRef, useState, useTransition, type CSSProperties } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -228,6 +228,7 @@ function AttachLeadsModal({
     justifyContent: "center",
     padding: "1rem",
   };
+  const titleId = useId();
   const modalStyle: CSSProperties = {
     backgroundColor: "#fff",
     borderRadius: "var(--radius-modal)",
@@ -241,7 +242,15 @@ function AttachLeadsModal({
 
   return (
     <div style={overlayStyle} onClick={saving ? undefined : onClose}>
-      <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
+      {/* 支援技術にモーダルだと伝える。**これが無いと E2E も入力欄を位置でしか
+          指定できない**（T-0048。マスタ管理と同じ欠落がここにも残っていた） */}
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        style={modalStyle}
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Modal Header */}
         <div
           style={{
@@ -259,6 +268,7 @@ function AttachLeadsModal({
               fontWeight: 600,
               margin: 0,
             }}
+            id={titleId}
           >
             リードを追加
           </h2>

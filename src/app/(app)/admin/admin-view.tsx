@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, type FormEvent } from "react";
+import { useState, useEffect, useCallback, useId, type FormEvent } from "react";
 import { ArrowUpRight } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 import { CompanyVerificationPanel } from "./company-verification-panel";
@@ -317,10 +317,23 @@ function Modal({
   onClose: () => void;
   children: React.ReactNode;
 }) {
+  // 支援技術にモーダルだと伝える。**これが無いと E2E も入力欄を位置でしか
+  // 指定できず、ヘッダーの検索欄を誤って掴む事故が起きた**（T-0048）
+  const titleId = useId();
+
   return (
     <div style={styles.overlay} onClick={onClose}>
-      <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
-        <h3 style={{ ...styles.title, fontSize: "1.125rem", fontWeight: 600, marginBottom: "1rem" }}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        style={styles.modal}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3
+          id={titleId}
+          style={{ ...styles.title, fontSize: "1.125rem", fontWeight: 600, marginBottom: "1rem" }}
+        >
           {title}
         </h3>
         {children}

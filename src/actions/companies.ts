@@ -161,6 +161,7 @@ export async function getCompany(id: string): Promise<ActionResult<CompanyDetail
       representative_contact:contacts!companies_representative_contact_id_fkey(id, contact_code, last_name, first_name),
       accounts(id, account_code, name, deleted_at),
       contacts!contacts_company_id_fkey(id, contact_code, last_name, first_name, contact_type, department, job_title, deleted_at),
+      company_contacts(id, job_title, contact:contacts(id, contact_code, last_name, first_name, contact_type, department, job_title, deleted_at)),
       company_domains(id, domain, is_primary),
       freee_partners(id, link_status, freee_partner_id)
     `)

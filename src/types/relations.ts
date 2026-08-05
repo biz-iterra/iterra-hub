@@ -234,8 +234,18 @@ export type ContactMergePreview = {
 };
 
 /** contacts.ts の getContact に対応（タレント・診断・所属アカウント・名刺を含む） */
+/** 兼務（company_contacts）。主たる所属は contacts.company_id が持つ */
+export type CompanyAffiliation = {
+  id: string;
+  company_id: string;
+  job_title: string | null;
+  company: NamedRef | null;
+};
+
 export type ContactDetail = ContactWithRelations & {
   business_cards: BusinessCardRef[];
+  /** **主たる所属は含まない。** ここに入るのは兼務だけ */
+  company_contacts: CompanyAffiliation[];
   talent:
     | (Row<"talents"> & {
         talent_skills: (Row<"talent_skills"> & {
@@ -302,6 +312,25 @@ export type CompanyDetail = Row<"companies"> & {
     | "job_title"
     | "deleted_at"
   >[];
+  /**
+   * 兼務でこの事業者に関わる連絡先。**主たる所属（contacts）とは別**。
+   * 一覧に出すときは両方を合わせる（`company_contact_affiliations` と同じ考え方）
+   */
+  company_contacts: {
+    id: string;
+    job_title: string | null;
+    contact: Ref<
+      "contacts",
+      | "id"
+      | "contact_code"
+      | "last_name"
+      | "first_name"
+      | "contact_type"
+      | "department"
+      | "job_title"
+      | "deleted_at"
+    > | null;
+  }[];
   /** 名刺取込の法人名寄せに使うメールドメイン */
   company_domains: Ref<"company_domains", "id" | "domain" | "is_primary">[];
   /**

@@ -1094,6 +1094,71 @@ export type Database = {
           },
         ]
       }
+      company_contacts: {
+        Row: {
+          company_id: string
+          contact_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          job_title: string | null
+          last_updated_by: string | null
+          note: string | null
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          contact_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          job_title?: string | null
+          last_updated_by?: string | null
+          note?: string | null
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          contact_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          job_title?: string | null
+          last_updated_by?: string | null
+          note?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_contacts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_contacts_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_contacts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "crm_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_contacts_last_updated_by_fkey"
+            columns: ["last_updated_by"]
+            isOneToOne: false
+            referencedRelation: "crm_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company_domains: {
         Row: {
           company_id: string
@@ -6788,6 +6853,16 @@ export type Database = {
           outcome_name: string | null
           owner_user_id: string | null
           source_kind: string | null
+        }
+        Relationships: []
+      }
+      company_contact_affiliations: {
+        Row: {
+          company_contact_id: string | null
+          company_id: string | null
+          contact_id: string | null
+          is_primary_affiliation: boolean | null
+          job_title: string | null
         }
         Relationships: []
       }

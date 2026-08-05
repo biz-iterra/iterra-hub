@@ -48,3 +48,19 @@ export const createCompanyDomainSchema = z.object({
   domain: z.string().min(1, "ドメインを入力してください").max(253),
   is_primary: z.boolean().optional(),
 });
+/**
+ * 兼務（company_contacts）。
+ *
+ * **主たる所属は `contacts.company_id` が持つ。** ここに入れるのは
+ * 「それ以外に関わる事業者」だけで、同じ事業者は DB のトリガーが拒む。
+ */
+export const companyAffiliationSchema = z.object({
+  contact_id: uuidString("連絡先を指定してください"),
+  company_id: uuidString("事業者情報を選んでください"),
+  job_title: z
+    .string()
+    .max(100, "[job_title] 役職は100文字以内で入力してください")
+    .nullable()
+    .optional()
+    .or(z.literal("").transform(() => null)),
+});

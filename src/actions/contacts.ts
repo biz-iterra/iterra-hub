@@ -3,9 +3,10 @@
 import { toUserMessage } from "@/lib/db-error";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { conflictErrorMessage } from "@/lib/validators/common";
+import { conflictErrorMessage, UUID_REGEX } from "@/lib/validators/common";
 import type { Json } from "@/types/database.generated";
 import { createContactSchema, updateContactSchema } from "@/lib/validators/contacts";
+import { companyAffiliationSchema } from "@/lib/validators/companies";
 import { calcPotentialNumber, calcZodiacSign } from "@/lib/diagnosis";
 import type {
   ContactDetail,
@@ -138,9 +139,9 @@ export async function getContact(id: string): Promise<ActionResult<ContactDetail
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
-  // 名刺は別で引く。1 つの select にまとめると supabase-js の型パーサが
+  // 名刺・兼務は別で引く。1 つの select にまとめると supabase-js の型パーサが
   // 解けなくなり（`{ error: true }` が返る）、カラム名の誤りを検出できなくなる
-  const [{ data, error }, cards] = await Promise.all([
+  const [{ data, error }, cards, affiliations] = await Promise.all([
     supabase
       .from("contacts")
       .select(
@@ -154,6 +155,12 @@ export async function getContact(id: string): Promise<ActionResult<ContactDetail
         `id, company_id, company_name_raw, department, job_title, source, source_registered_on, is_primary, referrer_contact_id, referral_memo, company:companies!business_cards_company_id_fkey(id, name), referrer:contacts!business_cards_referrer_contact_id_fkey(id, last_name, first_name), contact_email:contact_emails!business_cards_contact_email_id_fkey(id, email), contact_phone:contact_phones!business_cards_contact_phone_id_fkey(id, phone)`
       )
       .eq("contact_id", id),
+    // 兼務。**主たる所属（contacts.company_id）は含まれない**
+    supabase
+      .from("company_contacts")
+      .select("id, company_id, job_title, company:companies(id, name)")
+      .eq("contact_id", id)
+      .order("created_at"),
   ]);
 
   if (error) return { data: null, error: toUserMessage(error, { entityLabel: "連絡先" }) };
@@ -161,7 +168,11 @@ export async function getContact(id: string): Promise<ActionResult<ContactDetail
   // talent_careers.career_type は DB の CHECK 制約で 3 値に限定されているが
   // 生成型では TEXT のままなので、ここで一度だけ絞り込んだ型に寄せる。
   return {
-    data: { ...data, business_cards: cards.data ?? [] } as ContactDetail,
+    data: {
+      ...data,
+      business_cards: cards.data ?? [],
+      company_contacts: affiliations.data ?? [],
+    } as ContactDetail,
     error: null,
   };
 }
@@ -350,5 +361,95 @@ export async function deleteContact(
   if (error) return { data: null, error: toUserMessage(error, { entityLabel: "連絡先", operation: "delete"}) };
   revalidatePath("/contacts");
   revalidatePath(`/contacts/${id}`);
+  return { data: null, error: null };
+}
+
+// ---------------------------------------------------------------------------
+// 兼務（company_contacts）
+//
+// **主たる所属は contacts.company_id が持つ。** ここで扱うのは
+// 「それ以外に関わる事業者」だけ。同じ事業者を入れようとすると DB の
+// トリガーが拒む（ビューで二重に出るため）。
+//
+// 権限は RLS でも見ているが、Server Action 側でも確認する（多層防御）。
+// ---------------------------------------------------------------------------
+export async function addCompanyAffiliation(params: {
+  contactId: string;
+  companyId: string;
+  jobTitle?: string | null;
+}): Promise<ActionResult<null>> {
+  const { supabase, user, role } = await getAuthenticatedUser();
+  if (!supabase || !user) return { data: null, error: "認証が必要です" };
+
+  const parsed = companyAffiliationSchema.safeParse({
+    contact_id: params.contactId,
+    company_id: params.companyId,
+    job_title: params.jobTitle ?? null,
+  });
+  if (!parsed.success) {
+    return { data: null, error: parsed.error.issues[0]?.message ?? "入力が正しくありません" };
+  }
+
+  // 事業者情報の担当者か manager 以上だけが足せる（RLS と同じ条件）
+  if (role !== "admin" && role !== "manager") {
+    const { data: company } = await supabase
+      .from("companies")
+      .select("owner_user_id")
+      .eq("id", parsed.data.company_id)
+      .maybeSingle();
+    if (!company) return { data: null, error: "事業者情報が見つかりません" };
+    if (company.owner_user_id !== user.id) {
+      return { data: null, error: "この事業者情報を編集する権限がありません" };
+    }
+  }
+
+  const { error } = await supabase.from("company_contacts").insert({
+    contact_id: parsed.data.contact_id,
+    company_id: parsed.data.company_id,
+    job_title: parsed.data.job_title,
+    created_by: user.id,
+    last_updated_by: user.id,
+  });
+
+  if (error) {
+    return { data: null, error: toUserMessage(error, { entityLabel: "兼務", operation: "create" }) };
+  }
+
+  revalidatePath(`/contacts/${parsed.data.contact_id}`);
+  revalidatePath(`/companies/${parsed.data.company_id}`);
+  return { data: null, error: null };
+}
+
+export async function removeCompanyAffiliation(params: {
+  id: string;
+  contactId: string;
+}): Promise<ActionResult<null>> {
+  const { supabase, user, role } = await getAuthenticatedUser();
+  if (!supabase || !user) return { data: null, error: "認証が必要です" };
+  if (!UUID_REGEX.test(params.id) || !UUID_REGEX.test(params.contactId)) {
+    return { data: null, error: "不正なパラメータです" };
+  }
+
+  const { data: row } = await supabase
+    .from("company_contacts")
+    .select("company_id, companies:companies(owner_user_id)")
+    .eq("id", params.id)
+    .maybeSingle();
+  if (!row) return { data: null, error: "兼務が見つかりません" };
+
+  if (role !== "admin" && role !== "manager") {
+    const owner = (row.companies as { owner_user_id: string } | null)?.owner_user_id;
+    if (owner !== user.id) {
+      return { data: null, error: "この事業者情報を編集する権限がありません" };
+    }
+  }
+
+  const { error } = await supabase.from("company_contacts").delete().eq("id", params.id);
+  if (error) {
+    return { data: null, error: toUserMessage(error, { entityLabel: "兼務", operation: "delete" }) };
+  }
+
+  revalidatePath(`/contacts/${params.contactId}`);
+  revalidatePath(`/companies/${row.company_id}`);
   return { data: null, error: null };
 }

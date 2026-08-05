@@ -26,7 +26,7 @@ import { AddRelatedLink } from "@/components/ui/AddRelatedLink";
 import { isSoleProprietorTypeName } from "@/lib/company-type";
 import { FreeeLinkIcon } from "@/components/freee/FreeeLinkIcon";
 import { InfoField } from "@/components/ui/InfoField";
-import { StatusBadge } from "@/components/ui/badges";
+import { LabelBadge, StatusBadge } from "@/components/ui/badges";
 import { ExternalLinkText } from "@/components/ui/ExternalLinkText";
 import { EntityLink } from "@/components/ui/EntityLink";
 import { detailContainerClass, detailGridClass, fieldGridClass, sectionStackClass } from "@/lib/layout";
@@ -142,6 +142,14 @@ export default async function CompanyDetailPage({
     company.accounts?.filter((a) => a.deleted_at === null) ?? [];
   const activeContacts =
     company.contacts?.filter((c) => c.deleted_at === null) ?? [];
+  /**
+   * 兼務でこの事業者に関わる連絡先。**主たる所属は上の activeContacts**。
+   * 一覧では両方を出す（片方だけ見ると関わりのある人を取りこぼす）。
+   * 代表者・主担当の選択肢は主たる所属のままにしてある
+   */
+  const affiliatedContacts = (company.company_contacts ?? [])
+    .filter((a) => a.contact && a.contact.deleted_at === null)
+    .map((a) => ({ ...a.contact!, job_title: a.job_title ?? a.contact!.job_title }));
 
   // 個人事業主は法人番号を持たず、国税庁の台帳にも載らない
   const isSoleProprietor = isSoleProprietorTypeName(company.corporate_types?.name);
@@ -555,7 +563,7 @@ export default async function CompanyDetailPage({
               />
             }
           >
-            {activeContacts.length > 0 ? (
+            {activeContacts.length + affiliatedContacts.length > 0 ? (
               <div
                 style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}
               >
@@ -570,6 +578,39 @@ export default async function CompanyDetailPage({
                     <EntityLink href={`/contacts/${contact.id}`} compact>
                       {contact.last_name} {contact.first_name}
                     </EntityLink>
+                    {(contact.department || contact.job_title) && (
+                      <span
+                        style={{
+                          display: "block",
+                          color: "var(--color-sumi600)",
+                          fontSize: "0.75rem",
+                          marginTop: "0.125rem",
+                        }}
+                      >
+                        {[contact.department, contact.job_title]
+                          .filter(Boolean)
+                          .join(" / ")}
+                      </span>
+                    )}
+                  </div>
+                ))}
+                {/* 兼務。**主たる所属が別にある人**なので、そうと分かるようにする */}
+                {affiliatedContacts.map((contact) => (
+                  <div
+                    key={`affiliated-${contact.id}`}
+                    style={{
+                      borderBottom: "1px solid var(--color-border-default)",
+                      paddingBottom: "0.5rem",
+                    }}
+                  >
+                    <span
+                      style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem" }}
+                    >
+                      <EntityLink href={`/contacts/${contact.id}`} compact>
+                        {contact.last_name} {contact.first_name}
+                      </EntityLink>
+                      <LabelBadge name="兼務" />
+                    </span>
                     {(contact.department || contact.job_title) && (
                       <span
                         style={{

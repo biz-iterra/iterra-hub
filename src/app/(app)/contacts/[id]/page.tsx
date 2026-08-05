@@ -33,6 +33,7 @@ import {
   User,
 } from "lucide-react";
 import { DetailSection } from "@/components/ui/DetailSection";
+import { CompanyAffiliationsSection } from "@/components/contacts/CompanyAffiliationsSection";
 import { InfoField } from "@/components/ui/InfoField";
 import { ExternalLinkText } from "@/components/ui/ExternalLinkText";
 import { LabelBadge, StatusBadge } from "@/components/ui/badges";
@@ -161,6 +162,18 @@ export default async function ContactDetailPage({
   const canEdit = me?.role === "admin" || c.owner_user_id === me?.id;
   const companyOptions = buildCompanyOptions(companiesResult?.rows ?? [], c.company);
   const ownerOptions = (users ?? []).map((u) => ({ value: u.id, label: u.full_name }));
+  /**
+   * 兼務先に選べるもの。**主たる所属と、既に兼務にある事業者は出さない**
+   * （DB のトリガーが拒むので、押せてからエラーになるより出さない方がよい）
+   */
+  const alreadyLinked = new Set(
+    [c.company_id, ...(c.company_contacts ?? []).map((a) => a.company_id)].filter(
+      (v): v is string => Boolean(v)
+    )
+  );
+  const affiliationOptions = companyOptions.filter(
+    (o) => o.value !== "" && !alreadyLinked.has(o.value)
+  );
 
   /** 楽観ロックに使う updated_at は、この画面を出した時点の値で閉じ込める */
   async function saveRelation(field: "company_id" | "owner_user_id", value: string | null) {
@@ -376,6 +389,14 @@ export default async function ContactDetailPage({
               />
             </div>
           </DetailSection>
+
+          {/* 兼務。**主たる所属は上の「所属事業者情報」が持つ** */}
+          <CompanyAffiliationsSection
+            contactId={c.id}
+            affiliations={c.company_contacts ?? []}
+            companyOptions={affiliationOptions}
+            editable={canEdit}
+          />
 
           {/* 所属は名刺ごとの情報。どれを現在の所属とするかは人が選ぶ */}
           <BusinessCardsSection cards={c.business_cards ?? []} contactId={c.id} />

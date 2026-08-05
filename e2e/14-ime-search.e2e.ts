@@ -36,7 +36,7 @@ test.describe("E2E-14", () => {
     await page.goto("/companies");
     await expect(page.locator("h1")).toBeVisible();
 
-    const input = page.getByPlaceholder("会社名で検索...");
+    const input = page.getByPlaceholder("事業者名・カナ・事業者コードで検索...");
     await input.click();
 
     const cdp = await compose(page, ["か", "かい", "かいし", "かいしゃ"]);
@@ -73,6 +73,50 @@ test.describe("E2E-14", () => {
 
     await cdp.send("Input.insertText", { text: "株式会社" });
     await expect(input).toHaveValue("株式会社");
+    await cdp.detach();
+  });
+
+  test("変換を確定させた Enter で住所の入力が消えない", async ({ page }) => {
+    // 住所エディタは <form> の中にあり、Enter で送信されると入力途中の住所が消える。
+    // **確定していない Enter（変換確定）でも起きる**のがこの不具合。
+    // E2E-13 は素の Enter しか見ていないので、ここは変換を伴う Enter を見る
+    await page.goto("/contacts/new");
+    await expect(page.getByRole("heading", { name: "住所" })).toBeVisible();
+
+    const city = page.getByLabel("市区町村");
+    await city.click();
+
+    const cdp = await compose(page, ["ち", "ちよ", "ちよだ"]);
+    await expect(city).toHaveValue("ちよだ");
+
+    // 変換を確定させる Enter。**フォームが送信されてはいけない**
+    await page.keyboard.press("Enter");
+
+    // 打った文字が残っていること（送信されると再描画で消える）
+    await expect(city).toHaveValue("ちよだ");
+    // 送信されていれば作成へ進むか検証エラーで再描画される。URL は変わらない
+    expect(page.url()).toContain("/contacts/new");
+    await expect(page.getByRole("heading", { name: "住所" })).toBeVisible();
+    await cdp.detach();
+  });
+
+  test("郵便番号の変換確定 Enter で住所検索が走らない", async ({ page }) => {
+    // 郵便番号欄の Enter は住所検索を起こす。**変換確定の Enter で走ると、
+    // 変換前のかなを郵便番号として引きに行き、エラーだけが出る**
+    await page.goto("/contacts/new");
+    const postal = page.getByLabel("郵便番号");
+    await postal.click();
+
+    const cdp = await compose(page, ["い", "いち"]);
+    await page.keyboard.press("Enter");
+    await page.waitForTimeout(1200);
+
+    // 走っていれば、かなを郵便番号として引きに行って失敗し、エラーが出る
+    await expect(page.getByText("住所を取得できませんでした")).toHaveCount(0);
+    // 万一引けてしまった場合は都道府県が埋まる
+    await expect(page.getByLabel("都道府県")).toHaveValue("");
+    await expect(postal).toHaveValue("いち");
+
     await cdp.detach();
   });
 

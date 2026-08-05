@@ -115,10 +115,13 @@ function escapeRegExp(value: string): string {
  *
  * 部分一致にはしない。「ステージ」が「ステージ *」にも当たってしまうため、
  * 必須マークの有無だけを任意にした厳密一致にする。
+ *
+ * `scope` に Locator を渡すとその中だけを探す。**モーダルの中の入力欄は必ず
+ * `page.getByRole("dialog")` を渡して絞ること**（同じラベルが背後の画面にもある）。
  */
-export function fieldByLabel(page: Page, label: string): Locator {
+export function fieldByLabel(scope: Page | Locator, label: string): Locator {
   const base = label.replace(/\s*\*$/, "");
   const exact = new RegExp(`^${escapeRegExp(base)}(\\s*\\*(（必須）)?)?$`);
-  const labelLocator = page.locator("label").filter({ hasText: exact }).first();
+  const labelLocator = scope.locator("label").filter({ hasText: exact }).first();
   return labelLocator.locator("xpath=following-sibling::*[self::input or self::select or self::textarea][1]");
 }

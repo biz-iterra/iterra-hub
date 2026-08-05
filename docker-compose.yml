@@ -56,6 +56,18 @@ services:
       FREEE_TOKEN_ENCRYPTION_KEY: ${FREEE_TOKEN_ENCRYPTION_KEY:-}
       FREEE_SYNC_CRON_SECRET: ${FREEE_SYNC_CRON_SECRET:-}
 
+      # Google コンタクト連携（CRM → Google への push。Phase 1）。
+      # Gmail と同じ GCP プロジェクトの**別クライアント**を使う
+      # （docs/google-contacts-sync.md §2）。
+      # 3 つそろって初めて有効。未設定なら /profile に「未設定」と出るだけ
+      GOOGLE_CONTACTS_CLIENT_ID: ${GOOGLE_CONTACTS_CLIENT_ID:-}
+      GOOGLE_CONTACTS_CLIENT_SECRET: ${GOOGLE_CONTACTS_CLIENT_SECRET:-}
+      GOOGLE_CONTACTS_TOKEN_ENCRYPTION_KEY: ${GOOGLE_CONTACTS_TOKEN_ENCRYPTION_KEY:-}
+      # 未設定なら /api/google-contacts/sync は 503 で無効
+      GOOGLE_CONTACTS_SYNC_CRON_SECRET: ${GOOGLE_CONTACTS_SYNC_CRON_SECRET:-}
+      # 接続を許す Workspace のドメイン。**未設定だと個人アカウントでも繋がる**
+      GOOGLE_CONTACTS_ALLOWED_DOMAIN: ${GOOGLE_CONTACTS_ALLOWED_DOMAIN:-}
+
       TZ: Asia/Tokyo
 
     healthcheck:

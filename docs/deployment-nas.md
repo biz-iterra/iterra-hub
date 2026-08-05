@@ -630,6 +630,9 @@ chmod 600 .env
 | `HOUJIN_BANGOU_APP_ID` | 起動はする。法人の実在確認が「未設定」表示になる |
 | `FREEE_CLIENT_ID` / `FREEE_CLIENT_SECRET` / `FREEE_TOKEN_ENCRYPTION_KEY` | 起動はする。`/admin/freee` が「未設定」表示になり、接続ボタンが出ない |
 | `FREEE_SYNC_CRON_SECRET` | 起動はする。`/api/freee/sync` が 503 で無効（定期同期が動かない。画面の「今すぐ同期」は使える） |
+| `GOOGLE_CONTACTS_CLIENT_ID` / `GOOGLE_CONTACTS_CLIENT_SECRET` / `GOOGLE_CONTACTS_TOKEN_ENCRYPTION_KEY` | 起動はする。`/profile` の Google コンタクト連携が「未設定」表示になり、接続ボタンが出ない |
+| `GOOGLE_CONTACTS_SYNC_CRON_SECRET` | 起動はする。`/api/google-contacts/sync` が 503 で無効（定期同期が動かない） |
+| `GOOGLE_CONTACTS_ALLOWED_DOMAIN` | 起動はする。**個人の Google アカウントでも接続できてしまう**（秘密値ではないが必ず設定する） |
 
 貼り付け事故の検証（山括弧が残っていないか。値は表示されない）:
 
@@ -949,7 +952,8 @@ cd /volume1/docker/iterra-hub
 
 ### 8.0.1 freee 取引先の定期同期
 
-freee 会計の取引先を CRM へ取り込む。**freee 側には書かない**（読み取り専用）。
+freee 会計の取引先を CRM へ取り込む。**定期同期は取り込みのみで freee 側に書かない。**
+（画面から人が差分を確認して反映したときだけ、取引先の更新・新規登録を行う）
 Gmail と同じく `docker exec` でコンテナの中から叩く。
 
 | 種別 | スケジュール | コマンドの末尾 |

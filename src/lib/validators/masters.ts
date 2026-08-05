@@ -33,11 +33,12 @@ const defaultCloseMonthsSchema = z.preprocess(
 );
 
 export const createPipelineTypeSchema = z.object({
-  slug: masterCodeSchema("slug", "スラッグ", "sales"),
   name: masterNameSchema(100),
   definition: masterDefinitionSchema,
   sort_order: sortOrderSchema,
   default_close_months: defaultCloseMonthsSchema,
+  // 商談化で使う既定のパイプライン。DB の部分 UNIQUE が 1 行だけに制限する
+  is_default: z.boolean().optional(),
 });
 export const updatePipelineTypeSchema = createPipelineTypeSchema.partial();
 
@@ -64,9 +65,10 @@ export const updateServiceSchema = createServiceSchema.partial();
 
 // --- M05: lead_sources ---
 export const createLeadSourceSchema = z.object({
-  slug: masterCodeSchema("slug", "スラッグ", "eight"),
   name: masterNameSchema(100),
   definition: masterDefinitionSchema,
+  // 問い合わせ取込で付ける流入元。DB の部分 UNIQUE が 1 行だけに制限する
+  is_inquiry_default: z.boolean().optional(),
 });
 export const updateLeadSourceSchema = createLeadSourceSchema.partial();
 
@@ -74,6 +76,10 @@ export const updateLeadSourceSchema = createLeadSourceSchema.partial();
 export const createAccountTypeSchema = z.object({
   name: masterNameSchema(50),
   definition: masterDefinitionSchema,
+  // 法人向けの入力欄（法人番号・代表者など）を出すか
+  requires_corporate_fields: z.boolean().optional(),
+  // 企業名を入れたときに自動で選ぶ種別。DB の部分 UNIQUE が 1 行だけに制限する
+  is_company_default: z.boolean().optional(),
 });
 export const updateAccountTypeSchema = createAccountTypeSchema.partial();
 
@@ -121,7 +127,6 @@ export const updateSkillSchema = createSkillSchema.partial();
 
 // --- M22: lead_categories ---
 export const leadCategoryCreateSchema = z.object({
-  code: masterCodeSchema("code", "コード", "inquiry"),
   name: masterNameSchema(50),
   definition: masterDefinitionSchema,
   color: badgeColorSchema,
@@ -182,11 +187,12 @@ export const updateDealStatusSchema = createDealStatusSchema.partial();
 
 // --- lead_stages ---
 export const leadStageCreateSchema = z.object({
-  slug: masterCodeSchema("slug", "スラッグ", "nurturing"),
   name: masterNameSchema(100),
   definition: masterDefinitionSchema,
   sort_order: sortOrderSchema,
   color: badgeColorSchema,
+  // 問い合わせ取込で付ける初期ステージ。DB の部分 UNIQUE が 1 行だけに制限する
+  is_inquiry_default: z.boolean().optional(),
 });
 export const leadStageUpdateSchema = leadStageCreateSchema.partial();
 
@@ -195,7 +201,6 @@ export const leadStageUpdateSchema = leadStageCreateSchema.partial();
 // 同じステージ内でコードが重複すると DB 側で弾かれる
 export const leadStatusCreateSchema = z.object({
   stage_id: uuidString("[stage_id] リードステージを選択してください"),
-  code: masterCodeSchema("code", "コード", "no_prospect"),
   name: masterNameSchema(100),
   definition: masterDefinitionSchema,
   sort_order: sortOrderSchema,
@@ -205,7 +210,6 @@ export const leadStatusUpdateSchema = leadStatusCreateSchema.partial();
 
 // --- lead_temperatures ---
 export const leadTemperatureCreateSchema = z.object({
-  code: masterCodeSchema("code", "コード", "hot"),
   name: masterNameSchema(50),
   definition: masterDefinitionSchema,
   sort_order: sortOrderSchema,

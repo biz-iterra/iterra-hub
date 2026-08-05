@@ -6,7 +6,6 @@ export default async function Page() {
 
   return (
     <LeadProgressWorkspace
-      categoryCode="tql"
       categoryId={categoryId}
       title="アウトバウンド進捗"
       description="架電や DM でこちらから当たったリード。"

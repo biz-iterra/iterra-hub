@@ -130,8 +130,20 @@ async function resolveDefaults(
     ownerEmail
       ? ownerQuery.eq("email", ownerEmail).maybeSingle()
       : ownerQuery.eq("role", "admin").maybeSingle(),
-    admin.from("lead_stages").select("id").eq("slug", "generation").maybeSingle(),
-    admin.from("lead_sources").select("id").eq("slug", "web_form").maybeSingle(),
+    // **スラッグで引かない。** スラッグは自動採番の値になったので、
+    // 「取込の既定」であることを表す列を見る（20260805000018）
+    admin
+      .from("lead_stages")
+      .select("id")
+      .eq("is_inquiry_default", true)
+      .is("deleted_at", null)
+      .maybeSingle(),
+    admin
+      .from("lead_sources")
+      .select("id")
+      .eq("is_inquiry_default", true)
+      .is("deleted_at", null)
+      .maybeSingle(),
     admin
       .from("lead_customer_activity_types")
       .select("id")
@@ -146,8 +158,19 @@ async function resolveDefaults(
         : "担当者にする管理者が見つかりません",
     };
   }
-  if (!stage.data) return { error: "獲得ステージが見つかりません" };
-  if (!source.data) return { error: "リードソース「Web問い合わせ」が見つかりません" };
+  // 「どれを既定にするか」はマスタ管理の設定なので、直し方まで文言にする
+  if (!stage.data) {
+    return {
+      error:
+        "取込の既定ステージが設定されていません（マスタ・取込 → リードステージで「問い合わせ取込の既定」を 1 つ選んでください）",
+    };
+  }
+  if (!source.data) {
+    return {
+      error:
+        "取込の既定の流入元が設定されていません（マスタ・取込 → リードソースで「問い合わせ取込の既定」を 1 つ選んでください）",
+    };
+  }
   if (!activityType.data) {
     return { error: "顧客行動種別「問合せフォーム送信」が見つかりません" };
   }

@@ -19,9 +19,9 @@ import { formActionsClass, formContainerClass, fieldGridClass, fieldGrid3Class }
 type SelectOption = { value: string; label: string };
 type StatusOption = SelectOption & { stage_id: string };
 type SmallSegmentOption = SelectOption & { large_segment_id: string | null };
-type StageOption = SelectOption & { slug?: string; auto_promote_to_deal?: boolean };
+type StageOption = SelectOption & { auto_promote_to_deal?: boolean };
 type TempOption = SelectOption & { code: string };
-type AccountTypeOption = SelectOption & { slug?: string | null };
+type AccountTypeOption = SelectOption & { requiresCorporateFields?: boolean; isCompanyDefault?: boolean };
 
 type Masters = {
   stages: StageOption[];
@@ -147,7 +147,8 @@ export function LeadEditClient({
   const getInitialAccountTypeId = (): string => {
     if (lead.account_type_id) return lead.account_type_id;
     if (lead.company_name && !isPromoted) {
-      const corporateType = masters.accountTypes.find((t) => t.slug === "corporate");
+      // 既定の種別はマスタが持つ（スラッグで決め打たない。20260805000018）
+      const corporateType = masters.accountTypes.find((t) => t.isCompanyDefault);
       if (corporateType) return corporateType.value;
     }
     return "";
@@ -200,7 +201,7 @@ export function LeadEditClient({
   );
 
   // **ステータス欄を出すかは「そのステージにステータスが定義されているか」で決める。**
-  // slug === "opportunity" で決め打つと、ステータスを持つ昇格ステージ（Sales）で
+  // 特定のステージを名指しで決め打つと、ステータスを持つ昇格ステージ（Sales）で
   // 欄が消える。規則はマスタが持つ（docs/database-design.md §24.5）
   const stageHasStatuses = useMemo(
     () =>
@@ -252,7 +253,8 @@ export function LeadEditClient({
   // 昇格する事業者種別を判定（法人か個人か）
   const isCorporateSelected = useMemo(() => {
     const selected = masters.accountTypes.find((t) => t.value === values.account_type_id);
-    return selected?.slug === "corporate" || selected?.slug === "government";
+    // 法人向けの入力欄を出すかは**マスタの設定**で決まる（20260805000018）
+    return selected?.requiresCorporateFields === true;
   }, [masters.accountTypes, values.account_type_id]);
 
   // 保存ボタンの disabled 判定:

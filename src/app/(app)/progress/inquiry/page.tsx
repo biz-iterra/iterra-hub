@@ -6,7 +6,6 @@ export default async function Page() {
 
   return (
     <LeadProgressWorkspace
-      categoryCode="inquiry"
       categoryId={categoryId}
       title="問い合わせ進捗"
       description="サイトの問い合わせフォームから来たリード。応対の進み具合を見る。"

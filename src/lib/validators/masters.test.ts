@@ -18,7 +18,6 @@ function firstMessage(result: { success: boolean; error?: { issues: { message: s
 describe("leadStatusCreateSchema", () => {
   const valid = {
     stage_id: STAGE_ID,
-    code: "no_prospect",
     name: "見込みなし",
     definition: "追客対象から外した状態",
     sort_order: 10,
@@ -30,27 +29,11 @@ describe("leadStatusCreateSchema", () => {
     expect(result.success).toBe(true);
   });
 
-  // DB が code NOT NULL のため、ここで止めないと Postgres の生エラーが画面に出る
-  it("code が無いと日本語の必須エラーを返す", () => {
-    const { code: _code, ...withoutCode } = valid;
-    const result = leadStatusCreateSchema.safeParse(withoutCode);
-    expect(result.success).toBe(false);
-    expect(firstMessage(result)).toBe("[code] コードを入力してください");
-  });
-
-  it("code が空文字でも必須エラーになる（フォームは空欄を空文字で送る）", () => {
-    const result = leadStatusCreateSchema.safeParse({ ...valid, code: "" });
-    expect(result.success).toBe(false);
-    expect(firstMessage(result)).toBe("[code] コードを入力してください");
-  });
-
-  it("code の形式違反は DB の CHECK と同じ条件で弾く", () => {
-    for (const code of ["No_Prospect", "1st", "見込みなし", "no-prospect"]) {
-      const result = leadStatusCreateSchema.safeParse({ ...valid, code });
-      expect(result.success).toBe(false);
-      expect(firstMessage(result)).toContain("[code]");
-      expect(firstMessage(result)).toContain("半角英小文字");
-    }
+  // **コードは自動採番になった**（2026-08-05）。画面に入力欄が無く、
+  // DB のトリガーが埋めるため、ここで必須にすると保存できなくなる
+  it("code は入力を求めない（DB が自動採番する）", () => {
+    const result = leadStatusCreateSchema.safeParse(valid);
+    expect(result.success).toBe(true);
   });
 
   it("stage_id は必須（DB が NOT NULL）", () => {
@@ -119,18 +102,27 @@ describe("leadStatusUpdateSchema", () => {
     if (result.success) expect("sort_order" in result.data).toBe(false);
   });
 
+  // partial() でも各項目の検証は緩まない（部分更新で不正値が通ると DB が生エラーを返す）
   it("送った値の検証は作成時と同じ", () => {
-    const result = leadStatusUpdateSchema.safeParse({ code: "NG" });
+    const result = leadStatusUpdateSchema.safeParse({ color: "9E9E9E" });
     expect(result.success).toBe(false);
-    expect(firstMessage(result)).toContain("[code]");
+    expect(firstMessage(result)).toContain("[color]");
   });
 });
 
 describe("その他マスタの必須カラム", () => {
-  it("リードステージは slug が必須", () => {
+  it("リードステージは名前だけで作れる（スラッグは自動採番）", () => {
     const result = leadStageCreateSchema.safeParse({ name: "育成" });
-    expect(result.success).toBe(false);
-    expect(firstMessage(result)).toBe("[slug] スラッグを入力してください");
+    expect(result.success).toBe(true);
+  });
+
+  it("リードステージは「問い合わせ取込の既定」を受け付ける", () => {
+    const result = leadStageCreateSchema.safeParse({
+      name: "獲得",
+      is_inquiry_default: true,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.is_inquiry_default).toBe(true);
   });
 
   it("小セグメントは大セグメントと code が必須", () => {
@@ -145,15 +137,22 @@ describe("その他マスタの必須カラム", () => {
     expect(firstMessage(result)).toBe("[code] コードを入力してください");
   });
 
-  it("パイプライン種別は slug が必須", () => {
+  it("パイプライン種別は名前だけで作れる（スラッグは自動採番）", () => {
     const result = createPipelineTypeSchema.safeParse({ name: "通常営業" });
-    expect(result.success).toBe(false);
-    expect(firstMessage(result)).toBe("[slug] スラッグを入力してください");
+    expect(result.success).toBe(true);
+  });
+
+  it("パイプライン種別は「商談化の既定」を受け付ける", () => {
+    const result = createPipelineTypeSchema.safeParse({
+      name: "営業",
+      is_default: true,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.is_default).toBe(true);
   });
 
   it("パイプライン種別はクローズ既定月数の空欄を NULL にする", () => {
     const result = createPipelineTypeSchema.safeParse({
-      slug: "sales",
       name: "通常営業",
       default_close_months: "",
     });

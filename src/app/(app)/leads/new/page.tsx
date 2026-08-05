@@ -68,7 +68,9 @@ export default async function LeadNewPage() {
     accountTypes: (accountTypesResult.data ?? []).map((a) => ({
       value: a.id,
       label: a.name,
-      slug: a.slug ?? null,
+      // 法人向けの入力欄を出すかは**マスタの設定**で決まる（20260805000018）。
+      // スラッグは自動採番の値になったので判定に使わない
+      requiresCorporateFields: a.requires_corporate_fields,
     })),
     largeSegments: (largeSegmentsResult.data ?? []).map((s) => ({
       value: s.id,

@@ -333,8 +333,10 @@ export type Database = {
           deleted_by: string | null
           deletion_reason: string | null
           id: string
+          is_company_default: boolean
           last_updated_by: string | null
           name: string
+          requires_corporate_fields: boolean
           slug: string | null
           updated_at: string
         }
@@ -346,8 +348,10 @@ export type Database = {
           deleted_by?: string | null
           deletion_reason?: string | null
           id?: string
+          is_company_default?: boolean
           last_updated_by?: string | null
           name: string
+          requires_corporate_fields?: boolean
           slug?: string | null
           updated_at?: string
         }
@@ -359,8 +363,10 @@ export type Database = {
           deleted_by?: string | null
           deletion_reason?: string | null
           id?: string
+          is_company_default?: boolean
           last_updated_by?: string | null
           name?: string
+          requires_corporate_fields?: boolean
           slug?: string | null
           updated_at?: string
         }
@@ -4196,6 +4202,7 @@ export type Database = {
           deletion_reason: string | null
           id: string
           name: string
+          progress_view: string | null
           sort_order: number
           updated_at: string
         }
@@ -4209,6 +4216,7 @@ export type Database = {
           deletion_reason?: string | null
           id?: string
           name: string
+          progress_view?: string | null
           sort_order?: number
           updated_at?: string
         }
@@ -4222,6 +4230,7 @@ export type Database = {
           deletion_reason?: string | null
           id?: string
           name?: string
+          progress_view?: string | null
           sort_order?: number
           updated_at?: string
         }
@@ -4980,6 +4989,7 @@ export type Database = {
           deleted_by: string | null
           deletion_reason: string | null
           id: string
+          is_inquiry_default: boolean
           last_updated_by: string | null
           name: string
           slug: string
@@ -4994,6 +5004,7 @@ export type Database = {
           deleted_by?: string | null
           deletion_reason?: string | null
           id?: string
+          is_inquiry_default?: boolean
           last_updated_by?: string | null
           name: string
           slug: string
@@ -5008,6 +5019,7 @@ export type Database = {
           deleted_by?: string | null
           deletion_reason?: string | null
           id?: string
+          is_inquiry_default?: boolean
           last_updated_by?: string | null
           name?: string
           slug?: string
@@ -5054,6 +5066,7 @@ export type Database = {
           deleted_by: string | null
           deletion_reason: string | null
           id: string
+          is_inquiry_default: boolean
           is_terminal: boolean
           name: string
           requires_contract: boolean
@@ -5071,6 +5084,7 @@ export type Database = {
           deleted_by?: string | null
           deletion_reason?: string | null
           id?: string
+          is_inquiry_default?: boolean
           is_terminal?: boolean
           name: string
           requires_contract?: boolean
@@ -5088,6 +5102,7 @@ export type Database = {
           deleted_by?: string | null
           deletion_reason?: string | null
           id?: string
+          is_inquiry_default?: boolean
           is_terminal?: boolean
           name?: string
           requires_contract?: boolean
@@ -5607,6 +5622,7 @@ export type Database = {
           deleted_by: string | null
           deletion_reason: string | null
           id: string
+          is_default: boolean
           last_updated_by: string | null
           name: string
           slug: string
@@ -5622,6 +5638,7 @@ export type Database = {
           deleted_by?: string | null
           deletion_reason?: string | null
           id?: string
+          is_default?: boolean
           last_updated_by?: string | null
           name: string
           slug: string
@@ -5637,6 +5654,7 @@ export type Database = {
           deleted_by?: string | null
           deletion_reason?: string | null
           id?: string
+          is_default?: boolean
           last_updated_by?: string | null
           name?: string
           slug?: string
@@ -7077,14 +7095,13 @@ export type Database = {
       is_manager_or_above: { Args: never; Returns: boolean }
       is_mobile_phone: { Args: { p_phone: string }; Returns: boolean }
       lead_kanban_cards: {
-        Args: { p_category_code?: string; p_limit?: number }
+        Args: { p_category_id?: string; p_limit?: number }
         Returns: {
           company_name: string
           lead_id: string
           lead_name: string
           owner_name: string
           score: number
-          stage_color: string
           stage_id: string
           stage_name: string
           stage_order: number
@@ -7095,11 +7112,10 @@ export type Database = {
         }[]
       }
       lead_progress_summary: {
-        Args: { p_category_code?: string }
+        Args: { p_category_id?: string }
         Returns: {
           is_terminal: boolean
           lead_count: number
-          stage_color: string
           stage_id: string
           stage_name: string
           stage_order: number

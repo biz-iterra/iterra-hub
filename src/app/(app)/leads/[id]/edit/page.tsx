@@ -130,8 +130,7 @@ export default async function LeadEditPage({
     stages: (stagesResult.data ?? []).map((s) => ({
       value: s.id,
       label: s.name,
-      slug: s.slug,
-      // 昇格の予告を出すかの判定に使う。slug で決め打たない（規則はマスタが持つ）
+      // 昇格の予告を出すかの判定に使う。特定のステージを名指ししない（規則はマスタが持つ）
       auto_promote_to_deal: s.auto_promote_to_deal,
     })),
     statuses: (statusesResult.data ?? []).map((s) => ({
@@ -151,7 +150,8 @@ export default async function LeadEditPage({
     accountTypes: (accountTypesResult.data ?? []).map((a) => ({
       value: a.id,
       label: a.name,
-      slug: a.slug ?? null,
+      // 法人向けの入力欄を出すかは**マスタの設定**で決まる（20260805000018）
+      requiresCorporateFields: a.requires_corporate_fields,
     })),
     callStatuses: (callStatusesResult.data ?? []).map((c) => ({
       value: c.id,

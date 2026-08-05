@@ -770,18 +770,21 @@ export async function promoteLeadToDeal(
     }
   }
 
-  // --- pipeline_type の解決（slug: sales）---
+  // --- pipeline_type の解決 ---
+  // **スラッグで引かない。** スラッグは自動採番の値になったので、
+  // 「既定のパイプライン」であることを表す列を見る（20260805000018）
   const { data: pipeline, error: pipelineErr } = await supabase
     .from("pipeline_types")
     .select("id")
-    .eq("slug", "sales")
+    .eq("is_default", true)
     .is("deleted_at", null)
-    .single();
+    .maybeSingle();
 
   if (pipelineErr || !pipeline) {
     return {
       data: null,
-      error: 'pipeline_type（slug: "sales"）が見つかりません。管理者にお問い合わせください',
+      error:
+        "既定のパイプラインが設定されていません（マスタ・取込 → パイプライン種別で「商談化の既定」を 1 つ選んでください）",
     };
   }
 
@@ -1067,7 +1070,7 @@ export type LeadProgressCell = {
 };
 
 export async function getLeadProgressSummary(
-  categoryCode?: string
+  categoryId?: string
 ): Promise<{ data: LeadProgressCell[] | null; error: string | null }> {
   const supabase = await createClient();
   const {
@@ -1075,8 +1078,10 @@ export async function getLeadProgressSummary(
   } = await supabase.auth.getUser();
   if (!user) return { data: null, error: "認証が必要です" };
 
+  // **カテゴリはコードではなく ID で渡す。** コードは自動採番の値になったため
+  // （20260805000018）。画面は既に ID を持っている
   const { data, error } = await supabase.rpc("lead_progress_summary", {
-    p_category_code: categoryCode ?? undefined,
+    p_category_id: categoryId ?? undefined,
   });
   if (error) return { data: null, error: toUserMessage(error, { entityLabel: "リード" }) };
 
@@ -1107,7 +1112,7 @@ export type LeadKanbanCard = {
  */
 export async function getLeadKanbanCards(
   limitPerStage = 20,
-  categoryCode?: string
+  categoryId?: string
 ): Promise<{ data: LeadKanbanCard[] | null; error: string | null }> {
   const supabase = await createClient();
   const {
@@ -1117,7 +1122,7 @@ export async function getLeadKanbanCards(
 
   const { data, error } = await supabase.rpc("lead_kanban_cards", {
     p_limit: limitPerStage,
-    p_category_code: categoryCode ?? undefined,
+    p_category_id: categoryId ?? undefined,
   });
   if (error) return { data: null, error: toUserMessage(error, { entityLabel: "リード" }) };
 

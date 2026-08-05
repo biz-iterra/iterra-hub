@@ -57,7 +57,7 @@ type CampaignRef = { id: string; name: string };
 type SelectOption = { value: string; label: string };
 type StatusOption = SelectOption & { stage_id: string };
 type SmallSegmentOption = SelectOption & { large_segment_id: string | null };
-type StageOption = SelectOption & { slug?: string };
+type StageOption = SelectOption;
 type TempOption = SelectOption & { code: string };
 type ActivityTypeOption = SelectOption & { color: string | null };
 

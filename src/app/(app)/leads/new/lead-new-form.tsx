@@ -14,7 +14,7 @@ type SelectOption = { value: string; label: string };
 type StatusOption = SelectOption & { stage_id: string };
 type SmallSegmentOption = SelectOption & { large_segment_id: string | null };
 type TempOption = SelectOption & { code: string };
-type AccountTypeOption = SelectOption & { slug?: string | null };
+type AccountTypeOption = SelectOption & { requiresCorporateFields?: boolean; isCompanyDefault?: boolean };
 
 type Masters = {
   stages: SelectOption[];
@@ -175,17 +175,6 @@ export function LeadNewForm({
     [masters.statuses, values.stage_id]
   );
 
-  // Opportunity ステージ判定
-  const isOpportunityStage = useMemo(
-    () =>
-      values.stage_id
-        ? (masters.stages as Array<SelectOption & { slug?: string }>).some(
-            (s) => s.value === values.stage_id && s.slug === "opportunity"
-          )
-        : false,
-    [masters.stages, values.stage_id]
-  );
-
   // large_segment_id に応じて small_segment を絞り込み
   const filteredSmallSegments = useMemo(
     () =>
@@ -201,12 +190,13 @@ export function LeadNewForm({
     setValues((v) => ({ ...v, stage_id: nextId, status_id: "" }));
   };
 
-  // 企業名入力時: account_type_id が未選択なら法人（slug: corporate）を自動設定
+  // 企業名入力時: account_type_id が未選択なら既定の種別（法人）を自動設定。
+  // **どれを既定にするかはマスタが持つ**（スラッグで決め打たない。20260805000018）
   const handleCompanyNameChange = (companyName: string) => {
     setValues((v) => {
       const nextValues = { ...v, company_name: companyName };
       if (!v.account_type_id && companyName) {
-        const corporateType = masters.accountTypes.find((t) => t.slug === "corporate");
+        const corporateType = masters.accountTypes.find((t) => t.isCompanyDefault);
         if (corporateType) {
           nextValues.account_type_id = corporateType.value;
         }
@@ -372,53 +362,33 @@ export function LeadNewForm({
             </div>
             <div>
               {/*
-                商談ステージではステータスを持たないため必須にしない。
-                Zod（leadCreateSchema）は status_id を任意にしている。
-                ステージのスラッグを見ないと必須かどうか決まらず、UUID しか
-                持たない Zod 側では判定できないため、条件はここで持つ
+                **この画面では商談を伴うステージを選べない**（stages を
+                requires_deal で絞ってある）。ステータスを持たないステージ向けの
+                分岐は到達しないため置かない。ステージを増やすときは
+                requires_deal で表すこと（判定をここに書き戻さない）
               */}
               <label style={styles.label}>
                 ステータス
-                {!isOpportunityStage && <RequiredMark />}
+                <RequiredMark />
               </label>
-              {isOpportunityStage ? (
-                <div
-                  style={{
-                    border: "1px solid var(--color-border-default)",
-                    borderRadius: "var(--radius-input)",
-                    padding: "0.5rem 0.75rem",
-                    backgroundColor: "var(--color-sumi50)",
-                    color: "var(--color-sumi500)",
-                    fontSize: "0.875rem",
-                  }}
-                >
-                  —
-                </div>
-              ) : (
-                <select
-                  style={styles.input}
-                  value={values.status_id}
-                  onChange={(e) => set("status_id", e.target.value)}
-                  required={!isOpportunityStage}
-                  disabled={!values.stage_id}
-                  onFocus={onFocus}
-                  onBlur={onBlur}
-                >
-                  <option value="">-- 選択 --</option>
-                  {filteredStatuses.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
-              )}
+              <select
+                style={styles.input}
+                value={values.status_id}
+                onChange={(e) => set("status_id", e.target.value)}
+                required
+                disabled={!values.stage_id}
+                onFocus={onFocus}
+                onBlur={onBlur}
+              >
+                <option value="">-- 選択 --</option>
+                {filteredStatuses.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
               {!values.stage_id && (
                 <p style={styles.helpText}>ステージを先に選択してください</p>
-              )}
-              {isOpportunityStage && (
-                <p style={{ ...styles.helpText, color: "var(--color-terra)" }}>
-                  このステージでは商談が自動生成されます
-                </p>
               )}
             </div>
           </div>

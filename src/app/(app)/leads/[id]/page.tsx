@@ -144,7 +144,6 @@ export default async function LeadDetailPage({
     stages: (stagesResult.data ?? []).map((s) => ({
       value: s.id,
       label: s.name,
-      slug: s.slug,
     })),
     statuses: (statusesResult.data ?? []).map((s) => ({
       value: s.id,

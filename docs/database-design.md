@@ -3545,6 +3545,47 @@ member / manager には見せない。同期は service_role が RLS をバイ�
 |---|---|
 | `20260805000001_create_freee_sync.sql` | 2 テーブル + RLS + 4 関数 |
 
+## 23.9 マスタのスラッグ／コードは自動採番（2026-08-05）
+
+**人が編集する項目ではない。** マスタ管理画面から入力欄を外し、DB のトリガーが
+ランダムな値を付ける（`stage_7f3a9c2b` の形）。利用者の依頼「編集できるスラッグ設定を
+廃止したい（運用が楽）」への対応。
+
+対象は自動採番トリガーを付けた 7 マスタ:
+`lead_stages` / `lead_sources` / `account_types` / `pipeline_types`（`slug`）、
+`lead_statuses` / `lead_categories` / `lead_temperatures`（`code`）。
+
+### なぜ先に「意味のある列」へ移したか
+
+**スラッグは表示用の識別子のはずが、実際には「この行が何であるか」を
+コードが判定する鍵になっていた。** ランダム化すると該当なしで NULL が返り、
+**エラーにならないまま機能が止まる**（静かに壊れる）。実際に 6 箇所あった。
+
+| 元の判定 | 置き換え先 |
+|---|---|
+| `lead_stages.slug = 'generation'`（取込の既定ステージ） | `lead_stages.is_inquiry_default` |
+| `lead_sources.slug = 'web_form'`（取込の既定の流入元） | `lead_sources.is_inquiry_default` |
+| `lead_stages.slug = 'opportunity'`（昇格ステージ） | 到達しない分岐だったので**削除**（`requires_deal` で除外済み） |
+| `account_types.slug IN ('corporate','government')`（法人向け項目） | `account_types.requires_corporate_fields` |
+| `account_types.slug = 'corporate'`（企業名からの既定） | `account_types.is_company_default` |
+| `pipeline_types.slug = 'sales'`（商談化の既定） | `pipeline_types.is_default` |
+| `lead_categories.code IN ('inquiry','mql','tql')`（進捗画面） | `lead_categories.progress_view` |
+
+これは既存方針（**判定をコードに書かない。`requires_deal` で表す**。§24）の延長。
+
+### 守ること
+
+- **「既定」を表す列は部分 UNIQUE で 1 行に制限する**
+  （2 行が true だと「どちらが使われるか」が不定になる）
+- 既定が未設定のときは、**何をすればよいかまで文言にする**
+  （「マスタ・取込 → リードステージで『問い合わせ取込の既定』を 1 つ選んでください」）
+- **スラッグ列自体は消さない。** 外部連携の突合や過去ログの追跡に使う
+- **既存の値は書き換えない。** 手順書や過去ログに出てくる値と食い違うと調査で混乱する
+- seed が明示した値は尊重する（トリガーは**未入力のときだけ**採番する）
+
+**新しくマスタを増やすときも、コードから名指しで引かないこと。**
+「この行が何であるか」が要るなら、意味のある列を足す。
+
 ## 24. リードステージと実体の整合規則（2026-08-04）
 
 ### 24.1 背景

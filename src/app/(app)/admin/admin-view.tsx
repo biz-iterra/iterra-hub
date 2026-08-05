@@ -56,7 +56,7 @@ type FieldDef = {
    * スキーマを変えたらここも同じ作業内で合わせる。
    */
   required?: boolean;
-  type?: "text" | "textarea" | "number" | "select";
+  type?: "text" | "textarea" | "number" | "select" | "checkbox";
   options?: { value: string; label: string }[];
   colorSwatch?: boolean;
   min?: number;
@@ -380,7 +380,26 @@ function FormModal({
                   {field.helpText}
                 </p>
               )}
-              {field.type === "textarea" ? (
+              {field.type === "checkbox" ? (
+                <label
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                    fontSize: "0.8125rem",
+                    cursor: "pointer",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={values[field.key] === true}
+                    onChange={(e) =>
+                      setValues((v) => ({ ...v, [field.key]: e.target.checked }))
+                    }
+                  />
+                  有効にする
+                </label>
+              ) : field.type === "textarea" ? (
                 <textarea
                   style={{ ...styles.input, minHeight: 80, resize: "vertical" }}
                   value={(values[field.key] as string) ?? ""}
@@ -567,7 +586,8 @@ function SimpleMasterTab({
 
   const defaultValues: Record<string, unknown> = {};
   for (const f of fields) {
-    defaultValues[f.key] = f.type === "number" ? (f.nullable ? null : 0) : "";
+    defaultValues[f.key] =
+      f.type === "number" ? (f.nullable ? null : 0) : f.type === "checkbox" ? false : "";
   }
 
   return (
@@ -642,7 +662,11 @@ function SimpleMasterTab({
                     }
                     let display: string;
                     let isEmptyOverride = false;
-                    if (raw == null || raw === "") {
+                    if (f.type === "checkbox") {
+                      // 一覧では ✓ / - で見せる。**どの行が既定かを一目で分かるように**
+                      // （フォームを開かないと分からないと、二重指定の理由が追えない）
+                      display = raw === true ? "✓" : "-";
+                    } else if (raw == null || raw === "") {
                       display = f.emptyDisplay ?? "-";
                       isEmptyOverride = f.emptyDisplay != null;
                     } else if (f.type === "select" && f.options) {
@@ -796,8 +820,13 @@ function PipelineTab() {
   }, [selectedPipeline, loadStages, loadStatuses]);
 
   const pipelineFields: FieldDef[] = [
-    { key: "slug", label: "スラッグ (例: sales)", required: true, type: "text", helpText: CODE_HELP_TEXT },
     { key: "name", label: "名前", required: true, type: "text" },
+    {
+      key: "is_default",
+      label: "商談化の既定",
+      type: "checkbox",
+      helpText: "リードを商談へ昇格するときに使うパイプライン。1 つだけ選べます",
+    },
     { key: "definition", label: "定義", type: "textarea" },
     {
       key: "default_close_months",
@@ -1022,8 +1051,14 @@ function LeadStagesTab() {
   }, [selectedStage, loadStatuses]);
 
   const stageFields: FieldDef[] = [
-    { key: "slug", label: "スラッグ (例: nurturing)", required: true, type: "text", helpText: CODE_HELP_TEXT },
     { key: "name", label: "名前", required: true, type: "text" },
+    {
+      key: "is_inquiry_default",
+      label: "問い合わせ取込の既定",
+      type: "checkbox",
+      helpText:
+        "サイトからの問い合わせを取り込むときに付けるステージ。1 つだけ選べます",
+    },
     { key: "definition", label: "定義", type: "textarea" },
     { key: "sort_order", label: "表示順", type: "number", min: 0 },
     { key: "color", label: "バッジ色 (#RRGGBB)", type: "text", colorSwatch: true, helpText: COLOR_HELP_TEXT },
@@ -1033,7 +1068,6 @@ function LeadStagesTab() {
   const stageOptions = stages.map((s) => ({ value: s.id, label: s.name }));
   const statusFields: FieldDef[] = [
     { key: "stage_id", label: "リードステージ", required: true, type: "select", options: stageOptions },
-    { key: "code", label: "コード (例: no_prospect)", required: true, type: "text", helpText: CODE_HELP_TEXT },
     { key: "name", label: "名前", required: true, type: "text" },
     { key: "definition", label: "定義", type: "textarea" },
     { key: "sort_order", label: "表示順", type: "number", min: 0 },
@@ -1649,11 +1683,13 @@ function GroupTabButton({
         fontSize: "0.9375rem",
         fontWeight: isActive ? 700 : 500,
         color: isActive ? "var(--color-terra)" : hovered ? "var(--color-text-title)" : "var(--color-sumi600)",
-        borderBottom: isActive ? "3px solid var(--color-terra)" : "3px solid transparent",
         background: "none",
-        border: "none",
+        // **ショートハンド（border / borderBottom）と個別指定を混ぜない。**
+        // 混ぜると React が再描画のたびに警告を出し、実際に下線が消えることがある
+        borderWidth: 0,
+        borderStyle: "solid",
+        borderColor: "transparent",
         borderBottomWidth: 3,
-        borderBottomStyle: "solid",
         borderBottomColor: isActive ? "var(--color-terra)" : "transparent",
         cursor: "pointer",
         whiteSpace: "nowrap",
@@ -1689,11 +1725,13 @@ function MasterTabButton({
         fontSize: "0.8125rem",
         fontWeight: isActive ? 600 : 400,
         color: isActive ? "var(--color-terra)" : hovered ? "var(--color-text-title)" : "var(--color-sumi600)",
-        borderBottom: isActive ? "2px solid var(--color-terra)" : "2px solid transparent",
         background: "none",
-        border: "none",
+        // **ショートハンド（border / borderBottom）と個別指定を混ぜない。**
+        // 混ぜると React が再描画のたびに警告を出し、実際に下線が消えることがある
+        borderWidth: 0,
+        borderStyle: "solid",
+        borderColor: "transparent",
         borderBottomWidth: 2,
-        borderBottomStyle: "solid",
         borderBottomColor: isActive ? "var(--color-terra)" : "transparent",
         cursor: "pointer",
         whiteSpace: "nowrap",
@@ -1969,8 +2007,14 @@ export function AdminView() {
             onDelete={deleteLeadSource}
             onRefresh={refreshLeadSources}
             fields={[
-              { key: "slug", label: "スラッグ (例: eight)", required: true, type: "text", helpText: CODE_HELP_TEXT },
               { key: "name", label: "名前", required: true, type: "text" },
+              {
+                key: "is_inquiry_default",
+                label: "問い合わせ取込の既定",
+                type: "checkbox",
+                helpText:
+                  "サイトからの問い合わせを取り込むときに付ける流入元。1 つだけ選べます",
+              },
               { key: "definition", label: "定義", type: "textarea" },
             ]}
           />
@@ -1985,7 +2029,6 @@ export function AdminView() {
             onDelete={deleteLeadCategory}
             onRefresh={refreshLeadCategories}
             fields={[
-              { key: "code", label: "コード (例: inquiry)", required: true, type: "text" },
               { key: "name", label: "名前", required: true, type: "text" },
               { key: "definition", label: "定義", type: "textarea" },
               { key: "color", label: "バッジ色 (#RRGGBB)", type: "text", colorSwatch: true, helpText: COLOR_HELP_TEXT },
@@ -2003,7 +2046,6 @@ export function AdminView() {
             onDelete={deleteLeadTemperature}
             onRefresh={refreshLeadTemperatures}
             fields={[
-              { key: "code", label: "コード (例: hot)", required: true, type: "text", helpText: CODE_HELP_TEXT },
               { key: "name", label: "名前", required: true, type: "text" },
               { key: "definition", label: "定義", type: "textarea" },
               { key: "sort_order", label: "表示順", type: "number", min: 0 },
@@ -2056,6 +2098,18 @@ export function AdminView() {
             onRefresh={refreshAccountTypes}
             fields={[
               { key: "name", label: "名前", required: true, type: "text" },
+              {
+                key: "requires_corporate_fields",
+                label: "法人向けの入力欄を出す",
+                type: "checkbox",
+                helpText: "法人番号・代表者などの欄。個人事業主では外します",
+              },
+              {
+                key: "is_company_default",
+                label: "企業名を入れたときの既定",
+                type: "checkbox",
+                helpText: "リードに企業名を入力したとき自動で選ぶ種別。1 つだけ選べます",
+              },
               { key: "definition", label: "定義", type: "textarea" },
             ]}
           />

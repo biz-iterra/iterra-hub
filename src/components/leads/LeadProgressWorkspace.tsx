@@ -41,12 +41,10 @@ const KANBAN_LIMIT = 20;
  * リードの登録・編集は `/leads` で行う。ここは進み具合を見る場所。
  */
 export function LeadProgressWorkspace({
-  categoryCode,
   categoryId,
   title,
   description,
 }: {
-  categoryCode: string;
   categoryId: string | null;
   title: string;
   description: string;
@@ -64,13 +62,13 @@ export function LeadProgressWorkspace({
   useEffect(() => {
     startTransition(async () => {
       const [{ data: s }, { data: k }] = await Promise.all([
-        getLeadProgressSummary(categoryCode),
-        getLeadKanbanCards(KANBAN_LIMIT, categoryCode),
+        getLeadProgressSummary(categoryId ?? undefined),
+        getLeadKanbanCards(KANBAN_LIMIT, categoryId ?? undefined),
       ]);
       setSummary(s);
       setKanban(k);
     });
-  }, [categoryCode]);
+  }, [categoryId]);
 
   function loadList(nextPage: number) {
     setPage(nextPage);

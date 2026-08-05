@@ -1006,15 +1006,28 @@ Gmail・freee と同じく `docker exec` でコンテナの中から叩く。
 ```bash
 cd /volume1/docker/iterra-hub
 ( set -a; . ./.env; set +a
-  docker exec iterra-hub-app wget -qO- --post-data='' --header="Authorization: Bearer $GOOGLE_CONTACTS_SYNC_CRON_SECRET" http://127.0.0.1:3000/api/google-contacts/sync )
+  docker exec iterra-hub-app wget -qO- --timeout=300 --post-data='' --header="Authorization: Bearer $GOOGLE_CONTACTS_SYNC_CRON_SECRET" http://127.0.0.1:3000/api/google-contacts/sync )
 ```
 
 **サブシェルの括弧を外さない理由は 8.0 と同じ。**
 
-**1 回の実行で全部は送らない。** People API の書き込みには 1 分あたりの上限があり、
-1 回 150 件で区切っている。**応答の `remaining` が 0 でなければ残りがある**ので、
+**`--timeout` を必ず付ける。** busybox の wget は既定でタイムアウトを持たず、
+応答が返らないと無限に待つ。手で叩いたときに「固まった」ように見える
+（2026-08-06 に実際に起きた）。
+
+**1 回の実行に 1〜3 分かかる。** People API の書き込みには 1 分あたりの上限があり、
+1 回 **150 件**で区切ったうえ **1 件ごとに 120ms 空けて**いる。**手で叩いたときに
+すぐ返らないのは正常。**
+
+**1 回の実行で全部は送らない。** **応答の `remaining` が 0 でなければ残りがある**ので、
 初回の全件登録が終わるまでは実行間隔を詰める（または画面の「同期」を繰り返す）。
+連絡先の件数 ÷ 150 回だけ必要になる。
 定常運用に入れば 1 時間ごとで十分（変更のあった連絡先しか送らない）。
+
+**前回が終わる前に叩くと 409 を返す。** これは異常ではない。
+なお **409 は認証と設定チェックの後にある**ので、409 が返った時点で
+合言葉・クライアント ID・シークレット・暗号鍵の 4 つは正しく渡っている
+（切り分けに使える）。
 
 | 応答 | 意味 | 対処 |
 |---|---|---|

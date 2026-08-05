@@ -56,6 +56,8 @@ test.describe("変更した画面の総ざらい", () => {
       "/admin/freee/partners",
       "/admin/freee/sync",
       "/admin/freee/register",
+      // 外部連携の接続（Gmail / Google コンタクト）を置いている
+      "/profile",
     ]) {
       await check(`一覧 ${path}`, async () => {
         const res = await page.goto(path);
@@ -160,6 +162,18 @@ test.describe("変更した画面の総ざらい", () => {
       await page.waitForURL(/\/accounts\/[0-9a-f-]{36}$/, { timeout: 15_000 });
       await expect(page.getByRole("heading", { name: "担当者情報" })).toBeVisible();
       await expect(page.getByRole("heading", { name: "請求者情報" })).toBeVisible();
+    });
+
+    // ---- 7. 外部連携の接続が両方とも出ること ----
+    await check("プロフィールに 2 つの連携", async () => {
+      await page.goto("/profile");
+      await expect(page.getByRole("heading", { name: "Gmail 連携" })).toBeVisible();
+      await expect(
+        page.getByRole("heading", { name: "Google コンタクト連携" })
+      ).toBeVisible();
+      // 同期対象の境界（グループ名）を利用者に必ず見せる
+      const body = await page.locator("body").innerText();
+      expect(body, "同期対象のグループ名が出ていない").toContain("ITERRA CRM");
     });
 
     // ---- 後片付け ----

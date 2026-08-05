@@ -1,6 +1,6 @@
 # Google コンタクト同期 設計書
 
-作成: 2026-08-05（設計のみ。実装は未着手）
+作成: 2026-08-05 / **Phase 1 実装済み**（接続・CRM → Google の push）。Phase 2 以降は未着手
 
 CRM の連絡先を各メンバーの Google コンタクトへ同期する。
 スマホの電話帳に顧客の名前が出る・Gmail の宛先補完に出ることが主目的。
@@ -249,11 +249,48 @@ RLS: 接続・ミラー・リンクとも**接続の所有者 + admin が SELECT
 
 ## 8. 実装フェーズ
 
-| フェーズ | 内容 | ここまでで得られるもの |
+| フェーズ | 内容 | 状態 |
 |---|---|---|
-| 1 | 接続（OAuth + ドメイン制限）/ 初回突合 / **CRM → Google の自動 push**（作成・更新・削除・グループ管理） | 電話帳ユースケースが成立する |
-| 2 | ミラー取り込み（syncToken）/ 差分画面 / Google → CRM の確定 / グループ入り候補の承認 | 双方向が成立する |
-| 3 | 会社の紐付け候補提示 / SNS・URL の同期 / 複数住所の Google → CRM 突合 | 拡張 |
+| 1 | 接続（OAuth + ドメイン制限）/ **CRM → Google の自動 push**（作成・更新・削除・グループ管理） | **実装済み**（2026-08-05） |
+| 2 | ミラー取り込み（syncToken）/ 差分画面 / Google → CRM の確定 / グループ入り候補の承認 / **初回突合** | 未着手 |
+| 3 | 会社の紐付け候補提示 / SNS・URL の同期 / 複数住所の Google → CRM 突合 | 未着手 |
+
+### 8.1 Phase 1 の実装（2026-08-05）
+
+| 層 | 実体 |
+|---|---|
+| 設定 | `src/lib/google-contacts/config.ts`（スコープ・グループ名・許可ドメイン） |
+| API | `src/lib/google-contacts/client.ts`（OAuth / People API / 連絡先グループ） |
+| 変換 | `src/lib/google-contacts/mapping.ts`（**純粋関数**。テストで §4 の対応表を固定） |
+| 同期 | `src/lib/google-contacts/sync.ts`（push・削除・グループ追加・バックオフ） |
+| 画面 | `/profile` の「Google コンタクト連携」 |
+| 入口 | `/api/google-contacts/auth`・`/callback`・`/sync` |
+| DB | `20260805000017_create_google_contacts_sync.sql`（4 表 + 3 関数） |
+
+**Phase 1 で意図的に見送ったもの**:
+
+- **初回突合**（既存の Google 連絡先とのメール一致確認）は Phase 2 へ回した。
+  Phase 1 は「CRM にあるものを Google へ配る」までで、既に個人の電話帳にいる相手との
+  重複はグループを分けているため実害が小さい。**突合には Google 側の取り込み
+  （ミラー）が必要**で、それ自体が Phase 2 の主題だから
+- 競合（etag 不一致）は**上書きせず理由を残すだけ**。解決は Phase 2 の差分画面
+
+**初回の全件登録は 1 回で終わらない。** 書き込みのクォータに当たらないよう
+1 回の実行を 150 件で区切っており、残りは次の実行で進む。画面のトーストと
+`/api/google-contacts/sync` の応答が `remaining` を返すので、0 になるまで繰り返す。
+
+### 8.2 有効化の手順（実装とは別に必要な作業）
+
+1. **専用の GCP プロジェクト**を作る（Gmail 連携とは分ける。§2）
+2. People API を有効化する
+3. OAuth 同意画面を**「内部」**にする（組織外のアカウントを認可できなくする）
+4. OAuth クライアント（ウェブ）を作り、コールバック URI を登録する
+   - 開発 `http://localhost:2000/api/google-contacts/callback`
+   - 本番 `https://hub.iterra.online/api/google-contacts/callback`
+5. シークレット 5 つを Bitwarden → 転記（`docs/secrets-management.md`）
+6. NAS のタスクスケジューラに `/api/google-contacts/sync` を登録する
+   （`docs/deployment-nas.md`）
+7. 各メンバーが `/profile` から接続する
 
 ## 9. 検討して採らなかった案
 

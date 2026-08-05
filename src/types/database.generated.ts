@@ -3574,6 +3574,298 @@ export type Database = {
           },
         ]
       }
+      google_contact_connections: {
+        Row: {
+          access_token_enc: string | null
+          access_token_expires_at: string | null
+          contact_group_resource: string | null
+          created_at: string
+          crm_user_id: string
+          email_address: string
+          granted_scope: string | null
+          hd_domain: string | null
+          id: string
+          is_active: boolean
+          last_error: string | null
+          last_synced_at: string | null
+          refresh_token_enc: string
+          sync_token: string | null
+          updated_at: string
+        }
+        Insert: {
+          access_token_enc?: string | null
+          access_token_expires_at?: string | null
+          contact_group_resource?: string | null
+          created_at?: string
+          crm_user_id: string
+          email_address: string
+          granted_scope?: string | null
+          hd_domain?: string | null
+          id?: string
+          is_active?: boolean
+          last_error?: string | null
+          last_synced_at?: string | null
+          refresh_token_enc: string
+          sync_token?: string | null
+          updated_at?: string
+        }
+        Update: {
+          access_token_enc?: string | null
+          access_token_expires_at?: string | null
+          contact_group_resource?: string | null
+          created_at?: string
+          crm_user_id?: string
+          email_address?: string
+          granted_scope?: string | null
+          hd_domain?: string | null
+          id?: string
+          is_active?: boolean
+          last_error?: string | null
+          last_synced_at?: string | null
+          refresh_token_enc?: string
+          sync_token?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "google_contact_connections_crm_user_id_fkey"
+            columns: ["crm_user_id"]
+            isOneToOne: false
+            referencedRelation: "crm_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      google_contact_links: {
+        Row: {
+          connection_id: string
+          contact_id: string
+          created_at: string
+          etag_at_sync: string | null
+          google_contact_id: string | null
+          id: string
+          last_error: string | null
+          last_pushed_at: string | null
+          linked_by: string | null
+          pushed_fingerprint: string | null
+          resource_name: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          connection_id: string
+          contact_id: string
+          created_at?: string
+          etag_at_sync?: string | null
+          google_contact_id?: string | null
+          id?: string
+          last_error?: string | null
+          last_pushed_at?: string | null
+          linked_by?: string | null
+          pushed_fingerprint?: string | null
+          resource_name?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          connection_id?: string
+          contact_id?: string
+          created_at?: string
+          etag_at_sync?: string | null
+          google_contact_id?: string | null
+          id?: string
+          last_error?: string | null
+          last_pushed_at?: string | null
+          linked_by?: string | null
+          pushed_fingerprint?: string | null
+          resource_name?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "google_contact_links_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "google_contact_connections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "google_contact_links_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "google_contact_links_google_contact_id_fkey"
+            columns: ["google_contact_id"]
+            isOneToOne: false
+            referencedRelation: "google_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "google_contact_links_linked_by_fkey"
+            columns: ["linked_by"]
+            isOneToOne: false
+            referencedRelation: "crm_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      google_contact_sync_logs: {
+        Row: {
+          changes: Json
+          connection_id: string
+          contact_id: string | null
+          direction: string
+          error_message: string | null
+          id: string
+          operation: string
+          performed_at: string
+          performed_by: string | null
+          resource_name: string | null
+          succeeded: boolean
+        }
+        Insert: {
+          changes?: Json
+          connection_id: string
+          contact_id?: string | null
+          direction: string
+          error_message?: string | null
+          id?: string
+          operation: string
+          performed_at?: string
+          performed_by?: string | null
+          resource_name?: string | null
+          succeeded: boolean
+        }
+        Update: {
+          changes?: Json
+          connection_id?: string
+          contact_id?: string | null
+          direction?: string
+          error_message?: string | null
+          id?: string
+          operation?: string
+          performed_at?: string
+          performed_by?: string | null
+          resource_name?: string | null
+          succeeded?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "google_contact_sync_logs_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "google_contact_connections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "google_contact_sync_logs_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "google_contact_sync_logs_performed_by_fkey"
+            columns: ["performed_by"]
+            isOneToOne: false
+            referencedRelation: "crm_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      google_contacts: {
+        Row: {
+          addresses: Json
+          birth_date: string | null
+          birthday_without_year: string | null
+          client_contact_code: string | null
+          connection_id: string
+          created_at: string
+          department: string | null
+          emails: Json
+          etag: string | null
+          family_name: string | null
+          family_name_kana: string | null
+          given_name: string | null
+          given_name_kana: string | null
+          google_deleted_at: string | null
+          group_resource_names: string[]
+          id: string
+          job_title: string | null
+          middle_name: string | null
+          middle_name_kana: string | null
+          org_name: string | null
+          phones: Json
+          resource_name: string
+          synced_at: string
+          updated_at: string
+        }
+        Insert: {
+          addresses?: Json
+          birth_date?: string | null
+          birthday_without_year?: string | null
+          client_contact_code?: string | null
+          connection_id: string
+          created_at?: string
+          department?: string | null
+          emails?: Json
+          etag?: string | null
+          family_name?: string | null
+          family_name_kana?: string | null
+          given_name?: string | null
+          given_name_kana?: string | null
+          google_deleted_at?: string | null
+          group_resource_names?: string[]
+          id?: string
+          job_title?: string | null
+          middle_name?: string | null
+          middle_name_kana?: string | null
+          org_name?: string | null
+          phones?: Json
+          resource_name: string
+          synced_at?: string
+          updated_at?: string
+        }
+        Update: {
+          addresses?: Json
+          birth_date?: string | null
+          birthday_without_year?: string | null
+          client_contact_code?: string | null
+          connection_id?: string
+          created_at?: string
+          department?: string | null
+          emails?: Json
+          etag?: string | null
+          family_name?: string | null
+          family_name_kana?: string | null
+          given_name?: string | null
+          given_name_kana?: string | null
+          google_deleted_at?: string | null
+          group_resource_names?: string[]
+          id?: string
+          job_title?: string | null
+          middle_name?: string | null
+          middle_name_kana?: string | null
+          org_name?: string | null
+          phones?: Json
+          resource_name?: string
+          synced_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "google_contacts_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "google_contact_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       industry_classifications: {
         Row: {
           created_at: string
@@ -6757,6 +7049,10 @@ export type Database = {
         Args: { p_company_id: string }
         Returns: Json
       }
+      get_contact_google_source: {
+        Args: { p_contact_id: string }
+        Returns: Json
+      }
       get_user_role: { Args: never; Returns: string }
       import_eight_leads: {
         Args: { p_batch: Json; p_defaults: Json; p_errors: Json; p_leads: Json }
@@ -6833,6 +7129,17 @@ export type Database = {
           name_kana: string
           phone: string
           total_count: number
+        }[]
+      }
+      list_google_push_targets: {
+        Args: { p_connection_id: string }
+        Returns: {
+          contact_id: string
+          etag: string
+          fingerprint: string
+          is_deleted: boolean
+          link_id: string
+          resource_name: string
         }[]
       }
       merge_contacts: {
@@ -6922,6 +7229,20 @@ export type Database = {
           p_succeeded: boolean
         }
         Returns: undefined
+      }
+      record_google_push: {
+        Args: {
+          p_actor?: string
+          p_connection_id: string
+          p_contact_id: string
+          p_error?: string
+          p_etag?: string
+          p_fingerprint?: string
+          p_operation: string
+          p_resource_name?: string
+          p_succeeded: boolean
+        }
+        Returns: string
       }
       refresh_all_account_statuses: { Args: never; Returns: number }
       register_freee_partner_company: {

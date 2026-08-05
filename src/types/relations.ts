@@ -695,6 +695,25 @@ export type GmailConnectionSummary = Ref<
   | "created_at"
 >;
 
+/**
+ * Google コンタクト連携の接続。
+ * トークン系は返さない（画面で使う必要が無く、漏らす経路を作らないため）。
+ */
+export type GoogleContactConnectionSummary = Ref<
+  "google_contact_connections",
+  | "id"
+  | "email_address"
+  | "hd_domain"
+  | "granted_scope"
+  | "last_synced_at"
+  | "last_error"
+  | "is_active"
+  | "created_at"
+> & {
+  /** この接続で同期している連絡先の数 */
+  syncedCount: number;
+};
+
 /** email-sync.ts の getEmailContactCandidates に対応 */
 export type EmailCandidateWithCompany = Row<"email_contact_candidates"> & {
   /** ドメインから引き当てた法人。承認時の所属の初期値になる */

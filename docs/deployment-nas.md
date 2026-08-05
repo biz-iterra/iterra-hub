@@ -987,6 +987,47 @@ CRM 側の判断まで消さないため）。
 `https://hub.iterra.online/api/freee/callback` を登録しておくこと（未登録だと
 `redirect_uri` の不一致で認可が通らない）。
 
+### 8.0.2 Google コンタクトの定期同期
+
+CRM の連絡先を各メンバーの Google コンタクト（「ITERRA CRM」グループ）へ配る。
+**CRM が正本で、CRM 側の変更は自動で Google へ反映する**（`docs/google-contacts-sync.md`）。
+Gmail・freee と同じく `docker exec` でコンテナの中から叩く。
+
+| 項目 | 値 |
+|---|---|
+| 種類 | ユーザー定義スクリプト |
+| 実行ユーザー | root |
+| スケジュール | 1 時間ごと |
+
+```bash
+cd /volume1/docker/iterra-hub
+( set -a; . ./.env; set +a
+  docker exec iterra-hub-app wget -qO- --post-data='' --header="Authorization: Bearer $GOOGLE_CONTACTS_SYNC_CRON_SECRET" http://127.0.0.1:3000/api/google-contacts/sync )
+```
+
+**サブシェルの括弧を外さない理由は 8.0 と同じ。**
+
+**1 回の実行で全部は送らない。** People API の書き込みには 1 分あたりの上限があり、
+1 回 150 件で区切っている。**応答の `remaining` が 0 でなければ残りがある**ので、
+初回の全件登録が終わるまでは実行間隔を詰める（または画面の「同期」を繰り返す）。
+定常運用に入れば 1 時間ごとで十分（変更のあった連絡先しか送らない）。
+
+| 応答 | 意味 | 対処 |
+|---|---|---|
+| `{"connections":n,"created":..,"remaining":0,...}` | 正常・送り切った | — |
+| `remaining` が 0 でない | 上限で次回へ持ち越した | 続けて実行すれば進む。初回の全件登録では正常 |
+| `{"skipped":true,...}`（409） | 前回の同期が実行中 | 次の実行に任せる |
+| `{"error":"認証に失敗しました"}`（401） | 合言葉が違う | `.env` の値と Bitwarden を突き合わせる |
+| `{"error":"定期同期は無効です..."}`（503） | `GOOGLE_CONTACTS_SYNC_CRON_SECRET` 未設定 | `.env` に設定してコンテナを再起動 |
+| `{"error":"Google コンタクト連携が未設定です"}`（503） | クライアント ID / シークレット / 暗号鍵のいずれか未設定 | `.env` を確認 |
+| `errors[]` に文言 | その接続だけ失敗 | `/profile` の連携欄にも同じ理由が出る |
+
+**接続は各メンバーが `/profile` から行う**（管理者がまとめて繋ぐものではない）。
+事前に専用 GCP プロジェクト側でコールバック URI
+`https://hub.iterra.online/api/google-contacts/callback` を登録しておくこと。
+**同意画面は「内部」**にし、`GOOGLE_CONTACTS_ALLOWED_DOMAIN` も設定する
+（個人 Google アカウントへ顧客情報を配らないため）。
+
 ### 8.1 死活監視
 
 **分単位の監視は外部サービスに任せる。** GitHub Actions の cron は実行が数分〜数十分

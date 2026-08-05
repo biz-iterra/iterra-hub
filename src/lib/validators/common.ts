@@ -1,4 +1,15 @@
 import { z } from "zod";
+import { ja } from "zod/locales";
+import { describeZodIssue } from "./error-map";
+
+// **Zod の既定文言（英語）を画面に出さないための設定**（docs/error-messages.md §1）。
+// ここは全 validator が読み込む土台なので、置き場所として選んでいる。
+// 個別のスキーマに `error:` を書いてあればそちらが勝つ。
+z.config({
+  customError: (issue) => describeZodIssue(issue as Parameters<typeof describeZodIssue>[0]),
+  // customError で拾えなかった種類の受け皿。Zod を上げて issue が増えても英語にならない
+  localeError: ja().localeError,
+});
 
 // PostgreSQL UUID 型は RFC 4122 のバージョンビットを検査せず、8-4-4-4-12 の hex 形式なら受け入れる。
 // 一方 Zod 標準の .uuid() は version/variant ビットまで検査するため、開発用 seed（c0000000-0000-...）が弾かれる。

@@ -23,6 +23,7 @@
 | 層 | 実装 | 役割 |
 |---|---|---|
 | 入力バリデーション | `src/lib/validators/common.ts`（共通スキーマ）, `masters.ts` ほか | 保存前に弾く。`[field]` 付き |
+| Zod の既定文言 | `src/lib/validators/error-map.ts` の `describeZodIssue()` | **スキーマに `error:` を書き忘れたときの受け皿。** 全 issue を日本語にする |
 | DB エラー変換 | `src/lib/db-error.ts` の `toUserMessage()` | Postgres の生エラーを日本語へ。Server Action が `error` を返す前に必ず通す |
 | 外部 API | `src/lib/gmail/client.ts` の `describeGmailError()` | Gmail API のエラーを日本語へ。原文を括弧で残す |
 | Server Action の失敗 | `src/lib/errors.ts` の `describeTransportError()` | `error` を返す前に例外になった場合。送信サイズ超過・通信断・タイムアウト |
@@ -33,6 +34,20 @@
 reject するため、`catch` が無いと処理中の表示が解除されず画面が固まる（2026-08-03 に
 名刺取込で発生）。`finally` で読み込み状態を解除し、`catch` で `describeTransportError()`
 を通した文言を出す。
+
+### Zod の既定文言（2026-08-05 に全面適用）
+
+**スキーマ側に文言を書き忘れても英語が出ない**ようにしてある。`common.ts` が
+読み込み時に `z.config()` を呼び、全 validator がこれを経由する。
+
+優先順位は **スキーマの `error:` > `describeZodIssue()` > `zod/locales` の日本語 > Zod 既定（英語）**。
+ロケールまで置いてあるのは、Zod を上げて issue の種類が増えたときの保険。
+
+- **未入力は型の話にしない。** `expected string, received undefined` は
+  「入力してください」。`.min(1)` も同じ扱いにする（文字数を言われても直しようがない）
+- **文言を足す・直すのは `error-map.ts` の 1 箇所**。UT-71 が固定している
+- **個別に具体的な文言を書くほうが常に良い。** 受け皿は「英語を出さない」だけで、
+  どの欄の話かまでは分からない
 
 ## 3. 入力バリデーション（マスタ共通）
 

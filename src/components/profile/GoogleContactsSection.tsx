@@ -184,6 +184,23 @@ export function GoogleContactsSection({
         社内メモ・診断結果・ステータスは同期しません。
       </p>
 
+      {/*
+        **同意画面に何が出るかを先に伝える。** Google の連絡先スコープは
+        1 段階しかなく、書き込むには「完全な削除」まで含む権限を求めることになる
+        （docs/google-contacts-sync.md §2.1）。黙って出すと不信感を招く。
+      */}
+      <p style={{ ...styles.hint, marginBottom: "1rem" }}>
+        連携時に Google から
+        <strong>「連絡先の表示、編集、ダウンロード、完全な削除」</strong>
+        の許可を求められます。Google の連絡先はこの 1 段階しか権限が無く、
+        書き込むにはこれを許可する必要があります。
+        <strong>
+          実際に本システムが作成・更新・削除するのは「ITERRA CRM」グループに入れた
+          連絡先だけ
+        </strong>
+        で、削除するのも CRM 側で削除した相手に限ります。
+      </p>
+
       {!configured ? (
         <p style={styles.meta}>
           環境変数が未設定です（GOOGLE_CONTACTS_CLIENT_ID / CLIENT_SECRET /

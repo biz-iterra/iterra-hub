@@ -27,10 +27,18 @@ export type GoogleContactsConfig = {
 };
 
 /**
- * 要求するスコープ。**連絡先の読み書きのみ。**
+ * 要求するスコープ。
  *
- * `contacts.readonly` では push できず、`contacts.other.readonly`（自動収集の
- * 「その他の連絡先」）は対象外なので要求しない。
+ * **同意画面には「連絡先の表示、編集、ダウンロード、完全な削除」と出る。**
+ * People API で**書き込めるスコープはこれ 1 つだけ**で、
+ * 「書き込みのみ」「特定のグループのみ」といった絞り込みは用意されていない
+ * （`contacts.readonly` は読み取り専用、`contacts.other.readonly` は
+ * 自動収集された「その他の連絡先」用で、どちらも push に使えない）。
+ *
+ * つまり**技術的には利用者の全連絡先を消せる権限**を受け取ることになる。
+ * 実際に触る範囲は「ITERRA CRM」グループの中だけに**アプリ側で**限っているが、
+ * それは Google が保証する制限ではない（§2.1）。利用者には同意画面に何が出るかを
+ * 事前に伝えること。
  */
 export const GOOGLE_CONTACTS_SCOPE = "https://www.googleapis.com/auth/contacts";
 

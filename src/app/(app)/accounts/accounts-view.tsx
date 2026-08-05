@@ -210,7 +210,7 @@ export function AccountsView({
               ),
           },
           {
-            label: "会社名",
+            label: "事業者名",
             render: (account) => account.company?.name ?? "—",
           },
           {

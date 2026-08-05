@@ -153,7 +153,7 @@ test.describe("E2E-04", () => {
 
       // company/contact の ID はリード側には出ないため、事業者情報一覧から検索して辿る
       await adminPage.goto("/companies");
-      await searchInList(adminPage, "会社名で検索...", companyName);
+      await searchInList(adminPage, "事業者名・カナ・事業者コードで検索...", companyName);
       const companyRowLink = adminPage.getByRole("link", { name: companyName }).first();
       await expect(companyRowLink).toBeVisible();
       const companyHref = await companyRowLink.getAttribute("href");

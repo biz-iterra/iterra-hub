@@ -128,7 +128,7 @@ export function CompaniesView({
         />
         <SearchInput
           value={keyword}
-          placeholder="会社名で検索..."
+          placeholder="事業者名・カナ・事業者コードで検索..."
           onChange={(v) => setFilter("search", v)}
         />
         <FilterClearButton onClear={clear} />
@@ -153,7 +153,7 @@ export function CompaniesView({
         onSortChange={setSort}
         columns={[
           {
-            label: "会社名",
+            label: "事業者名",
             sortKey: "name",
             card: "title",
             render: (company) => (

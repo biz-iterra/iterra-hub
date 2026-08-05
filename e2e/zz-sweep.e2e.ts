@@ -132,6 +132,20 @@ test.describe("変更した画面の総ざらい", () => {
           expect(body, `編集に「${ng}」が出ている`).not.toContain(ng);
         }
       });
+
+      // **freee は口座種別に未設定を持てない**（未選択でも ordinary が返る）。
+      // CRM だけ空を許すと突合のたびに「どちらも未設定」が差分として並ぶ
+      await check("口座種別は「普通」で開き、未選択の選択肢が無い", async () => {
+        await page.goto(`/companies/${soleId}/edit`);
+        await page.getByRole("button", { name: "口座を追加" }).click();
+        const select = page.locator("label", { hasText: /^口座種別$/ })
+          .locator("xpath=following-sibling::select[1]");
+        await expect(select, "口座種別が「普通」で開いていない").toHaveValue("ordinary");
+        await expect(
+          select.locator("option"),
+          "未選択の選択肢が残っている"
+        ).toHaveCount(3);
+      });
     }
 
     // ---- 4. 商談の相手先が 3 択で、事業者情報でも作れること ----

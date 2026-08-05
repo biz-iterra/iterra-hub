@@ -53,7 +53,10 @@ function toDraft(row: FinancialInfoRow): Draft {
     bank_code: row.bank_code ?? "",
     branch_name: row.branch_name ?? "",
     branch_code: row.branch_code ?? "",
-    account_type: row.account_type ?? "",
+    // **未設定は「普通」で開く。** freee は口座種別に未設定を持てず、
+    // 何も選ばなくても ordinary が返る。CRM だけ空を許すと突合のたびに
+    // 「どちらも未設定」が差分として並ぶ（2026-08-06。§26.11）
+    account_type: row.account_type ?? "ordinary",
     account_number: row.account_number ?? "",
     account_holder: row.account_holder ?? "",
     account_holder_kana: row.account_holder_kana ?? "",
@@ -237,7 +240,8 @@ function Fields({
           onChange={(e) => set("account_type", e.target.value)}
           disabled={disabled}
         >
-          <option value="">-- 選択 --</option>
+          {/* **未選択の選択肢は置かない。** freee 側に「未設定」が無いので、
+              空にできても意味が無く、突合で差分に見えるだけ */}
           {ACCOUNT_TYPES.map((t) => (
             <option key={t.value} value={t.value}>
               {t.label}

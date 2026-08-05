@@ -212,6 +212,9 @@ export async function syncFreeeConnection(
  * **画面で人が確定した項目だけ**を送る（自動では呼ばない）。
  * 送信の成否は必ず freee_sync_logs に残す。会計データを触る操作なので、
  * 「送ったが弾かれた」を後から追えないと原因が分からなくなる。
+ *
+ * **PUT の戻り値（更新後の取引先）でミラーを更新する。** 捨てると次の同期まで
+ * 同じ差分が残り、送ったのに「反映されていない」ように見える（T-0040）。
  */
 export async function pushPartnerToFreee(params: {
   partnerId: string;
@@ -255,7 +258,7 @@ export async function pushPartnerToFreee(params: {
 
   try {
     const accessToken = await ensureAccessToken(admin, conn, config);
-    await updatePartner({
+    const updated = await updatePartner({
       accessToken,
       freeeCompanyId: partner.freee_company_id,
       freeePartnerId: partner.freee_partner_id,
@@ -267,6 +270,26 @@ export async function pushPartnerToFreee(params: {
       },
     });
     await record(true, null);
+
+    // 更新後の姿でミラーを差し替える。`p_full` は false のまま
+    // （true にすると、この 1 件に含まれない取引先が全部「freee 側で削除済み」になる）。
+    // 自動紐付けは link_status = 'unlinked' の行しか触らないので、
+    // 紐付け済みのこの行に対しては値の更新だけが起きる
+    const { error: mirrorError } = await admin.rpc("upsert_freee_partners", {
+      p_freee_company_id: partner.freee_company_id,
+      p_rows: [toPartnerRow(updated)],
+      p_full: false,
+    });
+    if (mirrorError) {
+      // **freee への書き込みは成功している。** 失敗として返すと送り直しを招くので、
+      // 何が済んで何が済んでいないかを文言で分ける
+      return {
+        error:
+          "freee への反映は成功しましたが、CRM 側の控えを更新できませんでした。" +
+          "同期を実行すると差分の表示が最新になります。" +
+          toUserMessage(mirrorError, { entityLabel: "freee 取引先" }),
+      };
+    }
     return { error: null };
   } catch (e) {
     const message = e instanceof Error ? e.message : "freee への書き込みに失敗しました";

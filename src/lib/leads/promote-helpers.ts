@@ -66,11 +66,24 @@ export type ContactPayload = {
   last_updated_by: string;
 };
 
-// ---------- 定数 ----------
+// ---------- 既定ステータス ----------
+//
+// **UUID を直書きしない。** 以前は seed の UUID を定数で持っていたが、
+// マスタを入れ替えたときに**削除済みの行を指し続けた**（2026-08-05 に発覚。
+// 事業者情報 27 件が壊れていた）。論理削除は外部キーで防げないため、
+// 参照が通ってしまいエラーも出ない。
+//
+// 呼び出し側が「役割フラグ」で引いた ID を渡す（20260805000021）。
 
-export const COMPANY_STATUS_ACTIVE = "c1000000-0000-0000-0000-000000000001";
-export const CONTACT_STATUS_ACTIVE = "d0000000-0000-0000-0000-000000000001";
-export const ACCOUNT_STATUS_PROSPECT = "c0000000-0000-0000-0000-000000000004";
+/** 昇格で作る各レコードに付ける既定ステータス */
+export type PromotionDefaults = {
+  /** company_statuses.is_new_default */
+  companyStatusId: string;
+  /** contact_statuses.is_new_default */
+  contactStatusId: string;
+  /** account_statuses.is_prospect_default（契約前なので見込み） */
+  accountStatusId: string;
+};
 
 // ---------- ヘルパー関数 ----------
 
@@ -97,7 +110,8 @@ export function splitLeadName(leadName: string): { lastName: string; firstName: 
  */
 export function buildCompanyPayloadFromLead(
   lead: LeadRow,
-  userId: string
+  userId: string,
+  companyStatusId: string
 ): CompanyPayload {
   return {
     name: lead.company_name ?? lead.lead_name,
@@ -108,7 +122,7 @@ export function buildCompanyPayloadFromLead(
     website_url: lead.url ?? null,
     lead_source_id: lead.lead_source_id ?? null,
     owner_user_id: lead.owner_user_id,
-    company_status_id: COMPANY_STATUS_ACTIVE,
+    company_status_id: companyStatusId,
     created_by: userId,
     last_updated_by: userId,
   };
@@ -130,7 +144,12 @@ export function buildCompanyPayloadFromLead(
  */
 export function buildContactPayloadFromLead(
   lead: LeadRow,
-  opts: { contactType: "corporate_rep" | "individual"; companyId: string | null },
+  opts: {
+    contactType: "corporate_rep" | "individual";
+    companyId: string | null;
+    /** contact_statuses.is_new_default で引いた ID */
+    contactStatusId: string;
+  },
   userId: string
 ): ContactPayload {
   // 担当者情報が未入力の場合は lead_name からフォールバック
@@ -160,7 +179,7 @@ export function buildContactPayloadFromLead(
     // 法人は website_url = null（companies 側に転記済み）
     // 個人は website_url = leads.url
     website_url: opts.contactType === "individual" ? (lead.url ?? null) : null,
-    contact_status_id: CONTACT_STATUS_ACTIVE,
+    contact_status_id: opts.contactStatusId,
     lead_source_id: lead.lead_source_id ?? null,
     owner_user_id: lead.owner_user_id,
     created_by: userId,

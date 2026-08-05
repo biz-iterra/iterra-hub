@@ -1981,6 +1981,8 @@ export function AdminView() {
             onRefresh={refreshCorporateTypes}
             fields={[
               { key: "name", label: "名前", required: true, type: "text" },
+              { key: "is_sole_proprietor", label: "個人事業主として扱う", type: "checkbox",
+                helpText: "法人番号を持たず、freee では「個人」として送ります。1 つだけ選べます" },
               { key: "definition", label: "定義", type: "textarea" },
             ]}
           />
@@ -1996,6 +1998,8 @@ export function AdminView() {
             onRefresh={refreshCompanyStatuses}
             fields={[
               { key: "name", label: "名前", required: true, type: "text" },
+              { key: "is_new_default", label: "新規作成時の既定", type: "checkbox",
+                helpText: "取込や昇格で事業者情報を作るときに自動で付きます。1 つだけ選べます" },
               { key: "definition", label: "定義", type: "textarea" },
               { key: "color", label: "バッジ色 (#RRGGBB)", type: "text", colorSwatch: true, helpText: COLOR_HELP_TEXT },
             ]}
@@ -2083,6 +2087,8 @@ export function AdminView() {
             fields={[
               { key: "code", label: "コード (例: connected)", required: true, type: "text", helpText: CODE_HELP_TEXT },
               { key: "name", label: "名前", required: true, type: "text" },
+              { key: "is_card_exchange", label: "名刺交換の記録に使う", type: "checkbox",
+                helpText: "名刺（Eight）取込が自動で付けます。1 つだけ選べます" },
               { key: "definition", label: "定義", type: "textarea" },
               { key: "sort_order", label: "表示順", type: "number", min: 0 },
             ]}
@@ -2100,6 +2106,8 @@ export function AdminView() {
             fields={[
               { key: "code", label: "コード (例: call)", required: true, type: "text" },
               { key: "name", label: "名前", required: true, type: "text" },
+              { key: "is_card_exchange", label: "名刺交換の記録に使う", type: "checkbox",
+                helpText: "名刺（Eight）取込が自動で付けます。1 つだけ選べます" },
               { key: "definition", label: "定義", type: "textarea" },
               { key: "color", label: "バッジ色 (#RRGGBB)", type: "text", colorSwatch: true, helpText: COLOR_HELP_TEXT },
               { key: "sort_order", label: "表示順", type: "number", min: 0 },
@@ -2175,6 +2183,12 @@ export function AdminView() {
             fields={[
               { key: "code", label: "コード (例: active)", required: true, type: "text", helpText: CODE_HELP_TEXT },
               { key: "name", label: "名前", required: true, type: "text" },
+              { key: "is_active_default", label: "契約中の既定", type: "checkbox",
+                helpText: "契約が生きている取引先に自動で付きます。1 つだけ" },
+              { key: "is_churned_default", label: "解約後の既定", type: "checkbox",
+                helpText: "契約が終了した取引先に自動で付きます。1 つだけ" },
+              { key: "is_prospect_default", label: "契約前の既定", type: "checkbox",
+                helpText: "商談段階の取引先に自動で付きます。1 つだけ" },
               { key: "definition", label: "定義", type: "textarea" },
               { key: "color", label: "バッジ色 (#RRGGBB)", type: "text", colorSwatch: true, helpText: COLOR_HELP_TEXT },
             ]}
@@ -2191,6 +2205,8 @@ export function AdminView() {
             onRefresh={refreshContactStatuses}
             fields={[
               { key: "name", label: "名前", required: true, type: "text" },
+              { key: "is_new_default", label: "新規作成時の既定", type: "checkbox",
+                helpText: "取込や昇格で連絡先を作るときに自動で付きます。1 つだけ選べます" },
               { key: "definition", label: "定義", type: "textarea" },
               { key: "color", label: "バッジ色 (#RRGGBB)", type: "text", colorSwatch: true, helpText: COLOR_HELP_TEXT },
             ]}
@@ -2228,6 +2244,8 @@ export function AdminView() {
             fields={[
               { key: "code", label: "コード", required: true, type: "text" },
               { key: "name", label: "名前", required: true, type: "text" },
+              { key: "is_form_submit", label: "問い合わせフォーム送信", type: "checkbox",
+                helpText: "サイトからの取込が自動で記録します。1 つだけ選べます" },
               { key: "description", label: "説明", type: "textarea" },
               { key: "sort_order", label: "表示順", type: "number", min: 0 },
             ]}

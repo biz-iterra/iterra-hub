@@ -3603,6 +3603,76 @@ lead_sources.is_inbound_inquiry → Inquiry（progress_view = 'inquiry'）
 **必須の判定はフラグで持つ**（名前やスラッグで判定しない）。
 必須でない行は今までどおり削除できる（過剰に縛らない）。
 
+## 23.8.2 マスタは「役割フラグ」で引く（2026-08-05）
+
+**マスタの行を name / code / slug / UUID で名指ししない。** 役割を表す列を足し、
+それで引く。名前は自由に変えられるし、コードは自動採番、UUID は seed を作り直すと
+別物になるため、いずれも参照の拠り所にならない。
+
+### なぜ UUID の直書きが一番危険か
+
+実際に壊れていた（2026-08-05 に発覚）。
+
+```ts
+export const COMPANY_STATUS_ACTIVE = "c1000000-0000-0000-0000-000000000001";
+```
+
+2026-07-31 に事業者ステータスを「取引状態」から「実在性」へ入れ替えた際、
+**既存行の移行は正しく行われていた**が、この定数が残っていた。結果、
+移行後も**論理削除済みの行を指す新規データを作り続け**、事業者情報 27 件が
+壊れていた（`20260805000023` で修復）。
+
+**論理削除は外部キーで防げない。** 参照先が消えていても FK は通るので、
+名前やコードなら「見つからない」で気づけるところが、UUID だと静かに通る。
+
+### 役割フラグの一覧
+
+| マスタ | 列 | 意味 |
+|---|---|---|
+| `account_statuses` | `is_active_default` / `is_churned_default` / `is_prospect_default` | 契約状態から自動で付くステータス |
+| `company_statuses` | `is_new_default` | 取込・昇格で作るときの初期値 |
+| `contact_statuses` | `is_new_default` | 同上 |
+| `corporate_types` | `is_sole_proprietor` | 個人事業主（freee で「個人」扱い） |
+| `lead_stages` | `is_inquiry_default` / `is_qualification` ほか | §23.8 |
+| `lead_sources` | `is_inquiry_default` / `is_inbound_inquiry` / `is_card_import_default` | 取込の既定・問い合わせ扱い |
+| `lead_statuses` | `is_inquiry_initial` / `is_card_import_initial` | **取込の経路ごとに違う**初期ステータス |
+| `lead_activity_types` / `lead_call_statuses` | `is_card_exchange` | 名刺取込が記録する種別 |
+| `lead_customer_activity_types` | `is_form_submit` | 問い合わせフォーム送信 |
+| `lead_categories` | `progress_view` / `is_sales_qualified` | 進捗画面との対応 |
+| `account_types` | `requires_corporate_fields` / `is_company_default` / `is_sole_proprietor_default` | 法人向け項目・自動生成の既定 |
+| `pipeline_types` | `is_default` | 商談化の既定 |
+
+**「既定」は部分 UNIQUE で 1 行に制限する。** 2 行 true だと不定になる。
+
+### 守り
+
+| 守り | 実装 |
+|---|---|
+| 役割を持つ行を消せない | `is_system_required` ＋ `prevent_system_required_delete` |
+| 使用中のステータスを消せない | `prevent_in_use_status_delete` |
+| **削除済みマスタを新たに参照できない** | `check_master_not_deleted`（companies / contacts / accounts / leads） |
+| 改名は許す | 役割はフラグが持つので、表示名を業務に合わせて変えても壊れない |
+
+### 検査の手順（**新しい機能を足したら必ず回す**）
+
+アプリの grep だけでは足りない。**DB 関数の本文まで検索する**こと。
+実際、これを怠って 2 回見落とした。
+
+```sql
+-- マスタを名指ししている関数を洗う（採番トリガーの接頭辞だけが残れば OK）
+select p.proname, m[1]
+  from pg_proc p join pg_namespace n on n.oid = p.pronamespace,
+  lateral regexp_matches(pg_get_functiondef(p.oid),
+    '(name|code|slug)\s*=\s*''[^'']+''', 'g') m
+ where n.nspname = 'public' and p.prokind = 'f';
+```
+
+```bash
+# アプリ側（UUID の直書きも見る）
+grep -rnE '\.eq\("(code|name|slug)",\s*"' src/
+grep -rnE '"[0-9a-f]{8}-[0-9a-f]{4}-' src/ --include=*.ts
+```
+
 ## 23.9 マスタのスラッグ／コードは自動採番（2026-08-05）
 
 **人が編集する項目ではない。** マスタ管理画面から入力欄を外し、DB のトリガーが

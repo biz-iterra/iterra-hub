@@ -18,7 +18,6 @@ import { buildIlikePattern } from "@/lib/search-query";
 import {
   buildCompanyPayloadFromLead,
   buildContactPayloadFromLead,
-  ACCOUNT_STATUS_PROSPECT,
   type LeadRow,
 } from "@/lib/leads/promote-helpers";
 import type { z } from "zod";
@@ -815,11 +814,44 @@ export async function promoteLeadToDeal(
     return { data: null, error: "商談ステータスが見つかりません" };
   }
 
+  // --- 既定ステータスの解決 ---
+  // **UUID を直書きしない。** 役割フラグで引く（20260805000021）。
+  // 以前は seed の UUID を定数で持っており、マスタを入れ替えたときに
+  // 削除済みの行を指し続けていた（2026-08-05 に 27 件の破損が判明）
+  const [companyStatus, contactStatus, accountStatus] = await Promise.all([
+    supabase
+      .from("company_statuses")
+      .select("id")
+      .eq("is_new_default", true)
+      .is("deleted_at", null)
+      .maybeSingle(),
+    supabase
+      .from("contact_statuses")
+      .select("id")
+      .eq("is_new_default", true)
+      .is("deleted_at", null)
+      .maybeSingle(),
+    supabase
+      .from("account_statuses")
+      .select("id")
+      .eq("is_prospect_default", true)
+      .is("deleted_at", null)
+      .maybeSingle(),
+  ]);
+
+  if (!companyStatus.data || !contactStatus.data || !accountStatus.data) {
+    return {
+      data: null,
+      error:
+        "既定のステータスが設定されていません（マスタ・取込で事業者情報・連絡先・取引先の「新規作成時の既定」を 1 つずつ選んでください）",
+    };
+  }
+
   // --- ペイロード構築（値の整形は TS 側、書き込みは DB 関数の責務）---
   const leadRow = lead as unknown as LeadRow;
 
   const companyPayload = isCorporate
-    ? buildCompanyPayloadFromLead(leadRow, user.id)
+    ? buildCompanyPayloadFromLead(leadRow, user.id, companyStatus.data.id)
     : null;
 
   const contactPayload = buildContactPayloadFromLead(
@@ -828,6 +860,7 @@ export async function promoteLeadToDeal(
       contactType: isCorporate ? "corporate_rep" : "individual",
       // Company の id は DB 関数内で採番されるため、ここでは解決しない
       companyId: null,
+      contactStatusId: contactStatus.data.id,
     },
     user.id
   );
@@ -840,7 +873,7 @@ export async function promoteLeadToDeal(
   const accountPayload = {
     name: isCorporate ? lead.company_name ?? lead.lead_name : lead.lead_name,
     account_type_id: lead.account_type_id,
-    account_status_id: ACCOUNT_STATUS_PROSPECT,
+    account_status_id: accountStatus.data.id,
     lead_source_id: lead.lead_source_id ?? null,
     owner_user_id: lead.owner_user_id,
     created_by: user.id,

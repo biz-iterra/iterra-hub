@@ -261,7 +261,8 @@ export async function verifyCompaniesBatch(
   const { data: soleProprietor } = await supabase
     .from("corporate_types")
     .select("id")
-    .eq("name", "個人事業主")
+    // **名前で引かない**（改名すると壊れる）。役割はフラグが持つ
+    .eq("is_sole_proprietor", true)
     .is("deleted_at", null)
     .maybeSingle();
 

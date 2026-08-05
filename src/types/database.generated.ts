@@ -268,6 +268,10 @@ export type Database = {
           deleted_by: string | null
           deletion_reason: string | null
           id: string
+          is_active_default: boolean
+          is_churned_default: boolean
+          is_prospect_default: boolean
+          is_system_required: boolean
           last_updated_by: string | null
           name: string
           updated_at: string
@@ -282,6 +286,10 @@ export type Database = {
           deleted_by?: string | null
           deletion_reason?: string | null
           id?: string
+          is_active_default?: boolean
+          is_churned_default?: boolean
+          is_prospect_default?: boolean
+          is_system_required?: boolean
           last_updated_by?: string | null
           name: string
           updated_at?: string
@@ -296,6 +304,10 @@ export type Database = {
           deleted_by?: string | null
           deletion_reason?: string | null
           id?: string
+          is_active_default?: boolean
+          is_churned_default?: boolean
+          is_prospect_default?: boolean
+          is_system_required?: boolean
           last_updated_by?: string | null
           name?: string
           updated_at?: string
@@ -1148,6 +1160,8 @@ export type Database = {
           deleted_by: string | null
           deletion_reason: string | null
           id: string
+          is_new_default: boolean
+          is_system_required: boolean
           last_updated_by: string | null
           name: string
           updated_at: string
@@ -1162,6 +1176,8 @@ export type Database = {
           deleted_by?: string | null
           deletion_reason?: string | null
           id?: string
+          is_new_default?: boolean
+          is_system_required?: boolean
           last_updated_by?: string | null
           name: string
           updated_at?: string
@@ -1176,6 +1192,8 @@ export type Database = {
           deleted_by?: string | null
           deletion_reason?: string | null
           id?: string
+          is_new_default?: boolean
+          is_system_required?: boolean
           last_updated_by?: string | null
           name?: string
           updated_at?: string
@@ -1603,6 +1621,8 @@ export type Database = {
           deleted_by: string | null
           deletion_reason: string | null
           id: string
+          is_new_default: boolean
+          is_system_required: boolean
           last_updated_by: string | null
           name: string
           updated_at: string
@@ -1616,6 +1636,8 @@ export type Database = {
           deleted_by?: string | null
           deletion_reason?: string | null
           id?: string
+          is_new_default?: boolean
+          is_system_required?: boolean
           last_updated_by?: string | null
           name: string
           updated_at?: string
@@ -1629,6 +1651,8 @@ export type Database = {
           deleted_by?: string | null
           deletion_reason?: string | null
           id?: string
+          is_new_default?: boolean
+          is_system_required?: boolean
           last_updated_by?: string | null
           name?: string
           updated_at?: string
@@ -2057,6 +2081,8 @@ export type Database = {
           deleted_by: string | null
           deletion_reason: string | null
           id: string
+          is_sole_proprietor: boolean
+          is_system_required: boolean
           last_updated_by: string | null
           name: string
           updated_at: string
@@ -2069,6 +2095,8 @@ export type Database = {
           deleted_by?: string | null
           deletion_reason?: string | null
           id?: string
+          is_sole_proprietor?: boolean
+          is_system_required?: boolean
           last_updated_by?: string | null
           name: string
           updated_at?: string
@@ -2081,6 +2109,8 @@ export type Database = {
           deleted_by?: string | null
           deletion_reason?: string | null
           id?: string
+          is_sole_proprietor?: boolean
+          is_system_required?: boolean
           last_updated_by?: string | null
           name?: string
           updated_at?: string
@@ -4040,6 +4070,8 @@ export type Database = {
           deleted_by: string | null
           deletion_reason: string | null
           id: string
+          is_card_exchange: boolean
+          is_system_required: boolean
           name: string
           sort_order: number
           updated_at: string
@@ -4053,6 +4085,8 @@ export type Database = {
           deleted_by?: string | null
           deletion_reason?: string | null
           id?: string
+          is_card_exchange?: boolean
+          is_system_required?: boolean
           name: string
           sort_order?: number
           updated_at?: string
@@ -4066,6 +4100,8 @@ export type Database = {
           deleted_by?: string | null
           deletion_reason?: string | null
           id?: string
+          is_card_exchange?: boolean
+          is_system_required?: boolean
           name?: string
           sort_order?: number
           updated_at?: string
@@ -4091,6 +4127,8 @@ export type Database = {
           deleted_by: string | null
           deletion_reason: string | null
           id: string
+          is_card_exchange: boolean
+          is_system_required: boolean
           last_updated_by: string | null
           name: string
           sort_order: number
@@ -4106,6 +4144,8 @@ export type Database = {
           deleted_by?: string | null
           deletion_reason?: string | null
           id?: string
+          is_card_exchange?: boolean
+          is_system_required?: boolean
           last_updated_by?: string | null
           name: string
           sort_order?: number
@@ -4121,6 +4161,8 @@ export type Database = {
           deleted_by?: string | null
           deletion_reason?: string | null
           id?: string
+          is_card_exchange?: boolean
+          is_system_required?: boolean
           last_updated_by?: string | null
           name?: string
           sort_order?: number
@@ -4400,6 +4442,8 @@ export type Database = {
           deleted_by: string | null
           description: string | null
           id: string
+          is_form_submit: boolean
+          is_system_required: boolean
           name: string
           sort_order: number
           updated_at: string
@@ -4412,6 +4456,8 @@ export type Database = {
           deleted_by?: string | null
           description?: string | null
           id?: string
+          is_form_submit?: boolean
+          is_system_required?: boolean
           name: string
           sort_order?: number
           updated_at?: string
@@ -4424,6 +4470,8 @@ export type Database = {
           deleted_by?: string | null
           description?: string | null
           id?: string
+          is_form_submit?: boolean
+          is_system_required?: boolean
           name?: string
           sort_order?: number
           updated_at?: string
@@ -5001,6 +5049,7 @@ export type Database = {
           deleted_by: string | null
           deletion_reason: string | null
           id: string
+          is_card_import_default: boolean
           is_inbound_inquiry: boolean
           is_inquiry_default: boolean
           last_updated_by: string | null
@@ -5017,6 +5066,7 @@ export type Database = {
           deleted_by?: string | null
           deletion_reason?: string | null
           id?: string
+          is_card_import_default?: boolean
           is_inbound_inquiry?: boolean
           is_inquiry_default?: boolean
           last_updated_by?: string | null
@@ -5033,6 +5083,7 @@ export type Database = {
           deleted_by?: string | null
           deletion_reason?: string | null
           id?: string
+          is_card_import_default?: boolean
           is_inbound_inquiry?: boolean
           is_inquiry_default?: boolean
           last_updated_by?: string | null
@@ -5152,6 +5203,9 @@ export type Database = {
           deleted_by: string | null
           deletion_reason: string | null
           id: string
+          is_card_import_initial: boolean
+          is_inquiry_initial: boolean
+          is_system_required: boolean
           name: string
           sort_order: number
           stage_id: string
@@ -5166,6 +5220,9 @@ export type Database = {
           deleted_by?: string | null
           deletion_reason?: string | null
           id?: string
+          is_card_import_initial?: boolean
+          is_inquiry_initial?: boolean
+          is_system_required?: boolean
           name: string
           sort_order?: number
           stage_id: string
@@ -5180,6 +5237,9 @@ export type Database = {
           deleted_by?: string | null
           deletion_reason?: string | null
           id?: string
+          is_card_import_initial?: boolean
+          is_inquiry_initial?: boolean
+          is_system_required?: boolean
           name?: string
           sort_order?: number
           stage_id?: string

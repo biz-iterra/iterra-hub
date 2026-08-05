@@ -147,7 +147,8 @@ async function resolveDefaults(
     admin
       .from("lead_customer_activity_types")
       .select("id")
-      .eq("code", "form_submit")
+      .eq("is_form_submit", true)
+      .is("deleted_at", null)
       .maybeSingle(),
   ]);
 
@@ -180,7 +181,8 @@ async function resolveDefaults(
     .from("lead_statuses")
     .select("id")
     .eq("stage_id", stage.data.id)
-    .eq("code", "not_started")
+    .eq("is_inquiry_initial", true)
+    .is("deleted_at", null)
     .maybeSingle();
 
   return {

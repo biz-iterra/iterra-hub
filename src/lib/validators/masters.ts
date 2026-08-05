@@ -51,6 +51,7 @@ export const updateContractTypeSchema = createContractTypeSchema.partial();
 
 // --- M03: corporate_types ---
 export const createCorporateTypeSchema = z.object({
+  is_sole_proprietor: z.boolean().optional(),
   name: masterNameSchema(50),
   definition: masterDefinitionSchema,
 });
@@ -85,6 +86,9 @@ export const updateAccountTypeSchema = createAccountTypeSchema.partial();
 
 // --- M07: account_statuses ---
 export const createAccountStatusSchema = z.object({
+  is_active_default: z.boolean().optional(),
+  is_churned_default: z.boolean().optional(),
+  is_prospect_default: z.boolean().optional(),
   code: masterCodeSchema("code", "コード", "active"),
   name: masterNameSchema(50),
   definition: masterDefinitionSchema,
@@ -94,6 +98,7 @@ export const updateAccountStatusSchema = createAccountStatusSchema.partial();
 
 // --- M08: contact_statuses ---
 export const createContactStatusSchema = z.object({
+  is_new_default: z.boolean().optional(),
   name: masterNameSchema(50),
   definition: masterDefinitionSchema,
   color: badgeColorSchema,
@@ -102,6 +107,7 @@ export const updateContactStatusSchema = createContactStatusSchema.partial();
 
 // --- M11: company_statuses ---
 export const createCompanyStatusSchema = z.object({
+  is_new_default: z.boolean().optional(),
   name: masterNameSchema(50),
   definition: masterDefinitionSchema,
   color: badgeColorSchema,
@@ -136,6 +142,7 @@ export const leadCategoryUpdateSchema = leadCategoryCreateSchema.partial();
 
 // --- M23: lead_activity_types ---
 export const leadActivityTypeCreateSchema = z.object({
+  is_card_exchange: z.boolean().optional(),
   code: masterCodeSchema("code", "コード", "call"),
   name: masterNameSchema(50),
   definition: masterDefinitionSchema,
@@ -200,6 +207,8 @@ export const leadStageUpdateSchema = leadStageCreateSchema.partial();
 // stage_id / code は DB が NOT NULL。UNIQUE(stage_id, code) なので
 // 同じステージ内でコードが重複すると DB 側で弾かれる
 export const leadStatusCreateSchema = z.object({
+  is_inquiry_initial: z.boolean().optional(),
+  is_card_import_initial: z.boolean().optional(),
   stage_id: uuidString("[stage_id] リードステージを選択してください"),
   name: masterNameSchema(100),
   definition: masterDefinitionSchema,
@@ -218,6 +227,7 @@ export const leadTemperatureUpdateSchema = leadTemperatureCreateSchema.partial()
 
 // --- lead_call_statuses ---
 export const leadCallStatusCreateSchema = z.object({
+  is_card_exchange: z.boolean().optional(),
   code: masterCodeSchema("code", "コード", "connected"),
   name: masterNameSchema(50),
   definition: masterDefinitionSchema,
@@ -313,6 +323,7 @@ export const leadCompanySizeUpdateSchema = z.object({
 
 // --- M25: lead_customer_activity_types ---
 export const leadCustomerActivityTypeSchema = z.object({
+  is_form_submit: z.boolean().optional(),
   code: masterCodeSchema("code", "コード", "site_visit"),
   name: masterNameSchema(100),
   description: z

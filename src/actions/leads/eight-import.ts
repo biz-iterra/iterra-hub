@@ -374,10 +374,10 @@ async function resolveDefaults(
   ownerUserId: string
 ): Promise<ImportDefaults | { error: string }> {
   const [stage, source, activityType, callStatus] = await Promise.all([
-    supabase.from("lead_stages").select("id").eq("slug", "generation").maybeSingle(),
-    supabase.from("lead_sources").select("id").eq("slug", EIGHT_SOURCE_SLUG).maybeSingle(),
-    supabase.from("lead_activity_types").select("id").eq("code", "card_exchange").maybeSingle(),
-    supabase.from("lead_call_statuses").select("id").eq("code", "card_exchange").maybeSingle(),
+    supabase.from("lead_stages").select("id").eq("is_inquiry_default", true).is("deleted_at", null).maybeSingle(),
+    supabase.from("lead_sources").select("id").eq("is_card_import_default", true).is("deleted_at", null).maybeSingle(),
+    supabase.from("lead_activity_types").select("id").eq("is_card_exchange", true).is("deleted_at", null).maybeSingle(),
+    supabase.from("lead_call_statuses").select("id").eq("is_card_exchange", true).is("deleted_at", null).maybeSingle(),
   ]);
 
   if (!stage.data) return { error: "獲得ステージが見つかりません" };
@@ -389,7 +389,8 @@ async function resolveDefaults(
     .from("lead_statuses")
     .select("id")
     .eq("stage_id", stage.data.id)
-    .eq("code", "card_exchanged")
+    .eq("is_card_import_initial", true)
+    .is("deleted_at", null)
     .maybeSingle();
   if (!status.data) return { error: "ステータス「名刺交換済」が登録されていません" };
 

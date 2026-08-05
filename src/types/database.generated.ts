@@ -6705,6 +6705,17 @@ export type Database = {
         Args: { p_contact_id: string }
         Returns: number
       }
+      detect_freee_candidates_for_company: {
+        Args: { p_company_id: string }
+        Returns: {
+          detail: Json
+          freee_partner_id: number
+          partner_code: string
+          partner_id: string
+          partner_name: string
+          reason: string
+        }[]
+      }
       detect_freee_contact_candidates: {
         Args: { p_partner_id: string }
         Returns: {
@@ -6739,8 +6750,13 @@ export type Database = {
       }
       find_contact_by_email: { Args: { p_email: string }; Returns: string }
       freee_account_type_to_crm: { Args: { p_type: string }; Returns: string }
+      freee_default_title: { Args: never; Returns: string }
       freee_prefecture_code: { Args: { p_name: string }; Returns: number }
       freee_prefecture_name: { Args: { p_code: number }; Returns: string }
+      get_company_freee_source: {
+        Args: { p_company_id: string }
+        Returns: Json
+      }
       get_user_role: { Args: never; Returns: string }
       import_eight_leads: {
         Args: { p_batch: Json; p_defaults: Json; p_errors: Json; p_leads: Json }
@@ -6795,6 +6811,28 @@ export type Database = {
           status_id: string
           status_name: string
           status_order: number
+        }[]
+      }
+      link_created_freee_partner: {
+        Args: {
+          p_actor?: string
+          p_company_id: string
+          p_freee_company_id: number
+          p_row: Json
+        }
+        Returns: string
+      }
+      list_companies_without_freee_partner: {
+        Args: { p_limit?: number; p_offset?: number; p_search?: string }
+        Returns: {
+          company_code: string
+          company_id: string
+          corporate_type: string
+          invoice_registration_number: string
+          name: string
+          name_kana: string
+          phone: string
+          total_count: number
         }[]
       }
       merge_contacts: {

@@ -3441,9 +3441,19 @@ freee 会計に既にある取引先（Partner）を CRM へ取り込み、事�
 **freee 側には一切書かない。** 読み取り専用の同期にする。会計は確定した数字を扱う
 システムであり、CRM 側の編集が伝播すると仕訳の前提が崩れる。
 
-**自動紐付けはインボイス登録番号の一致だけ。** 名称・メールドメイン・電話の一致は
+**自動紐付けは「番号の一致」だけ。** 名称・メールドメイン・電話の一致は
 「候補」として画面に出し、admin が確定する。会社名の一致は雑居ビルの別会社や
 グループ会社で普通に起きるため、自動で結ぶには弱い。
+
+見る順序は **取引先コード → インボイス登録番号 → 法人番号**（2026-08-05 に
+取引先コードを追加）。インボイス番号と法人番号は「同じ番号なら同じ会社のはず」という
+**推定**だが、取引先コード（`companies.company_code`）は **CRM 自身が採番した値**
+なので推定が要らない。ただし freee の画面で人が自由に入れられる欄でもあるため、
+**該当する事業者が無いコードは無視して次のキーへ回す**。
+
+**既に別の取引先が紐付いている事業者には繋がない。** `freee_partners.company_id` に
+UNIQUE 制約が無く、放っておくと 1 つの事業者に複数の取引先がぶら下がる。そうなると
+差分画面が同じ相手を何度も出し、どちらへ書いたのか追えなくなる。
 
 **取引先（Account）は自動作成しない。** Account は契約成立時の
 `ensure_account_on_contract` トリガーでのみ作られる原則（§16）を崩さない。
@@ -3487,6 +3497,10 @@ member / manager には見せない。同期は service_role が RLS をバイ�
 | `detect_freee_partner_candidates(partner_id)` | 画面（authenticated） | 候補の検出。**保存せず都度計算する**（freee 側・CRM 側どちらの変化でも陳腐化するため）。**1 社 1 行**で最も強い理由（名称 > ドメイン > 電話）を返す |
 | `confirm_freee_partner_link(...)` | 画面（authenticated） | 紐付けの確定 |
 | `register_freee_partner_company(...)` | 画面（authenticated） | 事業者情報の新規作成 + 紐付け |
+| `list_companies_without_freee_partner(search, limit, offset)` | 画面（authenticated） | freee と紐付いていない事業者情報。登録対象の一覧（§26.13） |
+| `detect_freee_candidates_for_company(company_id)` | 画面（authenticated） | 逆向きの候補検出。**1 件 1 行**で最も強い理由（インボイス > 名称 > 電話）を返す |
+| `get_company_freee_source(company_id)` | 画面（authenticated） | 新規登録で送る値一式。**差分検出と同じ集約にする** |
+| `link_created_freee_partner(...)` | 登録（service_role 限定） | POST 成功後にミラー登録 → 確定紐付け → ログを 1 トランザクションで行う |
 
 確定系の 2 関数は `SECURITY DEFINER` なので RLS に頼れない。関数内で
 `IF NOT COALESCE(is_admin(), FALSE)` を確認する。**`COALESCE` を外さないこと。**
@@ -3798,9 +3812,70 @@ freee の `code`（取引先コード）に **CRM の事業者コード（`compa
 36 文字の UUID は読めない。`company_code` なら CRM の画面にも出ているので突き合わせられる
 （2026-08-04 に変更）。
 
+#### 既存の取引先には API から入れられない（2026-08-05 に判明）
+
+**取引先コードを指定できるのは新規登録（POST）のときだけ。** 更新（PUT）に `code` は無く、
+混ぜると 400 が返る。
+
+```
+不正なリクエストです。 / このAPIでは code の指定はできません。
+```
+
+freee 公式 SDK の型でも `PartnerCreateParams` にだけ `code` があり、
+`PartnerUpdateParams` には無い。**1 項目のために更新全体が落ちる**ため、
+`FreeePartnerPayload`（更新用）からは外し、`FreeePartnerCreatePayload`（作成用）に置いた。
+
+逆向きも通らない。`companies.company_code` は `generate_company_code()` が採番する
+`VARCHAR(10) UNIQUE NOT NULL` で、freee の値では上書きできない。
+
+したがって**既存の取引先**については、取引先コードはどちらへも反映できない。差分画面では
+値を並べて見せるだけにし、選択肢を出さない（担当者名と同じ扱い）。揃えるときは freee の
+画面か CSV インポートで人が入れる。
+
+**新しく作る相手には入れられる**（§26.13）。CRM から登録した相手は以後コードで
+自動的に突合される（§23.2）。
+
+なお freee 側の**事業所設定で取引先コードは既定が「使用しない」**。「使用する」にすると
+新規登録時に必須になり、省くと 400「Codeを入力してください。」が返る。
+**ITERRA は「使用する」で運用する**（2026-08-05 に確認）。
+
 取引先（`accounts`）ではなく事業者情報にしたのは、**取引先は契約成立まで存在せず**、
 多くの相手で空になるため。契約成立を境にコードが入れ替わると、freee 側でコードを
 鍵にしている運用と食い違う。
+
+### 26.8.1 名称とカナの入り先（2026-08-05）
+
+freee には**名前が 2 組**ある。画面では「基本情報」と「書類に使用する名称」に分かれる。
+
+| freee の画面 | API | CRM から入れるもの |
+|---|---|---|
+| 基本情報の「名前」 | `name` | 事業者名（`companies.name`） |
+| 基本情報の「名前（ふりがな）」 | **対応する項目が無い** | **入れられない** |
+| 書類の「正式名称」 | `long_name` | 事業者名（同上） |
+| 書類の「正式名称（カナ）」 | `name_kana` | フリガナ（`companies.name_kana`） |
+
+**会社名は `name` と `long_name` の両方へ入れる。** 片方だけだと freee 側で表記が
+ばらつく。送信は元から両方に入れていたが、**差分の検出が
+`COALESCE(long_name, name)` を見ていた**ため、`long_name` だけ空のときに差分にならず、
+正式名称が空のまま残り続けていた（2026-08-05 の指摘）。
+検出は**両方を CRM の会社名と比べ、どちらかが違えば差分にする**。
+
+**「名前（ふりがな）」は API から設定できない。** カナ系の項目は `name_kana`
+（カナ名称）1 つだけで、これは書類の「正式名称（カナ）」に当たる。
+`shortcut1` / `shortcut2` は画面にも別の欄として存在する別物なので**流用しない**
+（検索用のキーワード欄で、意味が違う）。この欄を揃えたいときは freee の画面で人が入れる。
+
+### 26.8.2 敬称は既定で「様」（2026-08-05）
+
+`default_title` は **「御中 / 様 / (空白)」の 3 択**（API の仕様）。CRM に対応する項目は
+無いため、**未設定のときだけ既定の「様」を提案する**。既に「御中」等が入っていれば触らない。
+
+- 新規登録: 常に「様」を入れる
+- 既存: 差分画面に「敬称」を出し、人が確定したときに入る
+- **freee → CRM は不可**（CRM に項目が無い）。選ばれたら明示的に落とす
+
+既定値は **DB（`freee_default_title()`）と TS（`DEFAULT_TITLE`）の対で持つ**。
+片方だけ直すと、差分画面が提案する値と実際に送る値が食い違う。
 
 ### 26.10 連携する項目の一覧（2026-08-04 に全面見直し）
 
@@ -3811,13 +3886,12 @@ freee にしかないものはミラーに取り込むだけ**にする。CRM �
 
 | freee | CRM |
 |---|---|
-| `long_name`（無ければ `name`） | `companies.name` |
-| `name_kana` | `companies.name_kana` |
+| `name`（基本情報の名前）＋ `long_name`（書類の正式名称） | `companies.name` |
+| `name_kana`（書類の正式名称（カナ）） | `companies.name_kana` |
 | `phone` | `companies.phone` |
 | `invoice_registration_number` | `companies.invoice_registration_number` |
 | `qualified_invoice_issuer` | `companies.invoice_registered`（該当する / 該当しない） |
 | `org_code` | 法人格（個人事業主なら個人、それ以外は法人） |
-| `code` | `companies.company_code` |
 | `address_attributes.*` | 主住所（郵便番号・都道府県・市区町村＋番地・建物名） |
 | `partner_bank_account_attributes.*` | `financial_info` の主口座（銀行名・支店・口座番号・名義・種別） |
 
@@ -3827,13 +3901,23 @@ freee にしかないものはミラーに取り込むだけ**にする。CRM �
 |---|---|---|
 | `contact_name` | 主担当の**姓・ミドル名・名を続けた文字列** | freee は氏名を 1 項目で持ち、姓と名の切れ目が分からない。取り込むと別人に上書きしかねない |
 | `email` | 主担当の主メール | 同上（連絡先が正本） |
+| `default_title`（敬称） | **CRM に項目は無い**（既定の「様」を入れる） | 未設定だと書類の宛名が敬称なしになる。§26.8.2 |
+
+**②' 差分画面に出すが、どちらへも反映できない**
+
+| freee | CRM | なぜ反映できないか |
+|---|---|---|
+| `code` | `companies.company_code` | 更新 API が `code` を受け付けず（新規登録のみ）、CRM 側は採番した UNIQUE な値。§26.8 |
 
 **③ ミラーに取り込むだけ（CRM に正本を持たない）**
 
-`shortcut1` / `shortcut2` / `default_title`（敬称）/ `payer_walletable_id` /
+`shortcut1` / `shortcut2` / `payer_walletable_id` /
 `transfer_fee_handling_side` / `partner_doc_setting_attributes`（送付方法）/
 `payment_term_attributes`（支払条件）/ `invoice_payment_term_attributes`（請求条件）/
 `available` / `country_code` / `update_date`
+
+**`shortcut1` / `shortcut2` を「ふりがな」に流用しないこと。** freee の画面にも
+別の欄として存在する（§26.8.1）。
 
 **④ freee に対応項目が無い（送らない）**
 
@@ -3904,6 +3988,58 @@ title 属性で状態の違いを補う。
 **admin にしか出さない。** `freee_partners` は RLS で admin しか読めず、
 他ロールでは連携済みでも空で返るため、出すと未連携と誤解させる。
 
+### 26.13 CRM → freee の新規登録（2026-08-05 追加）
+
+CRM にあって freee に無い相手を freee の取引先として作る。
+画面は `/admin/freee/register`（freee 連携画面の「連携する事業者を追加する」）。
+
+**この経路を作った理由は取引先コード。** 更新 API では入れられないため、
+`CMP-000001` を freee に載せられるのは新規登録のときだけ（§26.8）。
+ここで作った相手は以後コードで自動的に突合される。
+
+#### 対象の出し方
+
+「freee に無い」は**紐付いていない**（`link_status` が `auto` / `confirmed` でない）で
+判断する。freee 側に実在していても紐付いていなければ一覧に出し、画面で候補を確認させる。
+「本当に存在しないか」をアプリ側で判定しようとすると、結局は名寄せをやり直すことになる。
+
+#### 二重登録を防ぐ
+
+**freee は取引先名の重複を許す**（だから取引先コードが導入された）。
+確認せずに作ると表記ゆれで同じ相手が 2 つできるため、
+`detect_freee_candidates_for_company()` が似た取引先を出し、人が選ぶ。
+
+| 一致 | 強さ |
+|---|---|
+| インボイス番号 | 強い（当たれば同一とみなしてよい） |
+| 名称の正規化一致 | 中（略記の展開・空白除去を通したうえで比較） |
+| 電話番号 | 弱い（代表番号の共用がある） |
+
+候補があれば「これと紐づける」（`confirm_freee_partner_link`）を選べる。
+**既に別の事業者と紐付いている候補は選ばせない。**
+
+#### 送る項目
+
+差分画面と同じ範囲（§26.10 の ①・②）＋ 取引先コード。
+値は `get_company_freee_source()` が集める。**差分検出と同じ集約にすること。**
+ずれると登録した直後に差分が出る。
+
+**値が無い項目は送らない。** 更新は「空を送って消す」意味があるが、登録では単に
+持っていないだけなので、送ると freee 側に空欄を作ることになる。
+
+#### 作った後
+
+POST が通ったら、**必ずミラーへ入れて紐付けまで済ませる**。やらないと次の同期で
+「新しい取引先」として取り込まれ、未紐付けとして人の作業に戻ってくる。
+`link_created_freee_partner()` が upsert → `confirmed` で紐付け → ログまでを
+1 つの関数で行う（複数テーブルへの書き込みは DB 関数にまとめる規約）。
+
+**POST が失敗したときは `freee_sync_logs` に残せない。** 取引先がまだ無く
+`freee_partner_id` を埋められないため。理由は画面のダイアログに出す。
+逆に **POST が通った後で紐付けに失敗した場合は、freee 側にだけ取引先が残る。**
+このときは作られた取引先の ID を文言に含めて返し、同期で拾えるようにする
+（黙って失敗にすると、作り直して二重登録になる）。
+
 ### 26.6 マイグレーション
 
 | ファイル | 内容 |
@@ -3916,3 +4052,6 @@ title 属性で状態の違いを補う。
 | `20260805000011_freee_apply_full.sql` | 追加項目の取り込み。担当者名とメールは取り込まない |
 | `20260805000012_company_names_and_type.sql` | 事業者名・会社名・屋号名の分離 |
 | `20260805000013_freee_contact_candidates.sql` | 担当者名から連絡先の候補を出し、人が選んで主担当にする |
+| `20260805000014_freee_code_read_only.sql` | 取引先コードの取り込みを明示的に拒否（無言の無視をやめる）。§26.8 |
+| `20260805000015_freee_register_company.sql` | 取引先コードで自動紐付け。CRM → freee の新規登録に要る 4 関数。§26.13 |
+| `20260805000016_freee_name_kana_title.sql` | 名称を name と long_name の両方で比較。敬称の既定値「様」。§26.8.1 / §26.8.2 |

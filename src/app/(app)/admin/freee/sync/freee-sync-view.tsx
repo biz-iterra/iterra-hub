@@ -23,6 +23,21 @@ import type { FreeeContactCandidate, FreeePartnerDiff } from "@/types/relations"
 
 type Direction = "to_freee" | "to_crm" | "skip";
 
+/**
+ * 取引先コードはどちらへも反映できない（§26.8）。
+ *
+ * - CRM → freee: freee の更新 API が `code` を受け付けない（作成時のみ）
+ * - freee → CRM: `companies.company_code` は CRM が採番する（UNIQUE）
+ *
+ * 突き合わせの手がかりとして値は見せるが、選ばせずに理由と次の手を書く。
+ */
+const READ_ONLY_FIELDS = new Set(["code"]);
+
+/** 取引先コードだけは既定を「触らない」にする（既定のまま反映すると必ず失敗する） */
+function defaultDirection(field: string): Direction {
+  return READ_ONLY_FIELDS.has(field) ? "skip" : "to_freee";
+}
+
 const styles = {
   card: {
     backgroundColor: "#fff",
@@ -80,6 +95,12 @@ const styles = {
     fontWeight: 500,
     cursor: "pointer",
   } as CSSProperties,
+  readOnlyNote: {
+    display: "inline-block",
+    fontSize: "0.75rem",
+    lineHeight: 1.6,
+    color: "var(--color-sumi500)",
+  } as CSSProperties,
   empty: {
     padding: "2rem",
     textAlign: "center",
@@ -120,7 +141,7 @@ export function FreeeSyncView({
       Object.fromEntries(
         diffs.map((d) => [
           d.partnerId,
-          Object.fromEntries(d.fields.map((f) => [f.field, "to_freee" as Direction])),
+          Object.fromEntries(d.fields.map((f) => [f.field, defaultDirection(f.field)])),
         ])
       )
   );
@@ -312,7 +333,8 @@ export function FreeeSyncView({
               </thead>
               <tbody>
                 {d.fields.map((f) => {
-                  const picked = choices[d.partnerId]?.[f.field] ?? "to_freee";
+                  const picked =
+                    choices[d.partnerId]?.[f.field] ?? defaultDirection(f.field);
                   return (
                     <tr key={f.field}>
                       <td style={styles.td}>{f.label}</td>
@@ -375,6 +397,16 @@ export function FreeeSyncView({
                             )}
                           </div>
                         )}
+                        {READ_ONLY_FIELDS.has(f.field) ? (
+                          <span style={styles.readOnlyNote}>
+                            この項目は反映できません。freee の取引先コードは
+                            API では変更できず（新規登録時にしか入れられません）、
+                            事業者コードは CRM が採番するためです。
+                            揃えるときは freee の画面で
+                            <strong>{valueText(f.crm)}</strong>
+                            を入力してください。
+                          </span>
+                        ) : (
                         <div style={styles.radioRow}>
                           <label style={{ display: "inline-flex", gap: "0.25rem", alignItems: "center", cursor: "pointer" }}>
                             <input
@@ -385,8 +417,13 @@ export function FreeeSyncView({
                             />
                             CRM <ArrowRight size={11} /> freee
                           </label>
-                          {/* 担当者名とメールは CRM が正本。取り込みは選ばせない */}
-                          {f.field !== "contact_name" && f.field !== "email" && (
+                          {/*
+                            担当者名とメールは CRM が正本、敬称は CRM に項目が無い。
+                            いずれも取り込みは選ばせない（選べても何も起きない）
+                          */}
+                          {f.field !== "contact_name" &&
+                            f.field !== "email" &&
+                            f.field !== "default_title" && (
                             <label style={{ display: "inline-flex", gap: "0.25rem", alignItems: "center", cursor: "pointer" }}>
                               <input
                                 type="radio"
@@ -407,6 +444,7 @@ export function FreeeSyncView({
                             触らない
                           </label>
                         </div>
+                        )}
                       </td>
                     </tr>
                   );

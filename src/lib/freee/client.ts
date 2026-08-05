@@ -198,9 +198,18 @@ export async function fetchPartners(params: {
 // 送った内容と結果は freee_sync_logs に必ず残すこと。
 // ---------------------------------------------------------------------------
 
-/** freee の取引先へ書ける項目。CRM にしか無いものは送らない */
+/**
+ * freee の取引先へ**更新で**書ける項目。CRM にしか無いものは送らない。
+ *
+ * **`code`（取引先コード）はここに無い。** 更新 API は受け付けず、入れると 400
+ * 「不正なリクエストです。 / このAPIでは code の指定はできません。」を返す。
+ * 作成時だけ指定できるので FreeePartnerCreatePayload に置いてある（§26.8）。
+ */
 export type FreeePartnerPayload = {
+  /** 基本情報の「名前」。**書類の「正式名称」は long_name** で、両方に会社名を入れる */
   name?: string;
+  /** 敬称。**「御中 / 様 / (空白)」の 3 択**（API の仕様） */
+  default_title?: string | null;
   org_code?: number | null;
   contact_name?: string | null;
   email?: string | null;
@@ -212,9 +221,15 @@ export type FreeePartnerPayload = {
     account_number?: string | null;
     long_account_name?: string | null;
   };
-  /** 取引先コード。CRM の事業者情報 UID を入れて対応付けを見えるようにする */
-  code?: string | null;
+  /** 書類に使用する「正式名称」。基本情報の「名前」（name）と揃える */
   long_name?: string | null;
+  /**
+   * 書類に使用する「正式名称（カナ）」。
+   *
+   * **これが API で設定できる唯一のカナ。** freee の画面には基本情報の
+   * 「名前（ふりがな）」もあるが、対応する API の項目が無く設定できない
+   * （`shortcut1` / `shortcut2` は画面にも別にある別物なので流用しない。§26.8.1）。
+   */
   name_kana?: string | null;
   phone?: string | null;
   invoice_registration_number?: string | null;
@@ -224,6 +239,17 @@ export type FreeePartnerPayload = {
     street_name1?: string | null;
     street_name2?: string | null;
   };
+};
+
+/**
+ * 新規作成でだけ指定できる項目を足したもの。
+ *
+ * **取引先コードは作成時にしか入れられない。** 既に freee にある相手へ後から
+ * 入れる API は無いので、その場合は freee の画面か CSV インポートで行う（§26.8）。
+ */
+export type FreeePartnerCreatePayload = FreeePartnerPayload & {
+  /** 取引先コード。CRM の事業者コード（CMP-000001）を入れて対応付けを見えるようにする */
+  code?: string | null;
 };
 
 async function apiSend<T>(
@@ -287,11 +313,17 @@ export function describeFreeeValidationError(body: string, status: number): stri
   return `HTTP ${status} ${body.slice(0, 200)}`;
 }
 
-/** 取引先を新しく作る。CRM にあって freee に無い相手を登録するとき */
+/**
+ * 取引先を新しく作る。CRM にあって freee に無い相手を登録するとき。
+ *
+ * **取引先コードを入れられるのはここだけ**（更新では指定できない）。
+ * 事業所側で取引先コードを「使用する」にしている場合は指定が必須になり、
+ * 省くと 400「Codeを入力してください。」が返る。
+ */
 export async function createPartner(params: {
   accessToken: string;
   freeeCompanyId: number;
-  payload: FreeePartnerPayload;
+  payload: FreeePartnerCreatePayload;
 }): Promise<FreeePartner> {
   const json = await apiSend<{ partner: FreeePartner }>(
     "/api/1/partners",
@@ -306,6 +338,10 @@ export async function createPartner(params: {
  * 取引先を更新する。送った項目だけが変わるが、
  * **`name` だけは毎回必須**（省くと freee が 400 で
  * 「name が指定されていません。」を返す）。呼び出し側で必ず埋めること。
+ *
+ * **取引先コードは送れない。** 混ぜると項目 1 つのために更新全体が
+ * 400「このAPIでは code の指定はできません。」で落ちる。
+ * 型（FreeePartnerPayload）から外してあるので足さないこと。
  */
 export async function updatePartner(params: {
   accessToken: string;

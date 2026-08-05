@@ -25,9 +25,11 @@ import {
 } from "@/lib/gmail/crypto";
 import { getFreeeConfig, type FreeeConfig } from "./config";
 import {
+  createPartner,
   fetchPartners,
   refreshTokens,
   updatePartner,
+  type FreeePartnerCreatePayload,
   type FreeePartnerPayload,
 } from "./client";
 import { toPartnerRow } from "./partner";
@@ -270,5 +272,80 @@ export async function pushPartnerToFreee(params: {
     const message = e instanceof Error ? e.message : "freee への書き込みに失敗しました";
     await record(false, message);
     return { error: message };
+  }
+}
+
+/**
+ * CRM の事業者を freee の取引先として**新しく登録する**。
+ *
+ * 更新では取引先コードを入れられないため、コードを載せられるのはこの経路だけ
+ * （§26.8）。POST が通ったら、同じ相手を二度作らないよう
+ * **必ずミラーへ入れて紐付けまで済ませる**（DB 関数 1 本にまとめてある）。
+ *
+ * 失敗しても `freee_sync_logs` には残せない。取引先がまだ無く
+ * `freee_partner_id` を埋められないため。理由は呼び出し元が画面に出す。
+ */
+export async function createFreeePartnerForCompany(params: {
+  companyId: string;
+  payload: FreeePartnerCreatePayload;
+  actorId: string;
+}): Promise<{ data: { partnerId: string } | null; error: string | null }> {
+  const config = getFreeeConfig();
+  if (!config) return { data: null, error: "freee 連携が未設定です" };
+
+  const admin = createAdminClient();
+
+  const { data: conn, error: connError } = await admin
+    .from("freee_connections")
+    .select(
+      "id, freee_company_id, refresh_token_enc, access_token_enc, access_token_expires_at, last_synced_at"
+    )
+    .eq("is_active", true)
+    .order("created_at")
+    .limit(1)
+    .maybeSingle<ConnectionRow>();
+
+  if (connError) {
+    return { data: null, error: toUserMessage(connError, { entityLabel: "freee 連携" }) };
+  }
+  if (!conn) return { data: null, error: "freee との接続が見つかりません" };
+
+  try {
+    const accessToken = await ensureAccessToken(admin, conn, config);
+
+    const created = await createPartner({
+      accessToken,
+      freeeCompanyId: conn.freee_company_id,
+      payload: params.payload,
+    });
+
+    const { data: partnerId, error: rpcError } = await admin.rpc(
+      "link_created_freee_partner",
+      {
+        p_freee_company_id: conn.freee_company_id,
+        p_row: toPartnerRow(created) as never,
+        p_company_id: params.companyId,
+        p_actor: params.actorId,
+      }
+    );
+
+    if (rpcError) {
+      // **freee 側には既に作られている。** 黙って失敗にすると、作り直して
+      // 二重登録になる。作られた取引先の ID を文言に残して追えるようにする
+      return {
+        data: null,
+        error:
+          `freee に取引先（ID: ${created.id}）を作りましたが、CRM 側の紐付けに失敗しました。` +
+          `同期を実行して紐付けを確認してください。` +
+          toUserMessage(rpcError, { entityLabel: "freee 取引先" }),
+      };
+    }
+
+    return { data: { partnerId: partnerId as string }, error: null };
+  } catch (e) {
+    return {
+      data: null,
+      error: e instanceof Error ? e.message : "freee への登録に失敗しました",
+    };
   }
 }

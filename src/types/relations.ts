@@ -843,3 +843,34 @@ export type FreeeContactCandidate = {
   /** すでにこの事業者の主担当か */
   isPrimary: boolean;
 };
+
+/** freee と紐付いていない事業者情報。「連携する事業者を追加する」の対象 */
+export type FreeeUnlinkedCompany = {
+  companyId: string;
+  companyCode: string;
+  name: string;
+  nameKana: string | null;
+  phone: string | null;
+  invoiceRegistrationNumber: string | null;
+  corporateType: string | null;
+};
+
+/**
+ * 事業者情報に似た freee 取引先（登録の前に見せる）。
+ *
+ * **freee は取引先名の重複を許す。** 確認せずに作ると表記ゆれで
+ * 同じ相手が 2 つできるため、候補を出して人が判断する。
+ */
+export type FreeeCandidateForCompany = {
+  partnerId: string;
+  freeePartnerId: number;
+  partnerName: string;
+  /** freee 側の取引先コード。空なら未設定 */
+  partnerCode: string | null;
+  /** invoice: インボイス番号一致（強い） / name: 名称 / phone: 電話番号 */
+  reason: "invoice" | "name" | "phone";
+  invoiceRegistrationNumber: string | null;
+  phone: string | null;
+  /** 既に別の事業者と紐付いていれば、この候補は選べない */
+  linkStatus: "unlinked" | "auto" | "confirmed" | "excluded";
+};

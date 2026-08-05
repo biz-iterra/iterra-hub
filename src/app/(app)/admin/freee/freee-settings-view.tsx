@@ -325,6 +325,11 @@ export function FreeeSettingsView({
           </strong>
           — 契約が成立したときにだけ作られる仕組みを守るためです。
         </p>
+        <p style={styles.hint}>
+          <strong>CRM にあって freee に無い相手は、こちらから登録できます。</strong>
+          登録のときだけ取引先コード（事業者コード）を入れられるので、
+          以後はコードで確実に突合できます。
+        </p>
         <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
           <Link href="/admin/freee/partners" style={styles.link}>
             突合画面を開く
@@ -332,6 +337,10 @@ export function FreeeSettingsView({
           </Link>
           <Link href="/admin/freee/sync" style={styles.link}>
             差分を確認して反映する
+            <ArrowUpRight size={14} />
+          </Link>
+          <Link href="/admin/freee/register" style={styles.link}>
+            連携する事業者を追加する
             <ArrowUpRight size={14} />
           </Link>
         </div>

@@ -13,22 +13,45 @@ import { revalidatePath } from "next/cache";
 import { toUserMessage } from "@/lib/db-error";
 import { createClient } from "@/lib/supabase/server";
 import { buildIlikePattern } from "@/lib/search-query";
+import { DEFAULT_PAGE_SIZE } from "@/lib/constants/pagination";
 import { isFreeeConfigured } from "@/lib/freee/config";
-import { pushPartnerToFreee, syncFreeeConnection } from "@/lib/freee/sync";
-import { freeePrefectureCode } from "@/lib/freee/prefecture";
-import { crmAccountTypeToFreee } from "@/lib/freee/account-type";
+import {
+  createFreeePartnerForCompany,
+  pushPartnerToFreee,
+  syncFreeeConnection,
+} from "@/lib/freee/sync";
+import {
+  buildFreeeCreatePayload,
+  buildFreeeUpdatePayload,
+  type FreeeCompanySource,
+} from "@/lib/freee/payload";
 import type {
+  FreeeCandidateForCompany,
   FreeeConnectionStatus,
   FreeeContactCandidate,
   FreeePartnerDiff,
   FreeePartnerCandidate,
   FreeePartnerListItem,
   FreeeSyncSummary,
+  FreeeUnlinkedCompany,
 } from "@/types/relations";
 
 type ActionResult<T> = { data: T | null; error: string | null };
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * 取引先コードは freee の更新 API が受け付けない（作成時にしか指定できない）。
+ * 画面・Server Action・DB 関数の 3 箇所で同じ判断をするため文言を 1 つにする
+ * （docs/error-messages.md）
+ */
+const FREEE_CODE_NOT_UPDATABLE =
+  "取引先コードは freee の API では変更できません。freee の画面で入力してください";
+
+/** 逆向きも通らない。事業者コードは CRM が採番する（UNIQUE 制約つき） */
+const FREEE_CODE_NOT_IMPORTABLE =
+  "事業者コードは CRM が自動で採番します。freee の値では上書きできません";
+
 
 type AdminContext = {
   supabase: Awaited<ReturnType<typeof createClient>>;
@@ -485,6 +508,11 @@ export async function pushFieldsToFreee(params: {
   if (params.fields.length === 0) {
     return { data: null, error: "反映する項目を選んでください" };
   }
+  // 取引先コードは freee の更新 API が受け付けない（§26.8）。
+  // 混ぜると他の項目まで巻き込んで 400 になるため、送る前に弾く
+  if (params.fields.includes("code")) {
+    return { data: null, error: FREEE_CODE_NOT_UPDATABLE };
+  }
 
   // 送る値は**その場で引き直す**。画面が古い値を握っていても、
   // 実際に書くのは現在の CRM の値にする
@@ -496,95 +524,12 @@ export async function pushFieldsToFreee(params: {
     return { data: null, error: "差分が見つかりません。画面を再読み込みしてください" };
   }
 
-  const payload: Record<string, unknown> = {};
-  const changes: Record<string, { from: unknown; to: unknown }> = {};
-
-  for (const f of target.fields) {
-    if (!params.fields.includes(f.field)) continue;
-    changes[f.field] = { from: f.freee, to: f.crm };
-    switch (f.field) {
-      case "name":
-        // freee の name は表示名、long_name が正式名称。両方を揃える
-        payload.name = f.crm;
-        payload.long_name = f.crm;
-        break;
-      case "name_kana":
-        payload.name_kana = f.crm;
-        break;
-      case "phone":
-        payload.phone = f.crm;
-        break;
-      case "invoice_registration_number":
-        payload.invoice_registration_number = f.crm;
-        break;
-      case "code":
-        // freee の取引先コードに CRM の事業者情報 UID を入れる。
-        // どの CRM レコードに対応するのかが freee 側から分かるようにする
-        payload.code = f.crm;
-        break;
-      case "zipcode":
-        payload.address_attributes = {
-          ...(payload.address_attributes as object | undefined),
-          zipcode: f.crm,
-        };
-        break;
-      case "prefecture":
-        // freee は都道府県をコードで持つ（0: 北海道 〜 46: 沖縄県）
-        payload.address_attributes = {
-          ...(payload.address_attributes as object | undefined),
-          prefecture_code: freeePrefectureCode(f.crm),
-        };
-        break;
-      case "street":
-        // **CRM は市区町村と番地が別、freee は 1 項目**。
-        // 差分の crm 値は既に連結済みなのでそのまま送る
-        payload.address_attributes = {
-          ...(payload.address_attributes as object | undefined),
-          street_name1: f.crm,
-        };
-        break;
-      case "building":
-        payload.address_attributes = {
-          ...(payload.address_attributes as object | undefined),
-          street_name2: f.crm,
-        };
-        break;
-      case "qualified_invoice_issuer":
-        // 画面には「該当する / 該当しない」で出しているので真偽値へ戻す
-        payload.qualified_invoice_issuer = f.crm === "該当する";
-        break;
-      case "org_code":
-        payload.org_code = f.crm === "個人" ? 2 : 1;
-        break;
-      case "contact_name":
-        // **姓・ミドル名・名を続けたもの**（DB 側で組み立て済み）
-        payload.contact_name = f.crm;
-        break;
-      case "email":
-        payload.email = f.crm;
-        break;
-      case "bank_name":
-      case "branch_name":
-      case "account_number":
-      case "account_holder":
-      case "account_type": {
-        // freee は口座をまとめて受け取る。**送る分だけ組み立てる**
-        const bank = (payload.partner_bank_account_attributes ?? {}) as Record<
-          string,
-          unknown
-        >;
-        if (f.field === "bank_name") bank.bank_name = f.crm;
-        if (f.field === "branch_name") bank.branch_name = f.crm;
-        if (f.field === "account_number") bank.account_number = f.crm;
-        if (f.field === "account_holder") bank.long_account_name = f.crm;
-        if (f.field === "account_type") bank.account_type = crmAccountTypeToFreee(f.crm);
-        payload.partner_bank_account_attributes = bank;
-        break;
-      }
-      default:
-        break;
-    }
-  }
+  const selected = target.fields.filter((f) => params.fields.includes(f.field));
+  const changes = Object.fromEntries(
+    selected.map((f) => [f.field, { from: f.freee, to: f.crm }])
+  );
+  // 組み立ては純粋関数に切り出してある（テストできる形にするため。src/lib/freee/payload.ts）
+  const payload = buildFreeeUpdatePayload(selected);
 
   if (Object.keys(payload).length === 0) {
     return { data: null, error: "反映できる項目がありませんでした" };
@@ -614,6 +559,17 @@ export async function pullFieldsFromFreee(params: {
   }
   if (params.fields.length === 0) {
     return { data: null, error: "取り込む項目を選んでください" };
+  }
+  // DB 関数側でも弾いているが、無言で成功したように見せないため手前でも止める。
+  // 以前は分岐が無く、選んでも何も起きないまま成功トーストが出ていた（2026-08-05）
+  if (params.fields.includes("code")) {
+    return { data: null, error: FREEE_CODE_NOT_IMPORTABLE };
+  }
+  if (params.fields.includes("default_title")) {
+    return {
+      data: null,
+      error: "敬称は freee 側だけの項目です。CRM へは取り込めません",
+    };
   }
 
   const { error } = await auth.supabase.rpc("apply_freee_values_to_crm", {
@@ -694,4 +650,163 @@ export async function setPrimaryContactFromFreee(params: {
   revalidatePath("/admin/freee/sync");
   revalidatePath("/companies");
   return { data: true, error: null };
+}
+
+// ---------------------------------------------------------------------------
+// CRM → freee の新規登録（2026-08-05 追加）
+//
+// **取引先コードを載せられるのはこの経路だけ**（更新 API は code を受け付けない。
+// §26.8）。ここで作った相手は、以後コードで確実に突合できる。
+// ---------------------------------------------------------------------------
+
+/** freee と紐付いていない事業者情報。登録の対象を選ぶ一覧 */
+export async function listCompaniesWithoutFreeePartner(params: {
+  search?: string;
+  page?: number;
+  perPage?: number;
+}): Promise<ActionResult<{ rows: FreeeUnlinkedCompany[]; total: number }>> {
+  const auth = await requireAdmin();
+  if ("error" in auth) return { data: null, error: auth.error };
+
+  const perPage = params.perPage ?? DEFAULT_PAGE_SIZE;
+  const page = Math.max(params.page ?? 1, 1);
+
+  const { data, error } = await auth.supabase.rpc(
+    "list_companies_without_freee_partner",
+    {
+      p_search: params.search?.trim() || undefined,
+      p_limit: perPage,
+      p_offset: (page - 1) * perPage,
+    }
+  );
+
+  if (error) {
+    return { data: null, error: toUserMessage(error, { entityLabel: "事業者情報" }) };
+  }
+
+  const rows = (data ?? []) as {
+    company_id: string;
+    company_code: string;
+    name: string;
+    name_kana: string | null;
+    phone: string | null;
+    invoice_registration_number: string | null;
+    corporate_type: string | null;
+    total_count: number;
+  }[];
+
+  return {
+    data: {
+      rows: rows.map((r) => ({
+        companyId: r.company_id,
+        companyCode: r.company_code,
+        name: r.name,
+        nameKana: r.name_kana,
+        phone: r.phone,
+        invoiceRegistrationNumber: r.invoice_registration_number,
+        corporateType: r.corporate_type,
+      })),
+      // 件数は window 関数で全行に同じ値が入る。0 件なら行自体が無い
+      total: Number(rows[0]?.total_count ?? 0),
+    },
+    error: null,
+  };
+}
+
+/**
+ * 登録前に見せる「freee 側の似た取引先」。
+ *
+ * **自動では紐付けない。** 候補があるのに新規登録すると二重になるため、
+ * 画面で人が「新規登録」か「これと紐づける」を選ぶ。
+ */
+export async function getFreeeCandidatesForCompany(
+  companyId: string
+): Promise<ActionResult<FreeeCandidateForCompany[]>> {
+  const auth = await requireAdmin();
+  if ("error" in auth) return { data: null, error: auth.error };
+  if (!UUID_RE.test(companyId)) return { data: null, error: "不正なパラメータです" };
+
+  const { data, error } = await auth.supabase.rpc(
+    "detect_freee_candidates_for_company",
+    { p_company_id: companyId }
+  );
+
+  if (error) {
+    return { data: null, error: toUserMessage(error, { entityLabel: "freee 取引先" }) };
+  }
+
+  const rows = (data ?? []) as {
+    partner_id: string;
+    freee_partner_id: number;
+    partner_name: string;
+    partner_code: string | null;
+    reason: string;
+    detail: {
+      invoice_registration_number: string | null;
+      phone: string | null;
+      link_status: string;
+    };
+  }[];
+
+  return {
+    data: rows.map((r) => ({
+      partnerId: r.partner_id,
+      freeePartnerId: Number(r.freee_partner_id),
+      partnerName: r.partner_name,
+      partnerCode: r.partner_code,
+      reason: r.reason as FreeeCandidateForCompany["reason"],
+      invoiceRegistrationNumber: r.detail?.invoice_registration_number ?? null,
+      phone: r.detail?.phone ?? null,
+      linkStatus: (r.detail?.link_status ??
+        "unlinked") as FreeeCandidateForCompany["linkStatus"],
+    })),
+    error: null,
+  };
+}
+
+/**
+ * 事業者情報を freee の取引先として新規登録し、紐付けまで済ませる。
+ *
+ * 送る値は**その場で引き直す**（画面が古い値を握っていても、実際に送るのは
+ * 現在の CRM の値）。取引先コードは事業所設定が「使用する」のため必須で、
+ * 空のまま送ると freee が 400「Codeを入力してください。」を返す。
+ */
+export async function registerCompanyToFreee(
+  companyId: string
+): Promise<ActionResult<{ partnerId: string }>> {
+  const auth = await requireAdmin();
+  if ("error" in auth) return { data: null, error: auth.error };
+  if (!UUID_RE.test(companyId)) return { data: null, error: "不正なパラメータです" };
+
+  const { data: source, error: sourceError } = await auth.supabase.rpc(
+    "get_company_freee_source",
+    { p_company_id: companyId }
+  );
+  if (sourceError) {
+    return { data: null, error: toUserMessage(sourceError, { entityLabel: "事業者情報" }) };
+  }
+  if (!source) return { data: null, error: "事業者情報が見つかりません" };
+
+  const payload = buildFreeeCreatePayload(source as unknown as FreeeCompanySource);
+  if (!payload.name?.trim()) {
+    return { data: null, error: "事業者名が空のため freee へ登録できません" };
+  }
+  if (!payload.code) {
+    return {
+      data: null,
+      error: "事業者コードが取得できませんでした。時間をおいて再度お試しください",
+    };
+  }
+
+  const { data, error } = await createFreeePartnerForCompany({
+    companyId,
+    payload,
+    actorId: auth.userId,
+  });
+  if (error) return { data: null, error };
+
+  revalidatePath("/admin/freee/register");
+  revalidatePath("/admin/freee/partners");
+  revalidatePath("/companies");
+  return { data: data!, error: null };
 }

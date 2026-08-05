@@ -54,6 +54,8 @@ export const LIST_FILTER_KEYS = {
   leads: ["stageId", "statusId", "categoryId", "temperatureId", "ownerUserId", "search"],
   // freee 取引先の突合。既定は未紐付けだけを見るが、状態を切り替えて確認する
   freeePartners: ["linkStatus", "includeInactive", "search"],
+  // freee へ登録する事業者を探す画面。絞り込みは検索だけ
+  freeeRegister: ["search"],
 } as const satisfies Record<string, readonly string[]>;
 
 export const SORT_FIELDS = {

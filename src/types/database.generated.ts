@@ -7253,6 +7253,7 @@ export type Database = {
         Args: { p_keep: string; p_merge: string }
         Returns: Json
       }
+      normalize_account_type: { Args: { p_type: string }; Returns: string }
       normalize_address_key: {
         Args: {
           p_address_line1: string

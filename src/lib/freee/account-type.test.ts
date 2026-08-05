@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { crmAccountTypeToFreee, freeeAccountTypeToCrm } from "./account-type";
+import {
+  crmAccountTypeToFreee,
+  freeeAccountTypeToCrm,
+  normalizeAccountType,
+} from "./account-type";
 
 /**
  * **当座の綴りが freee と CRM で違う**（checking / current）。
@@ -32,5 +36,41 @@ describe("口座種別の対応", () => {
     expect(crmAccountTypeToFreee("")).toBeNull();
     expect(crmAccountTypeToFreee(null)).toBeNull();
     expect(freeeAccountTypeToCrm("unknown")).toBeNull();
+  });
+});
+
+/**
+ * UT-72: 比較の正規化。
+ *
+ * **freee は口座種別に未設定を持てない**（何も選ばなくても ordinary が返る）。
+ * CRM は NULL を取れるので、素で比べるとどちらも未設定なのに差分になる。
+ * DB 側の `normalize_account_type` と同じ規則を持つ。**片方だけ直さないこと。**
+ */
+describe("normalizeAccountType", () => {
+  it("未設定は普通預金として扱う", () => {
+    expect(normalizeAccountType(null)).toBe("ordinary");
+    expect(normalizeAccountType(undefined)).toBe("ordinary");
+    expect(normalizeAccountType("")).toBe("ordinary");
+    expect(normalizeAccountType("   ")).toBe("ordinary");
+  });
+
+  it("値があればそのまま（前後の空白だけ落とす）", () => {
+    expect(normalizeAccountType("current")).toBe("current");
+    expect(normalizeAccountType(" savings ")).toBe("savings");
+  });
+
+  it("揃えても本当の差分は消えない", () => {
+    // freee=当座 / CRM=未設定 → 差分として残る
+    expect(normalizeAccountType(freeeAccountTypeToCrm("checking"))).not.toBe(
+      normalizeAccountType(null)
+    );
+    // freee=普通 / CRM=貯蓄 → 差分として残る
+    expect(normalizeAccountType(freeeAccountTypeToCrm("ordinary"))).not.toBe(
+      normalizeAccountType("savings")
+    );
+    // freee=普通 / CRM=未設定 → 消える（これが今回の狙い）
+    expect(normalizeAccountType(freeeAccountTypeToCrm("ordinary"))).toBe(
+      normalizeAccountType(null)
+    );
   });
 });

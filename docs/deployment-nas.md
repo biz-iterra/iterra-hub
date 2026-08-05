@@ -1015,14 +1015,40 @@ cd /volume1/docker/iterra-hub
 応答が返らないと無限に待つ。手で叩いたときに「固まった」ように見える
 （2026-08-06 に実際に起きた）。
 
-**1 回の実行に 1〜3 分かかる。** People API の書き込みには 1 分あたりの上限があり、
-1 回 **150 件**で区切ったうえ **1 件ごとに 120ms 空けて**いる。**手で叩いたときに
-すぐ返らないのは正常。**
+**1 回の実行に 10 分ほどかかる。** People API の書き込みには 1 分あたりの上限があり、
+1 回 **150 件**で区切ったうえ **1 件ごとに 120ms 空けて**いる。それでも上限に当たり、
+`withRetry` が 2 秒 → 4 秒 → 8 秒と待ち直す。**手で叩いてすぐ返らないのは正常。**
+
+実測（2026-08-06 本番、連絡先 751 件）: **300 件に 21 分 42 秒**（1 件あたり約 4.3 秒）。
+コードの間隔は 120ms なので、差はすべて上限待ち。**この待ちは失敗として記録されない**
+ので、`google_contact_sync_logs` に失敗 0 のまま時間だけかかる。異常ではない。
+
+初回の全件登録にかかる時間の目安は **連絡先の件数 ÷ 150 × 11 分**。
+751 件なら約 1 時間。**初回だけスケジュールを 30 分間隔にし、送り切ったら 1 時間へ戻す**
+（10 分間隔にしても前回が終わる前に叩いて 409 になるだけで速くならない）。
 
 **1 回の実行で全部は送らない。** **応答の `remaining` が 0 でなければ残りがある**ので、
 初回の全件登録が終わるまでは実行間隔を詰める（または画面の「同期」を繰り返す）。
 連絡先の件数 ÷ 150 回だけ必要になる。
 定常運用に入れば 1 時間ごとで十分（変更のあった連絡先しか送らない）。
+
+**進み具合は DB で見る**（`sync.ts` はログを出さないのでコンテナのログには出ない）。
+
+```sql
+-- 直近 1 時間の実績。「最終」が数分以内なら動いている
+SELECT count(*) FILTER (WHERE succeeded)     AS 成功,
+       count(*) FILTER (WHERE NOT succeeded) AS 失敗,
+       max(performed_at) AS 最終,
+       max(performed_at) - min(performed_at) AS 所要
+  FROM google_contact_sync_logs
+ WHERE performed_at > now() - interval '1 hour';
+
+-- 全体の進み具合。「送信済み」が「連絡先の総数」に届けば完了
+SELECT (SELECT count(*) FROM google_contact_connections WHERE is_active) AS 接続数,
+       (SELECT count(*) FROM contacts WHERE deleted_at IS NULL)          AS 連絡先の総数,
+       (SELECT count(*) FROM google_contact_links
+         WHERE status = 'active' AND last_pushed_at IS NOT NULL)         AS 送信済み;
+```
 
 **前回が終わる前に叩くと 409 を返す。** これは異常ではない。
 なお **409 は認証と設定チェックの後にある**ので、409 が返った時点で

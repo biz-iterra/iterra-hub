@@ -6,15 +6,15 @@
 
 | 区分 | 対象 |
 |---|---|
-| 画面 | `/login`、`/dashboard`、`/admin`（マスタ管理）、`/admin/deleted`、`/admin/members`、`/admin/logs`、`/admin/freee`、`/admin/freee/partners`、`/profile`、`/manual`、共通レイアウト（サイドバー `src/components/layout/sidebar.tsx` / ヘッダー `header.tsx` / グローバル検索 `global-search.tsx`） |
-| Server Action | `src/actions/masters.ts`, `members.ts`, `users.ts`, `deleted.ts`, `change-logs.ts`, `search.ts`, `lookup.ts`, `freee.ts` |
+| 画面 | `/login`、`/dashboard`、`/admin`（マスタ管理）、`/admin/deleted`、`/admin/members`、`/admin/logs`、`/admin/freee`、`/admin/freee/partners`、`/admin/freee/sync`、`/admin/freee/register`、`/profile`（Gmail / Google コンタクトの連携）、`/manual`、共通レイアウト（サイドバー `src/components/layout/sidebar.tsx` / ヘッダー `header.tsx` / グローバル検索 `global-search.tsx`） |
+| Server Action | `src/actions/masters.ts`, `members.ts`, `users.ts`, `deleted.ts`, `change-logs.ts`, `search.ts`, `lookup.ts`, `freee.ts`, `google-contacts.ts` |
 | middleware | `src/middleware.ts` + `src/lib/supabase/middleware.ts`（認証リダイレクト。※ロール別のルーティングは middleware に無く、各ページ / Server Action / RLS が担う） |
-| API | `/api/health`（`src/app/api/health/route.ts`）、`/api/freee/auth`・`/api/freee/callback`・`/api/freee/sync` |
+| API | `/api/health`（`src/app/api/health/route.ts`）、`/api/freee/auth`・`/api/freee/callback`・`/api/freee/sync`、`/api/google-contacts/auth`・`/callback`・`/sync` |
 
 - テスト環境: http://localhost:2000
 - テストユーザー: admin@iterra.jp / manager@iterra.jp / member@iterra.jp（いずれも password123）
 - 前提データ: `supabase/seeds/01-masters.sql`〜`03-dev-samples.sql` 投入済みのローカル Supabase
-- ケース ID 凡例: AUTH=認証・アクセス制御、DSH=ダッシュボード、ADM=管理（マスタ・ログ・削除済み・メンバー）、FRE=freee 連携、PRF=プロフィール、CMN=共通基盤
+- ケース ID 凡例: AUTH=認証・アクセス制御、DSH=ダッシュボード、ADM=管理（マスタ・ログ・削除済み・メンバー）、FRE=freee 連携、GCT=Google コンタクト連携、PRF=プロフィール、CMN=共通基盤
 - 自動化区分: 「自動(Playwright)」「自動(API)」「手動」
 
 ### マスタ管理のタブ構成（実装 `admin-view.tsx` の `TAB_KEYS` / `GROUPS` より）
@@ -936,6 +936,131 @@
   - **middleware にリダイレクトされないこと**（Cookie 無しでも `/login` に飛ばない）
   - 1 接続の失敗が他を止めないこと（`results[].error` に残って続行する）
 - 自動化区分: 自動(API)
+
+---
+
+## Google コンタクト連携（GCT）
+
+仕様の正本は `docs/google-contacts-sync.md`。**Phase 1（接続 + CRM → Google の push）**
+が実装済みで、Google → CRM の取り込みと差分画面は Phase 2（T-0046）。
+
+### GCT-01: 連携セクションの表示（未設定 / 未接続 / 接続済み）
+
+- 対象: `/profile`（`GoogleContactsSection` / `getMyGoogleContactConnections`）
+- 権限: 全ロール（自分の接続のみ見える）
+- 手順:
+  1. 環境変数を設定せずに開く
+  2. 設定して開く
+  3. 接続済みの状態で開く
+- 期待結果:
+  - 1: 「環境変数が未設定です（GOOGLE_CONTACTS_CLIENT_ID / …）」が出て、
+    **接続ボタンは出ない**
+  - 2: 「Google と連携する」が出る
+  - 3: メールアドレス・最終同期・同期中の連絡先件数が出る。「同期」「解除」が押せる
+  - **どの状態でも、同意画面で求められる権限の説明が出ている**（下記 GCT-02）
+  - 他人の接続は出ない（`crm_user_id` で絞る）
+- 自動化区分: 総ざらい（`@sweep`）で表示のみ確認。状態別は手動
+
+### GCT-02: 同意画面の権限を事前に伝えている
+
+- 対象: `/profile` の説明文
+- 手順: 連携セクションの説明を読む
+- 期待結果:
+  - **「連絡先の表示、編集、ダウンロード、完全な削除」がそのまま書かれている**
+  - 「Google の連絡先はこの 1 段階しか権限が無い」旨が書かれている
+  - 「実際に触るのは ITERRA CRM グループの中だけ」「削除するのも CRM 側で
+    削除した相手に限る」が書かれている
+- 理由: 書き込めるスコープは `auth/contacts` の 1 つだけで、**技術的には全連絡先を
+  消せる権限**を求めることになる（§2.1）。黙って同意画面に飛ばすと不信感を招くか、
+  連携そのものを止められる
+- 自動化区分: 総ざらい（`@sweep`）で文言の存在を確認
+
+### GCT-03: 会社アカウント以外を弾く
+
+- 対象: `/api/google-contacts/callback`
+- 事前条件: `GOOGLE_CONTACTS_ALLOWED_DOMAIN` を設定している
+- 手順:
+  1. 会社の Workspace アカウントで認可する
+  2. 個人の Google アカウント（`@gmail.com`）で認可を試みる
+  3. `state` を書き換えて戻る
+  4. 認可画面で「キャンセル」する
+- 期待結果:
+  - 1: 接続が保存され、`hd_domain` に組織ドメインが入る
+  - 2: `会社のアカウント（@…）で連携してください。個人アカウントには同期できません`
+    で戻り、**接続は保存されない**
+  - 3: `認可のリクエストが確認できませんでした。もう一度お試しください`
+  - 4: `連携がキャンセルされました`
+  - 要求より広い権限が付いていたら
+    `想定より広い権限が許可されました（…）。連携を中止しました`
+- 理由: 同意画面を「内部」にすれば Google 側でも弾けるが、**アプリ側でも検証する**
+  （多層防御）。個人アカウントに顧客情報を配らないため
+- 自動化区分: 手動（Google の実接続が要る）
+
+### GCT-04: CRM → Google の反映
+
+- 対象: `/profile` の「同期」（`syncMyGoogleContacts`）
+- 権限: **自分の接続のみ**（他人の接続 ID を渡しても
+  `Google との接続が見つかりません`）
+- 事前条件: 連携済み。CRM に連絡先が複数ある
+- 手順:
+  1. 初めて同期する
+  2. Google コンタクトを見る
+  3. 続けてもう一度「同期」を押す
+  4. CRM で連絡先の電話番号を直してから同期する
+  5. CRM で連絡先を削除してから同期する
+  6. 何も変えずに同期する
+- 期待結果:
+  - 1: 「n 件を登録しました」。**上限に当たったら「残り n 件」が添えられる**
+  - 2: **「ITERRA CRM」グループ**に入っている。姓名・カナ・会社・部署・役職・
+    メール・電話・住所・誕生日が入る。**社内メモ・診断結果・ステータスは入らない**
+  - 3: 残りが続きから登録される（`remaining` が 0 になるまで繰り返せる）
+  - 4: 「1 件を更新しました」。Google 側の写真やメモは**消えない**
+  - 5: 「1 件を削除しました」。Google 側からも消える
+  - 6: 「変更はありませんでした」（**指紋が同じなら送らない**）
+- 自動化区分: 手動（Google の実接続が要る）。分岐は UT-69 で自動
+
+### GCT-05: 個人の連絡先に触れない
+
+- 対象: 同期全体
+- 事前条件: Google 側に CRM と無関係の個人的な連絡先がある
+- 手順: 何度か同期したうえで、個人の連絡先を確認する
+- 期待結果:
+  - **グループ外の連絡先は作成・更新・削除のいずれも行われない**
+  - CRM に無い連絡先が Google 側にあっても**掃除されない**
+    （「Google にあって CRM に無いものを消す」処理は作っていない）
+- 理由: `auth/contacts` は全連絡先を消せる権限だが、範囲を絞るのは
+  **アプリ側の規律**であり、これが破れると利用者の個人データを壊す（§2.1）
+- 自動化区分: 手動（Google の実接続が要る）
+
+### GCT-06: 連携の解除
+
+- 対象: `/profile` の「解除」（`disconnectGoogleContacts`）
+- 手順: 解除して、Google コンタクトを確認する
+- 期待結果:
+  - 確認ダイアログに**「Google 側の連絡先は残ります」**と出る
+  - 解除後は一覧から消え、同期の対象外になる
+  - **Google 側の連絡先は消えない**（回収したい場合は Google の画面で
+    「ITERRA CRM」グループごと削除する）
+- 自動化区分: 手動
+
+### GCT-07: 定期同期エンドポイントの認証
+
+- 対象: `/api/google-contacts/sync`（`POST`）
+- 権限: なし（Bearer 認証）
+- 手順:
+  1. Authorization なしで叩く
+  2. 誤った合言葉で叩く
+  3. 正しい合言葉で叩く
+  4. `GOOGLE_CONTACTS_SYNC_CRON_SECRET` を外して叩く
+  5. 前の同期が終わる前にもう一度叩く
+- 期待結果:
+  - 1・2: 401 `{"error":"認証に失敗しました"}`
+  - 3: 200 で `{"connections":n,"created":..,"remaining":..,"errors":[]}`
+  - 4: 503 `{"error":"定期同期は無効です（GOOGLE_CONTACTS_SYNC_CRON_SECRET が未設定）"}`
+  - 5: 409 `{"skipped":true,...}`
+  - **middleware にリダイレクトされないこと**（Cookie 無しでも `/login` に飛ばない）
+  - 1 接続の失敗が他を止めないこと（`errors[]` に残って続行する）
+- 自動化区分: 自動(API)。4 はローカルで確認済み（未設定のため 503）
 
 ---
 

@@ -22,8 +22,8 @@ describe("buildSocialDmUrl", () => {
     expect(buildSocialDmUrl(CHATWORK, { account_id: "123456789" })).toBe(
       "https://www.chatwork.com/#!rid123456789"
     );
-    expect(buildSocialDmUrl(LINE, { account_id: "itera_taro" })).toBe(
-      "https://line.me/ti/p/~itera_taro"
+    expect(buildSocialDmUrl(LINE, { account_id: "iterra_taro" })).toBe(
+      "https://line.me/ti/p/~iterra_taro"
     );
   });
 

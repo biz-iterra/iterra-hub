@@ -1,0 +1,198 @@
+{
+  // 綴りチェック（VS Code の Code Spell Checker 拡張が読む）。
+  //
+  // このプロジェクトは日本語のコメントと固有名詞が多く、既定の辞書では
+  // 正しい語が大量に警告される（freee / Bitwarden / pgcrypto など）。
+  // **警告が常時出ていると本物の誤字を見落とす**ので、正しい語はここへ登録する。
+  //
+  // 語を足すときは下のカテゴリに沿って**アルファベット順**で入れること。
+  // 判定は大文字小文字を区別しないため、freee / Freee / FREEE は 1 つでよい。
+  //
+  // **CI のゲートには入れない**（2026-08-05 の判断）。固有名詞を足すたびに
+  // ビルドが落ちる方が煩わしく、綴りは誤字に気づくための補助として扱う。
+  // 手元で全体を見るときは:
+  //   npx cspell "src/**/*.{ts,tsx}" "docs/**/*.md" "supabase/migrations/*.sql"
+  "version": "0.2",
+  "language": "en",
+  "ignorePaths": [
+    "node_modules/**",
+    ".next/**",
+    "package-lock.json",
+    "src/types/database.generated.ts",
+    // Supabase CLI が作る作業ファイル（プロジェクト ID などが入る）
+    "supabase/.temp/**",
+    "e2e/.auth/**",
+    "test-results/**",
+    "playwright-report/**"
+  ],
+  "ignoreRegExpList": [
+    // 全角英字の連続。半角へ寄せる変換表（20260802000003 ほか）で使う
+    "[\\uFF21-\\uFF3A\\uFF41-\\uFF5A]{4,}",
+    // URL エンコード（?sort=name%3Aasc の %3A が語に混ざる）
+    "%[0-9A-Fa-f]{2}"
+  ],
+  "words": [
+    // ---- 製品・サービス名 ----
+    "bitwarden",
+    "chatwork",
+    "cloudflared",
+    "freee",
+    "inbucket",
+    "ipadic",
+    "kuromoji",
+    "mailpit",
+    "peatix",
+    "postgrest",
+    "sansan",
+    "supabase",
+    "turbopack",
+    "ugos",
+    "ugreen",
+
+    // ---- 自社・プロジェクト固有 ----
+    "appo", // tele_appo（テレアポ）のスラッグ
+    "bangou", // HOUJIN_BANGOU_APP_ID（法人番号 Web-API）
+    "cntr", // 契約コードの接頭辞
+    "houjin",
+    "iterra",
+    "leadstage",
+    "sumi", // 配色トークン（墨）
+    "tele", // tele_appo / teleappointment
+    "teleappointment",
+    "tlnt", // タレントコードの接頭辞
+
+    // ---- PostgreSQL / SQL ----
+    "alnum",
+    "btrim",
+    "bytea",
+    "confrelid",
+    "conkey",
+    "conname",
+    "connamespace",
+    "conrelid",
+    "contype",
+    "ctype",
+    "dbname",
+    "dearmor", // pgcrypto（GPG 形式のデコード）
+    "fkey",
+    "ilike",
+    "indisunique",
+    "indkey",
+    "indnkeyatts",
+    "indpred",
+    "indrelid",
+    "initplan",
+    "jobname",
+    "libpq",
+    "nonneg",
+    "nonnulls",
+    "nspname",
+    "pgcrypto",
+    "pgdatabase",
+    "pghost",
+    "pgpassword",
+    "pgport",
+    "pgrst", // PostgREST のエラーコード接頭辞（PGRST301 など）
+    "pguser",
+    "plpgsql",
+    "pooler", // Supabase の接続プーラー
+    "proconfig",
+    "proname",
+    "pronamespace",
+    "regnamespace",
+    "relkind",
+    "relname",
+    "relnamespace",
+    "reloptions",
+    "rolconfig",
+    "rolname",
+    "rowtype",
+    "schemaname",
+    "setof",
+    "smallint",
+    "sqlerrm",
+    "sqlstate",
+    "tablename",
+    "timestamptz",
+    "upsert",
+    "upserted",
+    "varchar",
+
+    // ---- インフラ・ツール ----
+    "buildx", // Docker Buildx
+    "dryrun",
+    "emnapi", // ネイティブ binding（package.json に明示依存）
+    "eusage", // npm のエラーコード
+    "ghcr",
+    "healthcheck",
+    "keepalive",
+    "msys",
+    "opencontainers",
+    "pathconv",
+    "pgdg", // PostgreSQL 公式 APT リポジトリ
+    "pitr", // Point In Time Recovery（Supabase のバックアップ）
+    "snmp",
+    "unconfigured",
+    "unrs", // unrs-resolver
+    "unstub",
+    "userprofile",
+    "worktree",
+    "worktrees",
+
+    // ---- フリーメールの判定に持つドメイン（is_free_email_domain）----
+    "biglobe",
+    "docomo",
+    "donotreply",
+    "ezweb",
+    "googlemail",
+    "mailmagazine",
+    "plala",
+    "protonmail",
+
+    // ---- コード内の識別子・略号 ----
+    "apikey",
+    "activit", // deal_activity / deal_activities への前方一致
+    "artypes",
+    "banchi",
+    "bcnf",
+    "cand",
+    "ciphertext",
+    "cloudflareaccess", // Cf-Access-* ヘッダー
+    "datatable",
+    "gatekeep", // リードの受付 NG のスラッグ
+    "hrefs",
+    "lcat",
+    "lcatypes",
+    "lcsizes",
+    "llarge",
+    "lsmall",
+    "lstages",
+    "lstatuses",
+    "ltemp",
+    "noto", // Noto Sans JP（フォント）
+    "prefs",
+    "prio",
+    "reqs",
+    "rgba",
+    "rrggbb",
+    "segs",
+    "signback",
+    "sjis",
+    "walletable", // freee の口座 ID（payer_walletable_id）
+    "zindex",
+
+    // ---- テストデータ（seed / E2E）----
+    "fushimi",
+    "ogawa",
+    "soleil",
+    "tanaka",
+    "toki",
+    "wrongpass",
+    "wrongpassword",
+
+    // ---- Supabase のプロジェクト ID（手順書に出てくる。秘密値ではない）----
+    "aqkesxqxrsucgrnguhnb",
+    "mddtzqixxnzdixceoxuc",
+    "zvirytyjijykmekbrwvd"
+  ]
+}

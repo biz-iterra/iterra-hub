@@ -116,6 +116,7 @@
     "timestamptz",
     "upsert",
     "upserted",
+    "urandom",
     "varchar",
 
     // ---- インフラ・ツール ----

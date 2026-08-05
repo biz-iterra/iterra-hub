@@ -94,6 +94,10 @@ Google 側では制限できないので、**アプリ側の実装で範囲を�
 | `GOOGLE_CONTACTS_SYNC_CRON_SECRET` | `/api/google-contacts/sync` の認証 | **秘密** |
 | `GOOGLE_CONTACTS_ALLOWED_DOMAIN` | 接続を許すドメイン（例: 会社の Workspace ドメイン） | 公開可 |
 
+**暗号鍵と合言葉（`_TOKEN_ENCRYPTION_KEY` / `_SYNC_CRON_SECRET`）は自分で作る。**
+生成コマンドは `docs/secrets-management.md §6.1`。**エージェント経由で実行しない**
+（出力が会話履歴に残る）。他の連携の鍵とは別の値にすること。
+
 ## 3. 対応付け（どの連絡先がどの Google 連絡先か）
 
 3 段構えで持つ。

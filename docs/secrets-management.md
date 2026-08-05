@@ -296,16 +296,19 @@ API トークン、Tunnel トークン）はここでは作らず、発行元か
 #### PowerShell 7（この環境の既定）
 
 画面に出さず、そのままクリップボードへ入れる。スクロールバックに残さないため。
+生成と桁数の確認を **`;` で繋いだ 1 行**にしてある。2 行に分けて書くと、
+貼り付けたときに改行が失われて 1 行に繋がり、
+`Set-Clipboard(Get-Clipboard).Length` という別のコマンドになって失敗する
+（2026-08-05 に発生）。
 
 ```powershell
-[Convert]::ToBase64String([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32)) | Set-Clipboard
+[Convert]::ToBase64String([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32)) | Set-Clipboard; (Get-Clipboard).Length
 ```
 
-値を見ずに正しく取れたか確かめる（**44 文字**なら 32 バイトの base64）。
+**`44` と出れば成功**（32 バイトの base64）。値は画面に出ない。
 
-```powershell
-(Get-Clipboard).Length
-```
+**1 つ貼り付けてから次を生成する。** 続けて 2 回実行すると
+クリップボードが上書きされ、前の値は取り戻せない。
 
 #### bash（Git Bash / WSL）
 

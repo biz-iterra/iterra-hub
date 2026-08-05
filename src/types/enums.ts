@@ -48,7 +48,6 @@ export type LeadStatusCode =
   | "material_sent"
   // 選定ステージ
   | "appointment_obtained"
-  | "appointment_confirmed"
   // SQL ステージ
   | "negotiation"
   | "handed_over"

@@ -2017,7 +2017,6 @@ Lead は Deal より上流の「見込み客」を管理するエンティティ
 | 育成 | `awaiting_recall` | 再架電待ち |
 | 育成 | `material_sent` | 資料送付済 |
 | 選定 | `appointment_obtained` | アポ獲得 |
-| 選定 | `appointment_confirmed` | アポ確定 |
 | Sales | `negotiation` | 商談化 |
 | Sales | `handed_over` | 引継済 |
 | **Opportunity** | —（なし） | **status_id = NULL**（Deal 昇格トリガーステージ。Deal 側で進捗管理） |
@@ -2343,10 +2342,15 @@ Phase D で実施する移行の参考として、既存 deal_stages/deal_status
 | 未架電 | `generation` | 架電予定 | `call_scheduled` |
 | 架電試行中 | `nurturing` | 継続架電 | `continuing_call` |
 | 再架電待ち | `nurturing` | 再架電待ち | `awaiting_recall` |
-| アポ獲得 | `qualification` | アポ確定 | `appointment_confirmed` |
+| アポ獲得 | `qualification` | アポ確定 | `appointment_confirmed` ※ |
 | 商談化 | `sales` | 引継済 | `handed_over` |
 | クローズ（成約） | `customer`（取引先） | 成約 | `closed_won` |
 | クローズ（失注） | `dead` | 失注 | `lost` |
+
+※ `appointment_confirmed`（アポ確定）は移行時には存在したが、**2026-08-05 に廃止して
+`appointment_obtained`（アポ獲得）へ寄せた**。運用上この 2 つを分けていなかったため。
+本番の該当 8 件も同時に付け替えている（T-0054）。この表は移行時点の対応を残したもので、
+現行のステータス一覧は §「リードステータス」を見ること。
 
 ---
 

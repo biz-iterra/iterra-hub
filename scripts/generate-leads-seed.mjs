@@ -117,7 +117,6 @@ const STATUS_ID = {
   awaiting_recall: "a2000000-0000-0000-0000-000000000007",
   material_sent: "a2000000-0000-0000-0000-000000000008",
   appointment_obtained: "a2000000-0000-0000-0000-000000000009",
-  appointment_confirmed: "a2000000-0000-0000-0000-000000000010",
 };
 
 // category id
@@ -277,10 +276,8 @@ for (const row of data) {
     temperatureCode = STATUS_TEMPERATURE[lastStatus] ?? "cold";
     if (lastStatus === "appointment" || lastStatus === "promising") {
       stageCode = "qualification";
-      statusCode =
-        lastStatus === "appointment"
-          ? "appointment_confirmed"
-          : "appointment_obtained";
+      // 「アポ確定」は 2026-08-05 に廃止し「アポ獲得」へ寄せた。両者を分けない
+      statusCode = "appointment_obtained";
       categoryCode = "tql";
     } else if (lastStatus === "material_sent" || lastStatus === "form_sent") {
       stageCode = "nurturing";

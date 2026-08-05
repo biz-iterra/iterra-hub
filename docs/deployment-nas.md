@@ -1023,9 +1023,11 @@ cd /volume1/docker/iterra-hub
 | `errors[]` に文言 | その接続だけ失敗 | `/profile` の連携欄にも同じ理由が出る |
 
 **接続は各メンバーが `/profile` から行う**（管理者がまとめて繋ぐものではない）。
-事前に専用 GCP プロジェクト側でコールバック URI
+事前に **Gmail 連携と同じ GCP プロジェクト**へ OAuth クライアントを新しく作り
+（プロジェクトは増やさない。`google-contacts-sync.md` §2）、コールバック URI
 `https://hub.iterra.online/api/google-contacts/callback` を登録しておくこと。
-**同意画面は「内部」**にし、`GOOGLE_CONTACTS_ALLOWED_DOMAIN` も設定する
+**同意画面は「内部」**（Gmail 連携のために既にそうなっている）で、
+`GOOGLE_CONTACTS_ALLOWED_DOMAIN` も設定する
 （個人 Google アカウントへ顧客情報を配らないため）。
 
 ### 8.1 死活監視

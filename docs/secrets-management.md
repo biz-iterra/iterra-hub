@@ -88,7 +88,7 @@ Environment に無いときへ静かにフォールバックし、分離でき�
 | `nas/iterra-hub:production/FREEE_CLIENT_SECRET` | 同上 | 同上 | 再発行すると既存の接続が切れる |
 | `nas/iterra-hub:production/FREEE_TOKEN_ENCRYPTION_KEY` | freee のトークンの暗号化鍵（AES-256-GCM） | 自分のターミナルで生成。`GMAIL_TOKEN_ENCRYPTION_KEY` と同じ手順で、**別の値**にする | **変更・紛失すると保存済みトークンを復号できず、管理画面から接続し直しになる** |
 | `nas/iterra-hub:production/FREEE_SYNC_CRON_SECRET` | 定期同期エンドポイント（`/api/freee/sync`）の Bearer トークン | 自分のターミナルで生成。他の CRON_SECRET とは別の値にする | 未設定ならエンドポイントは 503 で無効。**開発機には置かない**（手動同期で足りる） |
-| `nas/iterra-hub:production/GOOGLE_CONTACTS_CLIENT_ID` | Google コンタクト連携の OAuth クライアント | **Gmail とは別の専用 GCP プロジェクト**（同意画面を「内部」にする）→ 認証情報 | 秘密値ではないがシークレットと組で管理する。**コールバック URI に `https://hub.iterra.online/api/google-contacts/callback` の登録が要る** |
+| `nas/iterra-hub:production/GOOGLE_CONTACTS_CLIENT_ID` | Google コンタクト連携の OAuth クライアント | **Gmail と同じ GCP プロジェクト**に**別のクライアント**を作る（同意画面は「内部」のまま共用）→ 認証情報 | 秘密値ではないがシークレットと組で管理する。**コールバック URI に `https://hub.iterra.online/api/google-contacts/callback` の登録が要る** |
 | `nas/iterra-hub:production/GOOGLE_CONTACTS_CLIENT_SECRET` | 同上 | 同上 | 再発行すると既存の接続が切れる |
 | `nas/iterra-hub:production/GOOGLE_CONTACTS_TOKEN_ENCRYPTION_KEY` | Google コンタクトのトークンの暗号化鍵（AES-256-GCM） | 自分のターミナルで生成。`GMAIL_TOKEN_ENCRYPTION_KEY` と同じ手順で、**別の値**にする | **変更・紛失すると保存済みトークンを復号できず、利用者に再連携を求めることになる** |
 | `nas/iterra-hub:production/GOOGLE_CONTACTS_SYNC_CRON_SECRET` | 定期同期エンドポイント（`/api/google-contacts/sync`）の Bearer トークン | 自分のターミナルで生成。他の CRON_SECRET とは別の値にする | 未設定ならエンドポイントは 503 で無効 |
@@ -113,7 +113,7 @@ Environment に無いときへ静かにフォールバックし、分離でき�
 | `local/iterra-hub:development/FREEE_CLIENT_ID` | freee 開発者コンソールに**開発用として別に作った**アプリ。本番のものを手元に持ってこない |
 | `local/iterra-hub:development/FREEE_CLIENT_SECRET` | 同上 |
 | `local/iterra-hub:development/FREEE_TOKEN_ENCRYPTION_KEY` | 自分で生成した**開発専用**の鍵。本番とも Gmail 用とも別の値にする |
-| `local/iterra-hub:development/GOOGLE_CONTACTS_CLIENT_ID` | 専用 GCP プロジェクトに**開発用として別に作った**クライアント。本番のものを手元に持ってこない |
+| `local/iterra-hub:development/GOOGLE_CONTACTS_CLIENT_ID` | Gmail と同じプロジェクトに**開発用として別に作った**クライアント。本番のものを手元に持ってこない |
 | `local/iterra-hub:development/GOOGLE_CONTACTS_CLIENT_SECRET` | 同上 |
 | `local/iterra-hub:development/GOOGLE_CONTACTS_TOKEN_ENCRYPTION_KEY` | 自分で生成した**開発専用**の鍵。本番とも他の連携用とも別の値にする |
 | `HOUJIN_BANGOU_APP_ID` | 本番と同じ値でよい（読み取り専用の公開 API。無償・レート制限のみ）。登録は本番分のみ |

@@ -4,10 +4,12 @@
  * 環境変数が未設定でもビルド・起動は通す。未設定なら画面にその旨を出すだけにして、
  * 他の機能を巻き込まない（Gmail 連携と同じ方針）。
  *
- * **OAuth クライアントは Gmail と分ける。** 同意画面の「内部 / 外部」は
- * GCP プロジェクト単位で決まる。Gmail 連携は共有メールボックス等で組織外の
- * アカウントも繋ぐため「外部」のままにする必要があり、会社アカウント限定に
- * したいコンタクト連携（内部アプリ）と同居できない（docs/google-contacts-sync.md §2）。
+ * **GCP プロジェクトは Gmail 連携と同じものを使い、OAuth クライアントだけ分ける。**
+ * 同意画面（内部 / 外部）はプロジェクト単位だが、Gmail 連携も「内部」なので同居できる
+ * （database-design.md §20.4）。クライアントを分けるのは、Gmail の認可 URL が
+ * `include_granted_scopes: "true"` で過去のスコープを引き継ぐため。共用すると
+ * Gmail の再連携時に contacts の権限まで引きずり、`granted_scope` の逸脱監査が
+ * 意味を失う（docs/google-contacts-sync.md §2）。
  */
 
 export type GoogleContactsConfig = {

@@ -435,8 +435,8 @@ export type ProjectDetail = Row<"projects"> & {
 // Lead
 // ============================================================
 
-/** code と name を持つマスタ参照（色を持たないもの） */
-export type CodeNameRef = { id: string; code: string; name: string };
+/** code は自動採番になったため NULL を許す（20260805000019）。判定に使わない */
+export type CodeNameRef = { id: string; code: string | null; name: string };
 
 /** 一覧・詳細の双方で JOIN しているマスタ群（LEAD_SELECT と共通） */
 type LeadCommonRelations = {
@@ -634,8 +634,8 @@ export type CampaignLeadRow = {
 // アクティビティ（Deal / Lead）
 // ============================================================
 
-/** コード・色を持つマスタ参照（アクティビティ種別・通電状況など） */
-export type CodedRef = { id: string; code: string; name: string; color: string | null };
+/** code は自動採番になったため NULL を許す（20260805000019）。判定に使わない */
+export type CodedRef = { id: string; code: string | null; name: string; color: string | null };
 
 /** activities.ts の getDealActivities に対応 */
 export type DealActivityWithRelations = Row<"deal_activities"> & {

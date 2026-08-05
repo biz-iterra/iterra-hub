@@ -58,7 +58,7 @@ type SelectOption = { value: string; label: string };
 type StatusOption = SelectOption & { stage_id: string };
 type SmallSegmentOption = SelectOption & { large_segment_id: string | null };
 type StageOption = SelectOption;
-type TempOption = SelectOption & { code: string };
+type TempOption = SelectOption & { code: string | null };
 type ActivityTypeOption = SelectOption & { color: string | null };
 
 type Masters = {
@@ -954,6 +954,7 @@ export function LeadDetailClient({
               <TemperatureBadge
                 code={lead.temperature.code}
                 name={lead.temperature.name}
+                color={lead.temperature.color}
               />
             )}
           </div>

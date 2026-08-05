@@ -334,6 +334,8 @@ export type Database = {
           deletion_reason: string | null
           id: string
           is_company_default: boolean
+          is_sole_proprietor_default: boolean
+          is_system_required: boolean
           last_updated_by: string | null
           name: string
           requires_corporate_fields: boolean
@@ -349,6 +351,8 @@ export type Database = {
           deletion_reason?: string | null
           id?: string
           is_company_default?: boolean
+          is_sole_proprietor_default?: boolean
+          is_system_required?: boolean
           last_updated_by?: string | null
           name: string
           requires_corporate_fields?: boolean
@@ -364,6 +368,8 @@ export type Database = {
           deletion_reason?: string | null
           id?: string
           is_company_default?: boolean
+          is_sole_proprietor_default?: boolean
+          is_system_required?: boolean
           last_updated_by?: string | null
           name?: string
           requires_corporate_fields?: boolean
@@ -4193,7 +4199,7 @@ export type Database = {
       }
       lead_categories: {
         Row: {
-          code: string
+          code: string | null
           color: string | null
           created_at: string
           definition: string | null
@@ -4201,13 +4207,15 @@ export type Database = {
           deleted_by: string | null
           deletion_reason: string | null
           id: string
+          is_sales_qualified: boolean
+          is_system_required: boolean
           name: string
           progress_view: string | null
           sort_order: number
           updated_at: string
         }
         Insert: {
-          code: string
+          code?: string | null
           color?: string | null
           created_at?: string
           definition?: string | null
@@ -4215,13 +4223,15 @@ export type Database = {
           deleted_by?: string | null
           deletion_reason?: string | null
           id?: string
+          is_sales_qualified?: boolean
+          is_system_required?: boolean
           name: string
           progress_view?: string | null
           sort_order?: number
           updated_at?: string
         }
         Update: {
-          code?: string
+          code?: string | null
           color?: string | null
           created_at?: string
           definition?: string | null
@@ -4229,6 +4239,8 @@ export type Database = {
           deleted_by?: string | null
           deletion_reason?: string | null
           id?: string
+          is_sales_qualified?: boolean
+          is_system_required?: boolean
           name?: string
           progress_view?: string | null
           sort_order?: number
@@ -4989,10 +5001,11 @@ export type Database = {
           deleted_by: string | null
           deletion_reason: string | null
           id: string
+          is_inbound_inquiry: boolean
           is_inquiry_default: boolean
           last_updated_by: string | null
           name: string
-          slug: string
+          slug: string | null
           updated_at: string
         }
         Insert: {
@@ -5004,10 +5017,11 @@ export type Database = {
           deleted_by?: string | null
           deletion_reason?: string | null
           id?: string
+          is_inbound_inquiry?: boolean
           is_inquiry_default?: boolean
           last_updated_by?: string | null
           name: string
-          slug: string
+          slug?: string | null
           updated_at?: string
         }
         Update: {
@@ -5019,10 +5033,11 @@ export type Database = {
           deleted_by?: string | null
           deletion_reason?: string | null
           id?: string
+          is_inbound_inquiry?: boolean
           is_inquiry_default?: boolean
           last_updated_by?: string | null
           name?: string
-          slug?: string
+          slug?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -5067,11 +5082,13 @@ export type Database = {
           deletion_reason: string | null
           id: string
           is_inquiry_default: boolean
+          is_qualification: boolean
+          is_system_required: boolean
           is_terminal: boolean
           name: string
           requires_contract: boolean
           requires_deal: boolean
-          slug: string
+          slug: string | null
           sort_order: number
           updated_at: string
         }
@@ -5085,11 +5102,13 @@ export type Database = {
           deletion_reason?: string | null
           id?: string
           is_inquiry_default?: boolean
+          is_qualification?: boolean
+          is_system_required?: boolean
           is_terminal?: boolean
           name: string
           requires_contract?: boolean
           requires_deal?: boolean
-          slug: string
+          slug?: string | null
           sort_order?: number
           updated_at?: string
         }
@@ -5103,11 +5122,13 @@ export type Database = {
           deletion_reason?: string | null
           id?: string
           is_inquiry_default?: boolean
+          is_qualification?: boolean
+          is_system_required?: boolean
           is_terminal?: boolean
           name?: string
           requires_contract?: boolean
           requires_deal?: boolean
-          slug?: string
+          slug?: string | null
           sort_order?: number
           updated_at?: string
         }
@@ -5123,7 +5144,7 @@ export type Database = {
       }
       lead_statuses: {
         Row: {
-          code: string
+          code: string | null
           color: string | null
           created_at: string
           definition: string | null
@@ -5137,7 +5158,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          code: string
+          code?: string | null
           color?: string | null
           created_at?: string
           definition?: string | null
@@ -5151,7 +5172,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          code?: string
+          code?: string | null
           color?: string | null
           created_at?: string
           definition?: string | null
@@ -5183,7 +5204,7 @@ export type Database = {
       }
       lead_temperatures: {
         Row: {
-          code: string
+          code: string | null
           color: string | null
           created_at: string
           definition: string | null
@@ -5196,7 +5217,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          code: string
+          code?: string | null
           color?: string | null
           created_at?: string
           definition?: string | null
@@ -5209,7 +5230,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          code?: string
+          code?: string | null
           color?: string | null
           created_at?: string
           definition?: string | null
@@ -5623,9 +5644,10 @@ export type Database = {
           deletion_reason: string | null
           id: string
           is_default: boolean
+          is_system_required: boolean
           last_updated_by: string | null
           name: string
-          slug: string
+          slug: string | null
           sort_order: number
           updated_at: string
         }
@@ -5639,9 +5661,10 @@ export type Database = {
           deletion_reason?: string | null
           id?: string
           is_default?: boolean
+          is_system_required?: boolean
           last_updated_by?: string | null
           name: string
-          slug: string
+          slug?: string | null
           sort_order?: number
           updated_at?: string
         }
@@ -5655,9 +5678,10 @@ export type Database = {
           deletion_reason?: string | null
           id?: string
           is_default?: boolean
+          is_system_required?: boolean
           last_updated_by?: string | null
           name?: string
-          slug?: string
+          slug?: string | null
           sort_order?: number
           updated_at?: string
         }
@@ -7063,6 +7087,7 @@ export type Database = {
       freee_default_title: { Args: never; Returns: string }
       freee_prefecture_code: { Args: { p_name: string }; Returns: number }
       freee_prefecture_name: { Args: { p_code: number }; Returns: string }
+      generate_master_slug: { Args: { p_prefix: string }; Returns: string }
       get_company_freee_source: {
         Args: { p_company_id: string }
         Returns: Json

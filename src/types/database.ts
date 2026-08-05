@@ -112,7 +112,8 @@ export type LeadCallStatus = {
 
 export type LeadCategory = {
   id: string;
-  code: string;
+  /** 自動採番になったため NULL を許す（20260805000019）。判定には使わない */
+  code: string | null;
   name: string;
   color: string | null;
   sort_order: number;
@@ -141,7 +142,8 @@ export type LeadStage = {
 export type LeadStatus = {
   id: string;
   stage_id: string;
-  code: string;
+  /** 自動採番になったため NULL を許す（20260805000019）。判定には使わない */
+  code: string | null;
   name: string;
   sort_order: number;
 } & SoftDeletable &
@@ -149,7 +151,8 @@ export type LeadStatus = {
 
 export type LeadTemperature = {
   id: string;
-  code: string;
+  /** 自動採番になったため NULL を許す（20260805000019）。判定には使わない */
+  code: string | null;
   name: string;
   color: string | null;
   sort_order: number;

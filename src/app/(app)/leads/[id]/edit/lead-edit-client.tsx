@@ -20,7 +20,7 @@ type SelectOption = { value: string; label: string };
 type StatusOption = SelectOption & { stage_id: string };
 type SmallSegmentOption = SelectOption & { large_segment_id: string | null };
 type StageOption = SelectOption & { auto_promote_to_deal?: boolean };
-type TempOption = SelectOption & { code: string };
+type TempOption = SelectOption & { code: string | null };
 type AccountTypeOption = SelectOption & { requiresCorporateFields?: boolean; isCompanyDefault?: boolean };
 
 type Masters = {

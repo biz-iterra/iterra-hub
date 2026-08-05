@@ -41,8 +41,8 @@ function formatDate(value: string | null | undefined): string {
 
 type LeadStage = { id: string; name: string; sort_order: number };
 type LeadStatus = { id: string; name: string; sort_order: number; stage_id: string };
-type LeadTemperature = { id: string; code: string; name: string; color: string | null };
-type LeadCategory = { id: string; code: string; name: string; color: string | null };
+type LeadTemperature = { id: string; code: string | null; name: string; color: string | null };
+type LeadCategory = { id: string; code: string | null; name: string; color: string | null };
 type CrmUser = { id: string; full_name: string; role: string };
 
 interface LeadsViewProps {
@@ -233,9 +233,9 @@ export function LeadsView({
             label: "温度感",
             className: "whitespace-nowrap",
             render: (lead) => {
-              const temp = lead.temperature as { code: string; name: string } | null;
+              const temp = lead.temperature as { code: string | null; name: string; color: string | null } | null;
               return temp ? (
-                <TemperatureBadge code={temp.code} name={temp.name} />
+                <TemperatureBadge code={temp.code} name={temp.name} color={temp.color} />
               ) : (
                 <span style={{ color: "var(--color-text-list)" }}>—</span>
               );

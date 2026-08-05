@@ -706,12 +706,31 @@ function SimpleMasterTab({
                       >
                         編集
                       </button>
-                      <button
-                        style={{ ...styles.btnDanger, ...styles.btnSmall }}
-                        onClick={() => setDeleteItem(item)}
-                      >
-                        削除
-                      </button>
+                      {/*
+                        **システムが使う行は削除ボタンを出さない。**
+                        DB のトリガーも拒むが（20260805000020）、押せてから
+                        エラーになるより、押せない方が事故が起きにくい
+                      */}
+                      {item.is_system_required === true ? (
+                        <span
+                          style={{
+                            fontSize: "0.6875rem",
+                            color: "var(--color-sumi500)",
+                            alignSelf: "center",
+                            whiteSpace: "nowrap",
+                          }}
+                          title="このマスタはシステムが使うため削除できません"
+                        >
+                          システム必須
+                        </span>
+                      ) : (
+                        <button
+                          style={{ ...styles.btnDanger, ...styles.btnSmall }}
+                          onClick={() => setDeleteItem(item)}
+                        >
+                          削除
+                        </button>
+                      )}
                     </div>
                   </td>
                 </TableRow>

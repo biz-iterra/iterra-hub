@@ -381,7 +381,7 @@ function AttachLeadsModal({
                           <CategoryBadge name={lead.category.name} color={lead.category.color} />
                         )}
                         {lead.temperature && (
-                          <TemperatureBadge code={lead.temperature.code} name={lead.temperature.name} />
+                          <TemperatureBadge code={lead.temperature.code} name={lead.temperature.name} color={lead.temperature.color} />
                         )}
                       </span>
                     </label>
@@ -719,7 +719,7 @@ export function CampaignDetailClient({
                           </td>
                           <td className="px-4 py-2 whitespace-nowrap">
                             {lead.temperature
-                              ? <TemperatureBadge code={lead.temperature.code} name={lead.temperature.name} />
+                              ? <TemperatureBadge code={lead.temperature.code} name={lead.temperature.name} color={lead.temperature.color} />
                               : <span style={{ color: "var(--color-sumi400)" }}>—</span>
                             }
                           </td>

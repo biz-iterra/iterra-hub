@@ -13,7 +13,7 @@ import { RequiredMark } from "@/components/ui/RequiredMark";
 type SelectOption = { value: string; label: string };
 type StatusOption = SelectOption & { stage_id: string };
 type SmallSegmentOption = SelectOption & { large_segment_id: string | null };
-type TempOption = SelectOption & { code: string };
+type TempOption = SelectOption & { code: string | null };
 type AccountTypeOption = SelectOption & { requiresCorporateFields?: boolean; isCompanyDefault?: boolean };
 
 type Masters = {

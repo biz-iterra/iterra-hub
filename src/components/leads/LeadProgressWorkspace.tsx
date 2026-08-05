@@ -180,6 +180,7 @@ export function LeadProgressWorkspace({
                         <TemperatureBadge
                           code={l.temperature.code}
                           name={l.temperature.name}
+                          color={l.temperature.color}
                         />
                       ) : (
                         "—"

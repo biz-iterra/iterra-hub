@@ -236,16 +236,26 @@ const TEMPERATURE_ICONS: Record<string, string> = {
 export function TemperatureBadge({
   code,
   name,
+  color,
 }: {
-  code: string;
+  /** 既存の温度感（hot / warm など）のアイコン選択に使う。自動採番の値では null */
+  code: string | null | undefined;
   name: string;
+  /**
+   * マスタの色。**これがあれば最優先で使う。**
+   * 「バッジ色はマスタの color を使い、画面ごとに算出しない」という規約
+   * （CLAUDE.md）。コードから色を引く仕組みは、コードが自動採番になった
+   * 時点で新しい行に色が付かなくなるため残せない
+   */
+  color?: string | null;
 }) {
-  const colorStyle =
-    TEMPERATURE_COLORS[code] ?? {
-      backgroundColor: "var(--color-sumi100)",
-      color: "var(--color-sumi700)",
-    };
-  const icon = TEMPERATURE_ICONS[code];
+  const colorStyle = color
+    ? { backgroundColor: `${color}1A`, color }
+    : (code ? TEMPERATURE_COLORS[code] : undefined) ?? {
+        backgroundColor: "var(--color-sumi100)",
+        color: "var(--color-sumi700)",
+      };
+  const icon = code ? TEMPERATURE_ICONS[code] : undefined;
   return (
     <span
       style={{

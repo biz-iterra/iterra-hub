@@ -1224,6 +1224,7 @@ export type Database = {
           entity_address_id: string | null
           financial_info_id: string | null
           id: string
+          ignored_fields: string[]
           integration: string
           last_updated_by: string | null
           note: string | null
@@ -1239,6 +1240,7 @@ export type Database = {
           entity_address_id?: string | null
           financial_info_id?: string | null
           id?: string
+          ignored_fields?: string[]
           integration: string
           last_updated_by?: string | null
           note?: string | null
@@ -1254,6 +1256,7 @@ export type Database = {
           entity_address_id?: string | null
           financial_info_id?: string | null
           id?: string
+          ignored_fields?: string[]
           integration?: string
           last_updated_by?: string | null
           note?: string | null

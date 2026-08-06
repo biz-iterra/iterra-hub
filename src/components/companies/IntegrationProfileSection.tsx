@@ -38,8 +38,25 @@ export function IntegrationProfileSection({
     financialInfoId: view.profile.financial_info_id ?? "",
   });
 
+  /**
+   * 担当者を選び直したら**メールの選択を外す**。
+   *
+   * 前の人のメールを持ったまま保存すると DB のトリガーに弾かれる。
+   * 押せてからエラーになるより、選び直させる方が分かりやすい。
+   */
   const set = (key: keyof typeof draft, value: string) =>
-    setDraft((d) => ({ ...d, [key]: value }));
+    setDraft((d) =>
+      key === "contactId"
+        ? { ...d, contactId: value, contactEmailId: "" }
+        : { ...d, [key]: value }
+    );
+
+  /** いま担当者になっている人。未選択なら主担当 */
+  const effectiveContactId = draft.contactId || view.primaryContactId || "";
+  const emailOptions = view.options.emailsByContact[effectiveContactId] ?? [];
+  /** プロファイルで主担当と別の人を指定しているか（食い違いを画面で知らせる） */
+  const overridesPrimaryContact =
+    draft.contactId !== "" && draft.contactId !== view.primaryContactId;
 
   const handleSave = async () => {
     setSaving(true);
@@ -81,7 +98,7 @@ export function IntegrationProfileSection({
     {
       key: "contactEmailId",
       label: "担当者メール",
-      options: view.options.emails,
+      options: emailOptions,
       fallback: view.resolved.contact_email,
     },
     {
@@ -155,9 +172,17 @@ export function IntegrationProfileSection({
         </button>
       </div>
 
+      {overridesPrimaryContact && (
+        <p style={styles.warn}>
+          この事業者の「担当者」とは別の人を連携に使う設定です。
+          意図していなければ「既定に従う」へ戻してください。
+        </p>
+      )}
+
       <p style={styles.note}>
-        担当者を選び直すと、選べるメールも変わります。保存後にこの欄を開き直してください。
-        担当者の候補は<strong>この事業者に関わる連絡先</strong>（所属または兼務）だけです。
+        担当者を選び直すとメールの候補も入れ替わり、<strong>選んでいたメールは外れます</strong>
+        （別人のメールを送らないため）。担当者の候補は
+        <strong>この事業者に関わる連絡先</strong>（所属または兼務）だけです。
       </p>
     </DetailSection>
   );
@@ -206,6 +231,13 @@ const styles = {
     padding: "0.5rem 1.25rem",
     fontSize: "0.875rem",
     cursor: "pointer",
+  } as CSSProperties,
+  warn: {
+    fontSize: "0.75rem",
+    color: "var(--color-error)",
+    marginTop: "0.75rem",
+    marginBottom: 0,
+    lineHeight: 1.6,
   } as CSSProperties,
   note: {
     fontSize: "0.75rem",

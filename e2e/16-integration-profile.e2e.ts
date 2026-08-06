@@ -88,6 +88,17 @@ test.describe("E2E-16", () => {
     await expectSuccessToast(page, "連携プロファイルを保存しました");
     await expect(page.getByText(`いま渡る値: ${sideMail}`)).toBeVisible();
 
+    // ---- 5b. 担当者を選び直すとメールの選択が外れること ----
+    // **前の人のメールを持ったまま保存すると DB のトリガーに弾かれる。**
+    // 押せてからエラーになるより、選び直させる方が分かりやすい
+    await page.goto(`/companies/${sideId}`);
+    await page.getByLabel("連携プロファイルの担当者メール").selectOption({ label: sideMail });
+    await page.getByLabel("連携プロファイルの担当者", { exact: true }).selectOption({ index: 1 });
+    await expect(
+      page.getByLabel("連携プロファイルの担当者メール"),
+      "担当者を変えたのにメールの選択が残っている"
+    ).toHaveValue("");
+
     // ---- 6. A は影響を受けないこと ----
     // 同じ連絡先だが、A へ渡るメールは主メールのまま
     await page.goto(`/companies/${mainId}`);

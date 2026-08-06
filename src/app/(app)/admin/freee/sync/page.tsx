@@ -1,6 +1,10 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/actions/users";
 import { getFreeePartnerDiffs } from "@/actions/freee";
+import {
+  getIntegrationProfileHints,
+  listIgnoredIntegrationFields,
+} from "@/actions/integration-profiles";
 import { FreeeSyncView } from "./freee-sync-view";
 
 /**
@@ -19,7 +23,23 @@ export default async function FreeeSyncPage() {
     redirect("/dashboard");
   }
 
+  const diffs = diffsResult.data ?? [];
+  // 差分画面から連携プロファイルを直せるようにするための補助情報。
+  // **対象外にした項目は差分に出てこない**ので、一覧は別で引く（戻す入口が要る）
+  const [hintsResult, ignoredResult] = await Promise.all([
+    getIntegrationProfileHints(
+      diffs.map((d) => d.companyId),
+      "freee"
+    ),
+    listIgnoredIntegrationFields("freee"),
+  ]);
+
   return (
-    <FreeeSyncView diffs={diffsResult.data ?? []} loadError={diffsResult.error} />
+    <FreeeSyncView
+      diffs={diffs}
+      loadError={diffsResult.error}
+      hints={hintsResult.data ?? {}}
+      ignoredList={ignoredResult.data ?? []}
+    />
   );
 }

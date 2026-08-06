@@ -11,6 +11,10 @@ import {
   setPrimaryContactFromFreee,
 } from "@/actions/freee";
 import { useToast } from "@/components/ui/toast";
+import {
+  setIntegrationProfileEmail,
+  toggleIgnoredIntegrationField,
+} from "@/actions/integration-profiles";
 import type { FreeeContactCandidate, FreeePartnerDiff } from "@/types/relations";
 
 /**
@@ -34,6 +38,28 @@ type Direction = "to_freee" | "to_crm" | "skip";
 const READ_ONLY_FIELDS = new Set(["code"]);
 
 /** 取引先コードだけは既定を「触らない」にする（既定のまま反映すると必ず失敗する） */
+/** 対象外の一覧で使う表示名。差分の label は差分が出ないと分からないので持っておく */
+const FIELD_LABELS: Record<string, string> = {
+  name: "名称（名前・正式名称）",
+  name_kana: "正式名称（カナ）",
+  code: "取引先コード",
+  org_code: "事業所種別",
+  phone: "電話",
+  contact_name: "担当者名",
+  email: "担当者メール",
+  default_title: "敬称",
+  invoice_registration_number: "インボイス登録番号",
+  address_zipcode: "郵便番号",
+  address_prefecture: "都道府県",
+  address_street: "市区町村・番地",
+  address_building: "建物名",
+  bank_name: "銀行名",
+  branch_name: "支店名",
+  account_number: "口座番号",
+  account_holder: "口座名義",
+  account_type: "口座種別",
+};
+
 function defaultDirection(field: string): Direction {
   return READ_ONLY_FIELDS.has(field) ? "skip" : "to_freee";
 }
@@ -128,9 +154,15 @@ function valueText(v: string | null): string {
 export function FreeeSyncView({
   diffs,
   loadError,
+  hints,
+  ignoredList,
 }: {
   diffs: FreeePartnerDiff[];
   loadError: string | null;
+  /** 事業者ごとの担当者メール候補。差分画面から直せるようにするため（T-0061） */
+  hints: Record<string, { emails: { value: string; label: string }[]; selectedEmailId: string | null }>;
+  /** 対象外にした項目。**差分から消えるので、戻す入口をここに置く**（T-0058） */
+  ignoredList: { companyId: string; companyName: string; fields: string[] }[];
 }) {
   const { showToast } = useToast();
   const router = useRouter();
@@ -176,6 +208,55 @@ export function FreeeSyncView({
         return;
       }
       showToast({ type: "success", message: "担当者を紐づけました" });
+      router.refresh();
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  /** 担当者メールを差分画面から差し替える。事業者情報の詳細まで行かずに済ませる */
+  const pickEmail = async (companyId: string, contactEmailId: string) => {
+    setBusyId(companyId);
+    try {
+      const res = await setIntegrationProfileEmail({
+        companyId,
+        integration: "freee",
+        contactEmailId: contactEmailId || null,
+      });
+      if (res.error) {
+        showToast({ type: "error", message: res.error });
+        return;
+      }
+      showToast({ type: "success", message: "連携に使うメールを変えました" });
+      router.refresh();
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  /**
+   * 突き合わせ対象外にする／戻す。
+   *
+   * **freee にしか居ない担当者のように、どちらの向きにも直せない項目がある。**
+   * 出し続けても人が消せず、本当に直すべき差分が埋もれる（T-0058）。
+   */
+  const toggleIgnored = async (companyId: string, field: string, ignored: boolean) => {
+    setBusyId(companyId);
+    try {
+      const res = await toggleIgnoredIntegrationField({
+        companyId,
+        integration: "freee",
+        field,
+        ignored,
+      });
+      if (res.error) {
+        showToast({ type: "error", message: res.error });
+        return;
+      }
+      showToast({
+        type: "success",
+        message: ignored ? "この項目を突き合わせ対象外にしました" : "突き合わせ対象に戻しました",
+      });
       router.refresh();
     } finally {
       setBusyId(null);
@@ -269,6 +350,45 @@ export function FreeeSyncView({
         <div style={{ ...styles.warn, color: "#B91C1C" }}>
           <AlertTriangle size={16} />
           {loadError}
+        </div>
+      )}
+
+      {/*
+        対象外にした項目。**差分から消えるので、ここでしか戻せない。**
+        一度外したら二度と戻せない、という状態を作らないために置いている
+      */}
+      {ignoredList.length > 0 && (
+        <div style={styles.card}>
+          <h2 style={{ fontSize: "0.9375rem", fontWeight: 600, margin: "0 0 0.5rem 0" }}>
+            突き合わせ対象外にした項目
+          </h2>
+          <p style={{ fontSize: "0.75rem", color: "var(--color-sumi500)", margin: "0 0 0.75rem 0" }}>
+            差分一覧には出ません。値は変えていません。
+          </p>
+          {ignoredList.map((row) => (
+            <div key={row.companyId} style={{ marginBottom: "0.5rem", fontSize: "0.8125rem" }}>
+              <strong>{row.companyName}</strong>
+              {row.fields.map((field) => (
+                <button
+                  key={field}
+                  type="button"
+                  onClick={() => void toggleIgnored(row.companyId, field, false)}
+                  disabled={busyId === row.companyId}
+                  style={{
+                    marginLeft: "0.5rem",
+                    border: "1px solid var(--color-border-default)",
+                    borderRadius: "var(--radius-button)",
+                    background: "#fff",
+                    padding: "0.125rem 0.5rem",
+                    fontSize: "0.75rem",
+                    cursor: "pointer",
+                  }}
+                >
+                  {FIELD_LABELS[field] ?? field} を戻す
+                </button>
+              ))}
+            </div>
+          ))}
         </div>
       )}
 
@@ -397,6 +517,67 @@ export function FreeeSyncView({
                             )}
                           </div>
                         )}
+                        {/*
+                          メールは freee 側の値を取り込めない（CRM が正本）。
+                          **同じ人が 2 社の担当者だと主メールしか渡らない**ので、
+                          ここで連携に使うメールを選べるようにする（T-0060 / T-0061）
+                        */}
+                        {f.field === "email" && (hints[d.companyId]?.emails.length ?? 0) > 0 && (
+                          <div style={{ marginBottom: "0.375rem" }}>
+                            <label
+                              style={{ fontSize: "0.6875rem", color: "var(--color-sumi500)", display: "block", marginBottom: "0.125rem" }}
+                              htmlFor={`email-${d.partnerId}`}
+                            >
+                              連携に使うメール
+                            </label>
+                            <select
+                              id={`email-${d.partnerId}`}
+                              aria-label="連携に使うメール"
+                              disabled={busyId === d.companyId}
+                              value={hints[d.companyId]?.selectedEmailId ?? ""}
+                              onChange={(e) => void pickEmail(d.companyId, e.target.value)}
+                              style={{
+                                border: "1px solid var(--color-border-default)",
+                                borderRadius: "var(--radius-input)",
+                                padding: "0.25rem 0.5rem",
+                                fontSize: "0.75rem",
+                                maxWidth: "16rem",
+                              }}
+                            >
+                              <option value="">-- 主メール（既定）--</option>
+                              {hints[d.companyId]?.emails.map((o) => (
+                                <option key={o.value} value={o.value}>
+                                  {o.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+
+                        {/*
+                          **どちらの向きにも直せない項目の逃げ道。**
+                          freee にしか居ない担当者などは、出し続けても人が消せず
+                          本当に直すべき差分が埋もれる（T-0058）
+                        */}
+                        <button
+                          type="button"
+                          onClick={() => void toggleIgnored(d.companyId, f.field, true)}
+                          disabled={busyId === d.companyId}
+                          style={{
+                            display: "block",
+                            marginBottom: "0.375rem",
+                            background: "none",
+                            border: "none",
+                            padding: 0,
+                            fontSize: "0.6875rem",
+                            color: "var(--color-sumi500)",
+                            textDecoration: "underline",
+                            cursor: "pointer",
+                          }}
+                        >
+                          この項目は突き合わせない
+                        </button>
+
                         {READ_ONLY_FIELDS.has(f.field) ? (
                           <span style={styles.readOnlyNote}>
                             この項目は反映できません。freee の取引先コードは

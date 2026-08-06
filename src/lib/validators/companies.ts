@@ -64,3 +64,20 @@ export const companyAffiliationSchema = z.object({
     .optional()
     .or(z.literal("").transform(() => null)),
 });
+
+/**
+ * 連携プロファイル（事業者情報 × 連携先）。
+ *
+ * **すべての参照は任意。** null は「既定に従う」を意味する
+ * （主担当・主メール・主住所・主口座・代表電話）。
+ * 選べる範囲は DB のトリガーが縛る（`check_company_integration_profile`）。
+ */
+export const companyIntegrationProfileSchema = z.object({
+  company_id: uuidString("事業者情報を指定してください"),
+  integration: z.enum(["freee"], { error: "対応していない連携先です" }),
+  contact_id: uuidString().nullable().optional(),
+  contact_email_id: uuidString().nullable().optional(),
+  entity_address_id: uuidString().nullable().optional(),
+  phone_entity_address_id: uuidString().nullable().optional(),
+  financial_info_id: uuidString().nullable().optional(),
+});

@@ -1,4 +1,5 @@
 import { getCompany, updateCompany } from "@/actions/companies";
+import { getCompanyIntegrationProfile } from "@/actions/integration-profiles";
 import { getCrmUsers, getCurrentUser } from "@/actions/users";
 import { RelationField } from "@/components/ui/RelationField";
 import { getCompanyFinancialInfo } from "@/actions/financial-info";
@@ -22,6 +23,7 @@ import {
   Users,
 } from "lucide-react";
 import { DetailSection } from "@/components/ui/DetailSection";
+import { IntegrationProfileSection } from "@/components/companies/IntegrationProfileSection";
 import { AddRelatedLink } from "@/components/ui/AddRelatedLink";
 import { isSoleProprietorTypeName } from "@/lib/company-type";
 import { FreeeLinkIcon } from "@/components/freee/FreeeLinkIcon";
@@ -93,6 +95,7 @@ export default async function CompanyDetailPage({
     { data: me },
     { data: financialInfo },
     { data: dealsPage },
+    { data: integrationProfile },
   ] =
     await Promise.all([
       getCompany(id),
@@ -103,6 +106,8 @@ export default async function CompanyDetailPage({
       getCompanyFinancialInfo(id),
       // 契約前の商談は取引先ではなくこの事業者に紐づく（database-design.md §16）
       getDeals({ companyId: id, perPage: 50 }),
+      // freee へ渡す値の選択。**admin 以外は使わない**ので表示側で出し分ける
+      getCompanyIntegrationProfile(id, "freee"),
     ]);
   const companyDeals = dealsPage?.rows ?? [];
   const addresses = addressRows ?? [];
@@ -150,6 +155,13 @@ export default async function CompanyDetailPage({
   const affiliatedContacts = (company.company_contacts ?? [])
     .filter((a) => a.contact && a.contact.deleted_at === null)
     .map((a) => ({ ...a.contact!, job_title: a.job_title ?? a.contact!.job_title }));
+  /** 主担当に選べる人。主たる所属 + 兼務 */
+  const primaryContactOptions = [...activeContacts, ...affiliatedContacts].map((c) => ({
+    value: c.id,
+    label:
+      `${c.last_name ?? ""} ${c.first_name ?? ""}`.trim() +
+      (c.contact_code ? ` (${c.contact_code})` : ""),
+  }));
 
   // 個人事業主は法人番号を持たず、国税庁の台帳にも載らない
   const isSoleProprietor = isSoleProprietorTypeName(company.corporate_types?.name);
@@ -295,13 +307,13 @@ export default async function CompanyDetailPage({
                     </EntityLink>
                   ) : null
                 }
-                // 会社側の窓口なので、その会社に紐づく連絡先だけから選ぶ
-                options={activeContacts.map((c) => ({
-                  value: c.id,
-                  label:
-                    `${c.last_name ?? ""} ${c.first_name ?? ""}`.trim() +
-                    (c.contact_code ? ` (${c.contact_code})` : ""),
-                }))}
+                /*
+                  会社側の窓口なので、その会社に**関わる**連絡先から選ぶ。
+                  **兼務も含める**（2026-08-06）。同じ人が 2 社の担当者になる
+                  ことがあり、主たる所属だけに絞ると選べない。
+                  代表者（下の RelationField）は法人代表の話なので広げない
+                */
+                options={primaryContactOptions}
                 action={saveRelation.bind(null, "primary_contact_id")}
                 editable={canEdit}
               />
@@ -640,6 +652,19 @@ export default async function CompanyDetailPage({
               </p>
             )}
           </DetailSection>
+
+          {/*
+            freee へ渡す値の選択。**admin のときだけ出す**（freee 連携が admin 限定）。
+            同じ人が 2 社の担当者で会社ごとにメールを使い分けている場合、
+            主メールは連絡先に 1 つしか立たないのでここで選ぶ（T-0060）
+          */}
+          {me?.role === "admin" && integrationProfile && (
+            <IntegrationProfileSection
+              companyId={company.id}
+              integration="freee"
+              view={integrationProfile}
+            />
+          )}
 
           {/*
             商談。取引先は契約成立まで作られないため、契約前の商談は

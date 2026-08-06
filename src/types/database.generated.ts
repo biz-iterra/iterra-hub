@@ -1214,6 +1214,111 @@ export type Database = {
           },
         ]
       }
+      company_integration_profiles: {
+        Row: {
+          company_id: string
+          contact_email_id: string | null
+          contact_id: string | null
+          created_at: string
+          created_by: string | null
+          entity_address_id: string | null
+          financial_info_id: string | null
+          id: string
+          integration: string
+          last_updated_by: string | null
+          note: string | null
+          phone_entity_address_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          contact_email_id?: string | null
+          contact_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          entity_address_id?: string | null
+          financial_info_id?: string | null
+          id?: string
+          integration: string
+          last_updated_by?: string | null
+          note?: string | null
+          phone_entity_address_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          contact_email_id?: string | null
+          contact_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          entity_address_id?: string | null
+          financial_info_id?: string | null
+          id?: string
+          integration?: string
+          last_updated_by?: string | null
+          note?: string | null
+          phone_entity_address_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_integration_profiles_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_integration_profiles_contact_email_id_fkey"
+            columns: ["contact_email_id"]
+            isOneToOne: false
+            referencedRelation: "contact_emails"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_integration_profiles_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_integration_profiles_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "crm_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_integration_profiles_entity_address_id_fkey"
+            columns: ["entity_address_id"]
+            isOneToOne: false
+            referencedRelation: "entity_addresses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_integration_profiles_financial_info_id_fkey"
+            columns: ["financial_info_id"]
+            isOneToOne: false
+            referencedRelation: "financial_info"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_integration_profiles_last_updated_by_fkey"
+            columns: ["last_updated_by"]
+            isOneToOne: false
+            referencedRelation: "crm_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_integration_profiles_phone_entity_address_id_fkey"
+            columns: ["phone_entity_address_id"]
+            isOneToOne: false
+            referencedRelation: "entity_addresses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company_statuses: {
         Row: {
           code: string | null
@@ -7431,6 +7536,24 @@ export type Database = {
       resolve_account_status: {
         Args: { p_account_id: string }
         Returns: string
+      }
+      resolve_company_integration_values: {
+        Args: { p_company_id: string; p_integration: string }
+        Returns: {
+          account_holder: string
+          account_number: string
+          account_type: string
+          bank_name: string
+          branch_name: string
+          building: string
+          contact_email: string
+          contact_id: string
+          contact_name: string
+          phone: string
+          postal_code: string
+          prefecture: string
+          street: string
+        }[]
       }
       resolve_corporate_type_id: {
         Args: { p_company_name: string }

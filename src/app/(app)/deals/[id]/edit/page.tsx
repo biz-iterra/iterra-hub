@@ -100,7 +100,10 @@ export default async function DealEditPage({
     ),
   };
 
-  const isAdmin = meResult.data?.role === "admin";
+  const role = meResult.data?.role;
+  const isAdmin = role === "admin";
+  // contracts の書き込みは manager 以上（RLS と Server Action の条件に合わせる）
+  const canManageContracts = role === "manager" || role === "admin";
 
   return (
     <DealEditForm
@@ -111,7 +114,6 @@ export default async function DealEditPage({
         deal_stage_id: deal.deal_stage_id,
         deal_status_id: deal.deal_status_id,
         amount: deal.amount,
-        contract_name: deal.contract_name,
         application_date: deal.application_date,
         review_completed_date: deal.review_completed_date,
         expected_close_date: deal.expected_close_date,
@@ -120,6 +122,8 @@ export default async function DealEditPage({
       }}
       masters={masters}
       isAdmin={isAdmin}
+      contracts={deal.contracts ?? []}
+      canManageContracts={canManageContracts}
     />
   );
 }

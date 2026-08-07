@@ -33,7 +33,7 @@ import { AddRelatedLink } from "@/components/ui/AddRelatedLink";
 import { InfoField } from "@/components/ui/InfoField";
 import { EntityLink } from "@/components/ui/EntityLink";
 import { ACTIVITY_ICON } from "@/lib/activity";
-import { getDealCounterparty } from "@/lib/deal-counterparty";
+import { getDealCounterparties } from "@/lib/deal-counterparty";
 import { ContractMethodBadge, PipelineBadge, StageBadge, StatusBadge } from "@/components/ui/badges";
 import { detailContainerClass, detailGridClass, fieldGridClass, sectionStackClass, tableScrollClass } from "@/lib/layout";
 
@@ -300,15 +300,26 @@ export default async function DealDetailPage({
                       {deal.account.company && ` (${deal.account.company.name})`}
                     </EntityLink>
                   ) : (
-                    // 契約前は取引先が無い。相手先は事業者情報 / 連絡先で示す
+                    // 契約前は取引先が無い。相手先は事業者情報 / 連絡先で示す。
+                    // **両方紐づいていれば両方出す**（「Ａ社のＢさん」。1 件だけ返す
+                    // getDealCounterparty を使うと連絡先が事業者情報の陰に隠れる。T-0064）
                     (() => {
-                      const cp = getDealCounterparty(deal);
-                      if (!cp) return null;
+                      const parties = getDealCounterparties(deal);
+                      if (parties.length === 0) return null;
                       return (
                         <span
-                          style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "0.5rem",
+                            flexWrap: "wrap",
+                          }}
                         >
-                          <EntityLink href={cp.href}>{cp.label}</EntityLink>
+                          {parties.map((cp) => (
+                            <EntityLink key={cp.kind} href={cp.href}>
+                              {cp.label}
+                            </EntityLink>
+                          ))}
                           <span
                             style={{ fontSize: "0.75rem", color: "var(--color-sumi500)" }}
                           >

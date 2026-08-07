@@ -57,3 +57,40 @@ export function getDealCounterparty(
 export function getDealCounterpartyLabel(deal: DealCounterpartySource): string {
   return getDealCounterparty(deal)?.label ?? "";
 }
+
+/**
+ * 紐づいている相手先を**すべて**返す（取引先 → 事業者情報 → 連絡先の順）。
+ *
+ * 商談の相手は「Ａ社のＢさん」であることが普通で、事業者情報と連絡先は
+ * 同時に紐づく（T-0064）。1 つだけ返す `getDealCounterparty` は
+ * 一覧やカンバンのように 1 行で示す場所のためのもので、**詳細ページで使うと
+ * 事業者情報の陰に連絡先が隠れる**。場所が広い画面ではこちらを使う。
+ */
+export function getDealCounterparties(
+  deal: DealCounterpartySource
+): DealCounterparty[] {
+  const result: DealCounterparty[] = [];
+  if (deal.account) {
+    result.push({
+      kind: "account",
+      label: deal.account.name,
+      href: `/accounts/${deal.account.id}`,
+    });
+  }
+  if (deal.company) {
+    result.push({
+      kind: "company",
+      label: deal.company.name,
+      href: `/companies/${deal.company.id}`,
+    });
+  }
+  if (deal.contact) {
+    const name = `${deal.contact.last_name ?? ""} ${deal.contact.first_name ?? ""}`.trim();
+    result.push({
+      kind: "contact",
+      label: name,
+      href: `/contacts/${deal.contact.id}`,
+    });
+  }
+  return result;
+}

@@ -148,15 +148,25 @@ test.describe("変更した画面の総ざらい", () => {
       });
     }
 
-    // ---- 4. 商談の相手先が 3 択で、事業者情報でも作れること ----
-    await check("商談の相手先が 3 択", async () => {
+    // ---- 4. 商談の相手先が排他でなく、それぞれ選べること（T-0064）----
+    await check("商談の相手先を同時に選べる", async () => {
       await page.goto("/deals/new");
-      for (const label of ["事業者情報", "連絡先", "取引先"]) {
+      for (const label of ["事業者情報", "連絡先（先方の担当者）", "取引先"]) {
         await expect(
-          page.getByRole("radio", { name: label }),
-          `相手先に「${label}」が無い`
+          page.getByRole("combobox", { name: label }),
+          `相手先に「${label}」の選択欄が無い`
         ).toBeVisible();
       }
+      // ラジオに戻っていないこと（1 つしか選べないと「Ａ社のＢさん」を表せない）
+      await expect(
+        page.getByRole("radio", { name: "事業者情報" }),
+        "相手先がラジオ（排他）に戻っている"
+      ).toHaveCount(0);
+      // 契約名の手入力欄は無いこと（contracts へ一本化した。T-0063）
+      await expect(
+        page.getByLabel("契約名"),
+        "商談の新規作成に契約名の入力欄が残っている"
+      ).toHaveCount(0);
     });
 
     // ---- 5. 連絡先の新規作成に連絡手段・住所がある ----

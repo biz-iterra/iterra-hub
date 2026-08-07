@@ -6,11 +6,13 @@ import { createClient } from "@/lib/supabase/server";
 import { conflictErrorMessage } from "@/lib/validators/common";
 import {
   createContractSchema,
+  linkContractToDealSchema,
   updateContractSchema,
 } from "@/lib/validators";
 import type {
   ContractDetail,
   ContractWithRelations,
+  LinkableContract,
   Paged,
   Row,
 } from "@/types/relations";
@@ -176,6 +178,100 @@ export async function updateContract(
   if (!data) return { data: null, error: conflictErrorMessage("この契約") };
   revalidatePath("/contracts");
   revalidatePath(`/contracts/${id}`);
+  return { data, error: null };
+}
+
+// ---------- 商談への付け替え ----------
+
+/**
+ * 商談へ紐づけられる契約の候補を返す。
+ *
+ * **すでにその商談に属している契約は除く**（付け替える意味がないため）。
+ * 候補は必ず別の商談に属しているので、移動元を画面へ返して見せる。
+ */
+export async function listLinkableContracts(params: {
+  dealId: string;
+  search?: string;
+  limit?: number;
+}): Promise<ActionResult<LinkableContract[]>> {
+  const { supabase, user, role } = await getAuthenticatedUser();
+  if (!supabase || !user) return { data: null, error: "認証が必要です" };
+  if (role !== "manager" && role !== "admin") {
+    return { data: null, error: "manager 以上の権限が必要です" };
+  }
+
+  let query = supabase
+    .from("contracts")
+    .select(
+      "id, contract_code, contract_name, contract_method, start_date, updated_at, deal:deals(id, deal_code, name)"
+    )
+    .is("deleted_at", null)
+    .neq("deal_id", params.dealId)
+    .order("created_at", { ascending: false })
+    .limit(params.limit ?? 20);
+
+  if (params.search) {
+    query = query.or(
+      `contract_code.ilike.%${params.search}%,contract_name.ilike.%${params.search}%`
+    );
+  }
+
+  const { data, error } = await query;
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "契約" }) };
+  return { data: data ?? [], error: null };
+}
+
+/**
+ * 既存の契約を別の商談へ付け替える。
+ *
+ * **元の商談からは外れる**（`deal_id` は 1 本しかない）。取引先を作る
+ * `ensure_account_on_contract` は AFTER INSERT なので、付け替えでは走らない。
+ * 移動先の商談に取引先が無い場合は、契約を作り直すか手で紐づける必要がある。
+ */
+export async function linkContractToDeal(
+  input: z.infer<typeof linkContractToDealSchema>
+): Promise<ActionResult<Row<"contracts">>> {
+  const { supabase, user, role } = await getAuthenticatedUser();
+  if (!supabase || !user) return { data: null, error: "認証が必要です" };
+  if (role !== "manager" && role !== "admin") {
+    return { data: null, error: "manager 以上の権限が必要です" };
+  }
+
+  const parsed = linkContractToDealSchema.safeParse(input);
+  if (!parsed.success) return { data: null, error: parsed.error.issues[0].message };
+
+  // 移動元を控えておく（付け替え後に元の商談も再検証するため）
+  const { data: before, error: beforeError } = await supabase
+    .from("contracts")
+    .select("deal_id")
+    .eq("id", parsed.data.contract_id)
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  if (beforeError) {
+    return { data: null, error: toUserMessage(beforeError, { entityLabel: "契約" }) };
+  }
+  if (!before) return { data: null, error: "契約が見つかりません" };
+  if (before.deal_id === parsed.data.deal_id) {
+    return { data: null, error: "この契約はすでにこの商談に紐づいています" };
+  }
+
+  const { data, error } = await supabase
+    .from("contracts")
+    .update({ deal_id: parsed.data.deal_id, last_updated_by: user.id })
+    .eq("id", parsed.data.contract_id)
+    .eq("updated_at", parsed.data.expected_updated_at)
+    .select()
+    .maybeSingle();
+
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "契約" }) };
+  if (!data) return { data: null, error: conflictErrorMessage("この契約") };
+
+  revalidatePath("/contracts");
+  revalidatePath(`/contracts/${parsed.data.contract_id}`);
+  revalidatePath("/deals");
+  revalidatePath(`/deals/${parsed.data.deal_id}`);
+  if (before.deal_id) revalidatePath(`/deals/${before.deal_id}`);
   return { data, error: null };
 }
 

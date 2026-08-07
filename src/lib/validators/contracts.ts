@@ -34,3 +34,22 @@ export const createContractSchema = contractBaseSchema.refine(
 export const updateContractSchema = contractBaseSchema
   .partial()
   .extend({ expected_updated_at: expectedUpdatedAtSchema });
+
+/**
+ * 既存の契約を別の商談へ付け替える。
+ *
+ * **`contracts.deal_id` は NOT NULL** なので、契約は必ずどれかの商談に属している。
+ * つまりこの操作は「紐づける」と同時に「元の商談から外す」ことでもある。
+ * 画面では移動元を必ず見せてから実行させること（T-0063）。
+ */
+export const linkContractToDealSchema = z.object({
+  contract_id: uuidString("契約を選んでください"),
+  deal_id: uuidString("商談は必須です"),
+  /**
+   * 楽観ロック: 選んだ時点の契約の `updated_at`。
+   *
+   * 他の更新系と違い**必須**にしている。候補一覧を開いたまま放置すると
+   * 移動元が変わっていることがあり、後勝ちで別の商談から契約を奪ってしまう
+   */
+  expected_updated_at: z.string().min(1, "契約の更新時刻が取れませんでした。画面を再読み込みしてください"),
+});

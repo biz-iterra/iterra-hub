@@ -10,6 +10,10 @@ import { useToast } from "@/components/ui/toast";
 import { isFieldValidationError } from "@/lib/errors";
 import { formContainerClass, fieldGridClass, formFooterClass } from "@/lib/layout";
 import { RequiredMark } from "@/components/ui/RequiredMark";
+import {
+  DealContractsSection,
+  type DealContractRow,
+} from "@/components/deals/DealContractsSection";
 
 type SelectOption = { value: string; label: string };
 type StageOption = SelectOption & { pipeline_type_id: string };
@@ -22,8 +26,6 @@ type DealData = {
   deal_stage_id: string;
   deal_status_id: string;
   amount: number | null;
-  /** 契約成立時に作られるため、契約前は null */
-  contract_name: string | null;
   application_date: string | null;
   review_completed_date: string | null;
   expected_close_date: string | null;
@@ -153,10 +155,16 @@ export function DealEditForm({
   deal,
   masters,
   isAdmin,
+  contracts,
+  canManageContracts,
 }: {
   deal: DealData;
   masters: Masters;
   isAdmin: boolean;
+  /** この商談に紐づいている契約。表示と紐づけ操作は下部のセクションが持つ */
+  contracts: DealContractRow[];
+  /** contracts の書き込みは manager 以上に限る（RLS と同じ条件） */
+  canManageContracts: boolean;
 }) {
   const router = useRouter();
   const { showToast } = useToast();
@@ -166,7 +174,6 @@ export function DealEditForm({
     deal_stage_id: deal.deal_stage_id ?? "",
     deal_status_id: deal.deal_status_id ?? "",
     amount: deal.amount != null ? String(deal.amount) : "",
-    contract_name: deal.contract_name ?? "",
     application_date: deal.application_date ?? "",
     review_completed_date: deal.review_completed_date ?? "",
     expected_close_date: deal.expected_close_date ?? "",
@@ -246,7 +253,6 @@ export function DealEditForm({
       deal_stage_id: values.deal_stage_id,
       deal_status_id: values.deal_status_id,
       amount: amountNum,
-      contract_name: values.contract_name || null,
       application_date: values.application_date || null,
       review_completed_date: values.review_completed_date || null,
       expected_close_date: values.expected_close_date || null,
@@ -320,18 +326,12 @@ export function DealEditForm({
                 onBlur={onBlur}
               />
             </div>
-            <div>
-              <label style={styles.label}>契約名</label>
-              <input
-                type="text"
-                style={styles.input}
-                value={values.contract_name}
-                onChange={(e) => set("contract_name", e.target.value)}
-                onFocus={onFocus}
-                onBlur={onBlur}
-              />
-            </div>
-            {/* 取引先と担当者は別レコードへの紐づけなので詳細ページで直す */}
+            {/*
+              取引先・担当者は別レコードへの紐づけなので詳細ページで直す。
+              契約も同じ理由でフォームの外（このページ下部の契約セクション）に置く。
+              以前ここにあった「契約名」は deals.contract_name というテキスト列で、
+              contracts テーブルと二重管理になっていたため外した（T-0063）
+            */}
           </div>
         </div>
 
@@ -480,6 +480,16 @@ export function DealEditForm({
           </div>
         </div>
       </form>
+
+      {/*
+        契約はフォームの外に置く。**「保存」を押さずにその場で反映される**ため、
+        商談本体の編集と混ざらないようにしている（T-0063）
+      */}
+      <DealContractsSection
+        dealId={deal.id}
+        contracts={contracts}
+        canManage={canManageContracts}
+      />
 
       <ConfirmDialog
         open={confirmDelete}

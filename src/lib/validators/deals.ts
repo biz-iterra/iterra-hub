@@ -9,6 +9,10 @@ import { expectedUpdatedAtSchema, uuidString } from "./common";
  * （DB 側も `deals_counterparty_check` で「いずれか 1 つ以上」を要求する）。
  * 2026-08-04 まで画面と Zod が `account_id` を必須にしており、
  * 契約前の相手と商談を作れなかった。
+ *
+ * **3 つは排他ではない。** 商談の相手は「Ａ社のＢさん」であることが普通で、
+ * 事業者情報と連絡先を同時に持てる。2026-08-07 まで画面がラジオで 1 つしか
+ * 選ばせておらず、DB 制約（いずれか 1 つ以上）より狭かった（T-0064）。
  */
 const counterpartyFields = {
   account_id: uuidString().nullable().optional(),
@@ -23,7 +27,7 @@ const hasCounterparty = (data: {
 }) => !!(data.account_id || data.company_id || data.contact_id);
 
 const COUNTERPARTY_MESSAGE =
-  "相手先を選んでください（取引先・事業者情報・連絡先のいずれか）";
+  "相手先を選んでください（事業者情報・連絡先・取引先のいずれか。複数選べます）";
 
 export const createDealSchema = z.object({
   name: z.string().min(1, "取引名は必須です").max(200),
@@ -33,7 +37,6 @@ export const createDealSchema = z.object({
   amount: z.number().int().min(0).nullable().optional(),
   ...counterpartyFields,
   owner_user_id: uuidString().nullable().optional(),
-  contract_name: z.string().max(200).nullable().optional(),
   application_date: z.string().nullable().optional(),
   review_completed_date: z.string().nullable().optional(),
   expected_close_date: z.string().nullable().optional(),
@@ -67,7 +70,6 @@ export const updateDealSchema = z.object({
   amount: z.number().int().min(0).nullable().optional(),
   ...counterpartyFields,
   owner_user_id: uuidString().nullable().optional(),
-  contract_name: z.string().max(200).nullable().optional(),
   application_date: z.string().nullable().optional(),
   review_completed_date: z.string().nullable().optional(),
   expected_close_date: z.string().nullable().optional(),

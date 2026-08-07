@@ -83,8 +83,12 @@ test.describe("E2E-13", () => {
     await page.waitForURL(new RegExp(`/deals/new\\?contact_id=${contactId}`));
     // 取引先が無くても商談を作れること（契約成立まで取引先は存在しないため）
     await expect(page.getByRole("heading", { name: "商談を新規作成" })).toBeVisible();
-    // 相手先が 3 択で、連絡先が選ばれた状態で始まること
-    await expect(page.getByRole("radio", { name: "連絡先" })).toBeChecked();
+    // 相手先は排他ではなく、連絡先だけが埋まった状態で始まること（T-0064）。
+    // 事業者情報の欄は空で、ここで併せて選べる
+    await expect(
+      page.getByRole("combobox", { name: "連絡先（先方の担当者）" })
+    ).toHaveValue(new RegExp(lastName));
+    await expect(page.getByRole("combobox", { name: "事業者情報" })).toHaveValue("");
 
     // ---- 6. 事業者情報の住所を登録できること（2026-08-04 の回帰）----
     // 住所エディタは <form> の中にあり、Enter でフォームが送信されると

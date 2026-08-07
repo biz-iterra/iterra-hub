@@ -422,6 +422,19 @@ export type ContractDetail = ContractWithRelations & {
     | null;
 };
 
+/**
+ * contracts.ts の listLinkableContracts に対応。
+ *
+ * 商談へ付け替える候補。**移動元の商談を必ず持つ**（`contracts.deal_id` は
+ * NOT NULL なので、どの契約も必ずどこかに属している。付け替えると元から外れる）
+ */
+export type LinkableContract = Ref<
+  "contracts",
+  "id" | "contract_code" | "contract_name" | "contract_method" | "start_date" | "updated_at"
+> & {
+  deal: Ref<"deals", "id" | "deal_code" | "name"> | null;
+};
+
 // ============================================================
 // Project
 // ============================================================

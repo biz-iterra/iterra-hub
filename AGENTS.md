@@ -11,7 +11,8 @@ CLAUDE.md に書いてあるもの:
 - 概要・技術スタック・ディレクトリ構造
 - 開発ルール / データ整合性の規約（DB 関数へのまとめ・楽観ロック・型の生成物・migration の順序）
 - 品質チェックとデプロイゲート（正本は `docs/test-strategy.md`）
-- シークレット管理（正本は `~/.claude/docs/secrets-policy.md` と `docs/secrets-management.md`）
+- シークレット管理（方針の正本はスキル `secrets-management`、台帳の正本は
+  `~/.claude/secrets/ledger/iterra-hub.md`、参照側の実装は `docs/secrets-management.md`）
 - アクセス制御ルール（多層防御・Server Action の必須チェック・RLS ポリシー設計）
 - UI 表示名と内部名の対応 / CRM データモデル概要 / バッジ色
 

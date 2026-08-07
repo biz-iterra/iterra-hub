@@ -1,206 +1,54 @@
-# シークレット管理台帳（iterra-hub）
+# シークレット管理（iterra-hub のリポジトリ固有事項）
 
-> 2026-07-31 制定。共通方針 `~/.claude/docs/secrets-policy.md` に基づく iterra-hub のリポジトリ台帳。
-> **値は書かない。** 記録するのは「Bitwarden キー名 = 転記先」の対応と用途だけ。
-> 共通方針とこのファイルが矛盾した場合は**共通方針が優先**（このファイルを直す）。
+> **台帳の正本は `~/.claude/secrets/ledger/iterra-hub.md`**（全プロジェクト横断で管理）。
+> キー名 ↔ 転記先の対応・同値グループ・対象外の判断はそちらを見る。
+> 共通方針はスキル `secrets-management`（`~/.claude/skills/secrets-management/SKILL.md`）。
+> **このファイルにも台帳にも値は書かない。**
 
-- Bitwarden Secrets Manager のプロジェクト名: **`iterra-hub`**（規約どおりリポジトリ名と同一）
-- 転記先は 5 か所: GitHub Environment `production` / `staging` / NAS の `.env` / NAS の `docker login` / ローカル `.env.local`
+このファイルには、**コードと一緒に動くもの**だけを書く。
+参照側の実装・期限のある移行作業・設計判断の記録の 3 つ。
 
-## 1. キー名のプレフィックス（本リポジトリで使うもの）
+- Bitwarden プロジェクト: `iterra-hub`（専用枠）
+- 転記先は 5 か所: GitHub Environment `production` / `staging` / NAS の `.env` /
+  NAS の `docker login` / ローカル `.env.local`
+- 暗号鍵・合言葉の生成手順 → スキルの `references/secret-generation.md`
+  （**自分のターミナルで実行する。エージェント経由で実行しない**）
 
-| プレフィックス | 転記先 |
+## 1. 参照側の実装（どこが読んでいるか）
+
+**登録しただけでは動かない。** ワークフローやコードから参照して初めて効く。
+シークレットを増やすときは、ここに行を足すところまでが 1 セット。
+
+| キー | 読んでいる場所 |
 |---|---|
-| `gh/env:production/` | GitHub Environment secrets（`production`） |
-| `gh/env:staging/` | GitHub Environment secrets（`staging`） |
-| `nas/iterra-hub:production/` | 自社 NAS 上の実行時シークレット（`/volume1/docker/iterra-hub/.env` と `docker login`） |
-| `local/iterra-hub:development/` | 開発機の `.env.local`。**再取得できない値のみ**（Gmail 連携など）。ローカル Supabase の値は対象外 |
+| `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `.github/workflows/docker-publish.yml`（**ビルド引数**。イメージへ焼き込む） |
+| `SUPABASE_DB_PASSWORD` | `.github/workflows/db-backup.yml`（`PGPASSWORD`） |
+| STG の `NEXT_PUBLIC_*` / `SUPABASE_DB_PASSWORD` | `.github/workflows/staging-keepalive.yml` |
+| `SUPABASE_SERVICE_ROLE_KEY` | `createAdminClient()`（`src/lib/supabase/admin.ts`）経由の RLS バイパス処理 |
+| `CLOUDFLARE_TUNNEL_TOKEN` | `docker-compose.yml` の `cloudflared` サービス |
+| `CF_ACCESS_TEAM_DOMAIN` / `CF_ACCESS_AUD` | `src/lib/cf-access.ts`（**両方そろって初めて有効**） |
+| `HOUJIN_BANGOU_APP_ID` | 事業者情報の実在確認（国税庁 法人番号 Web-API） |
+| `GOOGLE_OAUTH_*` / `GMAIL_TOKEN_ENCRYPTION_KEY` | Gmail 連携（`src/lib/gmail/`） |
+| `GMAIL_SYNC_CRON_SECRET` | `/api/gmail/sync` の Bearer 検証（未設定なら 503） |
+| `CLOUDFLARE_ACCOUNT_ID` / `CLOUDFLARE_D1_DATABASE_ID` / `CLOUDFLARE_API_TOKEN` | 問い合わせ取込（D1 の読み取り） |
+| `INQUIRY_SYNC_CRON_SECRET` / `INQUIRY_SYNC_OWNER_EMAIL` | `/api/leads/inquiry-sync`（未設定なら 503） |
+| `FREEE_CLIENT_*` / `FREEE_TOKEN_ENCRYPTION_KEY` | freee 会計連携 |
+| `FREEE_SYNC_CRON_SECRET` | `/api/freee/sync`（未設定なら 503） |
+| `GOOGLE_CONTACTS_*` | Google コンタクト連携 |
+| `GOOGLE_CONTACTS_SYNC_CRON_SECRET` | `/api/google-contacts/sync`（未設定なら 503） |
 
-**同じ値でも転記先ごとに 1 エントリ**（共通方針④）。片方だけ更新して食い違う事故を防ぐため。
-同値のものが生じたらセクション 2 の「同値グループ」に記載し、まとめて更新する
-（Cloudflare の本番アカウント API トークンが該当。Supabase 系は別値）。
+`GITHUB_TOKEN`（GHCR への push）は Actions が実行時に自動発行する。
 
-共通方針セクション 3 の表にある `vercel/<プロジェクト>:<環境>/`（ホスティングの環境変数）の
-自社 NAS 版として `nas/<プロジェクト>:<環境>/` を使う。共通方針側にも同じ行を追加済み。
+### Environment の中身を確認するコマンド（値は表示されない）
 
-**GitHub Repository secrets は 0 件で運用する。** 環境依存の値をリポジトリレベルに残すと
-Environment に無いときへ静かにフォールバックし、分離できているつもりで動いてしまう
-（共通方針セクション 7 の既知の落とし穴）。本リポジトリには環境非依存のビルド基盤トークンが
-無いため、リポジトリレベルは空が正しい状態。
+```bash
+gh api repos/:owner/:repo/environments --jq '.environments[].name'
+gh secret list --env production
+gh secret list --env staging
+gh secret list                      # 0 件が正しい状態
+```
 
-## 2. 台帳（あるべき姿）
-
-### GitHub — Environment: production（3 件）
-
-参照側は `.github/workflows/docker-publish.yml`（ビルド引数）と `db-backup.yml`（pg_dump）。
-どちらのジョブにも `environment: production` を指定してある。
-
-| Bitwarden キー名 | 用途 | 発行元 | 備考 |
-|---|---|---|---|
-| `gh/env:production/NEXT_PUBLIC_SUPABASE_URL` | イメージのビルド引数。クライアントバンドルへ焼き込む | Supabase → Settings → API → Project URL | **公開値**（メモ欄に明記すること） |
-| `gh/env:production/NEXT_PUBLIC_SUPABASE_ANON_KEY` | 同上 | Supabase → Settings → API Keys → Publishable key | **公開値**（RLS 前提の設計。Secret key と取り違えないこと） |
-| `gh/env:production/SUPABASE_DB_PASSWORD` | 日次バックアップの `PGPASSWORD` | Supabase → Database → Settings → Reset database password | **パスワードのみ**。接続文字列は登録しない（`@ & # / : ?` で URL パースが壊れる事故あり） |
-
-`GITHUB_TOKEN`（GHCR への push に使用）は GitHub が実行時に自動発行するため**登録対象外**。
-
-### GitHub — Environment: staging（3 件）
-
-登録済み（2026-07-31）。参照側は `.github/workflows/staging-keepalive.yml`。
-値は STG 用プロジェクト `iterra-hub-stg`（`mddtzqixxnzdixceoxuc`）の実物。
-構成は `docs/deployment-nas.md § 10`。
-
-| Bitwarden キー名 | 用途 | 備考 |
-|---|---|---|
-| `gh/env:staging/NEXT_PUBLIC_SUPABASE_URL` | STG イメージのビルド引数 | **公開値** |
-| `gh/env:staging/NEXT_PUBLIC_SUPABASE_ANON_KEY` | 同上 | **公開値** |
-| `gh/env:staging/SUPABASE_DB_PASSWORD` | STG DB のバックアップ／検証用 | パスワードのみ |
-
-### GitHub — Repository secrets（0 件）
-
-登録なしが正（2026-07-31 に旧 3 件を削除済み）。
-何か増えていたら「本当に環境非依存か」を確認し、環境依存なら Environment へ移す。
-
-**リポジトリレベルに環境依存の値を戻さないこと。** `staging` の Secret が欠けた状態で
-`environment: staging` のジョブを回すと、リポジトリレベルに残った**本番の値**へ静かに
-フォールバックし、STG のつもりで本番 DB を触ってしまう。
-
-### NAS — `/volume1/docker/iterra-hub/.env`（18 件）
-
-`docker-compose.yml` がコンテナ実行時に読む。ファイルは `chmod 600`。
-
-| Bitwarden キー名 | 用途 | 発行元 | 備考 |
-|---|---|---|---|
-| `nas/iterra-hub:production/SUPABASE_SERVICE_ROLE_KEY` | `createAdminClient()` 経由の RLS バイパス処理（リードのバルク更新・スコア再計算） | Supabase → Settings → API Keys → Secret keys | **GitHub Secrets には登録しない**（ビルドに不要。漏洩面を増やさない） |
-| `nas/iterra-hub:production/CLOUDFLARE_TUNNEL_TOKEN` | `cloudflared` の Tunnel 接続 | Cloudflare Zero Trust → Networks → Tunnels の `--token` の値 | コマンド全体ではなくトークン部分のみ。プレースホルダの山括弧混入で `not valid` になる事故あり |
-| `nas/iterra-hub:production/HOUJIN_BANGOU_APP_ID` | 事業者情報の実在確認（国税庁 法人番号 Web-API） | https://www.houjin-bangou.nta.go.jp/webapi/ の利用申請 | 無償。未設定でも起動は通り、画面に「未設定」と出るだけ |
-| `nas/iterra-hub:production/GOOGLE_OAUTH_CLIENT_ID` | Gmail 連携の OAuth クライアント | Google Cloud → APIs & Services → 認証情報 → OAuth 2.0 クライアント ID（ウェブアプリケーション） | 秘密値ではない（同意画面で利用者に見える）が、シークレットと組で管理するため同じ場所に置く |
-| `nas/iterra-hub:production/GOOGLE_OAUTH_CLIENT_SECRET` | 同上 | 同上 | 再発行すると既存の連携が切れる |
-| `nas/iterra-hub:production/GMAIL_TOKEN_ENCRYPTION_KEY` | リフレッシュトークンの暗号化鍵（pgcrypto） | 自分のターミナルで生成（**§6.1**）。値をチャットやログに残さないこと | **変更・紛失すると保存済みトークンを復号できず全員が再連携になる**。ローテーション時は再連携の案内とセットで |
-| `nas/iterra-hub:production/GMAIL_SYNC_CRON_SECRET` | 定期同期エンドポイント（`/api/gmail/sync`）の Bearer トークン | 自分のターミナルで生成（**§6.1**）。暗号鍵とは別の値にする | 未設定ならエンドポイントは 503 で無効。**開発機には置かない**（手動同期で足りる） |
-| `nas/iterra-hub:production/CF_ACCESS_TEAM_DOMAIN` | Cloudflare Access の認証をアプリのログインに引き継ぐ（`src/lib/cf-access.ts`） | Zero Trust → Access → Applications → `iterra-hub` → Overview（`<team>.cloudflareaccess.com`） | 秘密値ではないが AUD と組で管理する。**AUD と両方そろって初めて有効** |
-| `nas/iterra-hub:production/CF_ACCESS_AUD` | 同上。JWT の宛先検証に使う | 同上の **Application Audience (AUD) Tag** | 片方だけだと従来どおりログイン画面が出る |
-| `nas/iterra-hub:production/CLOUDFLARE_ACCOUNT_ID` | 問い合わせ取込（D1 の読み取り） | Cloudflare ダッシュボード右下、または URL の `/accounts/` の後ろ | 秘密値ではない。`corporate-iterra` の CI にも同じ値が登録済み |
-| `nas/iterra-hub:production/CLOUDFLARE_D1_DATABASE_ID` | 同上。`corporate-iterra-leads` の ID | `corporate-iterra/wrangler.jsonc` に記載（`7ab6eea8-…`） | 秘密値ではない。STG を見る場合は `-stg` の ID に差し替える |
-| `nas/iterra-hub:production/CLOUDFLARE_API_TOKEN` | 同上。D1 REST API の認証 | **corporate-iterra の本番アカウント API トークンと同値**（トークン名 `corporate-site env:production CI`。既に D1 Edit を持つ） | アカウント API トークンを**環境ごとに 1 本**にまとめる方針。個別トークンは作らない。→ 同値グループ |
-| `nas/iterra-hub:production/INQUIRY_SYNC_CRON_SECRET` | 取込エンドポイント（`/api/leads/inquiry-sync`）の Bearer トークン | 自分のターミナルで生成（**§6.1**）。Gmail 用とは別の値にする | 未設定ならエンドポイントは 503 で無効 |
-| `nas/iterra-hub:production/INQUIRY_SYNC_OWNER_EMAIL` | 取り込んだリードの担当者 | 運用で決める（`crm_users.email` と一致させる） | 秘密値ではない。未設定なら最初の管理者に付く |
-| `nas/iterra-hub:production/FREEE_CLIENT_ID` | freee 会計連携の OAuth クライアント | freee 開発者コンソール（https://developer.freee.co.jp/） → アプリ管理 → 対象アプリ | 秘密値ではないがシークレットと組で管理する。**コールバック URI に `https://hub.iterra.online/api/freee/callback` の登録が要る** |
-| `nas/iterra-hub:production/FREEE_CLIENT_SECRET` | 同上 | 同上 | 再発行すると既存の接続が切れる |
-| `nas/iterra-hub:production/FREEE_TOKEN_ENCRYPTION_KEY` | freee のトークンの暗号化鍵（AES-256-GCM） | 自分のターミナルで生成（**§6.1**）。`GMAIL_TOKEN_ENCRYPTION_KEY` と**別の値**にする | **変更・紛失すると保存済みトークンを復号できず、管理画面から接続し直しになる** |
-| `nas/iterra-hub:production/FREEE_SYNC_CRON_SECRET` | 定期同期エンドポイント（`/api/freee/sync`）の Bearer トークン | 自分のターミナルで生成（**§6.1**）。他の CRON_SECRET とは別の値にする | 未設定ならエンドポイントは 503 で無効。**開発機には置かない**（手動同期で足りる） |
-| `nas/iterra-hub:production/GOOGLE_CONTACTS_CLIENT_ID` | Google コンタクト連携の OAuth クライアント | **Gmail と同じ GCP プロジェクト**に**別のクライアント**を作る（同意画面は「内部」のまま共用）→ 認証情報 | 秘密値ではないがシークレットと組で管理する。**コールバック URI に `https://hub.iterra.online/api/google-contacts/callback` の登録が要る** |
-| `nas/iterra-hub:production/GOOGLE_CONTACTS_CLIENT_SECRET` | 同上 | 同上 | 再発行すると既存の接続が切れる |
-| `nas/iterra-hub:production/GOOGLE_CONTACTS_TOKEN_ENCRYPTION_KEY` | Google コンタクトのトークンの暗号化鍵（AES-256-GCM） | 自分のターミナルで生成（**§6.1**）。`GMAIL_TOKEN_ENCRYPTION_KEY` と**別の値**にする | **変更・紛失すると保存済みトークンを復号できず、利用者に再連携を求めることになる** |
-| `nas/iterra-hub:production/GOOGLE_CONTACTS_SYNC_CRON_SECRET` | 定期同期エンドポイント（`/api/google-contacts/sync`）の Bearer トークン | 自分のターミナルで生成（**§6.1**）。他の CRON_SECRET とは別の値にする | 未設定ならエンドポイントは 503 で無効 |
-| `nas/iterra-hub:production/GOOGLE_CONTACTS_ALLOWED_DOMAIN` | 接続を許す Workspace のドメイン | 運用で決める（会社の Workspace ドメイン） | **秘密値ではない。** 未設定だと個人アカウントでも繋がるため必ず設定する |
-
-`IMAGE_TAG` は切り戻し時のみ使う運用値で、秘密値ではないため登録対象外。
-
-### NAS — `docker login`（1 件・ファイルには保存しない）
-
-| Bitwarden キー名 | 用途 | 発行元 | 備考 |
-|---|---|---|---|
-| `nas/iterra-hub:production/GHCR_PULL_TOKEN` | private な GHCR イメージの pull | GitHub → Developer settings → PAT (classic)、スコープ `read:packages` のみ | **有効期限をメモ欄に必ず記録**。失効すると NAS で `docker compose pull` が落ちる |
-
-### ローカル `.env.local`（一部のみ登録）
-
-| キー | 値の出どころ |
-|---|---|
-| `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` / `SUPABASE_SERVICE_ROLE_KEY` | `npx supabase status` の出力 |
-| `local/iterra-hub:development/GOOGLE_OAUTH_CLIENT_ID` | Google Cloud に**開発用として別に作った**クライアント。本番のものを手元に持ってこない |
-| `local/iterra-hub:development/GOOGLE_OAUTH_CLIENT_SECRET` | 同上 |
-| `local/iterra-hub:development/GMAIL_TOKEN_ENCRYPTION_KEY` | 自分で生成した**開発専用**の鍵。本番と同じ値にしない |
-| `local/iterra-hub:development/FREEE_CLIENT_ID` | freee 開発者コンソールに**開発用として別に作った**アプリ。本番のものを手元に持ってこない |
-| `local/iterra-hub:development/FREEE_CLIENT_SECRET` | 同上 |
-| `local/iterra-hub:development/FREEE_TOKEN_ENCRYPTION_KEY` | 自分で生成した**開発専用**の鍵。本番とも Gmail 用とも別の値にする |
-| `local/iterra-hub:development/GOOGLE_CONTACTS_CLIENT_ID` | Gmail と同じプロジェクトに**開発用として別に作った**クライアント。本番のものを手元に持ってこない |
-| `local/iterra-hub:development/GOOGLE_CONTACTS_CLIENT_SECRET` | 同上 |
-| `local/iterra-hub:development/GOOGLE_CONTACTS_TOKEN_ENCRYPTION_KEY` | 自分で生成した**開発専用**の鍵。本番とも他の連携用とも別の値にする |
-| `HOUJIN_BANGOU_APP_ID` | 本番と同じ値でよい（読み取り専用の公開 API。無償・レート制限のみ）。登録は本番分のみ |
-
-`local/iterra-hub:development/*` の 9 件は Bitwarden に登録する。`supabase status` のように
-再取得できる値ではなく、**失うと復元できない**ため（暗号鍵を失うと開発機に保存済みの
-トークンが読めなくなる）。Supabase のローカル値は引き続き登録しない。
-
-**Gmail / freee の暗号鍵を本番と共通にしないこと。** 本番 DB をローカルへコピーしたとき、
-鍵が同じだと保存済みのリフレッシュトークンを復号でき、開発機から本番のメール・会計データを
-読めてしまう。別鍵にしておけば、コピーした時点でトークンが復号不能になり無害化される。
-
-Supabase の 3 つはローカル Supabase が起動時に生成する専用値で、**本番の値を一切含まない**。
-`npx supabase status` でいつでも再取得できる＝正本が別にあるため Bitwarden には登録しない
-（共通方針セクション 2 の「ローカル `.env` は転記先」に対する明示的な例外）。
-
-**本番の値をローカル `.env.local` に入れないこと。** 開発機は本番より守りが薄く、
-入れた時点で漏洩面が広がる。ローカルで必要なものは開発用に別途発行する。
-
-### ローカル `.env`（NAS 用の作業コピー）
-
-`docker-compose.yml` を手元で扱うためのファイルで、キー構成は NAS の `.env` と同一。
-**正本は Bitwarden の `nas/iterra-hub:production/*`。** 値の再確認は必ず Bitwarden を起点にする。
-
-このファイルは削除しないこと。開発機から SSH で NAS の docker を操作するときの
-手元コピーとして使う。
-
-**STG には転記しない。** STG は Supabase のみでアプリの実行環境が無い
-（`docs/deployment-nas.md § 10`）ため、実行時シークレットの置き場所自体が存在しない。
-
-### 同値グループ（ローテーション時にまとめて更新するもの）
-
-#### Cloudflare 本番アカウント API トークン（2026-08-02〜）
-
-**Cloudflare のアカウント API トークンは環境ごとに 1 本**にまとめる方針
-（`corporate-iterra/docs/secrets-management.md` と揃える）。用途ごとに発行しない。
-
-| 転記先 | Bitwarden キー名 |
-|---|---|
-| corporate-iterra の CI | `gh/env:production/CLOUDFLARE_API_TOKEN`（別リポジトリの台帳） |
-| iterra-hub の NAS | `nas/iterra-hub:production/CLOUDFLARE_API_TOKEN` |
-
-- トークン名 `corporate-site env:production CI`。権限は Workers Scripts Edit + D1 Edit
-- **ローテーションしたら両方を差し替える。** 片方だけだとサイトのデプロイか
-  問い合わせ取込のどちらかが止まる
-- iterra-hub は D1 の**読み取りしか行わない**が、1 本にまとめる方針を優先して
-  書き込み権限つきのトークンを共有している。用途を分けたくなったら
-  `iterra-hub` 専用のアカウント API トークン（D1 Read のみ）を発行し、
-  このグループから外すこと
-
-#### Supabase 系
-
-**なし**（2026-07-31 解消）。STG 用 Supabase プロジェクト `iterra-hub-stg`（`mddtzqixxnzdixceoxuc`）の
-作成に伴い、`gh/env:staging/*` を STG 実物の値へ差し替えたため、production と staging は別の値になった。
-
-- ローカル `.env.local` はローカル Supabase の別プロジェクトを指すため、どのグループにも属さない
-- NAS の `SUPABASE_SERVICE_ROLE_KEY` は本番のみで、GitHub 側に同値の転記先を持たない
-
-### Bitwarden Vault 側（Secrets Manager ではない）
-
-管理画面へ人間がログインするための資格情報は Vault に置く（Secrets Manager と混在させない）。
-
-- Supabase ダッシュボード
-- Cloudflare（Zero Trust / Access）
-- GitHub
-
-## 3. 対象外として扱うもの（判断の記録）
-
-**登録するのは「転記先があるもの」だけ。** サービスが発行できる全キーではない。
-転記先の無いキーは規約どおりのキー名（`<場所>/<スコープ>/<Secret 名>`）を付けられず、
-棚卸しの対象だけが増える（共通方針⑥「用途不明のトークンを残さない」）。
-
-| 対象 | 判断 | 理由 |
-|---|---|---|
-| Supabase の **S3 アクセスキー**（access key ID / secret access key） | **発行しない**。発行済みなら Revoke | Storage を S3 プロトコルで操作する実装が無い（`@aws-sdk` 未導入、`supabase.storage` の呼び出しも無し）。Storage への広い権限を持つため放置は危険 |
-| Supabase の **Publishable key** | 登録済み。別エントリは作らない | `NEXT_PUBLIC_SUPABASE_ANON_KEY` がこれ。同じ値を別名で二重登録すると片方だけ更新して食い違う（共通方針④） |
-| Supabase の **Secret key**（`sb_secret_`）— **STG 分** | 対象外 | STG はアプリ実行環境が無く、どこにも転記されていない。本番分は `nas/iterra-hub:production/SUPABASE_SERVICE_ROLE_KEY` として登録済み |
-| Supabase の **JWT secret** / legacy anon・service_role | 対象外 | 未使用。新方式（`sb_*`）へ移行済み |
-| `scripts/test-*.py` の `PASSWORD = "password123"` | 対象外 | `supabase/seeds/02-dev-users.sql` の開発専用ユーザーの値。本番に該当ユーザーは存在しない |
-| `db-backup.yml` の `PGHOST` / `PGUSER` / `PGDATABASE` | 対象外 | 機密でないためワークフローに直書き。Supabase プロジェクト ref も同様 |
-| `GITHUB_TOKEN` | 対象外 | Actions が実行時に自動発行する |
-| `IMAGE_TAG` | 対象外 | 秘密値ではない運用値 |
-
-**将来 Storage を使い始めたら**、その時点で転記先（サーバー側の環境変数名）を決めてから登録する。
-「先に発行しておく」はしない。
-
-## 4. Supabase API キー方式の移行（期限あり）
+## 2. Supabase API キー方式の移行（期限あり）
 
 旧方式（`eyJ...`）は **2026 年末に廃止予定**。新方式（`sb_publishable_...` / `sb_secret_...`）へ
 差し替える際は、以下すべてを更新し、Bitwarden も同時に更新する。
@@ -213,12 +61,11 @@ Supabase の 3 つはローカル Supabase が起動時に生成する専用値�
 | `nas/iterra-hub:production/SUPABASE_SERVICE_ROLE_KEY` | Secret key | `docker compose up -d --force-recreate` |
 | ローカル `.env.local` | 両方 | `npx supabase status` から転記 |
 
-## 5. 移行チェックリスト（2026-07-31 着手）
+## 3. 移行チェックリスト（2026-07-31 着手）
 
 **Bitwarden 側（ユーザー作業。値を扱うため Claude は実施しない）**
 - [x] Secrets Manager にプロジェクト `iterra-hub` を作成
-- [x] セクション 2 の 9 件を登録
-      `gh/env:production/` 3 件・`gh/env:staging/` 3 件・`nas/iterra-hub:production/` 3 件
+- [x] `gh/env:production/` 3 件・`gh/env:staging/` 3 件・`nas/iterra-hub:production/` 3 件を登録
 - [ ] 公開値 4 件（両環境の `NEXT_PUBLIC_*`）のメモ欄に「公開値」と明記
 - [ ] `GHCR_PULL_TOKEN` のメモ欄に PAT の**有効期限**を記録
 - [ ] `gh/env:staging/*` を STG 実物の値へ差し替えた分、Bitwarden 側も更新済みか確認
@@ -236,11 +83,11 @@ Supabase の 3 つはローカル Supabase が起動時に生成する専用値�
 - [x] `iterra-hub-stg`（`mddtzqixxnzdixceoxuc` / ap-northeast-1）を作成
 - [x] `bash scripts/setup-staging.sh` でマイグレーションと seed を投入
 - [x] `gh/env:staging/NEXT_PUBLIC_*` を STG 実物の値へ差し替え（2026-07-31 03:42 更新を確認）
-- [x] 同値グループを解消（セクション 2）
+- [x] 同値グループを解消（production と staging は別の値になった）
 
 **未了（設計判断が残っているもの）**
 - [ ] STG へのマイグレーション自動適用。現状 `db push` は手動のため、本番と STG のスキーマがずれ得る
-      （Supabase Branching なら構造的に防げる部分。セクション 7 の判断記録を参照）
+      （Supabase Branching なら構造的に防げる部分。セクション 4 の判断記録を参照）
 - [ ] STG 向けのアプリ実行環境。現状は Supabase のみで、NAS 上に STG コンテナは置いていない。
       必要になったら `docker-publish.yml` に環境選択を足し、`latest` ではなく `staging` タグで push する
 
@@ -261,101 +108,7 @@ Supabase の 3 つはローカル Supabase が起動時に生成する専用値�
       削除前の成功はフォールバックの可能性があり、分離できた証拠にならない）
 - [ ] `db-backup` を手動実行して成功すること（同上）
 
-## 6. 運用ルール（このリポジトリ固有）
-
-- シークレットを 1 つ増やすときは「Bitwarden へ登録 → 転記先へ登録 → 参照側の実装を確認 → この台帳に追記」の順で行う
-- **登録しただけでは動かない。** ワークフローやコードから参照して初めて効く
-- **環境をまたぐ値は production / staging の両方に登録する。** 同値でもエントリは分ける
-- `NEXT_PUBLIC_*` に秘密値を入れない。RLS をバイパスする値は必ずサーバー側の変数名にする
-- 不要になったトークンはその場で Revoke する
-
-### 6.1 暗号鍵と合言葉の生成
-
-対象は「自分で作る値」。外部サービスが発行するもの（OAuth クライアント、
-API トークン、Tunnel トークン）はここでは作らず、発行元から取得する。
-
-| キー | 生成する |
-|---|---|
-| `GMAIL_TOKEN_ENCRYPTION_KEY` | ○ |
-| `FREEE_TOKEN_ENCRYPTION_KEY` | ○ |
-| `GOOGLE_CONTACTS_TOKEN_ENCRYPTION_KEY` | ○ |
-| `GMAIL_SYNC_CRON_SECRET` | ○ |
-| `FREEE_SYNC_CRON_SECRET` | ○ |
-| `INQUIRY_SYNC_CRON_SECRET` | ○ |
-| `GOOGLE_CONTACTS_SYNC_CRON_SECRET` | ○ |
-
-**すべて別々の値にする。** 使い回すと、片方をローテーションしたときに
-もう片方が巻き添えで壊れる。
-
-#### 実行する場所
-
-**自分のターミナルで実行する。エージェント（Claude Code 等）経由で実行しない。**
-出力が会話履歴に残り、そこから消せなくなる。生成した値は Bitwarden Secrets Manager
-へ直接貼り、転記先（NAS の `.env` / GitHub Environment）へ入れる。
-
-#### PowerShell 7（この環境の既定）
-
-画面に出さず、そのままクリップボードへ入れる。スクロールバックに残さないため。
-生成と桁数の確認を **`;` で繋いだ 1 行**にしてある。2 行に分けて書くと、
-貼り付けたときに改行が失われて 1 行に繋がり、
-`Set-Clipboard(Get-Clipboard).Length` という別のコマンドになって失敗する
-（2026-08-05 に発生）。
-
-```powershell
-[Convert]::ToBase64String([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32)) | Set-Clipboard; (Get-Clipboard).Length
-```
-
-**`44` と出れば成功**（32 バイトの base64）。値は画面に出ない。
-
-**1 つ貼り付けてから次を生成する。** 続けて 2 回実行すると
-クリップボードが上書きされ、前の値は取り戻せない。
-
-#### bash（Git Bash / WSL）
-
-```bash
-openssl rand -base64 32
-```
-
-`openssl` が無い場合。
-
-```bash
-head -c 32 /dev/urandom | base64
-```
-
-クリップボードへ直接入れるなら、Git Bash では次のようにする。
-
-```bash
-openssl rand -base64 32 | tr -d '\n' | clip
-```
-
-#### 形式について
-
-**長さの決まりは無い。** アプリ側は SHA-256 で 32 バイトへ畳んでから
-AES-256-GCM に使うため（`src/lib/gmail/crypto.ts`）、書式を強制していない。
-それでも 32 バイトの base64（44 文字）に揃えているのは、
-**桁数を見るだけで「入っているか」を確認できるようにするため**
-（`docs/test-checklist.md` の環境変数チェックがこの前提で書かれている）。
-
-合言葉（`*_CRON_SECRET`）は Bearer トークンとして等値比較するだけなので、
-同じ作り方でよい。
-
-#### ローテーションの影響
-
-- **暗号鍵を変えると、保存済みのトークンを復号できなくなる。**
-  利用者全員が連携し直しになる。案内とセットで行うこと
-- **合言葉を変えたら、NAS のタスクスケジューラの登録も同時に直す。**
-  片方だけだと定期同期が 401 で止まり続ける（画面には何も出ない）
-
-### Environment の中身を確認するコマンド（値は表示されない）
-
-```bash
-gh api repos/:owner/:repo/environments --jq '.environments[].name'
-gh secret list --env production
-gh secret list --env staging
-gh secret list                      # 0 件が正しい状態
-```
-
-## 7. 判断の記録: なぜ Supabase Branching ではなく別プロジェクトなのか
+## 4. 判断の記録: なぜ Supabase Branching ではなく別プロジェクトなのか
 
 > 2026-07-31 決定。STG 環境の作り方として Supabase Branching（Preview / Persistent branch）を
 > 検討したうえで、**別プロジェクト（`iterra-hub-stg`）を常設する方式を採用**した。
@@ -381,7 +134,7 @@ gh secret list                      # 0 件が正しい状態
 本方式では STG への `db push` が手動のため、適用漏れがあると古いスキーマのまま検証してしまう。
 
 対策として「`main` への push 時に `staging` Environment で `supabase db push` を STG へ流す」
-ワークフローを足せば、無料のままこの弱点だけを潰せる（セクション 5 の未了項目）。
+ワークフローを足せば、無料のままこの弱点だけを潰せる（セクション 3 の未了項目）。
 
 ### 見直す条件
 

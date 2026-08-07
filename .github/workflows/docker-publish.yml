@@ -19,7 +19,7 @@ jobs:
 
     # Secret は Environment に集約する（リポジトリレベルは 0 件で運用）。
     # Environment に無い Secret はリポジトリレベルへ静かにフォールバックするため、
-    # 分離できているつもりで動く事故を防ぐ。台帳: docs/secrets-management.md
+    # 分離できているつもりで動く事故を防ぐ。台帳: ~/.claude/secrets/ledger/iterra-hub.md
     environment: production
 
     permissions:

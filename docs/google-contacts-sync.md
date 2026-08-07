@@ -95,7 +95,7 @@ Google 側では制限できないので、**アプリ側の実装で範囲を�
 | `GOOGLE_CONTACTS_ALLOWED_DOMAIN` | 接続を許すドメイン（例: 会社の Workspace ドメイン） | 公開可 |
 
 **暗号鍵と合言葉（`_TOKEN_ENCRYPTION_KEY` / `_SYNC_CRON_SECRET`）は自分で作る。**
-生成コマンドは `docs/secrets-management.md §6.1`。**エージェント経由で実行しない**
+生成コマンドはスキル `secrets-management` の `references/secret-generation.md`。**エージェント経由で実行しない**
 （出力が会話履歴に残る）。他の連携の鍵とは別の値にすること。
 
 ## 3. 対応付け（どの連絡先がどの Google 連絡先か）
@@ -334,7 +334,7 @@ RLS: 接続・ミラー・リンクとも**接続の所有者 + admin が SELECT
    コールバック URI を登録する
    - 開発 `http://localhost:2000/api/google-contacts/callback`
    - 本番 `https://hub.iterra.online/api/google-contacts/callback`
-5. シークレット 5 つを Bitwarden → 転記（`docs/secrets-management.md`）
+5. シークレット 5 つを Bitwarden → 転記（台帳: `~/.claude/secrets/ledger/iterra-hub.md`）
 6. NAS のタスクスケジューラに `/api/google-contacts/sync` を登録する
    （`docs/deployment-nas.md`）
 7. 各メンバーが `/profile` から接続する

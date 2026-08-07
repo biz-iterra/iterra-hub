@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
 
-    # Secret は Environment に集約する。台帳: docs/secrets-management.md
+    # Secret は Environment に集約する。台帳: ~/.claude/secrets/ledger/iterra-hub.md
     environment: staging
 
     steps:

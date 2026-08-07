@@ -277,8 +277,9 @@ node scripts/remap-lead-owners.mjs --out ./04-leads-prod.sql --map <旧UUID>=<�
 
 **値の正本は Bitwarden Secrets Manager（プロジェクト `iterra-hub`）。**
 ここに挙げた登録先はすべて転記先で、値の再確認・ローテーションは Bitwarden を起点に行う。
-キー名と転記先の対応表は `docs/secrets-management.md`（台帳）、
-全プロジェクト共通の原則は `~/.claude/docs/secrets-policy.md` を参照。
+キー名と転記先の対応表は `~/.claude/secrets/ledger/iterra-hub.md`（台帳の正本）、
+全プロジェクト共通の原則はスキル `secrets-management` を参照。
+参照側の実装・移行チェックリストは `docs/secrets-management.md`。
 
 ### 1.1 GitHub Secrets（Environment: production）
 
@@ -1155,7 +1156,7 @@ Google のポリシーで禁止されているため、URI の登録有無に関
 | リージョン | `ap-northeast-1`（本番と同じ Tokyo） |
 | プロジェクト名 | `iterra-hub-stg` |
 | 投入データ | `01-masters` + `02-dev-users` + `03-dev-samples`。**実業務データ（`04-leads.sql`）は入れない** |
-| Secrets | GitHub Environment `staging`（台帳: `docs/secrets-management.md`） |
+| Secrets | GitHub Environment `staging`（台帳: `~/.claude/secrets/ledger/iterra-hub.md`） |
 
 ### 10.1 プロジェクトの作成（ユーザー作業）
 

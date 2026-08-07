@@ -89,7 +89,7 @@ docker exec iterra-hub-app wget -qO- --post-data='' \
 
 ## 設定
 
-`.env` に入れる（`docs/secrets-management.md` の台帳にも追記すること）。
+`.env` に入れる（台帳 `~/.claude/secrets/ledger/iterra-hub.md` にも追記すること）。
 
 | キー | 取得元 |
 |---|---|

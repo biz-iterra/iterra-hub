@@ -627,7 +627,7 @@ T-0038（取引先コードの更新ができない）と T-0041（連携する�
    `http://localhost:2000/api/freee/callback` も）を登録する — **ユーザー作業**
 2. `FREEE_CLIENT_ID` / `FREEE_CLIENT_SECRET` / `FREEE_TOKEN_ENCRYPTION_KEY` /
    `FREEE_SYNC_CRON_SECRET` を Bitwarden へ登録し、NAS の `.env` へ転記する
-   （`docs/secrets-management.md`）— **ユーザー作業**
+   （台帳: `~/.claude/secrets/ledger/iterra-hub.md`）— **ユーザー作業**
 3. 本番 DB へ `20260805000001` を適用する
 4. NAS のタスクスケジューラに日次（差分）・週次（全件）を登録する（`deployment-nas.md` §8.0.1）
 5. 接続後に FRE-01〜06 を実施する

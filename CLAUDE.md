@@ -171,11 +171,12 @@ lock を触ったら push 前に `npm ci` がローカルで通ることを確�
 
 ### シークレット管理（必須遵守）
 
-方針の正本は `~/.claude/docs/secrets-policy.md`（全プロジェクト共通）、
-本リポジトリのキー名と転記先の対応は `docs/secrets-management.md`（台帳）。
-シークレットを追加・確認・移行する作業の前に必ず両方を参照する。要点:
+方針の正本はスキル `secrets-management`（全プロジェクト共通）、
+本リポジトリのキー名と転記先の対応は `~/.claude/secrets/ledger/iterra-hub.md`（台帳の正本）。
+参照側の実装・移行作業・判断の記録は `docs/secrets-management.md`。
+シークレットを追加・確認・移行する作業の前に必ず参照する。要点:
 
-- **値の正本は Bitwarden Secrets Manager**（プロジェクト名 `iterra-hub`）。
+- **値の正本は Bitwarden Secrets Manager**（プロジェクト名 `iterra-hub`。Free プランの 3 枠のうち 1 つ）。
   GitHub Environment / NAS の `.env` / ローカル `.env.local` はすべて転記先
 - **GitHub Secrets は Environment（`production` / `staging`）に置く。リポジトリレベルは 0 件。**
   Environment に無い Secret はリポジトリレベルへ静かにフォールバックするため重複を残さない。

@@ -106,7 +106,13 @@ const TABLE_FIELD_LABELS: Record<string, Record<string, string>> = {
     expected_close_date: "クローズ予定日",
   },
   contracts: {
-    contract_name: "契約名",
+    // 「契約名」は自動生成の contract_display_name の方。
+    // 人が入れるこちらは画面のラベルどおり「契約書名」
+    contract_name: "契約書名",
+    contract_display_name: "契約名",
+    contract_type_id: "契約種別",
+    amount: "金額",
+    execution_date: "契約締結日",
     contract_method: "契約方法",
     start_date: "開始日",
     end_date: "終了日",
@@ -265,6 +271,7 @@ export type ChangeEntry = { label: string; before: string; after: string };
 const SUMMARY_FIELDS = [
   "name",
   "lead_name",
+  "contract_display_name",
   "contract_name",
   "last_name",
   "company_name",

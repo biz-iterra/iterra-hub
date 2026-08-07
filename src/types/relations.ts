@@ -67,9 +67,13 @@ export type DealDetail = DealWithRelations & {
     | "id"
     | "contract_code"
     | "contract_name"
+    | "contract_display_name"
     | "contract_method"
     | "start_date"
     | "end_date"
+    | "amount"
+    // 商談の編集画面から紐づけを解除するときの楽観ロックに使う
+    | "updated_at"
     | "deleted_at"
   >[];
   deal_activities: (Ref<
@@ -425,15 +429,20 @@ export type ContractDetail = ContractWithRelations & {
 /**
  * contracts.ts の listLinkableContracts に対応。
  *
- * 商談へ付け替える候補。**移動元の商談を必ず持つ**（`contracts.deal_id` は
- * NOT NULL なので、どの契約も必ずどこかに属している。付け替えると元から外れる）
+ * 商談へ紐づける候補。**どの商談にも紐づいていない契約だけ**が来る（T-0065）。
+ * 他の商談の契約は候補にしないので、移動元を持たない。
  */
 export type LinkableContract = Ref<
   "contracts",
-  "id" | "contract_code" | "contract_name" | "contract_method" | "start_date" | "updated_at"
-> & {
-  deal: Ref<"deals", "id" | "deal_code" | "name"> | null;
-};
+  | "id"
+  | "contract_code"
+  | "contract_name"
+  | "contract_display_name"
+  | "contract_method"
+  | "execution_date"
+  | "amount"
+  | "updated_at"
+>;
 
 // ============================================================
 // Project

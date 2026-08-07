@@ -95,9 +95,11 @@ export async function globalSearch(query: string): Promise<SearchResult[]> {
       .limit(RESULT_LIMIT),
     supabase
       .from("contracts")
-      .select("id, contract_name")
+      .select("id, contract_name, contract_display_name")
       .is("deleted_at", null)
-      .ilike("contract_name", like)
+      // 契約名は自動生成（締結日_契約書名_契約種別_金額_契約ID）。
+      // 人が入れた契約書名でも引けるように両方に当てる
+      .or(`contract_display_name.ilike.${like},contract_name.ilike.${like}`)
       .limit(RESULT_LIMIT),
     supabase
       .from("projects")
@@ -175,7 +177,8 @@ export async function globalSearch(query: string): Promise<SearchResult[]> {
       type: "contract",
       typeLabel: TYPE_LABELS.contract,
       id: row.id,
-      title: row.contract_name ?? "(契約名未設定)",
+      // 自動生成の契約名は契約コードを必ず含むので空にならない
+      title: row.contract_display_name ?? row.contract_name ?? "(契約名未設定)",
       subtitle: null,
       href: `/contracts/${row.id}`,
     });

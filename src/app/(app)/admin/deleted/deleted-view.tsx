@@ -134,7 +134,8 @@ function displayName(entity: DeletedEntity, r: RecordItem): string {
     case "deals":
       return (r.name as string) ?? "-";
     case "contracts":
-      return (r.contract_name as string) ?? "-";
+      // 契約名は自動生成。契約書名が未入力でも契約コードで特定できる
+      return (r.contract_display_name as string) ?? (r.contract_name as string) ?? "-";
     case "talents": {
       const c = r.contact as { last_name?: string; first_name?: string } | null;
       if (!c) return "（連絡先不明）";

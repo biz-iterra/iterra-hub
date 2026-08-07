@@ -7,18 +7,26 @@
  * `deals.contract_name` というテキスト列を手入力させていたが、契約の実体は
  * `contracts` にあり二重管理になっていた。ここでは契約レコードそのものを扱う。
  *
- * **契約は商談が保存されるまで作れない**（`contracts.deal_id` が NOT NULL）。
- * そのため新規作成画面には置かず、編集画面にだけ出す。
+ * **契約は商談が保存されるまで作れない**（新規作成画面には置かない）。
+ * 商談の ID が無いと `/contracts/new?deal_id=` を組み立てられないため。
  *
- * 紐づけは商談本体の「保存」とは別に即時反映される。フォームの外に置いてあるのは
- * そのため（保存ボタンを押さずに反映されることを見た目でも分ける）。
+ * **紐づけ・解除は商談本体の「保存」とは別に、その場で反映される。**
+ * フォームの中に置いてあるので（T-0066。以前はフォームの外にあり、
+ * 削除・保存ボタンと接して見えた）、そのことが分かるよう
+ * アクセント罫・「すぐ反映」バッジ・説明文の 3 つで示す。
+ * **中のボタンはすべて `type="button"`。** submit すると商談が保存されてしまう。
  */
 
 import { useCallback, useEffect, useId, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FileText, Link2, Plus, X } from "lucide-react";
-import { linkContractToDeal, listLinkableContracts } from "@/actions/contracts";
+import { FileText, Link2, Plus, Unlink, X } from "lucide-react";
+import {
+  linkContractToDeal,
+  listLinkableContracts,
+  unlinkContractFromDeal,
+} from "@/actions/contracts";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { useToast } from "@/components/ui/toast";
 import { tableScrollClass } from "@/lib/layout";
@@ -30,9 +38,14 @@ export type DealContractRow = {
   id: string;
   contract_code: string;
   contract_name: string | null;
+  /** 自動生成の契約名。契約コードを必ず含むので空にならない */
+  contract_display_name: string | null;
   contract_method: string | null;
   start_date: string | null;
   end_date: string | null;
+  amount: number | null;
+  /** 紐づけ解除の楽観ロックに使う */
+  updated_at: string;
   deleted_at: string | null;
 };
 
@@ -47,6 +60,8 @@ const styles = {
     backgroundColor: "#fff",
     borderRadius: "var(--radius-card)",
     boxShadow: "var(--elevation-low)",
+    // 入力カードと見た目を変える。ここだけ「保存」と無関係に反映されるため
+    borderLeft: "3px solid var(--color-terra)",
     padding: "1.5rem",
     marginBottom: "1.5rem",
   } as CSSProperties,
@@ -56,7 +71,7 @@ const styles = {
     justifyContent: "space-between",
     gap: "1rem",
     flexWrap: "wrap",
-    marginBottom: "1rem",
+    marginBottom: "0.5rem",
   } as CSSProperties,
   sectionTitle: {
     display: "inline-flex",
@@ -66,6 +81,23 @@ const styles = {
     fontSize: "1rem",
     fontWeight: 600,
     margin: 0,
+  } as CSSProperties,
+  instantBadge: {
+    display: "inline-flex",
+    alignItems: "center",
+    marginLeft: "0.5rem",
+    padding: "0.0625rem 0.375rem",
+    borderRadius: "var(--radius-sm)",
+    backgroundColor: "var(--color-terra-50, rgba(200, 90, 40, 0.1))",
+    color: "var(--color-terra)",
+    fontSize: "0.6875rem",
+    fontWeight: 600,
+    verticalAlign: "middle",
+  } as CSSProperties,
+  lead: {
+    color: "var(--color-sumi600)",
+    fontSize: "0.75rem",
+    margin: "0 0 1rem 0",
   } as CSSProperties,
   actions: {
     display: "flex",
@@ -87,6 +119,21 @@ const styles = {
     backgroundColor: "transparent",
     cursor: "pointer",
     fontFamily: "inherit",
+  } as CSSProperties,
+  /** 解除は削除ではない。赤にせず、控えめな枠線ボタンにする */
+  unlinkButton: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "0.25rem",
+    fontSize: "0.75rem",
+    color: "var(--color-sumi600)",
+    border: "1px solid var(--color-border-default)",
+    borderRadius: "var(--radius-button)",
+    backgroundColor: "transparent",
+    padding: "0.25rem 0.625rem",
+    cursor: "pointer",
+    fontFamily: "inherit",
+    whiteSpace: "nowrap",
   } as CSSProperties,
   empty: {
     color: "var(--color-sumi400)",
@@ -118,6 +165,20 @@ function formatDate(value: string | null): string {
   return value ? value.replaceAll("-", "/") : "—";
 }
 
+function methodLabel(value: string | null): string {
+  if (!value) return "—";
+  return CONTRACT_METHOD_LABELS[value] ?? value;
+}
+
+/** 一覧・見出しで使う契約の呼び名。自動生成名を優先する */
+function contractLabel(row: {
+  contract_display_name: string | null;
+  contract_name: string | null;
+  contract_code: string;
+}): string {
+  return row.contract_display_name ?? row.contract_name ?? row.contract_code;
+}
+
 export function DealContractsSection({
   dealId,
   contracts,
@@ -128,8 +189,24 @@ export function DealContractsSection({
   /** contracts の書き込みは manager 以上に限る（RLS と同じ条件） */
   canManage: boolean;
 }) {
+  const router = useRouter();
+  const { showToast } = useToast();
   const [linking, setLinking] = useState(false);
+  const [unlinkTarget, setUnlinkTarget] = useState<DealContractRow | null>(null);
   const alive = contracts.filter((c) => !c.deleted_at);
+
+  const handleUnlink = async () => {
+    if (!unlinkTarget) return { error: null };
+    const result = await unlinkContractFromDeal({
+      contract_id: unlinkTarget.id,
+      deal_id: dealId,
+      expected_updated_at: unlinkTarget.updated_at,
+    });
+    if (result.error) return { error: result.error };
+    showToast({ type: "success", message: "契約の紐づけを解除しました" });
+    router.refresh();
+    return { error: null };
+  };
 
   return (
     <div style={styles.card}>
@@ -137,6 +214,7 @@ export function DealContractsSection({
         <h2 style={styles.sectionTitle}>
           <FileText size={16} />
           契約
+          <span style={styles.instantBadge}>すぐ反映</span>
         </h2>
         {canManage && (
           <div style={styles.actions}>
@@ -161,10 +239,12 @@ export function DealContractsSection({
         )}
       </div>
 
+      <p style={styles.lead}>
+        契約の新規作成・紐づけ・解除は、この画面の「保存」とは別に<strong>すぐ反映されます</strong>。
+      </p>
+
       {alive.length === 0 ? (
-        <p style={styles.empty}>
-          この商談に紐づく契約はまだありません。
-        </p>
+        <p style={styles.empty}>この商談に紐づく契約はまだありません。</p>
       ) : (
         <div className={tableScrollClass}>
           <table
@@ -172,10 +252,10 @@ export function DealContractsSection({
           >
             <thead>
               <tr>
-                <th style={styles.th}>契約コード</th>
-                <th style={styles.th}>契約書名</th>
+                <th style={styles.th}>契約名</th>
                 <th style={styles.th}>契約方法</th>
                 <th style={styles.th}>期間</th>
+                {canManage && <th style={styles.th} />}
               </tr>
             </thead>
             <tbody>
@@ -186,18 +266,26 @@ export function DealContractsSection({
                       href={`/contracts/${c.id}`}
                       style={{ color: "var(--color-terra)", textDecoration: "none" }}
                     >
-                      {c.contract_code}
+                      {contractLabel(c)}
                     </Link>
                   </td>
-                  <td style={styles.td}>{c.contract_name ?? "—"}</td>
-                  <td style={styles.td}>
-                    {c.contract_method
-                      ? (CONTRACT_METHOD_LABELS[c.contract_method] ?? c.contract_method)
-                      : "—"}
-                  </td>
+                  <td style={styles.td}>{methodLabel(c.contract_method)}</td>
                   <td style={styles.td}>
                     {formatDate(c.start_date)} ~ {formatDate(c.end_date)}
                   </td>
+                  {canManage && (
+                    <td style={{ ...styles.td, textAlign: "right" }}>
+                      <button
+                        type="button"
+                        onClick={() => setUnlinkTarget(c)}
+                        className="hover:bg-[var(--color-bg-hover)]"
+                        style={styles.unlinkButton}
+                      >
+                        <Unlink size={12} />
+                        紐づけ解除
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -214,15 +302,29 @@ export function DealContractsSection({
       {linking && (
         <LinkContractModal dealId={dealId} onClose={() => setLinking(false)} />
       )}
+
+      {/* 削除ではないので danger にしない。取り違えると契約そのものを消したと思われる */}
+      <ConfirmDialog
+        open={unlinkTarget !== null}
+        title="契約の紐づけを解除"
+        message={
+          unlinkTarget
+            ? `「${contractLabel(unlinkTarget)}」をこの商談から外します。契約そのものは残り、どの商談にも紐づかない状態になります。あとから同じ商談にも別の商談にも紐づけ直せます。`
+            : ""
+        }
+        confirmLabel="解除する"
+        onConfirm={handleUnlink}
+        onClose={() => setUnlinkTarget(null)}
+      />
     </div>
   );
 }
 
 /**
- * 既存の契約を選んでこの商談へ付け替えるモーダル。
+ * どの商談にも紐づいていない契約を選んで、この商談へ紐づけるモーダル。
  *
- * **候補は必ず別の商談に属している**（`deal_id` は NOT NULL）。付け替えると
- * 元の商談からは外れるので、移動元を必ず見せてから実行させる。
+ * **他の商談に紐づいている契約は候補に出さない**（T-0065）。出すと、
+ * 選んだ瞬間にその商談から契約が消える付け替えになってしまう。
  */
 function LinkContractModal({
   dealId,
@@ -239,18 +341,14 @@ function LinkContractModal({
   const [saving, setSaving] = useState(false);
   const [isLoading, startTransition] = useTransition();
 
-  const fetchCandidates = useCallback(
-    (keyword: string) => {
-      startTransition(async () => {
-        const { data } = await listLinkableContracts({
-          dealId,
-          search: keyword || undefined,
-        });
-        setRows(data ?? []);
+  const fetchCandidates = useCallback((keyword: string) => {
+    startTransition(async () => {
+      const { data } = await listLinkableContracts({
+        search: keyword || undefined,
       });
-    },
-    [dealId]
-  );
+      setRows(data ?? []);
+    });
+  }, []);
 
   // 初回は即座に、以降の検索語の変更はデバウンスして引き直す
   const isFirstRun = useRef(true);
@@ -304,7 +402,7 @@ function LinkContractModal({
           backgroundColor: "#fff",
           borderRadius: "var(--radius-modal)",
           boxShadow: "var(--elevation-overlay)",
-          maxWidth: 640,
+          maxWidth: 720,
           width: "100%",
           maxHeight: "80vh",
           display: "flex",
@@ -356,13 +454,14 @@ function LinkContractModal({
               margin: "0 0 0.75rem 0",
             }}
           >
-            契約は 1 つの商談にだけ属します。<strong>紐づけると、いま属している商談からは外れます。</strong>
+            <strong>どの商談にも紐づいていない契約</strong>だけが候補です。
+            他の商談に紐づいている契約は、その商談で紐づけを解除してから選んでください。
           </p>
 
           <SearchInput
             value={search}
             onChange={setSearch}
-            placeholder="契約コード・契約書名で絞り込み"
+            placeholder="契約コード・契約名で絞り込み"
           />
 
           <div style={{ marginTop: "0.75rem" }}>
@@ -370,7 +469,7 @@ function LinkContractModal({
               <p style={styles.empty}>読み込み中...</p>
             ) : rows.length === 0 ? (
               <p style={styles.empty}>
-                紐づけられる契約がありません。新しく登録してください。
+                紐づけられる契約がありません。新しく登録するか、他の商談で紐づけを解除してください。
               </p>
             ) : (
               <table
@@ -378,20 +477,18 @@ function LinkContractModal({
               >
                 <thead>
                   <tr>
-                    <th style={styles.th}>契約コード</th>
-                    <th style={styles.th}>契約書名</th>
-                    <th style={styles.th}>いま属している商談</th>
+                    <th style={styles.th}>契約名</th>
+                    <th style={styles.th}>契約方法</th>
+                    <th style={styles.th}>締結日</th>
                     <th style={styles.th} />
                   </tr>
                 </thead>
                 <tbody>
                   {rows.map((row) => (
                     <tr key={row.id}>
-                      <td style={styles.td}>{row.contract_code}</td>
-                      <td style={styles.td}>{row.contract_name ?? "—"}</td>
-                      <td style={styles.td}>
-                        {row.deal ? `${row.deal.deal_code} ${row.deal.name}` : "—"}
-                      </td>
+                      <td style={styles.td}>{contractLabel(row)}</td>
+                      <td style={styles.td}>{methodLabel(row.contract_method)}</td>
+                      <td style={styles.td}>{formatDate(row.execution_date)}</td>
                       <td style={{ ...styles.td, textAlign: "right" }}>
                         <button
                           type="button"
@@ -402,6 +499,7 @@ function LinkContractModal({
                             margin: 0,
                             border: "1px solid var(--color-border-default)",
                             borderRadius: "var(--radius-button)",
+                            whiteSpace: "nowrap",
                           }}
                           className="hover:bg-[var(--color-bg-hover)]"
                         >

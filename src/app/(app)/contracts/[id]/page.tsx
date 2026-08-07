@@ -29,6 +29,20 @@ function formatDate(value: string | null | undefined): string {
   return new Date(value).toLocaleDateString("ja-JP");
 }
 
+/**
+ * 金額の表示。
+ *
+ * **契約名の中は素の数字**（`1200000`）で、ここは通貨表記（`¥1,200,000`）。
+ * 名前は CSV やファイル名で扱うことがあるので記号と桁区切りを入れない。
+ */
+function formatCurrency(amount: number | null | undefined): string {
+  if (amount == null) return "—";
+  return new Intl.NumberFormat("ja-JP", {
+    style: "currency",
+    currency: "JPY",
+  }).format(amount);
+}
+
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export default async function ContractDetailPage({
@@ -164,25 +178,22 @@ export default async function ContractDetailPage({
             flexWrap: "wrap",
           }}
         >
-          {contract.contract_code && (
-            <span
-              style={{
-                color: "var(--color-sumi600)",
-                fontSize: "0.875rem",
-              }}
-            >
-              {contract.contract_code}
-            </span>
-          )}
+          {/*
+            契約コードのチップは置かない。**契約名の末尾に必ず入る**ため重複する
+            （T-0068）。コードは基本情報カードの「契約コード」で見る
+          */}
           <h1
             style={{
               color: "var(--color-text-title)",
               fontSize: "1.5rem",
               fontWeight: 700,
               margin: 0,
+              wordBreak: "break-all",
             }}
           >
-            {contract.contract_name}
+            {contract.contract_display_name ??
+              contract.contract_name ??
+              contract.contract_code}
           </h1>
           {isManagerOrAbove && (
             <Link
@@ -219,7 +230,15 @@ export default async function ContractDetailPage({
             <div
               className={fieldGridClass}
             >
+              {/* 締結日・契約書名・契約種別・金額・契約コードから自動で組み立てる */}
+              <InfoField
+                label="契約名（自動）"
+                value={contract.contract_display_name}
+                full
+              />
+              <InfoField label="契約コード" value={contract.contract_code} />
               <InfoField label="契約書名" value={contract.contract_name} />
+              <InfoField label="金額" value={formatCurrency(contract.amount)} />
               <InfoField
                 label="契約方法"
                 value={<ContractMethodBadge method={contract.contract_method} />}
@@ -234,8 +253,10 @@ export default async function ContractDetailPage({
             <RelationField
               label="商談"
               value={contract.deal_id}
-              // 契約は必ず商談にぶら下がる。外せないので選び替えだけ
-              nullable={false}
+              // 未選択に戻せる（T-0067）。どの商談にも紐づかない契約を持てる。
+              // 「ステージは取引先なのに契約が無い」状態は DB のトリガーが拒む
+              nullable
+              emptyOptionLabel="-- 紐づけない --"
               display={
                 contract.deal ? (
                   <EntityLink href={`/deals/${contract.deal.id}`}>

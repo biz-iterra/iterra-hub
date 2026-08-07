@@ -9,7 +9,6 @@ import { useToast } from "@/components/ui/toast";
 import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { isFieldValidationError } from "@/lib/errors";
 import { formContainerClass, fieldGridClass, formActionsClass } from "@/lib/layout";
-import { RequiredMark } from "@/components/ui/RequiredMark";
 
 type SelectOption = { value: string; label: string };
 
@@ -104,6 +103,11 @@ const styles = {
     fontSize: "0.875rem",
     margin: "0.75rem 0 0 0",
   } as CSSProperties,
+  helperText: {
+    color: "var(--color-sumi500)",
+    fontSize: "0.75rem",
+    margin: "0.375rem 0 0 0",
+  } as CSSProperties,
   checkboxRow: {
     display: "flex",
     alignItems: "center",
@@ -150,6 +154,7 @@ export function ContractNewForm({
     contract_method: "",
     contract_type_id: "",
     contract_name: "",
+    amount: "",
     counterparty_type: "",
     counterparty_company_id: "",
     counterparty_contact_id: "",
@@ -181,14 +186,18 @@ export function ContractNewForm({
     setSaving(true);
     setError(null);
 
-    if (!values.deal_id) {
-      setError("商談は必須です");
+    // 商談は任意。どの商談にも紐づかない契約を先に作り、あとから
+    // 商談の編集画面で紐づけられる（T-0065）
+    const amountNum = values.amount.trim() === "" ? null : Number(values.amount);
+    if (amountNum !== null && (Number.isNaN(amountNum) || amountNum < 0)) {
       setSaving(false);
+      setError("金額は 0 以上の数値を入力してください");
       return;
     }
 
     const payload = {
-      deal_id: values.deal_id,
+      deal_id: values.deal_id || null,
+      amount: amountNum,
       contract_method:
         values.contract_method === ""
           ? null
@@ -263,15 +272,18 @@ export function ContractNewForm({
           <h2 style={styles.sectionTitle}>基本情報</h2>
           <div className={styles.grid}>
             <div>
-              <label style={styles.label}>商談<RequiredMark /></label>
+              <label style={styles.label}>商談</label>
               <SearchableSelect
                 value={values.deal_id}
                 onChange={(v) => set("deal_id", v)}
                 options={masters.deals}
-                nullable={false}
+                emptyOptionLabel="-- 未選択 --"
                 searchKind="deal"
                 ariaLabel="商談"
               />
+              <p style={styles.helperText}>
+                未選択のままでも登録できます。あとから商談の編集画面で紐づけられます。
+              </p>
             </div>
             <div>
               <label style={styles.label}>契約書名</label>
@@ -280,6 +292,21 @@ export function ContractNewForm({
                 style={styles.input}
                 value={values.contract_name}
                 onChange={(e) => set("contract_name", e.target.value)}
+                onFocus={onFocus}
+                onBlur={onBlur}
+              />
+              <p style={styles.helperText}>
+                保存すると「契約締結日_契約書名_契約種別_金額_契約ID」から契約名が自動で作られます。
+              </p>
+            </div>
+            <div>
+              <label style={styles.label}>金額</label>
+              <input
+                type="number"
+                min={0}
+                style={styles.input}
+                value={values.amount}
+                onChange={(e) => set("amount", e.target.value)}
                 onFocus={onFocus}
                 onBlur={onBlur}
               />

@@ -468,8 +468,7 @@ export default async function DealDetailPage({
                 >
                   <thead>
                     <tr style={{ borderBottom: "1px solid var(--color-border-default)" }}>
-                      <th style={thStyle}>契約コード</th>
-                      <th style={thStyle}>契約書名</th>
+                      <th style={thStyle}>契約名</th>
                       <th style={thStyle}>契約方法</th>
                       <th style={thStyle}>期間</th>
                     </tr>
@@ -477,12 +476,12 @@ export default async function DealDetailPage({
                   <tbody>
                     {contracts.map((c) => (
                       <tr key={c.id}>
+                        {/* 契約名は自動生成。契約書名が未入力でもコードで特定できる */}
                         <td style={tdStyle}>
                           <EntityLink href={`/contracts/${c.id}`} compact>
-                            {c.contract_code}
+                            {c.contract_display_name ?? c.contract_name ?? c.contract_code}
                           </EntityLink>
                         </td>
-                        <td style={tdStyle}>{c.contract_name}</td>
                         <td style={tdStyle}><ContractMethodBadge method={c.contract_method} /></td>
                         <td style={tdStyle}>
                           {formatDate(c.start_date)} ~ {formatDate(c.end_date)}

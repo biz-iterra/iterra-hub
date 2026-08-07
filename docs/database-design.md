@@ -149,7 +149,7 @@ ITERRAの営業・取引管理CRMシステムを新規構築する。現在ス�
      │                │          │
      │                │          N──1 [crm_users] (owner)
      │                │          │
-     │                │          1──N [contracts] (deal_id必須)
+     │                │          1──N [contracts] (deal_id任意)
      │                │          1──N [deal_activities] (対応履歴)
      │                │          1──N [deal_stage_histories] (ステージ遷移履歴)
      │                │          1──N [deal_status_histories] (ステータス変更履歴)
@@ -227,7 +227,7 @@ ITERRAの営業・取引管理CRMシステムを新規構築する。現在ス�
 | talents | talent_skills | 1:N | 任意 | スキルは0件でも可 |
 | talents | talent_careers | 1:N | 任意 | 経歴は0件でも可 |
 | skill_categories | skills | 1:N | 必須 | スキルは必ずカテゴリに属する |
-| deals | contracts | 1:N | 必須 | 契約は必ず1つのディールに属する |
+| deals | contracts | 1:N | 任意 | 契約は商談に紐づかない状態を持てる（20260808000001。§16.6.1） |
 | deals | deal_services | 1:N | 任意 | サービス紐づけは任意 |
 | deals | deal_activities | 1:N | 任意 | ディールへの対応履歴（メール・電話・打合せ等） |
 | deal_activities | deal_activity_emails | 1:0..1 | 任意 | メール対応時の詳細情報 |
@@ -919,10 +919,12 @@ UIは `pipeline_types.slug` をキーにしたレジストリパターンで拡�
 |---|--------|--------|-----|----|----|----|----|----------|-------------|-------------|
 | 1 | ID | `id` | UUID | PK | | | NN | gen_random_uuid() | | |
 | 2 | 契約コード | `contract_code` | VARCHAR(10) | | | UK | NN | トリガー自動採番 | 'CTR-'＋6桁連番 | 更新不可 |
-| 3 | ディールID | `deal_id` | UUID | | FK→T05.id | | NN | | | 契約は必ずディールに紐づく |
+| 3 | ディールID | `deal_id` | UUID | | FK→T05.id | | | | | **任意**（20260808000001）。どの商談にも紐づかない契約を持てる。§16.6.1 |
 | 4 | 契約方法 | `contract_method` | TEXT | | | | | | 'paper','electronic','verbal' | |
 | 5 | 契約種別ID | `contract_type_id` | UUID | | FK→M02.id | | | | | |
-| 6 | 契約書名 | `contract_name` | TEXT | | | | | | | max 200文字 |
+| 6 | 契約書名 | `contract_name` | TEXT | | | | | | | max 200文字。**人が入れる文書名**。契約名の材料になる |
+| 6a | **契約名** | **`contract_display_name`** | TEXT | | | | | | | **自動生成**（締結日_契約書名_契約種別_金額_契約ID）。人は編集しない。§16.6.2 |
+| 6b | 金額 | `amount` | BIGINT | | | | | | >= 0 | `deals.amount` とは別（1 商談に複数の契約が下がる） |
 | 7 | 契約相手先種別 | `counterparty_type` | TEXT | | | | | | 'company','individual' | |
 | 8 | 契約相手先カンパニーID | `counterparty_company_id` | UUID | | FK→T02.id | | | | | counterparty_type='company'の場合 |
 | 9 | 契約相手先コンタクトID | `counterparty_contact_id` | UUID | | FK→T04.id | | | | | counterparty_type='individual'の場合 |
@@ -2817,7 +2819,7 @@ Admin のマスタ管理から色を編集できる（`colorSwatch` フィール
 - 昇格元リードの `promoted_account_id` も更新する
 - **SECURITY DEFINER。** 契約を登録する manager が商談の担当者とは限らず、`deals` の UPDATE ポリシー（owner / admin）では紐付けが 0 行更新で静かに失敗するため
 
-### 16.6.1 商談と契約の持ち方（2026-08-07 / T-0063）
+### 16.6.1 商談と契約の持ち方（2026-08-07 / T-0063、2026-08-08 / T-0065・T-0067）
 
 **契約の正本は `contracts` の 1 か所。** 商談から見た契約は `contracts.deal_id` の
 逆参照で引く。`deals` 側に契約の情報を持たない。
@@ -2827,21 +2829,80 @@ Admin のマスタ管理から色を編集できる（`colorSwatch` フィール
 片方が古いまま残る状態だったため、**2026-08-07 に画面と Zod スキーマから外した**
 （`20260807000001` で列に非推奨の COMMENT を付与。列自体は落とさない）。
 
-**契約は商談が保存されるまで作れない。** `contracts.deal_id` が NOT NULL のため、
-商談の新規作成画面の中で契約を作ることはできない。導線は次の 2 つ:
+**`contracts.deal_id` は任意**（`20260808000001` で NOT NULL を外した）。
+どの商談にも紐づかない契約を持てる。導線は次の 3 つ:
 
 | 操作 | 入口 | 実装 |
 |---|---|---|
-| 新しく契約を登録する | 商談詳細／商談編集の「契約を新規作成」 | `/contracts/new?deal_id=` |
+| 新しく契約を登録する | 商談編集の「契約を新規作成」／商談詳細の「契約を追加」 | `/contracts/new?deal_id=` |
 | すでにある契約を紐づける | 商談編集の「既存の契約を紐づける」 | `linkContractToDeal()` |
+| 紐づけを解除する | 商談編集の各行「紐づけ解除」／契約詳細の商談欄 | `unlinkContractFromDeal()` |
 
-**紐づけは付け替えである。** `deal_id` は 1 本しかないので、紐づけた契約は
-元の商談から外れる。候補一覧に移動元の商談を必ず出し、楽観ロック
-（契約の `updated_at`）を**必須**にしている（候補を開いたまま放置すると、
-後勝ちで別の商談から契約を奪ってしまうため）。
+**紐づけ候補は「どの商談にも紐づいていない契約」だけ。** 2026-08-07 の実装は
+`deal_id` が NOT NULL だったため、紐づけが必ず**他の商談から奪う付け替え**に
+なっていた。利用者の指摘で 2026-08-08 に付け替えを廃止した。
 
-取引先を作る `ensure_account_on_contract` は AFTER **INSERT** なので、
-**付け替えでは走らない。** 移動先の商談に取引先が無い場合は別途紐づける。
+- 候補の SQL は `.is("deal_id", null)`。**`.neq("deal_id", …)` は使えない**
+  （`NULL <> 'x'` が UNKNOWN になり、欲しい未紐づけの行が丸ごと落ちる）
+- 楽観ロック（契約の `updated_at`）は**必須**。候補一覧や編集画面を開いたまま
+  放置している間に、他の人が同じ契約を触っている可能性がある
+- 解除は `deal_id` も突き合わせる（古い画面から別の商談の紐づけを外さない）
+
+**契約は商談の新規作成画面からは作れない。** 商談の ID が無いと
+`/contracts/new?deal_id=` を組み立てられないため、案内だけ置いている。
+
+取引先を作る `ensure_account_on_contract` は **`AFTER INSERT OR UPDATE OF deal_id`**
+（`20260808000001` で UPDATE を追加）。後から紐づけても取引先が作られる。
+**解除しても取引先は消さない**（契約があった事実は残り、他の商談や連絡先が
+ぶら下がっている可能性がある）。
+
+**リードのステージ要件は解除でも守る。** `check_contract_deletion_against_leads` は
+`BEFORE UPDATE OF deleted_at` にしか張られておらず、契約を消さずに剥がすと
+「ステージは取引先なのに契約が無い」状態を作れてしまった。
+`check_contract_detach_against_leads` に置き換え、`deleted_at` と `deal_id` の
+両方を監視する（判定対象は `OLD.deal_id`）。削除と解除で文言を分ける。
+
+### 16.6.2 契約名の自動生成（2026-08-08 / T-0068）
+
+契約名が任意入力で命名が揃わなかったため、保存のたびに組み立てるようにした。
+
+```
+契約締結日_契約書名_契約種別_金額_契約ID
+例: 20260807_業務委託基本契約書_基本契約_1200000_CTR-000123
+```
+
+| 列 | 役割 |
+|---|---|
+| `contract_name` | **契約書名**（人が入れる文書名）。materialの 1 つ |
+| `contract_display_name` | **契約名**（自動生成）。人は編集しない |
+| `amount` | 契約金額。**`deals.amount` とは別**（1 商談に複数の契約が下がる） |
+
+- 日付は `YYYYMMDD`、金額は桁区切りなしの数字、部品内の `_` は `-` に置換
+- **欠けた部品は落として連結する**（`__` を作らない）。契約コードは必ず入るので空にならない
+- 一覧の 1 列目・詳細の見出し・横断検索・変更履歴の対象名はすべて自動生成の方を使う
+
+**生成は DB トリガー**（`build_contract_display_name` が規則の正本、
+`set_contract_display_name` が BEFORE INSERT OR UPDATE で適用）。理由:
+
+1. `contract_code` は BEFORE INSERT トリガーでしか確定しない。TS 側でやると
+   「INSERT → 返ってきたコードで再 UPDATE」の 2 段書き込みになり、
+   途中で失敗すると中途半端な行が残る（§ 冒頭の規約が禁じている形）
+2. 契約種別の名前が別テーブルにあり、TS 側だと**マスタ名を直したときに
+   既存の契約名が追随できない**（`contract_types` の AFTER UPDATE で再生成している）
+3. seed・SQL 直接操作・将来の一括取込でも同じ結果になる必要がある
+4. 生成列（`GENERATED ALWAYS AS`）は同一行の IMMUTABLE 式しか使えず `contract_types` を引けない
+
+**TS 側に同じ規則を二重実装しない**（`company-name.ts` と
+`expand_corporate_abbreviations` で「片方だけ直す」事故を経験している）。
+そのため保存前プレビューは無い。
+
+**トリガー名の昇順に依存する。** BEFORE トリガーは名前順に走るため
+`trg_contracts_generate_code`（g）→ `trg_contracts_set_display_name`（s）の順になる。
+**この並びを崩すと INSERT 時の契約名から契約コードが落ちる。**
+
+**変更履歴には残さない**（`log_entity_change` の `v_ignored` に追加）。
+材料を 1 つ直すたびに「金額」と「契約名」の 2 行が並んで見えるため。
+前例は `20260728000003`（スコア等の自動計算を除外）。
 
 ### 16.7 マイグレーション
 
@@ -2854,6 +2915,10 @@ Admin のマスタ管理から色を編集できる（`colorSwatch` フィール
 | `20260731000005_backfill_lead_companies_contacts.sql` | 既存リードの遡及作成（3,812 件処理） |
 | `20260731000006_deals_optional_account.sql` | `deals.account_id` 任意化・`company_id/contact_id` 追加・昇格関数から Account 作成を除去 |
 | `20260731000007_create_account_on_contract.sql` | 契約時の取引先自動作成トリガー |
+| `20260807000001_deprecate_deals_contract_name.sql` | `deals.contract_name` を非推奨に（§16.6.1） |
+| `20260808000001_contracts_optional_deal.sql` | `contracts.deal_id` を任意化。取引先作成を `AFTER UPDATE OF deal_id` でも走らせ、紐づけ解除でもリードのステージ要件を守る（§16.6.1） |
+| `20260808000002_contract_amount_and_display_name.sql` | `amount` / `contract_display_name` を追加。契約名の組み立てと、契約種別の改名への追随（§16.6.2） |
+| `20260808000003_contract_display_name_change_log.sql` | 契約名を変更履歴の差分から除外し、対象名に優先。既存行のバックフィル（§16.6.2） |
 
 ---
 

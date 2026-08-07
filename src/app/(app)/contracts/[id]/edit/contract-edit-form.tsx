@@ -17,9 +17,12 @@ type ContractData = {
   updated_at?: string | null;
   id: string;
   contract_name: string | null;
+  /** 自動生成の契約名。読み取り専用で見せる */
+  contract_display_name: string | null;
   contract_code: string | null;
   contract_method: string | null;
   contract_type_id: string | null;
+  amount: number | null;
   counterparty_type: string | null;
   contract_content: string | null;
   sent_date: string | null;
@@ -133,6 +136,11 @@ const styles = {
     fontSize: "0.875rem",
     margin: "0.75rem 0 0 0",
   } as CSSProperties,
+  helperText: {
+    color: "var(--color-sumi500)",
+    fontSize: "0.75rem",
+    margin: "0.375rem 0 0 0",
+  } as CSSProperties,
   checkboxRow: {
     display: "flex",
     alignItems: "center",
@@ -179,6 +187,7 @@ export function ContractEditForm({
     contract_method: contract.contract_method ?? "",
     contract_type_id: contract.contract_type_id ?? "",
     contract_name: contract.contract_name ?? "",
+    amount: contract.amount != null ? String(contract.amount) : "",
     counterparty_type: contract.counterparty_type ?? "",
     contract_content: contract.contract_content ?? "",
     sent_date: contract.sent_date ?? "",
@@ -207,6 +216,13 @@ export function ContractEditForm({
     setSaving(true);
     setError(null);
 
+    const amountNum = values.amount.trim() === "" ? null : Number(values.amount);
+    if (amountNum !== null && (Number.isNaN(amountNum) || amountNum < 0)) {
+      setSaving(false);
+      setError("金額は 0 以上の数値を入力してください");
+      return;
+    }
+
     const payload: Record<string, unknown> = {
       contract_method:
         values.contract_method === ""
@@ -214,6 +230,7 @@ export function ContractEditForm({
           : (values.contract_method as "paper" | "electronic" | "verbal"),
       contract_type_id: values.contract_type_id || null,
       contract_name: values.contract_name || null,
+      amount: amountNum,
       counterparty_type:
         values.counterparty_type === ""
           ? null
@@ -284,6 +301,27 @@ export function ContractEditForm({
           <h2 style={styles.sectionTitle}>基本情報</h2>
           <div className={styles.grid}>
             {/* 商談は別レコードへの紐づけなので詳細ページで直す */}
+            {/*
+              契約名は保存時に DB が組み立てる。入力欄にすると人が直せると
+              誤解されるので、テキストで見せるだけにする（disabled な input は
+              コピーしづらく、フォームの値とも誤解される）
+            */}
+            <div style={{ gridColumn: "1 / -1" }}>
+              <label style={styles.label}>契約名</label>
+              <p
+                style={{
+                  color: "var(--color-text-body)",
+                  fontSize: "0.875rem",
+                  margin: 0,
+                  wordBreak: "break-all",
+                }}
+              >
+                {contract.contract_display_name ?? "—"}
+              </p>
+              <p style={styles.helperText}>
+                契約締結日_契約書名_契約種別_金額_契約ID から自動で作られます。保存すると入力に合わせて更新されます。
+              </p>
+            </div>
             <div>
               <label style={styles.label}>契約書名</label>
               <input
@@ -291,6 +329,18 @@ export function ContractEditForm({
                 style={styles.input}
                 value={values.contract_name}
                 onChange={(e) => set("contract_name", e.target.value)}
+                onFocus={onFocus}
+                onBlur={onBlur}
+              />
+            </div>
+            <div>
+              <label style={styles.label}>金額</label>
+              <input
+                type="number"
+                min={0}
+                style={styles.input}
+                value={values.amount}
+                onChange={(e) => set("amount", e.target.value)}
                 onFocus={onFocus}
                 onBlur={onBlur}
               />
@@ -521,7 +571,7 @@ export function ContractEditForm({
       <ConfirmDialog
         open={confirmDelete}
         title="契約を削除"
-        message={`「${contract.contract_name ?? "契約"}」を削除します。この操作は取り消せません。`}
+        message={`「${contract.contract_display_name ?? contract.contract_name ?? "契約"}」を削除します。この操作は取り消せません。`}
         confirmLabel="削除する"
         danger
         onConfirm={handleDelete}

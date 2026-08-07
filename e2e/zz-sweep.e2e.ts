@@ -169,6 +169,27 @@ test.describe("変更した画面の総ざらい", () => {
       ).toHaveCount(0);
     });
 
+    // ---- 4b. 契約は商談を選ばずに作れて、金額を持てること（T-0065 / T-0068）----
+    await check("契約の新規作成", async () => {
+      await page.goto("/contracts/new");
+      // このフォームの label は htmlFor を持たないので getByLabel では掴めない。
+      // 見出しの次に来る入力欄を辿る
+      await expect(
+        page
+          .locator("label")
+          .filter({ hasText: /^金額$/ })
+          .first()
+          .locator("xpath=following-sibling::input[1]"),
+        "契約の新規作成に金額欄が無い"
+      ).toBeVisible();
+      // 商談は任意。必須マークが付いていたら紐づけの前提が崩れている
+      const dealLabel = page.locator("label", { hasText: "商談" }).first();
+      await expect(
+        dealLabel.getByText("（必須）"),
+        "契約の商談欄に必須マークが残っている"
+      ).toHaveCount(0);
+    });
+
     // ---- 5. 連絡先の新規作成に連絡手段・住所がある ----
     await check("連絡先の新規作成に連絡手段と住所", async () => {
       await page.goto("/contacts/new");

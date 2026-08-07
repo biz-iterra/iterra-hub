@@ -23,7 +23,7 @@ const ENTITY_SELECT: Record<DeletedEntity, string> = {
     "id, contact_code, last_name, first_name, deleted_at, deleted_by, deletion_reason",
   deals: "id, deal_code, name, deleted_at, deleted_by, deletion_reason",
   contracts:
-    "id, contract_code, contract_name, deleted_at, deleted_by, deletion_reason",
+    "id, contract_code, contract_name, contract_display_name, deleted_at, deleted_by, deletion_reason",
   talents:
     "id, contact_id, deleted_at, deleted_by, deletion_reason, contact:contacts(last_name, first_name)",
   leads:

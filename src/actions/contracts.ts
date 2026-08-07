@@ -7,6 +7,7 @@ import { conflictErrorMessage } from "@/lib/validators/common";
 import {
   createContractSchema,
   linkContractToDealSchema,
+  unlinkContractFromDealSchema,
   updateContractSchema,
 } from "@/lib/validators";
 import type {
@@ -73,8 +74,9 @@ export async function getContracts(params?: {
     .range(from, to);
 
   if (params?.search) {
+    // 自動生成の契約名にも当てる（一覧の 1 列目がこれのため）
     query = query.or(
-      `contract_code.ilike.%${params.search}%,contract_name.ilike.%${params.search}%`
+      `contract_code.ilike.%${params.search}%,contract_name.ilike.%${params.search}%,contract_display_name.ilike.%${params.search}%`
     );
   }
   if (params?.dealId) {
@@ -186,11 +188,13 @@ export async function updateContract(
 /**
  * 商談へ紐づけられる契約の候補を返す。
  *
- * **すでにその商談に属している契約は除く**（付け替える意味がないため）。
- * 候補は必ず別の商談に属しているので、移動元を画面へ返して見せる。
+ * **どの商談にも紐づいていない契約だけ**を返す（T-0065）。他の商談の契約を
+ * 出すと、選んだ瞬間にその商談から契約が消える付け替えになってしまう。
+ *
+ * `.neq("deal_id", …)` は使えない。SQL の NULL 比較（`NULL <> 'x'` が UNKNOWN）で
+ * **未紐づけの行が丸ごと落ちる**ため、まさに欲しいものが出てこない。
  */
 export async function listLinkableContracts(params: {
-  dealId: string;
   search?: string;
   limit?: number;
 }): Promise<ActionResult<LinkableContract[]>> {
@@ -203,16 +207,16 @@ export async function listLinkableContracts(params: {
   let query = supabase
     .from("contracts")
     .select(
-      "id, contract_code, contract_name, contract_method, start_date, updated_at, deal:deals(id, deal_code, name)"
+      "id, contract_code, contract_name, contract_display_name, contract_method, execution_date, amount, updated_at"
     )
     .is("deleted_at", null)
-    .neq("deal_id", params.dealId)
+    .is("deal_id", null)
     .order("created_at", { ascending: false })
     .limit(params.limit ?? 20);
 
   if (params.search) {
     query = query.or(
-      `contract_code.ilike.%${params.search}%,contract_name.ilike.%${params.search}%`
+      `contract_code.ilike.%${params.search}%,contract_name.ilike.%${params.search}%,contract_display_name.ilike.%${params.search}%`
     );
   }
 
@@ -222,11 +226,13 @@ export async function listLinkableContracts(params: {
 }
 
 /**
- * 既存の契約を別の商談へ付け替える。
+ * どの商談にも紐づいていない契約を、商談へ紐づける。
  *
- * **元の商談からは外れる**（`deal_id` は 1 本しかない）。取引先を作る
- * `ensure_account_on_contract` は AFTER INSERT なので、付け替えでは走らない。
- * 移動先の商談に取引先が無い場合は、契約を作り直すか手で紐づける必要がある。
+ * **他の商談に紐づいている契約は受け付けない**（T-0065）。候補一覧を開いたまま
+ * 放置している間に他の人が紐づけた、という取り違えを弾く。
+ *
+ * 紐づけた時点で `ensure_account_on_contract` が走り、取引先が無ければ作られる
+ * （`20260808000001` で `AFTER UPDATE OF deal_id` を足した）。
  */
 export async function linkContractToDeal(
   input: z.infer<typeof linkContractToDealSchema>
@@ -240,7 +246,6 @@ export async function linkContractToDeal(
   const parsed = linkContractToDealSchema.safeParse(input);
   if (!parsed.success) return { data: null, error: parsed.error.issues[0].message };
 
-  // 移動元を控えておく（付け替え後に元の商談も再検証するため）
   const { data: before, error: beforeError } = await supabase
     .from("contracts")
     .select("deal_id")
@@ -254,6 +259,13 @@ export async function linkContractToDeal(
   if (!before) return { data: null, error: "契約が見つかりません" };
   if (before.deal_id === parsed.data.deal_id) {
     return { data: null, error: "この契約はすでにこの商談に紐づいています" };
+  }
+  if (before.deal_id) {
+    return {
+      data: null,
+      error:
+        "この契約はすでに別の商談に紐づいています。もとの商談で紐づけを解除してから操作してください",
+    };
   }
 
   const { data, error } = await supabase
@@ -271,7 +283,68 @@ export async function linkContractToDeal(
   revalidatePath(`/contracts/${parsed.data.contract_id}`);
   revalidatePath("/deals");
   revalidatePath(`/deals/${parsed.data.deal_id}`);
-  if (before.deal_id) revalidatePath(`/deals/${before.deal_id}`);
+  revalidatePath("/accounts");
+  return { data, error: null };
+}
+
+/**
+ * 契約を商談から外す（`deal_id` を NULL に戻す）。
+ *
+ * **契約そのものは残る。** どの商談にも紐づかない状態になり、
+ * あとから同じ商談にも別の商談にも紐づけ直せる（T-0067）。
+ *
+ * 外すと「ステージは取引先なのに契約が無い」リードを作れてしまうため、
+ * DB のトリガー（`check_contract_detach_against_leads`）が日本語の理由付きで拒む。
+ * 取引先は消さない（他の商談や連絡先がぶら下がっている）。
+ */
+export async function unlinkContractFromDeal(
+  input: z.infer<typeof unlinkContractFromDealSchema>
+): Promise<ActionResult<Row<"contracts">>> {
+  const { supabase, user, role } = await getAuthenticatedUser();
+  if (!supabase || !user) return { data: null, error: "認証が必要です" };
+  if (role !== "manager" && role !== "admin") {
+    return { data: null, error: "manager 以上の権限が必要です" };
+  }
+
+  const parsed = unlinkContractFromDealSchema.safeParse(input);
+  if (!parsed.success) return { data: null, error: parsed.error.issues[0].message };
+
+  // いま本当にこの商談に付いているか。古い画面から押されたときに
+  // 別の商談の紐づけを外さないため
+  const { data: before, error: beforeError } = await supabase
+    .from("contracts")
+    .select("deal_id")
+    .eq("id", parsed.data.contract_id)
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  if (beforeError) {
+    return { data: null, error: toUserMessage(beforeError, { entityLabel: "契約" }) };
+  }
+  if (!before) return { data: null, error: "契約が見つかりません" };
+  if (before.deal_id !== parsed.data.deal_id) {
+    return {
+      data: null,
+      error: "この契約はすでにこの商談から外れています。画面を再読み込みしてください",
+    };
+  }
+
+  const { data, error } = await supabase
+    .from("contracts")
+    .update({ deal_id: null, last_updated_by: user.id })
+    .eq("id", parsed.data.contract_id)
+    .eq("updated_at", parsed.data.expected_updated_at)
+    .select()
+    .maybeSingle();
+
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "契約" }) };
+  if (!data) return { data: null, error: conflictErrorMessage("この契約") };
+
+  revalidatePath("/contracts");
+  revalidatePath(`/contracts/${parsed.data.contract_id}`);
+  revalidatePath("/deals");
+  revalidatePath(`/deals/${parsed.data.deal_id}`);
+  revalidatePath("/accounts");
   return { data, error: null };
 }
 

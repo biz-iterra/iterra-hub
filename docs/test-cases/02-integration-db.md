@@ -1269,3 +1269,62 @@ SELECT jobname, schedule FROM cron.job
   アプリ側に `.eq("code"/"name"/"slug", "…")` と UUID 直書きが無い
 - 理由: **新しい機能を足すたびに増える。** アプリの grep だけでは
   DB 関数の中を見落とす（実際に 2 回見落とした）
+
+## 商談と契約の紐づけ・契約名の自動生成（2026-08-08 追加）
+
+`docs/database-design.md` §16.6.1 / §16.6.2 の規則を DB 側で固定する。
+**契約名の組み立ては TS 側に実装が無い**（規則の正本は DB 関数だけ）ので、
+ここが唯一の検証箇所になる。
+
+### IT-CONTRACT-01: 契約名の組み立て規則
+- 手順: `build_contract_display_name()` を材料の有無を変えて呼ぶ
+- 期待値:
+  - 全部そろう → `20260807_業務委託基本契約書_サービス利用契約_1200000_CTR-000123`
+  - 契約書名だけ → `秘密保持契約書_CTR-000124`（**`__` が並ばない**）
+  - 全部欠損 → `CTR-000125`（契約コードは必ず入るので空にならない）
+  - 部品に `_` を含む → `-` に置換される（`A_B_C` → `A-B-C`）
+- 理由: 締結日・種別・金額はどれも未設定がありうる。素直に連結すると読めなくなる
+
+### IT-CONTRACT-02: 採番より後に組み立てる（トリガー名の昇順依存）
+- 手順: `INSERT INTO contracts (...) RETURNING contract_code, contract_display_name`
+- 期待値: 契約名の末尾に**採番されたばかりの契約コード**が入っている
+- 理由: BEFORE トリガーは名前の昇順に走る（`trg_contracts_generate_code`(g)
+  → `trg_contracts_set_display_name`(s)）。**この並びを崩すと契約名から
+  契約コードが落ちる。** トリガー名を変えたら必ずここで気づく
+
+### IT-CONTRACT-03: 材料を直すと契約名が追随する
+- 手順: 契約の金額・締結日・契約書名・契約種別を UPDATE する
+- 期待値: `contract_display_name` が組み立て直される
+- 理由: 「保存のタイミングで更新される」が依頼の要件そのもの
+
+### IT-CONTRACT-04: 契約種別マスタの改名に追随する
+- 手順: `UPDATE contract_types SET name = '…'`
+- 期待値: その種別を使う契約の `contract_display_name` が変わり、
+  **`entity_change_logs` は 1 件も増えない**
+- 理由: 種別名を焼き込んでいるので追随が要る。一方これは派生値なので
+  履歴に出すと材料を直すたび 2 行に見える
+
+### IT-CONTRACT-05: 契約名は変更履歴の差分に出ない
+- 手順: 金額だけを UPDATE し、`entity_change_logs.changed_fields` のキーを見る
+- 期待値: `amount` と `_name` のみ。`contract_display_name` は**含まれない**
+- 理由: 同上（`log_entity_change` の `v_ignored`）
+
+### IT-CONTRACT-06: 商談に紐づかない契約を作れる
+- 手順: `INSERT INTO contracts (contract_name) VALUES ('…')`（`deal_id` なし）
+- 期待値: 通る。`deal_id IS NULL`
+- 理由: 2026-08-08 に NOT NULL を外した（T-0065）。紐づけ候補はこれだけ
+
+### IT-CONTRACT-07: 後から紐づけると取引先が作られる
+- 手順: 取引先未作成の商談（相手先は事業者情報）へ `UPDATE contracts SET deal_id = …`
+- 期待値: `deals.account_id` が埋まる
+- 理由: `ensure_account_on_contract` は AFTER **INSERT** だけだったため、
+  後から紐づけても取引先ができない穴があった。`AFTER UPDATE OF deal_id` を足した
+
+### IT-CONTRACT-08: 紐づけ解除でもリードのステージ要件を守る
+- 手順: `requires_contract` のステージにいるリードの、唯一の契約を
+  `UPDATE contracts SET deal_id = NULL`
+- 期待値: 例外「この契約はリード「…」が参照している唯一の契約です。
+  先にリードのステージを下げてから**紐づけを解除**してください」
+- 理由: 旧 `check_contract_deletion_against_leads` は `BEFORE UPDATE OF deleted_at`
+  にしか張られておらず、**契約を消さずに剥がすと検査を素通り**した。
+  `deal_id` を動かせるようにした時点で開く穴なので、同じマイグレーションで塞いだ

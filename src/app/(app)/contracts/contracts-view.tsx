@@ -185,7 +185,7 @@ export function ContractsView({ initialData, isManagerOrAbove, contractTypes }: 
         />
         <SearchInput
           value={search}
-          placeholder="契約書名で検索..."
+          placeholder="契約名・契約書名・契約コードで検索..."
           onChange={(v) => setFilter("search", v)}
         />
         <FilterClearButton onClear={clear} />
@@ -210,10 +210,12 @@ export function ContractsView({ initialData, isManagerOrAbove, contractTypes }: 
         onSortChange={setSort}
         columns={[
           {
-            label: "契約書名",
-            sortKey: "contract_name",
+            // 契約名は自動生成（締結日_契約書名_契約種別_金額_契約ID）。
+            // 契約コードを必ず含むので、契約書名が未入力でもセルが空にならない
+            label: "契約名",
+            sortKey: "contract_display_name",
             card: "title",
-            className: "min-w-[200px]",
+            className: "min-w-[280px]",
             render: (row) => (
               <Link
                 href={`/contracts/${row.id}`}
@@ -224,9 +226,16 @@ export function ContractsView({ initialData, isManagerOrAbove, contractTypes }: 
                 }}
                 onClick={(e) => e.stopPropagation()}
               >
-                {row.contract_name}
+                {row.contract_display_name ?? row.contract_name ?? row.contract_code}
               </Link>
             ),
+          },
+          {
+            label: "金額",
+            sortKey: "amount",
+            card: "meta",
+            className: "text-right whitespace-nowrap",
+            render: (row) => (row.amount != null ? row.amount.toLocaleString() : "—"),
           },
           {
             label: "契約方法",
@@ -257,7 +266,8 @@ export function ContractsView({ initialData, isManagerOrAbove, contractTypes }: 
           },
           {
             label: "契約開始日",
-            sortKey: "contract_date",
+            // "contract_date" という列は無く、押すと Postgres 側で落ちていた
+            sortKey: "start_date",
             className: "text-xs whitespace-nowrap",
             render: (row) => formatDate(row.start_date),
           },

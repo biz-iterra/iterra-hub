@@ -197,7 +197,7 @@ export async function getDeal(id: string): Promise<ActionResult<DealDetail>> {
     .select(
       `
       ${DEAL_SELECT},
-      contracts(id, contract_code, contract_name, contract_method, start_date, end_date, deleted_at),
+      contracts(id, contract_code, contract_name, contract_display_name, contract_method, start_date, end_date, amount, updated_at, deleted_at),
       deal_activities(id, activity_type, activity_at, subject, performed_by, crm_users!deal_activities_performed_by_fkey(full_name)),
       deal_projects(id, project:projects(id, project_code, name, project_status:project_statuses(id, name, color), deleted_at))
     `

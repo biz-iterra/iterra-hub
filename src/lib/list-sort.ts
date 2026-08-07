@@ -63,7 +63,17 @@ export const SORT_FIELDS = {
   companies: ["name", "sort_key", "company_code", "created_at", "updated_at"],
   accounts: ["name", "account_code", "created_at", "updated_at"],
   deals: ["name", "deal_code", "amount", "expected_close_date", "created_at", "updated_at"],
-  contracts: ["contract_code", "contract_name", "contract_date", "created_at", "updated_at"],
+  // "contract_date" という列は存在せず、「契約開始日」で並び替えると落ちていた。
+  // 実カラムの start_date に直した（2026-08-08）
+  contracts: [
+    "contract_code",
+    "contract_display_name",
+    "contract_name",
+    "amount",
+    "start_date",
+    "created_at",
+    "updated_at",
+  ],
   projects: ["name", "project_code", "start_date", "end_date", "created_at", "updated_at"],
   campaigns: ["name", "start_date", "end_date", "created_at", "updated_at"],
   talents: ["created_at", "updated_at"],

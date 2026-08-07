@@ -2090,10 +2090,12 @@ export type Database = {
       }
       contracts: {
         Row: {
+          amount: number | null
           auto_renewal: boolean
           cancellation_date: string | null
           contract_code: string
           contract_content: string | null
+          contract_display_name: string | null
           contract_method: string | null
           contract_name: string | null
           contract_type_id: string | null
@@ -2104,7 +2106,7 @@ export type Database = {
           counterparty_type: string | null
           created_at: string
           created_by: string
-          deal_id: string
+          deal_id: string | null
           deleted_at: string | null
           deleted_by: string | null
           deletion_reason: string | null
@@ -2120,10 +2122,12 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          amount?: number | null
           auto_renewal?: boolean
           cancellation_date?: string | null
           contract_code?: string
           contract_content?: string | null
+          contract_display_name?: string | null
           contract_method?: string | null
           contract_name?: string | null
           contract_type_id?: string | null
@@ -2134,7 +2138,7 @@ export type Database = {
           counterparty_type?: string | null
           created_at?: string
           created_by?: string
-          deal_id: string
+          deal_id?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
           deletion_reason?: string | null
@@ -2150,10 +2154,12 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          amount?: number | null
           auto_renewal?: boolean
           cancellation_date?: string | null
           contract_code?: string
           contract_content?: string | null
+          contract_display_name?: string | null
           contract_method?: string | null
           contract_name?: string | null
           contract_type_id?: string | null
@@ -2164,7 +2170,7 @@ export type Database = {
           counterparty_type?: string | null
           created_at?: string
           created_by?: string
-          deal_id?: string
+          deal_id?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
           deletion_reason?: string | null
@@ -7236,6 +7242,16 @@ export type Database = {
         }
         Returns: string
       }
+      build_contract_display_name: {
+        Args: {
+          p_amount: number
+          p_contract_code: string
+          p_contract_name: string
+          p_contract_type_id: string
+          p_execution_date: string
+        }
+        Returns: string
+      }
       company_primary_contact_email: {
         Args: { p_company_id: string }
         Returns: string
@@ -7532,6 +7548,10 @@ export type Database = {
         Returns: string
       }
       refresh_all_account_statuses: { Args: never; Returns: number }
+      refresh_contract_display_names: {
+        Args: { p_contract_type_id?: string }
+        Returns: number
+      }
       register_freee_partner_company: {
         Args: { p_actor?: string; p_partner_id: string }
         Returns: string

@@ -243,12 +243,17 @@ body::-webkit-scrollbar,
    * sm 未満では縦積みにする。並び順を逆にしているのは、
    * 削除（DOM では先頭）を末尾に回して押し間違いを避けるため。
    */
+  /*
+   * 上の余白はカードの marginBottom（1.5rem）と同じにする。
+   * 1rem だと直前のカードに貼り付いて見え、ボタンとセクションが
+   * ひと続きの塊に読めてしまう（2026-08-08。T-0066）
+   */
   .form-footer {
     display: flex;
     flex-direction: column-reverse;
     align-items: stretch;
     gap: 0.75rem;
-    margin-top: 1rem;
+    margin-top: 1.5rem;
   }
   /*
    * 縦積みでは、左右のまとまり（削除／保存・キャンセル）を行として扱い、

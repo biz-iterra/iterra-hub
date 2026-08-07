@@ -450,6 +450,18 @@ export function DealEditForm({
           </div>
         </div>
 
+        {/*
+          契約セクション。**フォームの中に置く**（T-0066）。
+          以前は `</form>` の外にあり、削除・保存ボタンのすぐ下に接して見えた。
+          中のボタンはすべて `type="button"` なので submit されない。
+          「保存を押さずに反映される」ことはセクション側の見た目で示す
+        */}
+        <DealContractsSection
+          dealId={deal.id}
+          contracts={contracts}
+          canManage={canManageContracts}
+        />
+
         {error && <p style={styles.error}>{error}</p>}
 
         <div className={formFooterClass}>
@@ -480,16 +492,6 @@ export function DealEditForm({
           </div>
         </div>
       </form>
-
-      {/*
-        契約はフォームの外に置く。**「保存」を押さずにその場で反映される**ため、
-        商談本体の編集と混ざらないようにしている（T-0063）
-      */}
-      <DealContractsSection
-        dealId={deal.id}
-        contracts={contracts}
-        canManage={canManageContracts}
-      />
 
       <ConfirmDialog
         open={confirmDelete}

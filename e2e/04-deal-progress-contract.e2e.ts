@@ -107,8 +107,12 @@ test.describe("E2E-04", () => {
       await expectSuccessToast(managerPage, "契約を作成しました");
       // 作成直後の自動遷移は待たず、一覧の検索から辿る（e2e/helpers.ts 冒頭の既知の問題を参照）
       await managerPage.goto("/contracts");
-      await searchInList(managerPage, "契約書名で検索...", contractName);
-      const createdContractLink = managerPage.getByRole("link", { name: contractName, exact: true });
+      await searchInList(managerPage, "契約名・契約書名・契約コードで検索...", contractName);
+      // 一覧の 1 列目は自動生成の契約名（契約書名_契約ID の形。T-0068）なので
+      // 完全一致では掴めない
+      const createdContractLink = managerPage.getByRole("link", {
+        name: new RegExp(`${contractName}_CTR-`),
+      });
       await expect(createdContractLink).toBeVisible();
       await createdContractLink.click();
       await managerPage.waitForURL(new RegExp(`/contracts/${UUID_RE}$`));

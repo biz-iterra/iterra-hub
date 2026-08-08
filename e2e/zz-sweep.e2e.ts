@@ -232,6 +232,28 @@ test.describe("変更した画面の総ざらい", () => {
       ).toHaveCount(0);
     });
 
+    // ---- 4e. デマンドファネルへの改称と、選ばせないこと（T-0077）----
+    await check("デマンドファネル", async () => {
+      await page.goto("/leads");
+      await expect(
+        page.getByText("デマンドファネル").first(),
+        "リード一覧に「デマンドファネル」が出ていない"
+      ).toBeVisible();
+      await expect(
+        page.getByText("リードカテゴリ"),
+        "「リードカテゴリ」の呼び名が残っている"
+      ).toHaveCount(0);
+
+      // **導出値なので選ばせない。** トリガーが保存のたび上書きするため、
+      // 選択欄があると「選べるのに反映されない」ことになる
+      await page.goto("/leads/new");
+      await expect(
+        page.locator("label").filter({ hasText: /^デマンドファネル$/ })
+          .locator("xpath=following-sibling::select[1]"),
+        "リードの新規作成にデマンドファネルの選択欄が残っている"
+      ).toHaveCount(0);
+    });
+
     // ---- 5. 連絡先の新規作成に連絡手段・住所がある ----
     await check("連絡先の新規作成に連絡手段と住所", async () => {
       await page.goto("/contacts/new");

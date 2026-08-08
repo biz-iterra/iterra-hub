@@ -200,7 +200,7 @@ erDiagram
 | `industry_classifications` |  |
 | `lead_activity_types` | リードアクティビティ種別マスタ（M23） |
 | `lead_call_statuses` | リード 架電ステータス（旧: inside_sales_call_statuses） |
-| `lead_categories` | リードカテゴリマスタ（M22） |
+| `lead_categories` | デマンドファネル（M22。旧称: リードカテゴリ） |
 | `lead_company_sizes` | リード企業規模マスタ |
 | `lead_customer_activity_types` | リード顧客行動タイプマスタ（イベント参加・資料DL等、顧客側の行動ログ種別） |
 | `lead_large_segments` | リード 大セグメント（旧: inside_sales_large_segments） |

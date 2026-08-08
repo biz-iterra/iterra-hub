@@ -689,7 +689,7 @@ export default function ManualPage() {
           </Paragraph>
           <UList
             items={[
-              "ステージ × ステータス × 温度感 × カテゴリ × 担当者で絞り込み",
+              "ステージ × ステータス × 温度感 × デマンドファネル × 担当者で絞り込み",
               "スコアによる並べ替え",
               <>
                 <strong>Opportunity ステージへの遷移で、Company / Contact / Account / Deal を自動生成</strong>（Deal 昇格）
@@ -705,7 +705,7 @@ export default function ManualPage() {
                 をクリック → <Code>/leads/new</Code> へ遷移。
               </>,
               "氏名（★必須） / リードソース（★必須） / 担当者（★必須、初期値は自分）を入力。",
-              "社名、メール、電話、URL、カテゴリ、ステージ、ステータス、温度感、スコア、メモを任意で入力。",
+              "社名、事業者情報、連絡先、メール、電話、URL、ステージ、ステータス、温度感、メモを任意で入力（デマンドファネルはステージと流入元から自動で決まる）。",
               "「保存」で一覧に戻り、新しいレコードが表示される。",
             ]}
           />
@@ -1082,7 +1082,7 @@ export default function ManualPage() {
               ["", "取引先ステータス", "account_statuses"],
               ["連絡先", "連絡先ステータス", "contact_statuses"],
               ["リード・マーケティング", "リードソース", "lead_sources"],
-              ["", "リードカテゴリ", "lead_categories"],
+              ["", "デマンドファネル", "lead_categories"],
               [
                 "",
                 "ステージ・ステータス",

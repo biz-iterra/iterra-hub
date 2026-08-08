@@ -159,13 +159,16 @@ export function LeadEditClient({
     // 進捗セクション
     stage_id: lead.stage_id ?? "",
     status_id: lead.status_id ?? "",
-    category_id: lead.category_id ?? "",
     // リード属性セクション
     large_segment_id: lead.large_segment_id ?? "",
     small_segment_id: lead.small_segment_id ?? "",
     lead_source_id: lead.lead_source_id ?? "",
     account_type_id: getInitialAccountTypeId(),
   });
+
+  // デマンドファネルは導出値。現在値だけを見せる
+  const currentCategoryLabel =
+    masters.categories.find((c) => c.value === lead.category_id)?.label ?? "未設定";
 
   const [saving, setSaving] = useState(false);
   // フィールド単位のエラー（従業員数・資本金の形式不正などの事前検証、
@@ -279,7 +282,6 @@ export function LeadEditClient({
       account_type_id: values.account_type_id || undefined,
       stage_id: values.stage_id || undefined,
       status_id: values.status_id || null,
-      category_id: values.category_id || null,
       lead_source_id: values.lead_source_id || null,
       large_segment_id: values.large_segment_id || null,
       small_segment_id: values.small_segment_id || null,
@@ -625,22 +627,19 @@ export function LeadEditClient({
             )}
           </div>
         </div>
+        {/*
+          デマンドファネルは**選ばせない**（2026-08-08。T-0077）。
+          トリガー trg_leads_set_category がステージと流入元から毎回上書きする
+          完全な導出値で、選んでも反映されなかった
+        */}
         <div style={{ maxWidth: 320 }}>
-          <label style={styles.label}>カテゴリ</label>
-          <select
-            style={styles.input}
-            value={values.category_id}
-            onChange={(e) => set("category_id", e.target.value)}
-            onFocus={onFocus}
-            onBlur={onBlur}
-          >
-            <option value="">-- 未設定 --</option>
-            {masters.categories.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
+          <label style={styles.label}>デマンドファネル</label>
+          <p style={{ ...styles.helpText, marginTop: 0 }}>
+            現在: {currentCategoryLabel}
+          </p>
+          <p style={styles.helpText}>
+            ステージと流入元から自動で決まります。直接は選べません。
+          </p>
         </div>
       </div>
 

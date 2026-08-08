@@ -125,7 +125,7 @@ const TABLE_FIELD_LABELS: Record<string, Record<string, string>> = {
     company_name_kana: "会社名（カナ）",
     stage_id: "ステージ",
     status_id: "ステータス",
-    category_id: "カテゴリ",
+    category_id: "デマンドファネル",
     temperature_id: "温度感",
     account_type_id: "事業者種別",
     lead_source_id: "流入元",

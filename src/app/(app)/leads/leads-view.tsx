@@ -145,7 +145,7 @@ export function LeadsView({
           onChange={(v) => setFilter("statusId", v)}
         />
         <FilterSelect
-          label="カテゴリ"
+          label="デマンドファネル"
           value={categoryFilter}
           options={categories.map((c) => ({ value: c.id, label: c.name }))}
           onChange={(v) => setFilter("categoryId", v)}
@@ -250,7 +250,7 @@ export function LeadsView({
             render: (lead) => (lead.score == null ? "—" : String(lead.score)),
           },
           {
-            label: "カテゴリ",
+            label: "デマンドファネル",
             className: "whitespace-nowrap",
             render: (lead) => {
               const category = lead.category as

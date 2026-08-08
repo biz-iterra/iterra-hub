@@ -43,7 +43,7 @@ ITERRAの営業・取引管理CRMシステムを新規構築する。現在ス�
 | M19 | リードステータス | `lead_statuses` | ステージ内の状態（stage_id FK、UNIQUE(stage_id, code)） | リード共通マスタ |
 | M20 | リード温度感 | `lead_temperatures` | 温度感マスタ（hot/warm/cold） | リード共通マスタ |
 | M21 | リードスコアリングルール | `lead_score_thresholds` | スコア→温度感 変換ルール（旧: lead_scoring_rules） | リード共通マスタ |
-| M22 | リードカテゴリ | `lead_categories` | リードカテゴリマスタ（Inquiry/MQL/TQL/SQL）。Lead.category_id で参照。ステージとは独立した分類軸 | リード共通マスタ |
+| M22 | **デマンドファネル** | `lead_categories` | デマンドファネル（Inquiry/MQL/TQL/SQL）。Lead.category_id で参照。**完全な導出値**でステージと流入元から決まる。§16.6.6 | リード共通マスタ |
 | M23 | キャンペーン | `campaigns` | マーケティングキャンペーン（generation/nurturing/qualification） | リード共通マスタ |
 | M24 | リード 企業規模 | `lead_company_sizes` | 従業員数/資本金レンジによる企業規模 | リード共通マスタ |
 | M25 | リード 顧客行動タイプ | `lead_customer_activity_types` | イベント参加/資料DL等 | リード共通マスタ |
@@ -2034,11 +2034,15 @@ Lead は Deal より上流の「見込み客」を管理するエンティティ
 | Dead | `approach_prohibited` | アプローチ禁止 |
 | Dead | `opt_out` | オプトアウト |
 
-### 11.4 Category マスタ（M22 lead_categories）と v_leads_with_category View
+### 11.4 デマンドファネル（M22 lead_categories）と v_leads_with_category View
 
-**設計方針: カテゴリとステージは独立した2軸**
+> **この節の前半は 2026-08-02 に覆っている。** 当初は「独立した 2 軸で人が選ぶ」
+> 設計だったが、`resolve_lead_category` を入れて**ステージと流入元から決まる
+> 導出値**にした（`20260802000013`）。現在の規則は §16.6.6 と、
+> `20260805000020` の `resolve_lead_category` が正本。
+> 呼び名も「リードカテゴリ」→「**デマンドファネル**」へ改称した（T-0077）。
 
-リードカテゴリ（Inquiry / MQL / TQL / SQL）とリードステージ（generation / nurturing / qualification / sales / opportunity / customer / dead）は**独立した2軸**として管理する。自動マッピングや推奨連動は実装しない。ユーザーが手動で選択する。
+（当初の記述）デマンドファネル（Inquiry / MQL / TQL / SQL）とリードステージ（generation / nurturing / qualification / sales / opportunity / customer / dead）は独立した 2 軸として管理する。自動マッピングや推奨連動は実装しない。ユーザーが手動で選択する。
 
 **leads.category_id カラム（20260419000015 で追加）**
 
@@ -2949,6 +2953,27 @@ DB オブジェクト 6 個・UI 3 箇所・E2E 4 本に一斉波及するため
 
 昇格は「リードの `company_name` などのテキストから実体を起こす」唯一の経路なので残す。
 
+### 16.6.6 デマンドファネル（旧: リードカテゴリ）（2026-08-08 / T-0077）
+
+「リードカテゴリ」を**デマンドファネル**へ改称した。利用者の意図は意味づけの明確化。
+
+> 本来はセールスファネルとして TQL・SQL を、マーケティングファネルとして
+> Inquiry・MQL を定義すべきだが、詳細化しすぎるため包括的なデマンドファネルとする。
+
+**変えたのは表示ラベルだけ。** テーブル名（`lead_categories`）・`code`
+（`inquiry` / `mql` / `tql` / `sql`）・関数名（`resolve_lead_category` /
+`set_lead_category`）・ビュー（`v_leads_with_category`）・列名（`leads.category_id`）は
+そのまま（CLAUDE.md「コードは変更しない、名前変更は可」）。
+
+改称の影響が表示に閉じるのは、**商談を作れる段階の判定を
+`lead_stages.is_deal_ready` に寄せてある**ため（§16.6.3）。ファネルの
+呼び名や `sort_order` に依存する判定はどこにも無い。
+
+**人は設定できない。** `trg_leads_set_category` がステージと流入元から
+毎回上書きする。にもかかわらず新規作成・編集画面に選択欄が残っており、
+「選べるのに反映されない」状態だった。2026-08-08 に読み取り専用へ変えた
+（新規作成は T-0072、編集は T-0077）。
+
 ### 16.6.5 パイプラインごとに画面を分ける（2026-08-08 / T-0073・T-0074）
 
 利用者の判断「商談（セールス）と仕入れ・業務委託は性質が異なる」。
@@ -3765,7 +3790,7 @@ member / manager には見せない。同期は service_role が RLS をバイ�
 |---|---|---|---|
 | **リードステージ** | 業務の骨格。**規則を持つ** | 人が選ぶ。ただし遷移は DB トリガーが検査 | 昇格・契約の整合が崩れる |
 | **リードステータス** | ステージに**従属**（`stage_id` NOT NULL） | 人が選ぶ | 既存リードの参照先が失われる |
-| **リードカテゴリ** | **完全な導出値。人は設定できない** | `resolve_lead_category` が保存のたびに上書き | 進捗画面の分類が空になる |
+| **デマンドファネル**（旧: リードカテゴリ） | **完全な導出値。人は設定できない** | `resolve_lead_category` が保存のたびに上書き | 進捗画面の分類が空になる |
 | **コールステータス** | 単なる記録の選択肢。**制御に関与しない** | 人が選ぶ | 影響なし（過去の記録の表示だけ） |
 
 ### ステージが持つ規則

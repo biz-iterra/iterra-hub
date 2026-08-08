@@ -166,7 +166,7 @@ const TAB_LABELS: Record<TabKey, string> = {
   account_statuses: "取引先ステータス",
   contact_statuses: "連絡先ステータス",
   lead_sources: "リードソース",
-  lead_categories: "リードカテゴリ",
+  lead_categories: "デマンドファネル",
   lead_stages: "ステージ・ステータス",
   lead_temperatures: "温度感",
   lead_call_statuses: "コールステータス",
@@ -2058,7 +2058,7 @@ export function AdminView() {
       case "lead_categories":
         return (
           <SimpleMasterTab
-            title="リードカテゴリ"
+            title="デマンドファネル"
             items={leadCategories}
             onCreate={createLeadCategory}
             onUpdate={updateLeadCategory}

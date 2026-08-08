@@ -577,7 +577,7 @@ Lead（Sales / Opportunity への遷移を保存）
 |  | 取引先ステータス | `account_statuses` |
 | 連絡先 | 連絡先ステータス | `contact_statuses` |
 | リード・マーケティング | リードソース | `lead_sources` |
-|  | リードカテゴリ | `lead_categories` |
+|  | デマンドファネル | `lead_categories` |
 |  | ステージ・ステータス | `lead_stages` / `lead_statuses`（階層） |
 |  | 温度感 | `lead_temperatures` |
 |  | コールステータス | `lead_call_statuses` |

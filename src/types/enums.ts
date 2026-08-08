@@ -69,5 +69,10 @@ export type CampaignType = "generation" | "nurturing" | "qualification";
 /** キャンペーンステータス */
 export type CampaignStatus = "draft" | "active" | "paused" | "completed" | "cancelled";
 
-/** リードカテゴリコード（M22 lead_categories.code 値）*/
+/**
+ * デマンドファネルのコード（M22 lead_categories.code 値）。
+ *
+ * **画面の呼び名は「デマンドファネル」**（2026-08-08 に改称。T-0077）。
+ * 型名・code は変えていない（CLAUDE.md「コードは変更しない、名前変更は可」）
+ */
 export type LeadCategoryCode = "inquiry" | "mql" | "tql" | "sql";

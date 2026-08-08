@@ -22,7 +22,11 @@ export const MASTER_LABELS: Record<string, string> = {
   skill_categories: "スキルカテゴリ",
   skills: "スキル",
   project_statuses: "プロジェクトステータス",
-  lead_categories: "リードカテゴリ",
+  // **「デマンドファネル」へ改称**（2026-08-08。T-0077）。
+  // 意味づけを明確にするため。本来はセールスファネル（TQL・SQL）と
+  // マーケティングファネル（Inquiry・MQL）に分かれるが、詳細化しすぎるので
+  // 包括的な呼び名にしてある。**テーブル名・code は変えない**
+  lead_categories: "デマンドファネル",
   lead_activity_types: "対応種別",
   lead_stages: "リードステージ",
   lead_statuses: "リードステータス",

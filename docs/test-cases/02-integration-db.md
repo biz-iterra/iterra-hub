@@ -137,7 +137,7 @@ ROLLBACK;
 | `set_primary_contact_email/phone` / `promote_next_contact_email/phone` | 20260801000008 | 主連絡先の一意維持 |
 | `add_entity_address` / `set_primary_entity_address` / `promote_next_entity_address` / `cleanup_orphan_address` | 20260801000009 | 住所リンクの主一意・孤児掃除 |
 | `company_sort_key(TEXT, TEXT)` | 20260802000009 | 一覧並び順（生成列 `companies.sort_key`） |
-| `resolve_lead_category` / `set_lead_category` | 20260802000016 / 20260802000013 | リードカテゴリ自動判定 |
+| `resolve_lead_category` / `set_lead_category` | 20260802000016 / 20260802000013 | デマンドファネルの自動判定（画面の呼び名は改称済み。関数名は据え置き） |
 | `lead_kanban_cards` / `lead_progress_summary` | 20260802000018 | かんばん/集計ビュー関数 |
 | `record_email_message` / `find_contact_by_email` / `approve_email_contact_candidate` | 20260731000015 / 20260731000012 / 20260731000013 | Gmail 連携 |
 

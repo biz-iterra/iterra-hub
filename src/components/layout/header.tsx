@@ -15,7 +15,11 @@ const pathLabels: Record<string, string> = {
   "/progress/inbound": "インバウンド進捗",
   "/progress/outbound": "アウトバウンド進捗",
   "/campaigns": "キャンペーン",
+  // 一覧はパイプライン別（T-0073）。詳細は /deals/{id} のまま
   "/deals": "商談",
+  "/sales": "セールス",
+  "/procurement": "プロキュアメント",
+  "/partnership": "パートナーシップ",
   "/contacts": "連絡先",
   "/contacts/candidates": "連絡先の候補",
   "/companies": "事業者情報",

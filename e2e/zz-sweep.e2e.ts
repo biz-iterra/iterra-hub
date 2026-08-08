@@ -47,7 +47,10 @@ test.describe("変更した画面の総ざらい", () => {
       "/companies",
       "/contacts",
       "/accounts",
-      "/deals",
+      // 商談はパイプラインごとに画面が分かれている（T-0073）
+      "/sales",
+      "/procurement",
+      "/partnership",
       "/contracts",
       "/talents",
       "/projects",
@@ -179,6 +182,33 @@ test.describe("変更した画面の総ざらい", () => {
         page.getByLabel("契約名"),
         "商談の新規作成に契約名の入力欄が残っている"
       ).toHaveCount(0);
+    });
+
+    // ---- 4c. パイプラインごとに画面が分かれていること（T-0073 / T-0074）----
+    await check("パイプライン別の画面", async () => {
+      for (const [path, heading] of [
+        ["/sales", "セールス"],
+        ["/procurement", "プロキュアメント"],
+        ["/partnership", "パートナーシップ"],
+      ] as const) {
+        await page.goto(path);
+        await expect(
+          page.getByRole("heading", { name: heading, level: 1 }),
+          `${path} の見出しが「${heading}」でない`
+        ).toBeVisible();
+        // **カンバンの列が 0 個でない**。仕入れ・業務委託はステージが
+        // 0 件で使えない状態だった（T-0074）
+        await expect(
+          page.locator("main").getByText("商談なし").first(),
+          `${path} のカンバンに列が無い（ステージ未投入の疑い）`
+        ).toBeVisible({ timeout: 15_000 });
+      }
+    });
+
+    // ---- 4d. /deals は分割後の画面へ逃がすこと ----
+    await check("/deals のリダイレクト", async () => {
+      await page.goto("/deals");
+      await expect(page, "/deals が /sales へ飛ばない").toHaveURL(/\/sales/);
     });
 
     // ---- 4b. 契約は商談を選ばずに作れて、金額を持てること（T-0065 / T-0068）----

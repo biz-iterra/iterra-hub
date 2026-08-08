@@ -89,8 +89,9 @@ test.describe("E2E-03", () => {
     expect(companyHref).toMatch(new RegExp(`^/companies/${UUID_RE}$`));
     const companyId = extractIdFromHref(companyHref!);
 
-    // ---- 4. /deals のテーブルビューにも新規 Deal が現れ、取引先列は事業者情報名を表示する ----
-    await page.goto("/deals");
+    // ---- 4. セールス画面のテーブルビューにも新規 Deal が現れ、取引先列は事業者情報名を表示する ----
+    // 一覧はパイプラインごとに分かれている（T-0073）。昇格で作られる商談は営業パイプライン
+    await page.goto("/sales");
     await page.getByRole("button", { name: "テーブル" }).click();
     // 表示モードも URL の条件に含まれる。切り替わり切ってから検索する
     await page.waitForURL(/[?&]view=table/);

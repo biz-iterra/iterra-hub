@@ -2949,6 +2949,46 @@ DB オブジェクト 6 個・UI 3 箇所・E2E 4 本に一斉波及するため
 
 昇格は「リードの `company_name` などのテキストから実体を起こす」唯一の経路なので残す。
 
+### 16.6.5 パイプラインごとに画面を分ける（2026-08-08 / T-0073・T-0074）
+
+利用者の判断「商談（セールス）と仕入れ・業務委託は性質が異なる」。
+
+| パイプライン | 画面 | パス |
+|---|---|---|
+| 営業（`sales`） | セールス | `/sales` |
+| 仕入れ（`procurement`） | プロキュアメント | `/procurement` |
+| 業務委託（`outsourcing`） | パートナーシップ | `/partnership` |
+
+**対応は `pipeline_types.screen_key` で持つ**（`lead_categories.progress_view` と同じ形）。
+slug は `20260805000019` で自動採番になり「引くな」とされているため使わない。
+**slug は `outsourcing` のまま**で、画面名（パートナーシップ）とはずらしてある
+（UI 表示名と内部名を分ける方針。slug を変えると `account_role_types` の
+対応や過去のマイグレーションの前提が崩れる）。
+
+**一覧だけを分け、商談の詳細（`/deals/{id}`）は分けていない。** 分けると
+契約・プロジェクト・リード・横断検索・活動履歴のリンク元が全部パイプラインを
+知る必要が出る。詳細から一覧へ戻るときだけ `screen_key` で行き先を選ぶ
+（`src/lib/deals/pipeline-screen.ts`）。`/deals` は `/sales` へ逃がす。
+
+**仕入れ・業務委託はステージもステータスも 0 件だった**（seed にあるのは営業だけ）。
+選ぶとカンバンが列ゼロになり、ステージ・ステータスが必須の商談は作れなかった。
+`20260808000008` で 6 段階ずつ入れた。
+
+- プロキュアメント: 候補 → 問い合わせ → 見積り → 交渉 → 発注 → 完了
+- パートナーシップ: 候補 → 打診 → 条件調整 → 契約 → 稼働 → 完了
+
+**投入は `ensure_pipeline_stages()` に置き、`apply_master_role_flags()` から呼ぶ。**
+`db reset` は「マイグレーション → seed」の順なので、マイグレーションの本文で
+INSERT すると `pipeline_types` の行がまだ無く外部キー違反になる（T-0053 と同じ構造）。
+役割フラグと同じ入口に繋げば、`db reset` でも本番でも当たる。
+`apply_master_role_flags()` は入口だけになり、中身は `_core` と
+`ensure_pipeline_stages` / `apply_pipeline_screen_keys` の 3 つに分かれている。
+
+**ダッシュボードのファネルは 1 パイプラインだけを描く**（T-0075）。
+以前は `deal_stages` をパイプライン無関係に全件並べており、仕入れ・業務委託の
+ステージを入れた瞬間に「候補・完了」が 2 回ずつ出る壊れたファネルになった
+（営業しかステージが無い間は偶然動いていただけ）。対象は `is_default` のパイプライン。
+
 ### 16.6.4 事業者情報とリードは 1 : N（2026-08-08 / T-0071・T-0072）
 
 **DB 上はもともと 1 : N**（`leads.company_id` は素の FK で制約は無い）。
@@ -2982,6 +3022,11 @@ DB オブジェクト 6 個・UI 3 箇所・E2E 4 本に一斉波及するため
 | `20260808000001_contracts_optional_deal.sql` | `contracts.deal_id` を任意化。取引先作成を `AFTER UPDATE OF deal_id` でも走らせ、紐づけ解除でもリードのステージ要件を守る（§16.6.1） |
 | `20260808000002_contract_amount_and_display_name.sql` | `amount` / `contract_display_name` を追加。契約名の組み立てと、契約種別の改名への追随（§16.6.2） |
 | `20260808000003_contract_display_name_change_log.sql` | 契約名を変更履歴の差分から除外し、対象名に優先。既存行のバックフィル（§16.6.2） |
+| `20260808000004_deals_lead_link.sql` | `deals.lead_id`・`requires_lead`・`is_deal_ready`（§16.6.3） |
+| `20260808000005_deals_lead_rules.sql` | リード必須の強制と、判定の `lead_id` 経由への移設（§16.6.3） |
+| `20260808000006_promote_lead_resolve_company.sql` | 昇格を名寄せ経由にする（§16.6.4） |
+| `20260808000007_create_deal_with_lead.sql` | 商談をリード起点で作る RPC（§16.6.3） |
+| `20260808000008_pipeline_screens_and_stages.sql` | `screen_key` と、仕入れ・業務委託のステージ（§16.6.5） |
 
 ---
 

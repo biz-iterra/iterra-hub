@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {
   TrendingUp,
   DollarSign,
@@ -125,17 +126,36 @@ export default async function DashboardPage() {
     activeCompaniesRes.error;
 
   // ---------- パイプラインファネル ----------
-  const { data: stages, error: stagesError } = await supabase
-    .from("deal_stages")
-    .select("id, name, sort_order")
+  //
+  // **1 つのパイプラインだけを描く**（T-0075）。以前は `deal_stages` を
+  // パイプライン無関係に全件並べており、仕入れ・業務委託のステージを
+  // 入れた瞬間に「候補・完了」が 2 回ずつ出る壊れたファネルになった
+  // （営業しかステージが無い間は偶然動いていただけ）。
+  //
+  // どのパイプラインを出すかは `is_default`（＝セールス）。
+  // 他のパイプラインはそれぞれの画面（/procurement /partnership）で見る
+  const { data: funnelPipeline } = await supabase
+    .from("pipeline_types")
+    .select("id, name, screen_key")
+    .eq("is_default", true)
     .is("deleted_at", null)
-    .order("sort_order", { ascending: true });
+    .maybeSingle();
+
+  const { data: stages, error: stagesError } = funnelPipeline
+    ? await supabase
+        .from("deal_stages")
+        .select("id, name, sort_order")
+        .eq("pipeline_type_id", funnelPipeline.id)
+        .is("deleted_at", null)
+        .order("sort_order", { ascending: true })
+    : { data: null, error: null };
 
   let funnelData: { name: string; count: number }[] = [];
-  if (stages && stages.length > 0) {
+  if (funnelPipeline && stages && stages.length > 0) {
     const { data: funnelDeals } = await supabase
       .from("deals")
       .select("deal_stage_id")
+      .eq("pipeline_type_id", funnelPipeline.id)
       .is("closed_at", null)
       .is("deleted_at", null);
 
@@ -149,6 +169,10 @@ export default async function DashboardPage() {
     }));
   }
   const maxFunnelCount = Math.max(...funnelData.map((f) => f.count), 1);
+  const funnelPipelineName = funnelPipeline?.name ?? null;
+  const funnelHref = funnelPipeline?.screen_key
+    ? `/${funnelPipeline.screen_key}`
+    : "/sales";
 
   // ---------- 最近のディール ----------
   const { data: recentDeals, error: recentDealsError } = await supabase
@@ -279,12 +303,30 @@ export default async function DashboardPage() {
             boxShadow: "var(--elevation-low)",
           }}
         >
-          <h2
-            className="text-base font-bold mb-4"
-            style={{ color: "var(--color-text-title)" }}
-          >
-            パイプラインファネル
-          </h2>
+          <div className="flex items-baseline justify-between mb-4 gap-2 flex-wrap">
+            <h2
+              className="text-base font-bold"
+              style={{ color: "var(--color-text-title)" }}
+            >
+              パイプラインファネル
+              {funnelPipelineName && (
+                <span
+                  className="text-xs font-normal ml-2"
+                  style={{ color: "var(--color-sumi600)" }}
+                >
+                  {funnelPipelineName}
+                </span>
+              )}
+            </h2>
+            {/* 他のパイプラインはそれぞれの画面で見る（T-0073） */}
+            <Link
+              href={funnelHref}
+              className="text-xs"
+              style={{ color: "var(--color-terra)", textDecoration: "none" }}
+            >
+              一覧を見る
+            </Link>
+          </div>
           {stagesError ? (
             <p className="text-sm" style={{ color: "var(--color-sumi600)" }}>
               データを取得できませんでした

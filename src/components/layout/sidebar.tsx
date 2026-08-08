@@ -5,6 +5,8 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Handshake,
+  HeartHandshake,
+  PackageSearch,
   Users,
   Building2,
   Briefcase,
@@ -107,7 +109,11 @@ const navGroups: NavGroup[] = [
   {
     label: "営業",
     items: [
-      { label: "商談", href: "/deals", icon: Handshake },
+      // **パイプラインごとに画面を分けてある**（T-0073）。
+      // 顧客への営業・仕入れ先との取引・委託先との関係は性質が異なる
+      { label: "セールス", href: "/sales", icon: Handshake, description: "顧客への営業（リード起点）" },
+      { label: "プロキュアメント", href: "/procurement", icon: PackageSearch, description: "仕入れ先との取引" },
+      { label: "パートナーシップ", href: "/partnership", icon: HeartHandshake, description: "業務委託先との関係" },
       { label: "契約", href: "/contracts", icon: FileText, roles: ["manager", "admin"] },
       { label: "プロジェクト", href: "/projects", icon: FolderKanban },
     ],

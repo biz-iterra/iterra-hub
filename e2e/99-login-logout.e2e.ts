@@ -45,7 +45,7 @@ test.describe("E2E-01", () => {
     await page.getByRole("menuitem", { name: "ログアウト" }).click();
     await page.waitForURL("**/login");
 
-    await page.goto("/deals");
+    await page.goto("/sales");
     await expect(page).toHaveURL(/\/login(\?.*)?$/);
   });
 });

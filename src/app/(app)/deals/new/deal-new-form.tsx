@@ -11,6 +11,7 @@ import { isFieldValidationError } from "@/lib/errors";
 import { calculateDefaultCloseDate } from "@/lib/deals/expected-close-date";
 import { formContainerClass, fieldGridClass, formActionsClass } from "@/lib/layout";
 import { RequiredMark } from "@/components/ui/RequiredMark";
+import { pipelineListPath } from "@/lib/deals/pipeline-screen";
 import {
   DealLeadPicker,
   type DealLeadPickerValue,
@@ -24,7 +25,11 @@ import {
 } from "@/lib/deals/lead-requirement";
 
 type SelectOption = { value: string; label: string };
-type PipelineOption = SelectOption & { default_close_months: number | null };
+type PipelineOption = SelectOption & {
+  default_close_months: number | null;
+  /** 作成後・キャンセル時に戻る一覧を決める（T-0073） */
+  screen_key: string | null;
+};
 type StageOption = SelectOption & { pipeline_type_id: string };
 type StatusOption = SelectOption & { pipeline_type_id: string };
 
@@ -243,6 +248,11 @@ export function DealNewForm({
 
   const raiseTargetStage = pickRaiseTargetStage(masters.leadStages);
 
+  // 選んだパイプラインの一覧へ戻る。未選択ならセールス
+  const currentListPath = pipelineListPath(
+    masters.pipelineTypes.find((p) => p.value === values.pipeline_type_id)?.screen_key
+  );
+
   const set = <K extends keyof typeof values>(
     key: K,
     value: (typeof values)[K]
@@ -414,14 +424,14 @@ export function DealNewForm({
     if (newId) {
       router.push(`/deals/${newId}`);
     } else {
-      router.push("/deals");
+      router.push(currentListPath);
     }
   };
 
   return (
     <div className={styles.container}>
       <Link
-        href="/deals"
+        href={currentListPath}
         className="hover:bg-[var(--color-bg-hover)]"
         style={{
           ...styles.backLink,
@@ -432,7 +442,7 @@ export function DealNewForm({
         }}
       >
         <ArrowLeft size={16} />
-        商談一覧に戻る
+        一覧に戻る
       </Link>
       <div style={styles.headerRow}>
         <h1 style={styles.title}>商談を新規作成</h1>
@@ -656,7 +666,7 @@ export function DealNewForm({
 
         <div className={formActionsClass}>
           <Link
-            href="/deals"
+            href={currentListPath}
             style={{ ...styles.btnOutline, textDecoration: "none" }}
           >
             キャンセル

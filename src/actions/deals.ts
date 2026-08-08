@@ -3,6 +3,7 @@
 import { toUserMessage } from "@/lib/db-error";
 import { buildIlikePattern } from "@/lib/search-query";
 import { revalidatePath } from "next/cache";
+import { revalidateDealLists } from "@/lib/deals/revalidate";
 import { createClient } from "@/lib/supabase/server";
 import {
   createDealSchema,
@@ -45,7 +46,7 @@ async function getAuthenticatedUser() {
 
 const DEAL_SELECT = `
   *,
-  pipeline_type:pipeline_types(id, name),
+  pipeline_type:pipeline_types(id, name, screen_key),
   deal_stage:deal_stages(id, name, sort_order, color),
   deal_status:deal_statuses(id, name, sort_order, color),
   account:accounts(id, account_code, name, company:companies(id, name)),
@@ -280,7 +281,7 @@ function revalidateAfterDealCreate(params: {
   leadId?: string | null;
   projectId?: string | null;
 }) {
-  revalidatePath("/deals");
+  revalidateDealLists();
   revalidatePath("/dashboard");
   if (params.leadId) revalidatePath(`/leads/${params.leadId}`);
   if (params.projectId) revalidatePath(`/projects/${params.projectId}`);
@@ -479,7 +480,7 @@ export async function updateDeal(
   // 全フィールド変更履歴
   // 変更履歴は entity_change_logs のトリガーが自動記録する（20260728000002）
 
-  revalidatePath("/deals");
+  revalidateDealLists();
   revalidatePath(`/deals/${id}`);
   revalidatePath("/dashboard");
   return { data: deal, error: null };
@@ -601,7 +602,7 @@ export async function moveDealCard(
     });
   }
 
-  revalidatePath("/deals");
+  revalidateDealLists();
   revalidatePath("/dashboard");
   return { data: deal, error: null };
 }
@@ -633,7 +634,7 @@ export async function deleteDeal(id: string): Promise<ActionResult<null>> {
     .eq("id", id);
 
   if (error) return { data: null, error: toUserMessage(error, { entityLabel: "商談", operation: "delete"}) };
-  revalidatePath("/deals");
+  revalidateDealLists();
   revalidatePath(`/deals/${id}`);
   revalidatePath("/dashboard");
   return { data: null, error: null };

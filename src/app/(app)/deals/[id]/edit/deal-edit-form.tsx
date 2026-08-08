@@ -155,12 +155,15 @@ export function DealEditForm({
   deal,
   masters,
   isAdmin,
+  listPath,
   contracts,
   canManageContracts,
 }: {
   deal: DealData;
   masters: Masters;
   isAdmin: boolean;
+  /** 削除したあとに戻る一覧（その商談のパイプラインの画面。T-0073） */
+  listPath: string;
   /** この商談に紐づいている契約。表示と紐づけ操作は下部のセクションが持つ */
   contracts: DealContractRow[];
   /** contracts の書き込みは manager 以上に限る（RLS と同じ条件） */
@@ -191,7 +194,7 @@ export function DealEditForm({
     showToast({ type: "success", message: "商談を削除しました" });
     // router.refresh() は呼ばない（push が中断され遷移しなくなる）。
     // キャッシュ更新は Server Action 側の revalidatePath に任せる
-    router.push("/deals");
+    router.push(listPath);
     return { error: null };
   };
 

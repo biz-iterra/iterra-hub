@@ -183,6 +183,12 @@ ORDER BY nt.n;
 
 -- ============================================================
 -- S01: ディールステージ（営業パイプライン）
+--
+-- **仕入れ・業務委託のステージはここに書かない。**
+-- 末尾で呼ぶ apply_master_role_flags() が ensure_pipeline_stages() を通して
+-- 入れる（20260808000008）。マイグレーション本文では pipeline_types の行が
+-- まだ無く外部キー違反になるため、関数に寄せて db reset と本番の両方で
+-- 当たるようにしてある。
 -- ============================================================
 INSERT INTO deal_stages (id, pipeline_type_id, name, current_situation, required_action, sort_order) VALUES
   ('f0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000001', 'リード', 'リード獲得段階', '初回コンタクトを取る', 1),
@@ -467,5 +473,5 @@ DO $$
 DECLARE v_result TEXT;
 BEGIN
   SELECT apply_master_role_flags() INTO v_result;
-  RAISE NOTICE '役割フラグ: %', v_result;
+  RAISE NOTICE 'マスタの役割・画面: %', v_result;
 END $$;

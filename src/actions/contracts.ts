@@ -2,6 +2,7 @@
 
 import { toUserMessage } from "@/lib/db-error";
 import { revalidatePath } from "next/cache";
+import { revalidateDealLists } from "@/lib/deals/revalidate";
 import { createClient } from "@/lib/supabase/server";
 import { conflictErrorMessage } from "@/lib/validators/common";
 import {
@@ -143,7 +144,7 @@ export async function createContract(
   // 契約成立の AFTER INSERT トリガーが取引先を作り商談に紐付けるので、そちらも再検証する
   revalidatePath("/contracts");
   revalidatePath("/accounts");
-  revalidatePath("/deals");
+  revalidateDealLists();
   if (data?.deal_id) revalidatePath(`/deals/${data.deal_id}`);
   return { data, error: null };
 }
@@ -281,7 +282,7 @@ export async function linkContractToDeal(
 
   revalidatePath("/contracts");
   revalidatePath(`/contracts/${parsed.data.contract_id}`);
-  revalidatePath("/deals");
+  revalidateDealLists();
   revalidatePath(`/deals/${parsed.data.deal_id}`);
   revalidatePath("/accounts");
   return { data, error: null };
@@ -342,7 +343,7 @@ export async function unlinkContractFromDeal(
 
   revalidatePath("/contracts");
   revalidatePath(`/contracts/${parsed.data.contract_id}`);
-  revalidatePath("/deals");
+  revalidateDealLists();
   revalidatePath(`/deals/${parsed.data.deal_id}`);
   revalidatePath("/accounts");
   return { data, error: null };

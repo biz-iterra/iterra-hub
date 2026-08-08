@@ -64,6 +64,7 @@ export default async function DealNewPage({
     id: string;
     name: string;
     default_close_months: number | null;
+    screen_key: string | null;
   };
   type StageItem = { id: string; name: string; pipeline_type_id: string };
   type StatusItem = { id: string; name: string; pipeline_type_id: string };
@@ -82,6 +83,7 @@ export default async function DealNewPage({
         value: p.id,
         label: p.name,
         default_close_months: p.default_close_months,
+        screen_key: p.screen_key,
       })
     ),
     dealStages: ((dealStagesResult.data ?? []) as StageItem[]).map((s) => ({

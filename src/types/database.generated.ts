@@ -5977,6 +5977,7 @@ export type Database = {
           last_updated_by: string | null
           name: string
           requires_lead: boolean
+          screen_key: string | null
           slug: string | null
           sort_order: number
           updated_at: string
@@ -5995,6 +5996,7 @@ export type Database = {
           last_updated_by?: string | null
           name: string
           requires_lead?: boolean
+          screen_key?: string | null
           slug?: string | null
           sort_order?: number
           updated_at?: string
@@ -6013,6 +6015,7 @@ export type Database = {
           last_updated_by?: string | null
           name?: string
           requires_lead?: boolean
+          screen_key?: string | null
           slug?: string | null
           sort_order?: number
           updated_at?: string
@@ -7358,6 +7361,8 @@ export type Database = {
         Returns: Json
       }
       apply_master_role_flags: { Args: never; Returns: string }
+      apply_master_role_flags_core: { Args: never; Returns: string }
+      apply_pipeline_screen_keys: { Args: never; Returns: string }
       approve_email_contact_candidate: {
         Args: {
           p_candidate_id: string
@@ -7475,6 +7480,7 @@ export type Database = {
           partner_name: string
         }[]
       }
+      ensure_pipeline_stages: { Args: never; Returns: string }
       entity_display_name: { Args: { p_row: Json }; Returns: string }
       expand_corporate_abbreviations: {
         Args: { p_name: string }

@@ -34,6 +34,7 @@ import { InfoField } from "@/components/ui/InfoField";
 import { EntityLink } from "@/components/ui/EntityLink";
 import { ACTIVITY_ICON } from "@/lib/activity";
 import { getDealCounterparties } from "@/lib/deal-counterparty";
+import { pipelineListLabel, pipelineListPath } from "@/lib/deals/pipeline-screen";
 import { ContractMethodBadge, PipelineBadge, StageBadge, StatusBadge } from "@/components/ui/badges";
 import { detailContainerClass, detailGridClass, fieldGridClass, sectionStackClass, tableScrollClass } from "@/lib/layout";
 
@@ -113,9 +114,9 @@ export default async function DealDetailPage({
         <p style={{ color: "var(--color-text-body)", marginBottom: "1rem" }}>
           不正なパラメータです
         </p>
-        <Link href="/deals" style={backLinkStyle}>
+        <Link href="/sales" style={backLinkStyle}>
           <ArrowLeft size={16} />
-          商談一覧
+          セールス一覧
         </Link>
       </div>
     );
@@ -145,9 +146,9 @@ export default async function DealDetailPage({
         <p style={{ color: "var(--color-text-body)", marginBottom: "1rem" }}>
           商談が見つかりません
         </p>
-        <Link href="/deals" style={backLinkStyle}>
+        <Link href="/sales" style={backLinkStyle}>
           <ArrowLeft size={16} />
-          商談一覧
+          セールス一覧
         </Link>
       </div>
     );
@@ -221,12 +222,13 @@ export default async function DealDetailPage({
     <div className={detailContainerClass}>
       {/* ---- Header ---- */}
       <div style={{ marginBottom: "1.5rem" }}>
+        {/* **その商談のパイプラインの画面へ戻る**（T-0073） */}
         <Link
-          href="/deals"
+          href={pipelineListPath(deal.pipeline_type?.screen_key)}
           style={{ ...backLinkStyle, marginBottom: "0.75rem" }}
         >
           <ArrowLeft size={16} />
-          商談一覧
+          {pipelineListLabel(deal.pipeline_type?.screen_key)}一覧
         </Link>
         <div
           style={{

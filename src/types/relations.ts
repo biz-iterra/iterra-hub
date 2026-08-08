@@ -44,7 +44,8 @@ export type SortedColoredRef = SortedRef & { color: string | null };
 
 /** deals.ts の DEAL_SELECT に対応 */
 export type DealWithRelations = Row<"deals"> & {
-  pipeline_type: NamedRef | null;
+  /** screen_key は一覧へ戻るときの画面を決める（T-0073） */
+  pipeline_type: (NamedRef & { screen_key: string | null }) | null;
   deal_stage: SortedColoredRef | null;
   deal_status: SortedColoredRef | null;
   /** 取引先は契約成立時に作られるため、契約前の商談では null */

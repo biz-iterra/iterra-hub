@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { conflictErrorMessage } from "@/lib/validators/common";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
+import { revalidateDealLists } from "@/lib/deals/revalidate";
 import {
   leadCreateSchema,
   leadUpdateSchema,
@@ -588,7 +589,7 @@ export async function updateLead(
   if (willPromote) {
     revalidatePath("/leads");
     revalidatePath(`/leads/${id}`);
-    revalidatePath("/deals");
+    revalidateDealLists();
     revalidatePath("/companies");
     revalidatePath("/contacts");
     return { ok: true, lead: updated, ...(warnings.length > 0 ? { warnings } : {}) };

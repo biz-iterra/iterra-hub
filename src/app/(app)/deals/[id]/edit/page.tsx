@@ -7,6 +7,7 @@ import {
 } from "@/actions/masters";
 import { getCurrentUser } from "@/actions/users";
 import { DealEditForm } from "./deal-edit-form";
+import { pipelineListPath } from "@/lib/deals/pipeline-screen";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -24,7 +25,7 @@ export default async function DealEditPage({
           不正なパラメータです
         </p>
         <Link
-          href="/deals"
+          href="/sales"
           className="hover:bg-[var(--color-bg-hover)]"
           style={{
             color: "var(--color-terra)",
@@ -34,7 +35,7 @@ export default async function DealEditPage({
             borderRadius: "var(--radius-sm)",
           }}
         >
-          商談一覧へ戻る
+          セールス一覧へ戻る
         </Link>
       </div>
     );
@@ -62,7 +63,7 @@ export default async function DealEditPage({
           商談が見つかりません
         </p>
         <Link
-          href="/deals"
+          href="/sales"
           className="hover:bg-[var(--color-bg-hover)]"
           style={{
             color: "var(--color-terra)",
@@ -72,7 +73,7 @@ export default async function DealEditPage({
             borderRadius: "var(--radius-sm)",
           }}
         >
-          商談一覧へ戻る
+          セールス一覧へ戻る
         </Link>
       </div>
     );
@@ -122,6 +123,7 @@ export default async function DealEditPage({
       }}
       masters={masters}
       isAdmin={isAdmin}
+      listPath={pipelineListPath(deal.pipeline_type?.screen_key)}
       contracts={deal.contracts ?? []}
       canManageContracts={canManageContracts}
     />

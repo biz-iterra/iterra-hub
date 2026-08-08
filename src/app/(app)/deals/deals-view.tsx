@@ -217,6 +217,9 @@ export function DealsView({
   stages,
   statuses,
   users,
+  title = "商談",
+  description,
+  showPipelineSelector = true,
 }: {
   pipelines: Pipeline[];
   defaultPipelineId: string | null;
@@ -225,6 +228,14 @@ export function DealsView({
   stages: Stage[];
   statuses: Status[];
   users: CrmUser[];
+  /** 画面の見出し。パイプライン別の画面が「セールス」等を渡す（T-0073） */
+  title?: string;
+  description?: string;
+  /**
+   * パイプラインの切り替え欄を出すか。
+   * **パイプライン別の画面では出さない**（画面がパイプラインを決めるため）
+   */
+  showPipelineSelector?: boolean;
 }) {
   // 表示モード・パイプライン・各フィルタは URL に持つ。
   // カンバンからも表からも詳細へ入るため、戻ったときに同じ見え方へ戻す
@@ -387,12 +398,22 @@ export function DealsView({
     <div>
       {/* ヘッダー */}
       <div className="flex items-center justify-between mb-6">
-        <h1
-          className="text-2xl font-bold"
-          style={{ color: "var(--color-text-title)" }}
-        >
-          商談
-        </h1>
+        <div>
+          <h1
+            className="text-2xl font-bold"
+            style={{ color: "var(--color-text-title)" }}
+          >
+            {title}
+          </h1>
+          {description && (
+            <p
+              className="text-xs mt-1"
+              style={{ color: "var(--color-sumi600)" }}
+            >
+              {description}
+            </p>
+          )}
+        </div>
         <Link
           href="/deals/new"
           className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white transition-colors"
@@ -416,7 +437,8 @@ export function DealsView({
 
       {/* ツールバー */}
       <div className="flex items-center gap-3 mb-5 flex-wrap">
-        {/* パイプライン選択 */}
+        {/* パイプライン選択。画面がパイプラインを決めるときは出さない */}
+        {showPipelineSelector && (
         <div className="relative">
           <button
             className="flex items-center gap-2 px-3 py-2 text-sm font-medium border transition-colors"
@@ -465,6 +487,7 @@ export function DealsView({
             </div>
           )}
         </div>
+        )}
 
         {/* ビュー切り替え */}
         <div

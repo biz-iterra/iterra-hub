@@ -282,6 +282,20 @@ export default async function DealDetailPage({
                 action={saveRelation.bind(null, "owner_user_id")}
                 editable={canEdit}
               />
+              {/*
+                元になったリード（T-0069）。**member では null になりうる**
+                （leads の RLS は自分の担当か manager 以上）。商談自体は見える
+              */}
+              <InfoField
+                label="元リード"
+                value={
+                  deal.lead ? (
+                    <EntityLink href={`/leads/${deal.lead.id}`}>
+                      {deal.lead.lead_name}
+                    </EntityLink>
+                  ) : null
+                }
+              />
               <RelationField
                 label="取引先"
                 full

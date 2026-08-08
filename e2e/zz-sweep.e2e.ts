@@ -148,15 +148,27 @@ test.describe("変更した画面の総ざらい", () => {
       });
     }
 
-    // ---- 4. 商談の相手先が排他でなく、それぞれ選べること（T-0064）----
-    await check("商談の相手先を同時に選べる", async () => {
+    // ---- 4. 商談はリード起点で、相手先は排他でないこと（T-0064 / T-0070）----
+    await check("商談の新規作成", async () => {
       await page.goto("/deals/new");
-      for (const label of ["事業者情報", "連絡先（先方の担当者）", "取引先"]) {
+
+      // **リードが最上部にある**（商談はリードから始まる）
+      await expect(
+        page.getByRole("radio", { name: "既存のリードから選ぶ" }),
+        "リードの欄が無い"
+      ).toBeVisible();
+
+      for (const label of ["事業者情報", "連絡先（先方の担当者）"]) {
         await expect(
           page.getByRole("combobox", { name: label }),
           `相手先に「${label}」の選択欄が無い`
         ).toBeVisible();
       }
+      // **取引先は選ばせない**（契約成立時に自動で作られる）
+      await expect(
+        page.getByRole("combobox", { name: "取引先" }),
+        "商談の新規作成に取引先の欄が残っている"
+      ).toHaveCount(0);
       // ラジオに戻っていないこと（1 つしか選べないと「Ａ社のＢさん」を表せない）
       await expect(
         page.getByRole("radio", { name: "事業者情報" }),

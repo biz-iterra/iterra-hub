@@ -1,16 +1,27 @@
 "use client";
 
-import { useMemo, useRef, useState, type CSSProperties, type FormEvent } from "react";
+import { useCallback, useMemo, useRef, useState, type CSSProperties, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Save } from "lucide-react";
-import { createDeal } from "@/actions/deals";
+import { createDealWithLead } from "@/actions/deals";
 import { useToast } from "@/components/ui/toast";
 import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { isFieldValidationError } from "@/lib/errors";
 import { calculateDefaultCloseDate } from "@/lib/deals/expected-close-date";
 import { formContainerClass, fieldGridClass, formActionsClass } from "@/lib/layout";
 import { RequiredMark } from "@/components/ui/RequiredMark";
+import {
+  DealLeadPicker,
+  type DealLeadPickerValue,
+} from "@/components/deals/DealLeadPicker";
+import {
+  defaultDealName,
+  evaluateLeadForDeal,
+  pickRaiseTargetStage,
+  type LeadForDeal,
+  type LeadStageForDeal,
+} from "@/lib/deals/lead-requirement";
 
 type SelectOption = { value: string; label: string };
 type PipelineOption = SelectOption & { default_close_months: number | null };
@@ -21,10 +32,13 @@ type Masters = {
   pipelineTypes: PipelineOption[];
   dealStages: StageOption[];
   dealStatuses: StatusOption[];
-  accounts: SelectOption[];
   companies: SelectOption[];
   contacts: SelectOption[];
   owners: SelectOption[];
+  /** リードのステージ全件。商談を作れる段階かの判定と、上げ先の決定に使う */
+  leadStages: LeadStageForDeal[];
+  accountTypes: SelectOption[];
+  leadSources: SelectOption[];
 };
 
 /**
@@ -32,7 +46,8 @@ type Masters = {
  *
  * 商談の相手は「Ａ社のＢさん」であることが普通なので、事業者情報と連絡先を
  * 同時に選べる（DB の `deals_counterparty_check` も「いずれか 1 つ以上」）。
- * 取引先は契約成立まで存在しないため、契約前は事業者情報か連絡先で示す。
+ * **取引先は選ばせない**（2026-08-08。T-0070）。契約が成立したときに
+ * 自動で作られるもので、商談を作る時点では存在しない。
  */
 const COUNTERPARTY_FIELDS = [
   {
@@ -46,12 +61,6 @@ const COUNTERPARTY_FIELDS = [
     label: "連絡先（先方の担当者）",
     searchKind: "contact",
     optionsKey: "contacts",
-  },
-  {
-    key: "account_id",
-    label: "取引先",
-    searchKind: "account",
-    optionsKey: "accounts",
   },
 ] as const;
 
@@ -160,18 +169,19 @@ function onBlur(
 
 export function DealNewForm({
   masters,
-  initialAccountId = "",
   initialCompanyId = "",
   initialContactId = "",
   initialProjectId = "",
+  initialLeadId = "",
 }: {
   masters: Masters;
   /** 各詳細から「商談を追加」で来たときの初期選択。いずれも固定はしない */
-  initialAccountId?: string;
   initialCompanyId?: string;
   initialContactId?: string;
   /** プロジェクトから来たときの紐づけ先。作成後に deal_projects が張られる */
   initialProjectId?: string;
+  /** リード詳細の「商談を追加」から来たとき */
+  initialLeadId?: string;
 }) {
   const router = useRouter();
   const { showToast } = useToast();
@@ -181,7 +191,6 @@ export function DealNewForm({
     deal_stage_id: "",
     deal_status_id: "",
     amount: "",
-    account_id: initialAccountId,
     company_id: initialCompanyId,
     contact_id: initialContactId,
     owner_user_id: "",
@@ -190,11 +199,49 @@ export function DealNewForm({
     expected_close_date: "",
   });
 
+  // リード。商談はここから始まる（T-0070）
+  const [leadValue, setLeadValue] = useState<DealLeadPickerValue>({
+    mode: "existing",
+    leadId: initialLeadId,
+    newLead: {
+      lead_name: "",
+      account_type_id: "",
+      lead_source_id: "",
+      company_id: initialCompanyId,
+      contact_id: initialContactId,
+      company_name: "",
+    },
+    raiseStage: false,
+  });
+  const [selectedLead, setSelectedLead] = useState<LeadForDeal | null>(null);
+  // 取引名を人が触ったら、リードを選び直しても上書きしない
+  const dealNameTouchedRef = useRef(false);
+
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [autoCloseDateNote, setAutoCloseDateNote] = useState<string | null>(null);
   // クローズ予定日をユーザーが一度でも手で編集したら、以降はパイプライン変更で上書きしない
   const closeDateTouchedRef = useRef(false);
+
+  /**
+   * リードが決まったら相手先と取引名を埋める。
+   *
+   * **固定はしない。** リードに事業者情報が無いことは珍しくないので
+   * （手動作成のリードは 2026-08-08 まで設定手段が無かった）、
+   * 埋めたうえで人が選び直せるようにする
+   */
+  const handleLeadResolved = useCallback((lead: LeadForDeal | null) => {
+    setSelectedLead(lead);
+    if (!lead) return;
+    setValues((v) => ({
+      ...v,
+      company_id: lead.company?.id ?? v.company_id,
+      contact_id: lead.contact?.id ?? v.contact_id,
+      name: dealNameTouchedRef.current ? v.name : defaultDealName(lead.lead_name),
+    }));
+  }, []);
+
+  const raiseTargetStage = pickRaiseTargetStage(masters.leadStages);
 
   const set = <K extends keyof typeof values>(
     key: K,
@@ -268,24 +315,77 @@ export function DealNewForm({
       return;
     }
 
+    // リードは商談の起点。押す前に画面で弾く（DB のトリガーでも弾かれる）
+    if (leadValue.mode === "existing") {
+      if (!leadValue.leadId) {
+        setSaving(false);
+        setError("リードを選んでください");
+        return;
+      }
+      const verdict = evaluateLeadForDeal(selectedLead);
+      if (!verdict.ok && verdict.needsStageRaise && !leadValue.raiseStage) {
+        setSaving(false);
+        setError(
+          `${verdict.message}「${raiseTargetStage?.name ?? "選定"}」へ進めて商談を作る、にチェックを入れてください。`
+        );
+        return;
+      }
+    } else {
+      if (!leadValue.newLead.lead_name.trim()) {
+        setSaving(false);
+        setError("リード名を入力してください");
+        return;
+      }
+      if (!leadValue.newLead.account_type_id) {
+        setSaving(false);
+        setError("事業者種別を選んでください");
+        return;
+      }
+      if (!raiseTargetStage) {
+        setSaving(false);
+        setError("リードを作れるステージが見つかりません。マスタ管理を確認してください");
+        return;
+      }
+    }
+
     // 相手先は入力箇所に紐づくのでインラインで返す（サーバー側の Zod でも弾く）
-    if (!values.company_id && !values.contact_id && !values.account_id) {
+    if (!values.company_id && !values.contact_id) {
       setSaving(false);
-      setError(
-        "相手先を選んでください（事業者情報・連絡先・取引先のいずれか。複数選べます）"
-      );
+      setError("相手先を選んでください（事業者情報・連絡先のいずれか。両方選べます）");
       return;
     }
 
     const payload = {
+      lead_mode: leadValue.mode,
+      lead_id: leadValue.mode === "existing" ? leadValue.leadId : null,
+      new_lead:
+        leadValue.mode === "new" && raiseTargetStage
+          ? {
+              lead_name: leadValue.newLead.lead_name,
+              account_type_id: leadValue.newLead.account_type_id,
+              // 新規のリードは商談を作れる段階（選定）から始める
+              stage_id: raiseTargetStage.id,
+              status_id: null,
+              lead_source_id: leadValue.newLead.lead_source_id || null,
+              company_id: leadValue.newLead.company_id || null,
+              contact_id: leadValue.newLead.contact_id || null,
+              company_name: leadValue.newLead.company_name || null,
+              owner_user_id: values.owner_user_id || null,
+            }
+          : null,
+      raise_stage_id:
+        leadValue.mode === "existing" && leadValue.raiseStage && raiseTargetStage
+          ? raiseTargetStage.id
+          : null,
+      raise_status_id: null,
+
       name: values.name,
       pipeline_type_id: values.pipeline_type_id,
       deal_stage_id: values.deal_stage_id,
       deal_status_id: values.deal_status_id,
       amount: amountNum,
-      // 3 つは排他ではない。選んだものをそのまま送る
+      // 排他ではない。選んだものをそのまま送る
       // （DB の deals_counterparty_check はいずれか 1 つ以上を要求する）
-      account_id: values.account_id || null,
       company_id: values.company_id || null,
       contact_id: values.contact_id || null,
       // プロジェクトから来たときだけ渡す（deals の列ではなく deal_projects に張られる）
@@ -296,7 +396,7 @@ export function DealNewForm({
       expected_close_date: values.expected_close_date || null,
     };
 
-    const result = await createDeal(payload);
+    const result = await createDealWithLead(payload);
     setSaving(false);
     if (result.error) {
       if (isFieldValidationError(result.error)) {
@@ -310,7 +410,7 @@ export function DealNewForm({
     // router.push の直後に router.refresh() を呼ぶと、進行中のナビゲーションが
     // 現在ルートの再フェッチに差し替わって遷移が起きない。キャッシュの更新は
     // Server Action 側の revalidatePath に任せる（2026-08-03 修正）
-    const newId = (result.data as { id?: string } | null)?.id;
+    const newId = result.data?.deal_id;
     if (newId) {
       router.push(`/deals/${newId}`);
     } else {
@@ -339,6 +439,18 @@ export function DealNewForm({
       </div>
 
       <form onSubmit={handleSubmit}>
+        {/* リード。商談はここから始まる（T-0070） */}
+        <DealLeadPicker
+          value={leadValue}
+          onChange={setLeadValue}
+          onLeadResolved={handleLeadResolved}
+          leadStages={masters.leadStages}
+          accountTypes={masters.accountTypes}
+          leadSources={masters.leadSources}
+          companies={masters.companies}
+          contacts={masters.contacts}
+        />
+
         {/* 基本情報 */}
         <div style={styles.card}>
           <h2 style={styles.sectionTitle}>基本情報</h2>
@@ -349,7 +461,10 @@ export function DealNewForm({
                 type="text"
                 style={styles.input}
                 value={values.name}
-                onChange={(e) => set("name", e.target.value)}
+                onChange={(e) => {
+                  dealNameTouchedRef.current = true;
+                  set("name", e.target.value);
+                }}
                 required
                 onFocus={onFocus}
                 onBlur={onBlur}
@@ -376,9 +491,9 @@ export function DealNewForm({
                   margin: "0 0 0.5rem 0",
                 }}
               >
-                いずれか 1 つ以上を選んでください。「Ａ社のＢさん」のように事業者情報と連絡先を
-                いっしょに紐づけられます。取引先は契約が成立したときに作られるので、契約前は
-                事業者情報か連絡先で示します。
+                リードを選ぶと自動で埋まります（選び直せます）。「Ａ社のＢさん」のように
+                事業者情報と連絡先をいっしょに紐づけられます。
+                <strong>取引先は契約が成立したときに自動で作られる</strong>ので、ここでは選びません。
               </p>
               <div className={styles.grid}>
                 {COUNTERPARTY_FIELDS.map((f) => (

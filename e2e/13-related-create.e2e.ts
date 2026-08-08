@@ -89,6 +89,15 @@ test.describe("E2E-13", () => {
       page.getByRole("combobox", { name: "連絡先（先方の担当者）" })
     ).toHaveValue(new RegExp(lastName));
     await expect(page.getByRole("combobox", { name: "事業者情報" })).toHaveValue("");
+    // **取引先の欄は無い**（契約成立時に自動で作られるもの。T-0070）
+    await expect(page.getByRole("combobox", { name: "取引先" })).toHaveCount(0);
+    // **商談はリードから始まる**（T-0070）。リードの欄が最上部にあること
+    await expect(
+      page.getByRole("radio", { name: "既存のリードから選ぶ" })
+    ).toBeChecked();
+    await expect(
+      page.getByRole("radio", { name: "リードを新規作成する" })
+    ).toBeVisible();
 
     // ---- 6. 事業者情報の住所を登録できること（2026-08-04 の回帰）----
     // 住所エディタは <form> の中にあり、Enter でフォームが送信されると

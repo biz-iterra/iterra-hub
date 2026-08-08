@@ -6,11 +6,14 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import {
   createDealSchema,
+  createDealWithLeadSchema,
   updateDealSchema,
   createDealServiceSchema,
   moveDealCardSchema,
 } from "@/lib/validators";
 import { conflictErrorMessage } from "@/lib/validators/common";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { recalculateLeadScore } from "@/lib/leads/recalculate-score";
 import type {
   DealDetail,
   DealWithRelations,
@@ -20,8 +23,11 @@ import type {
 } from "@/types/relations";
 import type { z } from "zod";
 import { resolveListSort, SORT_FIELDS, toOrderArgs, type SortParams } from "@/lib/list-sort";
+import type { LeadForDeal } from "@/lib/deals/lead-requirement";
 
 type ActionResult<T> = { data: T | null; error: string | null };
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 async function getAuthenticatedUser() {
   const supabase = await createClient();
@@ -46,7 +52,8 @@ const DEAL_SELECT = `
   company:companies!deals_company_id_fkey(id, name),
   contact:contacts!deals_contact_id_fkey(id, last_name, first_name),
   owner:crm_users!deals_owner_user_id_fkey(id, full_name),
-  deal_services(service:services(id, name))
+  deal_services(service:services(id, name)),
+  lead:leads!deals_lead_id_fkey(id, lead_name, stage:lead_stages(id, name, color))
 ` as const;
 
 // ---------- 一覧取得 ----------
@@ -60,6 +67,8 @@ export async function getDeals(params?: {
   accountId?: string;
   companyId?: string;
   contactId?: string;
+  /** 元になったリードでの絞り込み。リード詳細の「商談」セクションが使う（T-0069） */
+  leadId?: string;
   page?: number;
   perPage?: number;
 } & SortParams): Promise<ActionResult<Paged<DealWithRelations>>> {
@@ -92,6 +101,9 @@ export async function getDeals(params?: {
   }
   if (params?.pipelineTypeId) {
     query = query.eq("pipeline_type_id", params.pipelineTypeId);
+  }
+  if (params?.leadId) {
+    query = query.eq("lead_id", params.leadId);
   }
   if (params?.stageId) {
     query = query.eq("deal_stage_id", params.stageId);
@@ -187,6 +199,57 @@ export async function getDealsForKanban(
   };
 }
 
+/**
+ * 商談の新規作成でリードを選んだときに引く要約（T-0070）。
+ *
+ * 相手先（事業者情報・連絡先）の自動補完と、商談を作れる段階かの判定に使う。
+ * **`leads` の RLS がそのまま効く**（他人のリードは引けない）。
+ */
+export async function getLeadForDealCreation(
+  leadId: string
+): Promise<ActionResult<LeadForDeal>> {
+  if (!UUID_REGEX.test(leadId)) {
+    return { data: null, error: "不正なパラメータです" };
+  }
+
+  const { supabase, user } = await getAuthenticatedUser();
+  if (!supabase || !user) return { data: null, error: "認証が必要です" };
+
+  const { data, error } = await supabase
+    .from("leads")
+    .select(`
+      id, lead_name,
+      stage:lead_stages(id, name, is_deal_ready),
+      company:companies!leads_company_id_fkey(id, name),
+      contact:contacts!leads_contact_id_fkey(id, last_name, first_name)
+    `)
+    .eq("id", leadId)
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "リード" }) };
+  if (!data) return { data: null, error: "リードが見つかりません" };
+
+  const contactLabel = data.contact
+    ? [data.contact.last_name, data.contact.first_name].filter(Boolean).join(" ")
+    : "";
+
+  return {
+    data: {
+      id: data.id,
+      lead_name: data.lead_name ?? "",
+      stage: data.stage
+        ? { id: data.stage.id, name: data.stage.name, is_deal_ready: data.stage.is_deal_ready }
+        : null,
+      company: data.company ? { id: data.company.id, name: data.company.name } : null,
+      contact: data.contact
+        ? { id: data.contact.id, label: contactLabel || "（名称未設定）" }
+        : null,
+    },
+    error: null,
+  };
+}
+
 // ---------- 詳細取得 ----------
 export async function getDeal(id: string): Promise<ActionResult<DealDetail>> {
   const { supabase, user } = await getAuthenticatedUser();
@@ -211,6 +274,30 @@ export async function getDeal(id: string): Promise<ActionResult<DealDetail>> {
 }
 
 // ---------- 作成 ----------
+
+/** 作成後の再検証。リード起点でもそうでなくても同じ */
+function revalidateAfterDealCreate(params: {
+  leadId?: string | null;
+  projectId?: string | null;
+}) {
+  revalidatePath("/deals");
+  revalidatePath("/dashboard");
+  if (params.leadId) revalidatePath(`/leads/${params.leadId}`);
+  if (params.projectId) revalidatePath(`/projects/${params.projectId}`);
+}
+
+/**
+ * 商談を作る（リードを介さない経路）。
+ *
+ * **書き込みは DB 関数 `create_deal_with_lead` にまとめている。**
+ * 以前は deals / 履歴 2 本 / deal_projects を別々に投げており、
+ * 途中で落ちると履歴が欠けた（supabase-js は複数文を 1 トランザクションに
+ * できない。CLAUDE.md「複数テーブルへの書き込みは DB 関数にまとめる」）。
+ *
+ * **セールスのパイプラインではリードが必須**なので、この経路は
+ * `lead_id` を渡すか、リードを要求しないパイプラインでのみ通る
+ * （`check_deal_lead_requirement` が拒む）。
+ */
 export async function createDeal(
   input: z.infer<typeof createDealSchema>
 ): Promise<ActionResult<Row<"deals">>> {
@@ -220,57 +307,100 @@ export async function createDeal(
   const parsed = createDealSchema.safeParse(input);
   if (!parsed.success) return { data: null, error: parsed.error.issues[0].message };
 
-  // project_id は deals の列ではない（deal_projects で N:M）。切り離してから insert する
-  const { project_id: projectId, ...dealFields } = parsed.data;
+  const { project_id: projectId, lead_id: leadId, ...dealFields } = parsed.data;
 
-  const dealData = {
-    ...dealFields,
-    owner_user_id: dealFields.owner_user_id ?? user.id,
-    created_by: user.id,
-    last_updated_by: user.id,
-  };
-
-  const { data: deal, error } = await supabase
-    .from("deals")
-    .insert(dealData)
-    .select()
-    .single();
+  const { data: result, error } = await supabase.rpc("create_deal_with_lead", {
+    p_deal: {
+      ...dealFields,
+      owner_user_id: dealFields.owner_user_id ?? user.id,
+    },
+    p_lead_id: leadId ?? undefined,
+    p_project_id: projectId ?? undefined,
+  });
 
   if (error) return { data: null, error: toUserMessage(error, { entityLabel: "商談" }) };
 
-  // プロジェクトから作ったときは紐づけまで張る。
-  // 失敗しても商談自体は残す（履歴と同じ扱い。利用者は画面から張り直せる）
-  if (projectId) {
-    const { error: linkErr } = await supabase
-      .from("deal_projects")
-      .insert({ deal_id: deal.id, project_id: projectId, created_by: user.id });
-    if (linkErr) {
-      console.warn("[createDeal] deal_projects insert WARN:", linkErr.message);
-    }
-    revalidatePath(`/projects/${projectId}`);
+  const dealId = (result as { deal_id?: string } | null)?.deal_id;
+  if (!dealId) return { data: null, error: "商談の作成に失敗しました" };
+
+  const { data: deal, error: fetchError } = await supabase
+    .from("deals")
+    .select("*")
+    .eq("id", dealId)
+    .single();
+
+  if (fetchError) {
+    return { data: null, error: toUserMessage(fetchError, { entityLabel: "商談" }) };
   }
 
-  // deal_stage_histories に初回エントリ
-  await supabase.from("deal_stage_histories").insert({
-    deal_id: deal.id,
-    from_stage_id: null,
-    to_stage_id: parsed.data.deal_stage_id,
-    changed_by: user.id,
-  });
-
-  // deal_status_histories に初回エントリ
-  // stage_id は NOT NULL（どのステージ時点のステータスかを保持する）
-  await supabase.from("deal_status_histories").insert({
-    deal_id: deal.id,
-    stage_id: parsed.data.deal_stage_id,
-    from_status_id: null,
-    to_status_id: parsed.data.deal_status_id,
-    changed_by: user.id,
-  });
-
-  revalidatePath("/deals");
-  revalidatePath("/dashboard");
+  revalidateAfterDealCreate({ leadId, projectId });
   return { data: deal, error: null };
+}
+
+/**
+ * リード起点で商談を作る（T-0070）。
+ *
+ * 既存のリードを選ぶか、その場でリードを作る。TQL 未満のリードは
+ * `raise_stage_id` を渡して選定へ上げてから商談を作る。
+ * **リードの作成・ステージの引き上げ・商談・履歴が単一トランザクション**で、
+ * 途中で落ちればリードも残らない。
+ */
+export async function createDealWithLead(
+  input: z.infer<typeof createDealWithLeadSchema>
+): Promise<ActionResult<{ deal_id: string; lead_id: string }>> {
+  const { supabase, user } = await getAuthenticatedUser();
+  if (!supabase || !user) return { data: null, error: "認証が必要です" };
+
+  const parsed = createDealWithLeadSchema.safeParse(input);
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    const field = issue.path.join(".") || "input";
+    return { data: null, error: `[${field}] ${issue.message}` };
+  }
+
+  const {
+    lead_mode: _leadMode,
+    lead_id: leadId,
+    new_lead: newLead,
+    raise_stage_id: raiseStageId,
+    raise_status_id: raiseStatusId,
+    project_id: projectId,
+    ...dealFields
+  } = parsed.data;
+
+  const { data: result, error } = await supabase.rpc("create_deal_with_lead", {
+    p_deal: {
+      ...dealFields,
+      owner_user_id: dealFields.owner_user_id ?? user.id,
+    },
+    p_lead_id: leadId ?? undefined,
+    p_new_lead: newLead
+      ? { ...newLead, owner_user_id: newLead.owner_user_id ?? user.id }
+      : undefined,
+    p_raise_stage_id: raiseStageId ?? undefined,
+    p_raise_status_id: raiseStatusId ?? undefined,
+    p_project_id: projectId ?? undefined,
+  });
+
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "商談" }) };
+
+  const payload = result as { deal_id?: string; lead_id?: string } | null;
+  if (!payload?.deal_id || !payload.lead_id) {
+    return { data: null, error: "商談の作成に失敗しました" };
+  }
+
+  revalidatePath("/leads");
+  revalidateAfterDealCreate({ leadId: payload.lead_id, projectId });
+
+  // スコアは DB 関数の中で計算しない（createLead と同じ扱い）。
+  // 失敗しても商談は成立しているので握りつぶす
+  try {
+    await recalculateLeadScore(createAdminClient(), payload.lead_id);
+  } catch (e) {
+    console.warn("[createDealWithLead] recalculateLeadScore WARN:", e);
+  }
+
+  return { data: { deal_id: payload.deal_id, lead_id: payload.lead_id }, error: null };
 }
 
 // ---------- 更新 ----------

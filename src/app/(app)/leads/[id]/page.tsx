@@ -17,6 +17,7 @@ import { getCrmUsers, getCurrentUser } from "@/actions/users";
 import { getCampaigns } from "@/actions/campaigns";
 import Link from "next/link";
 import { ArrowLeft, ArrowUpRight } from "lucide-react";
+import { getDeals } from "@/actions/deals";
 import { LeadDetailClient } from "./lead-detail-client";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -122,6 +123,7 @@ export default async function LeadDetailPage({
     currentUserResult,
     campaignsResult,
     customerActivityTypesResult,
+    dealsResult,
   ] = await Promise.all([
     getLeadActivities(id),
     getLeadStages(),
@@ -138,6 +140,7 @@ export default async function LeadDetailPage({
     getCurrentUser(),
     getCampaigns({ perPage: 100, page: 1 }),
     getLeadCustomerActivityTypes(),
+    getDeals({ leadId: id, perPage: 50 }),
   ]);
 
   const masters = {
@@ -203,6 +206,13 @@ export default async function LeadDetailPage({
   return (
     <LeadDetailClient
       lead={lead}
+      linkedDeals={(dealsResult.data?.rows ?? []).map((d) => ({
+        id: d.id,
+        deal_code: d.deal_code,
+        name: d.name,
+        stage: d.deal_stage ? { name: d.deal_stage.name, color: d.deal_stage.color } : null,
+        amount: d.amount,
+      }))}
       activities={activitiesResult.data ?? []}
       masters={masters}
       currentUser={currentUserResult.data ?? { id: "", full_name: "", role: "member" }}

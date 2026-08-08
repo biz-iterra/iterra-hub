@@ -61,14 +61,38 @@ INSERT INTO contact_phones (contact_id, phone, label, is_primary) VALUES
 INSERT INTO account_contacts (account_id, contact_id, role) VALUES
   ('20000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000001', 'primary');
 
+-- リード
+--
+-- **セールスの商談には元になったリードが必須**（pipeline_types.requires_lead。
+-- T-0069）。ステージは商談を起こしてよい段階（is_deal_ready）から選ぶ。
+-- **UUID や slug で名指ししない。** 役割フラグで引く
+INSERT INTO leads (
+  id, lead_name, stage_id, status_id, lead_source_id,
+  company_id, contact_id, company_name, owner_user_id
+) VALUES
+  ('a4000000-0000-0000-0000-000000000001', '株式会社サンプル - Web制作の相談',
+    (SELECT id FROM lead_stages
+      WHERE is_deal_ready AND NOT requires_deal AND deleted_at IS NULL
+      ORDER BY sort_order LIMIT 1),
+    (SELECT s.id FROM lead_statuses s
+       JOIN lead_stages g ON g.id = s.stage_id
+      WHERE g.is_deal_ready AND NOT g.requires_deal AND s.deleted_at IS NULL
+      ORDER BY s.sort_order LIMIT 1),
+    (SELECT id FROM lead_sources WHERE is_inquiry_default AND deleted_at IS NULL),
+    '10000000-0000-0000-0000-000000000001',
+    '30000000-0000-0000-0000-000000000001',
+    '株式会社サンプル',
+    'a0000000-0000-0000-0000-000000000003');
+
 -- ディール
-INSERT INTO deals (id, name, pipeline_type_id, deal_stage_id, deal_status_id, amount, account_id, owner_user_id) VALUES
+INSERT INTO deals (id, name, pipeline_type_id, deal_stage_id, deal_status_id, amount, account_id, lead_id, owner_user_id) VALUES
   ('40000000-0000-0000-0000-000000000001', 'サンプル案件 - Web制作',
     'b0000000-0000-0000-0000-000000000001',
     'f0000000-0000-0000-0000-000000000002',
     'f1000000-0000-0000-0000-000000000003',
     1500000,
     '20000000-0000-0000-0000-000000000001',
+    'a4000000-0000-0000-0000-000000000001',
     'a0000000-0000-0000-0000-000000000003');
 
 -- ディール×サービス

@@ -6,13 +6,25 @@ import {
   getAccountTypes,
   getLeadLargeSegments,
   getLeadSmallSegments,
-  getLeadCategories,
 } from "@/actions/masters";
 import { getCrmUsers, getCurrentUser } from "@/actions/users";
+import { getCompanies } from "@/actions/companies";
+import { getContacts } from "@/actions/contacts";
 import { LeadNewForm } from "./lead-new-form";
 import { redirect } from "next/navigation";
 
-export default async function LeadNewPage() {
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export default async function LeadNewPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  // 事業者情報の詳細から「リードを追加」で来たとき（T-0072）
+  const sp = await searchParams;
+  const rawCompanyId = Array.isArray(sp.company_id) ? sp.company_id[0] : sp.company_id;
+  const initialCompanyId = rawCompanyId && UUID_RE.test(rawCompanyId) ? rawCompanyId : "";
+
   const [
     stagesResult,
     statusesResult,
@@ -21,8 +33,9 @@ export default async function LeadNewPage() {
     accountTypesResult,
     largeSegmentsResult,
     smallSegmentsResult,
-    categoriesResult,
     usersResult,
+    companiesResult,
+    contactsResult,
     currentUserResult,
   ] = await Promise.all([
     getLeadStages(),
@@ -32,8 +45,9 @@ export default async function LeadNewPage() {
     getAccountTypes(),
     getLeadLargeSegments(),
     getLeadSmallSegments(),
-    getLeadCategories(),
     getCrmUsers(),
+    getCompanies({ perPage: 1000 }),
+    getContacts({ perPage: 1000 }),
     getCurrentUser(),
   ]);
 
@@ -81,13 +95,22 @@ export default async function LeadNewPage() {
       label: s.name,
       large_segment_id: s.large_segment_id,
     })),
+    companies: ((companiesResult.data?.rows ?? []) as { id: string; name: string }[]).map(
+      (c) => ({ value: c.id, label: c.name })
+    ),
+    contacts: (
+      (contactsResult.data?.rows ?? []) as {
+        id: string;
+        last_name: string | null;
+        first_name: string | null;
+      }[]
+    ).map((c) => ({
+      value: c.id,
+      label: [c.last_name, c.first_name].filter(Boolean).join(" ") || "（名称未設定）",
+    })),
     owners: (usersResult.data ?? []).map((u) => ({
       value: u.id,
       label: u.full_name,
-    })),
-    categories: (categoriesResult.data ?? []).map((c) => ({
-      value: c.id,
-      label: c.name,
     })),
   };
 
@@ -95,6 +118,7 @@ export default async function LeadNewPage() {
     <LeadNewForm
       masters={masters}
       currentUser={currentUserResult.data}
+      initialCompanyId={initialCompanyId}
     />
   );
 }

@@ -4,6 +4,7 @@ import { getCrmUsers, getCurrentUser } from "@/actions/users";
 import { RelationField } from "@/components/ui/RelationField";
 import { getCompanyFinancialInfo } from "@/actions/financial-info";
 import { getDeals } from "@/actions/deals";
+import { getLeads } from "@/actions/leads";
 import { accountTypeLabel } from "@/lib/validators/financial-info";
 import { getEntityAddresses } from "@/actions/entity-addresses";
 import { AddressList } from "@/components/common/AddressesEditor";
@@ -14,6 +15,7 @@ import {
   Building2,
   FileText,
   Handshake,
+  UserSearch,
   Landmark,
   Layers,
   Mail,
@@ -96,6 +98,7 @@ export default async function CompanyDetailPage({
     { data: financialInfo },
     { data: dealsPage },
     { data: integrationProfile },
+    { data: leadsPage },
   ] =
     await Promise.all([
       getCompany(id),
@@ -108,8 +111,12 @@ export default async function CompanyDetailPage({
       getDeals({ companyId: id, perPage: 50 }),
       // freee へ渡す値の選択。**admin 以外は使わない**ので表示側で出し分ける
       getCompanyIntegrationProfile(id, "freee"),
+      // **事業者 1 : リード N**（T-0072）。同じ会社から来た案件をまとめて見る。
+      // これまで事業者からリードを辿る手段が画面にもクエリにも無かった
+      getLeads({ company_id: id, page: 1, perPage: 50 }),
     ]);
   const companyDeals = dealsPage?.rows ?? [];
+  const leadRows = leadsPage?.rows ?? [];
   const addresses = addressRows ?? [];
 
   if (error || !company) {
@@ -702,6 +709,56 @@ export default async function CompanyDetailPage({
                       }}
                     >
                       {deal.deal_stage?.name ?? "—"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p
+                style={{
+                  color: "var(--color-sumi400)",
+                  fontSize: "0.875rem",
+                  margin: 0,
+                }}
+              >
+                —
+              </p>
+            )}
+          </DetailSection>
+
+          {/*
+            リード。**事業者 1 : リード N**（T-0072）。同じ会社から
+            2 件目・3 件目のリードが来るのは普通で、事業者は 1 つに寄せる
+          */}
+          <DetailSection
+            title="リード"
+            icon={UserSearch}
+            action={
+              <AddRelatedLink
+                href={`/leads/new?company_id=${company.id}`}
+                label="リードを追加"
+              />
+            }
+          >
+            {leadRows.length > 0 ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                {leadRows.map((lead) => (
+                  <div
+                    key={lead.id}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.75rem",
+                      flexWrap: "wrap",
+                      fontSize: "0.875rem",
+                    }}
+                  >
+                    <EntityLink href={`/leads/${lead.id}`} compact>
+                      {lead.lead_name ?? "（名称未設定）"}
+                    </EntityLink>
+                    <span style={{ color: "var(--color-sumi500)", fontSize: "0.75rem" }}>
+                      {lead.stage?.name ?? "—"}
+                      {lead.category?.name ? ` / ${lead.category.name}` : ""}
                     </span>
                   </div>
                 ))}

@@ -154,6 +154,7 @@ ITERRAの営業・取引管理CRMシステムを新規構築する。現在ス�
      │                │          1──N [deal_stage_histories] (ステージ遷移履歴)
      │                │          1──N [deal_status_histories] (ステータス変更履歴)
      │                │          N──M [services] via [deal_services]
+     │                │          N──1 [leads] (lead_id。紐づけの正本。§16.6.3)
      │                │
      │              N──M [contacts] via [account_contacts]
      │                       │
@@ -216,7 +217,10 @@ ITERRAの営業・取引管理CRMシステムを新規構築する。現在ス�
 | deal_stages | deal_statuses | 1:N | 任意 | ステータスはステージに紐づく場合がある |
 | companies | accounts | 1:N | 任意 | アカウントはCompany無しでも存在可能（個人取引） |
 | companies | contacts | 1:N | 任意 | corporate_rep/employeeのコンタクトがcompany_idで紐づく |
-| accounts | deals | 1:N | 必須 | ディールは必ず1つのアカウントに属する |
+| accounts | deals | 1:N | 任意 | 取引先は契約成立時に作られるため、契約前のディールは account_id が NULL（§16.6） |
+| companies | leads | 1:N | 任意 | **同じ会社から複数のリードが来る。**事業者は 1 つに寄せる（§16.6.4） |
+| contacts | leads | 1:N | 任意 | 取込時に名寄せした連絡先。手動作成のリードでも選べる（§16.6.4） |
+| leads | deals | 1:N | 任意 | **紐づけの正本は deals.lead_id。**requires_lead なパイプラインでは必須（§16.6.3） |
 | accounts | account_contacts | 1:N | 任意 | アカウントに複数コンタクト紐づけ可 |
 | contacts | account_contacts | 1:N | 任意 | コンタクトは複数アカウントに属しうる（例: 法人Account + 個人事業主Account） |
 | contacts | talents | 1:0..1 | 任意 | タレント情報は任意（持たないコンタクトもある） |
@@ -803,6 +807,7 @@ ITERRAの営業・取引管理CRMシステムを新規構築する。現在ス�
 | 8 | アカウントID | `account_id` | UUID | | FK→T03.id | | | | | **契約成立時に作られるため、契約前は NULL**（20260731000006） |
 | 8a | カンパニーID | `company_id` | UUID | | FK→T02.id | | | | | 取引先が未作成の間の相手法人 |
 | 8b | コンタクトID | `contact_id` | UUID | | FK→T04.id | | | | | 取引先が未作成の間の相手担当者 |
+| 8c | **リードID** | **`lead_id`** | UUID | | FK→T09.id | | | | | **紐づけの正本**（20260808000004）。1 リードに商談 N 本。requires_lead なパイプラインでは必須。§16.6.3 |
 | 9 | 取引担当者ID | `owner_user_id` | UUID | | FK→T01.id | | | | | |
 | 10 | ~~契約書名~~ | ~~`contract_name`~~ | TEXT | | | | | | | **【非推奨・2026-08-07】契約の正本は T06 contracts（`contracts.deal_id` で紐づく）。アプリからは読み書きしない**（20260807000001。§16.6.1） |
 | 11 | 申請日 | `application_date` | DATE | | | | | | | |
@@ -2903,6 +2908,64 @@ Admin のマスタ管理から色を編集できる（`colorSwatch` フィール
 **変更履歴には残さない**（`log_entity_change` の `v_ignored` に追加）。
 材料を 1 つ直すたびに「金額」と「契約名」の 2 行が並んで見えるため。
 前例は `20260728000003`（スコア等の自動計算を除外）。
+
+### 16.6.3 商談とリードの紐づけ（2026-08-08 / T-0069・T-0070）
+
+**紐づけの正本は `deals.lead_id`。** 1 リードに商談 N 本が下がる
+（2 回目・3 回目の商談も同じリードに紐づく）。
+
+`leads.promoted_deal_id` は**「最初に紐づいた商談」の派生値**へ降格した。
+トリガー `sync_lead_promoted_deal` が維持し、**アプリからは書かない**。
+判定（ステージ要件・商談の削除ガード・契約の紐づけ解除ガード）はすべて
+`deals.lead_id` 経由へ移した。列を落とさなかったのは、撤去すると
+DB オブジェクト 6 個・UI 3 箇所・E2E 4 本に一斉波及するため。
+
+| 規則 | 置き場所 | 強制するもの |
+|---|---|---|
+| リードが要るか | `pipeline_types.requires_lead` | `check_deal_lead_requirement`（トリガー） |
+| 商談を起こしてよい段階か | `lead_stages.is_deal_ready` | **`create_deal_with_lead`（RPC）だけ** |
+
+**段階の検査をトリガーに置いてはいけない。** 昇格（リードを Sales へ上げる操作）は
+「商談を作ってからステージを上げる」順序で動く（逆にすると
+`check_lead_stage_requirements` の「Sales には商談が必要」と噛み合わない）。
+つまり昇格の途中では、リードがまだ獲得や育成のまま商談が作られる。
+ここで段階を強制すると**昇格という正当な経路が壊れる**（実装中に踏んだ）。
+
+**フラグ名に「TQL」「営業」を使わない。** パイプラインが増えても、
+リードカテゴリの呼び名を変えても影響しないようにするため。
+値は `apply_master_role_flags()` が設定する（`is_deal_ready` は
+`is_qualification OR requires_deal` から導くので、新しい名指しを増やさない。
+**Dead が自動で外れる**のも効く）。
+
+**既存の商談は遡って埋めず、止めもしない**（grandfathering）。
+全商談に必須を効かせると既存の編集が全部止まる。検出は `v_deals_without_lead`。
+
+入口は 2 つあり、役割が違う。
+
+| 入口 | 役割 | 回数 |
+|---|---|---|
+| リード編集 → Sales/Opportunity | **昇格**。リードのテキストから事業者情報・連絡先・商談をまとめて作る | 1 回だけ |
+| `/deals/new` | **商談を足す**。既にあるリードに 2 本目・3 本目 | 何回でも |
+
+昇格は「リードの `company_name` などのテキストから実体を起こす」唯一の経路なので残す。
+
+### 16.6.4 事業者情報とリードは 1 : N（2026-08-08 / T-0071・T-0072）
+
+**DB 上はもともと 1 : N**（`leads.company_id` は素の FK で制約は無い）。
+同じ会社から 2 件目のリードが来るのは普通で、そのとき事業者は 1 つに寄せる。
+
+運用できていなかった理由が 3 つあり、すべて塞いだ。
+
+1. **昇格が法人番号の重複で拒否していた**（`src/actions/leads.ts`）。
+   「同一企業への昇格はできません」は 1 : N を否定する判定だった。
+   しかも `lead.company_id` が埋まっていても見ずに弾いていた（SELECT にすら無かった）
+2. **昇格だけが名寄せを通っていなかった。** 取込経路（名刺・問い合わせ・遡及）は
+   `resolve_or_create_company()` で既存を再利用するのに、`promote_lead_to_deal` は
+   無条件 INSERT していた。名寄せ経由に変え、名寄せが扱わない項目
+   （カナ・代表者名・ステータス）は**空欄だけ COALESCE 補完**する
+3. **画面から辿れなかった。** 事業者情報の詳細にリードのセクションが無く、
+   `getLeads` に `company_id` フィルタも無く、手動作成のリードは
+   事業者を選ぶ手段が UI にも Zod にも無かった
 
 ### 16.7 マイグレーション
 

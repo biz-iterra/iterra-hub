@@ -18,6 +18,7 @@ import {
   Building2,
   Users,
   Layers,
+  Handshake,
 } from "lucide-react";
 import { createLeadActivity, deleteLeadActivity, updateLeadActivity } from "@/actions/lead-activities";
 import {
@@ -748,18 +749,34 @@ function CustomerActivityModal({
   );
 }
 
+/** リードから起きた商談（一覧に出す分だけ） */
+type LinkedDeal = {
+  id: string;
+  deal_code: string | null;
+  name: string;
+  stage: { name: string; color: string | null } | null;
+  amount: number | null;
+};
+
 export function LeadDetailClient({
   lead,
   activities: initialActivities,
   masters,
   currentUser,
   initialLeadCampaigns = [],
+  linkedDeals = [],
 }: {
   lead: LeadDetail;
   activities: LeadActivityWithRelations[];
   masters: Masters;
   currentUser: { id: string; full_name: string; role: string };
   initialLeadCampaigns?: CampaignRef[];
+  /**
+   * このリードから起きた商談（T-0069）。
+   * **1 リードに複数の商談が下がる。** 昇格で作った 1 本目のあとも、
+   * `/deals/new?lead_id=` から足せる
+   */
+  linkedDeals?: LinkedDeal[];
 }) {
   const [activeTab, setActiveTab] = useState<Tab>("basic");
   const { showToast } = useToast();
@@ -1154,6 +1171,77 @@ export function LeadDetailClient({
                 )}
               </div>
             </div>
+          </DetailSection>
+
+          {/*
+            商談。**1 リードに複数の商談が下がる**（T-0069）。
+            昇格で作った 1 本目のあとも `/deals/new?lead_id=` から足せる
+          */}
+          <DetailSection
+            title="商談"
+            icon={Handshake}
+            action={
+              <Link
+                href={`/deals/new?lead_id=${lead.id}`}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "0.25rem",
+                  color: "var(--color-terra)",
+                  fontSize: "0.8125rem",
+                  textDecoration: "none",
+                }}
+              >
+                <Plus size={14} />
+                商談を追加
+              </Link>
+            }
+          >
+            {linkedDeals.length === 0 ? (
+              <p style={{ color: "var(--color-sumi400)", fontSize: "0.875rem", margin: 0 }}>
+                このリードから起きた商談はまだありません。
+              </p>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                {linkedDeals.map((d) => (
+                  <div
+                    key={d.id}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.75rem",
+                      flexWrap: "wrap",
+                      fontSize: "0.875rem",
+                    }}
+                  >
+                    <Link
+                      href={`/deals/${d.id}`}
+                      style={{ color: "var(--color-terra)", textDecoration: "none", fontWeight: 500 }}
+                    >
+                      {d.deal_code ? `${d.deal_code} ${d.name}` : d.name}
+                    </Link>
+                    {d.stage && (
+                      <span
+                        style={{
+                          fontSize: "0.6875rem",
+                          padding: "0.0625rem 0.5rem",
+                          borderRadius: "9999px",
+                          backgroundColor: d.stage.color ?? "var(--color-sumi200)",
+                          color: "#fff",
+                        }}
+                      >
+                        {d.stage.name}
+                      </span>
+                    )}
+                    {d.amount != null && (
+                      <span style={{ color: "var(--color-sumi600)", fontSize: "0.8125rem" }}>
+                        ¥{d.amount.toLocaleString()}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </DetailSection>
 
           {/* ② 担当者情報セクション */}

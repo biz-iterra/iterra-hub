@@ -23,7 +23,20 @@ export const leadCreateSchema = z.object({
 
   lead_source_id: optionalUuidSchema,
 
-  category_id: optionalUuidSchema,
+  /**
+   * 紐づく事業者情報・連絡先。
+   *
+   * **2026-08-08 まで手動作成のリードは設定する手段が無かった**
+   * （UI にも Zod にも無く、`company_name` テキストだけ）。取込経路だけが
+   * 名寄せで埋めていたため、手で作ったリードは事業者に繋がらないままだった。
+   * 事業者 1 : リード N を画面から扱えるようにする（T-0072）
+   */
+  company_id: optionalUuidSchema,
+  contact_id: optionalUuidSchema,
+
+  // category_id は受け取らない。トリガー trg_leads_set_category が
+  // ステージと流入元から毎回上書きする**完全な導出値**で、渡しても効かない。
+  // 受け取ると「設定できるのに反映されない」欄が画面に残る
 
   // temperature_id はフォームからの手動入力を受け付けない。score も同様。
   // score / temperature_id は DB 関数 recalculate_lead_score で算出されるため手動設定不可。
@@ -109,7 +122,11 @@ export const leadUpdateSchema = z.object({
 
   lead_source_id: optionalUuidSchema,
 
-  category_id: optionalUuidSchema,
+  /** 紐づく事業者情報・連絡先（T-0072）。昇格済みのリードは Server Action が変更を拒む */
+  company_id: optionalUuidSchema,
+  contact_id: optionalUuidSchema,
+
+  // category_id は受け取らない（導出値。上の理由と同じ）
 
   // score / temperature_id は DB 関数 recalculate_lead_score で算出されるため手動設定不可。
   // Zod スキーマから削除することで UI から渡されても型エラーになる（Server Action 側でも除外）。
@@ -203,6 +220,8 @@ export const leadFiltersSchema = z.object({
   stage_id: uuidString().optional(),
   status_id: uuidString().optional(),
   category_id: optionalUuidSchema,
+  /** 事業者情報の詳細から「この会社のリード」を引くために使う（T-0072） */
+  company_id: optionalUuidSchema,
   temperature_id: uuidString().optional(),
   owner_user_id: uuidString().optional(),
   keyword: z.string().max(100).optional(),

@@ -85,8 +85,10 @@ export async function getLeads(
   const parsed = leadFiltersSchema.safeParse(params ?? {});
   if (!parsed.success) return { data: null, error: parsed.error.issues[0].message };
 
-  const { stage_id, status_id, category_id, temperature_id, owner_user_id, keyword, page, perPage } =
-    parsed.data;
+  const {
+    stage_id, status_id, category_id, company_id, temperature_id,
+    owner_user_id, keyword, page, perPage,
+  } = parsed.data;
 
   const from = (page - 1) * perPage;
   const to = from + perPage - 1;
@@ -118,6 +120,8 @@ export async function getLeads(
   if (stage_id) query = query.eq("stage_id", stage_id);
   if (status_id) query = query.eq("status_id", status_id);
   if (category_id) query = query.eq("category_id", category_id);
+  // 事業者情報の詳細から「この会社のリード」を引く（T-0072）
+  if (company_id) query = query.eq("company_id", company_id);
   if (temperature_id) query = query.eq("temperature_id", temperature_id);
   if (owner_user_id) query = query.eq("owner_user_id", owner_user_id);
   const keywordPattern = buildIlikePattern(keyword);
@@ -474,7 +478,16 @@ export async function updateLead(
   // 今回の編集で入力した値が届かないと「lead_name と account_type_id が必要です」で
   // 失敗するため、**ステージ以外の項目は昇格より先に保存する**。
   // ステージを据え置けばトリガーは発火しない（UPDATE OF stage_id のため）。
-  const willPromote = isPromoteStage && !existing.promoted_deal_id;
+  // **紐づく商談があるかは `deals.lead_id` で数える**（T-0069）。
+  // `promoted_deal_id` は派生値で、`/deals/new` から作った商談でも入るが、
+  // ここでそちらを見ると「商談があるのに昇格が走って 2 本目ができる」経路が
+  // 残る（判定を正本へ寄せる）
+  const { count: linkedDealCount } = await supabase
+    .from("deals")
+    .select("id", { count: "exact", head: true })
+    .eq("lead_id", id)
+    .is("deleted_at", null);
+  const willPromote = isPromoteStage && (linkedDealCount ?? 0) === 0;
   let lockValue = expectedUpdatedAt;
 
   if (willPromote) {
@@ -688,7 +701,7 @@ export async function promoteLeadToDeal(
       contact_last_name, contact_middle_name, contact_first_name,
       contact_last_name_kana, contact_middle_name_kana, contact_first_name_kana,
       contact_department, contact_job_title, contact_email, contact_phone,
-      lead_source_id, promoted_deal_id,
+      lead_source_id, promoted_deal_id, company_id, contact_id,
       stage:lead_stages(id, auto_promote_to_deal),
       account_type:account_types(id, name, slug)
     `)
@@ -752,22 +765,17 @@ export async function promoteLeadToDeal(
   const isCorporate = accountTypeSlug === "corporate" || accountTypeSlug === "government"
     || (!accountTypeSlug && !!lead.company_name);
 
-  // ---------- corporate_number 重複チェック（法人のみ・ブロック）----------
-  if (isCorporate && lead.corporate_number) {
-    const { data: existingCompany } = await supabase
-      .from("companies")
-      .select("id, name")
-      .eq("corporate_number", lead.corporate_number)
-      .is("deleted_at", null)
-      .maybeSingle();
-
-    if (existingCompany) {
-      return {
-        data: null,
-        error: `[corporate_number] 法人番号 ${lead.corporate_number} の企業「${existingCompany.name}」が既に登録されています。別企業なら法人番号を修正してください。同一企業への昇格はできません。受信値: ${lead.corporate_number}`,
-      };
-    }
-  }
+  // **法人番号の重複で昇格を拒まない**（2026-08-08。T-0071）。
+  //
+  // 以前はここで「同一企業への昇格はできません」と返していたが、
+  // これは**事業者 1 : リード N を否定する判定**だった。同じ会社から
+  // 2 件目のリードが来るのは普通のことで、そのとき既存の事業者へ
+  // 寄せるのが正しい。しかも `lead.company_id` が既に埋まっていても
+  // 見ずに弾いていた（SELECT にすら入っていなかった）。
+  //
+  // 名寄せは DB 関数に任せる。`promote_lead_to_deal` が
+  // `resolve_or_create_company()` を通し、法人番号 → メールドメイン →
+  // 住所+名称 → 名称 の順に既存を探す（`20260808000006`）。
 
   // --- pipeline_type の解決 ---
   // **スラッグで引かない。** スラッグは自動採番の値になったので、

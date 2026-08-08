@@ -602,6 +602,13 @@ export type Database = {
             referencedRelation: "deals"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "activity_logs_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deals_without_lead"
+            referencedColumns: ["deal_id"]
+          },
         ]
       }
       addresses: {
@@ -2229,6 +2236,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "contracts_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deals_without_lead"
+            referencedColumns: ["deal_id"]
+          },
+          {
             foreignKeyName: "contracts_deleted_by_fkey"
             columns: ["deleted_by"]
             isOneToOne: false
@@ -2410,6 +2424,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "deal_activities_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deals_without_lead"
+            referencedColumns: ["deal_id"]
+          },
+          {
             foreignKeyName: "deal_activities_performed_by_fkey"
             columns: ["performed_by"]
             isOneToOne: false
@@ -2502,6 +2523,13 @@ export type Database = {
             referencedRelation: "deals"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "deal_change_histories_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deals_without_lead"
+            referencedColumns: ["deal_id"]
+          },
         ]
       }
       deal_projects: {
@@ -2540,6 +2568,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "deals"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_projects_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deals_without_lead"
+            referencedColumns: ["deal_id"]
           },
           {
             foreignKeyName: "deal_projects_project_id_fkey"
@@ -2586,6 +2621,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "deals"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_services_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deals_without_lead"
+            referencedColumns: ["deal_id"]
           },
           {
             foreignKeyName: "deal_services_service_id_fkey"
@@ -2638,6 +2680,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "deals"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_stage_histories_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deals_without_lead"
+            referencedColumns: ["deal_id"]
           },
           {
             foreignKeyName: "deal_stage_histories_from_stage_id_fkey"
@@ -2791,6 +2840,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "deal_status_histories_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deals_without_lead"
+            referencedColumns: ["deal_id"]
+          },
+          {
             foreignKeyName: "deal_status_histories_from_status_id_fkey"
             columns: ["from_status_id"]
             isOneToOne: false
@@ -2920,6 +2976,7 @@ export type Database = {
           expected_close_date: string | null
           id: string
           last_updated_by: string | null
+          lead_id: string | null
           name: string
           owner_user_id: string | null
           pipeline_type_id: string
@@ -2946,6 +3003,7 @@ export type Database = {
           expected_close_date?: string | null
           id?: string
           last_updated_by?: string | null
+          lead_id?: string | null
           name: string
           owner_user_id?: string | null
           pipeline_type_id: string
@@ -2972,6 +3030,7 @@ export type Database = {
           expected_close_date?: string | null
           id?: string
           last_updated_by?: string | null
+          lead_id?: string | null
           name?: string
           owner_user_id?: string | null
           pipeline_type_id?: string
@@ -3034,6 +3093,27 @@ export type Database = {
             columns: ["last_updated_by"]
             isOneToOne: false
             referencedRelation: "crm_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_lead_stage_violations"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "deals_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_leads_with_category"
             referencedColumns: ["id"]
           },
           {
@@ -5311,6 +5391,7 @@ export type Database = {
           deleted_by: string | null
           deletion_reason: string | null
           id: string
+          is_deal_ready: boolean
           is_inquiry_default: boolean
           is_qualification: boolean
           is_system_required: boolean
@@ -5331,6 +5412,7 @@ export type Database = {
           deleted_by?: string | null
           deletion_reason?: string | null
           id?: string
+          is_deal_ready?: boolean
           is_inquiry_default?: boolean
           is_qualification?: boolean
           is_system_required?: boolean
@@ -5351,6 +5433,7 @@ export type Database = {
           deleted_by?: string | null
           deletion_reason?: string | null
           id?: string
+          is_deal_ready?: boolean
           is_inquiry_default?: boolean
           is_qualification?: boolean
           is_system_required?: boolean
@@ -5750,6 +5833,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "leads_promoted_deal_id_fkey"
+            columns: ["promoted_deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deals_without_lead"
+            referencedColumns: ["deal_id"]
+          },
+          {
             foreignKeyName: "leads_small_segment_id_fkey"
             columns: ["small_segment_id"]
             isOneToOne: false
@@ -5886,6 +5976,7 @@ export type Database = {
           is_system_required: boolean
           last_updated_by: string | null
           name: string
+          requires_lead: boolean
           slug: string | null
           sort_order: number
           updated_at: string
@@ -5903,6 +5994,7 @@ export type Database = {
           is_system_required?: boolean
           last_updated_by?: string | null
           name: string
+          requires_lead?: boolean
           slug?: string | null
           sort_order?: number
           updated_at?: string
@@ -5920,6 +6012,7 @@ export type Database = {
           is_system_required?: boolean
           last_updated_by?: string | null
           name?: string
+          requires_lead?: boolean
           slug?: string | null
           sort_order?: number
           updated_at?: string
@@ -6980,6 +7073,25 @@ export type Database = {
         }
         Relationships: []
       }
+      v_deals_without_lead: {
+        Row: {
+          created_at: string | null
+          deal_code: string | null
+          deal_id: string | null
+          deal_name: string | null
+          owner_user_id: string | null
+          pipeline_name: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deals_owner_user_id_fkey"
+            columns: ["owner_user_id"]
+            isOneToOne: false
+            referencedRelation: "crm_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       v_lead_stage_violations: {
         Row: {
           lead_id: string | null
@@ -7005,6 +7117,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "deals"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_promoted_deal_id_fkey"
+            columns: ["promoted_deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deals_without_lead"
+            referencedColumns: ["deal_id"]
           },
         ]
       }
@@ -7174,6 +7293,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "leads_promoted_deal_id_fkey"
+            columns: ["promoted_deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deals_without_lead"
+            referencedColumns: ["deal_id"]
+          },
+          {
             foreignKeyName: "leads_small_segment_id_fkey"
             columns: ["small_segment_id"]
             isOneToOne: false
@@ -7291,6 +7417,17 @@ export type Database = {
           p_phones?: Json
         }
         Returns: string
+      }
+      create_deal_with_lead: {
+        Args: {
+          p_deal: Json
+          p_lead_id?: string
+          p_new_lead?: Json
+          p_project_id?: string
+          p_raise_stage_id?: string
+          p_raise_status_id?: string
+        }
+        Returns: Json
       }
       crm_account_type_to_freee: { Args: { p_type: string }; Returns: string }
       default_phone_label: { Args: { p_phone: string }; Returns: string }

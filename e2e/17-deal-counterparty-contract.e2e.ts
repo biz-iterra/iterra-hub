@@ -56,12 +56,30 @@ test.describe("E2E-17", () => {
     await page.waitForURL(new RegExp(`/contacts/${UUID_RE.source}$`));
     const contactId = page.url().split("/").pop()!;
 
+    // **セールスの商談には元になったリードが必要**（T-0069）。
+    // 商談を起こせる段階（選定 = TQL）で作る
+    const leadName = e2eName("17-lead");
+    await page.goto(`/leads/new?company_id=${companyId}`);
+    await fieldByLabel(page, "リード名 *").fill(leadName);
+    await fieldByLabel(page, "ステージ *").selectOption({ label: "選定" });
+    await selectFirstRealOption(fieldByLabel(page, "ステータス *"));
+    await fieldByLabel(page, "事業者種別 *").selectOption({ label: "法人" });
+    await page.getByRole("button", { name: "作成" }).click();
+    await expectSuccessToast(page, "リードを作成しました");
+
     /** 商談を作る。相手先は引数で渡したものだけ埋める */
     const createDeal = async (name: string, withContact: boolean) => {
       await page.goto("/deals/new");
 
+      // リードを選ぶ（商談はリードから始まる）
+      const leadSelect = page.getByRole("combobox", { name: "リード" });
+      await leadSelect.fill(leadName);
+      await page.getByRole("option", { name: new RegExp(leadName) }).first().click();
+
       // 契約名の入力欄は無いこと（contracts へ一本化した。T-0063）
       await expect(page.getByLabel("契約名")).toHaveCount(0);
+      // 取引先の欄も無いこと（契約成立時に自動で作られる。T-0070）
+      await expect(page.getByRole("combobox", { name: "取引先" })).toHaveCount(0);
       await expect(
         page.getByText("契約は商談を作成したあとに登録できます", { exact: false })
       ).toBeVisible();
@@ -217,6 +235,10 @@ test.describe("E2E-17", () => {
     await removeVia(`/contracts/${otherContractId}/edit`, "契約を削除しました");
     await removeVia(`/deals/${dealId}/edit`, "商談を削除しました");
     await removeVia(`/deals/${otherDealId}/edit`, "商談を削除しました");
+    await page.goto("/leads");
+    await page.getByRole("link", { name: leadName }).first().click();
+    await page.waitForURL(new RegExp(`/leads/${UUID_RE.source}$`));
+    await removeVia(`/leads/${page.url().split("/").pop()}/edit`, "リードを削除しました");
     for (const accountId of accountIds) {
       await removeVia(`/accounts/${accountId}/edit`, "取引先を削除しました");
     }

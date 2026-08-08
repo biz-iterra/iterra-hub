@@ -4,6 +4,7 @@ import { getAccounts } from "@/actions/accounts";
 import { getCompanies } from "@/actions/companies";
 import { getContacts } from "@/actions/contacts";
 import { getDeals } from "@/actions/deals";
+import { getLeads } from "@/actions/leads";
 import { getProjects } from "@/actions/projects";
 
 /**
@@ -17,7 +18,7 @@ import { getProjects } from "@/actions/projects";
  * 渡せないため、`SearchableSelect` には「何を探すか」だけを渡す。
  */
 
-export type LookupKind = "company" | "account" | "contact" | "deal" | "project";
+export type LookupKind = "company" | "account" | "contact" | "deal" | "project" | "lead";
 
 export type LookupOption = { value: string; label: string };
 
@@ -64,6 +65,26 @@ export async function searchLookupOptions(
         value: p.id,
         label: p.project_code ? `${p.project_code} ${p.name}` : p.name,
       }));
+    }
+    case "lead": {
+      // **getLeads だけ検索キーが `keyword`**（他は `search`）
+      const { data } = await getLeads({
+        keyword: search || undefined,
+        page: 1,
+        perPage: LIMIT,
+      });
+      return (data?.rows ?? []).map((l) => {
+        // **ステージを出す。** 商談を作れる段階か（選定 = TQL 以上）を
+        // 選ぶ前に見せたい（T-0070）
+        const parts = [l.company_name, l.stage?.name].filter(
+          (v): v is string => typeof v === "string" && v.length > 0
+        );
+        const name = l.lead_name ?? "(無名のリード)";
+        return {
+          value: l.id,
+          label: parts.length > 0 ? `${name}（${parts.join(" / ")}）` : name,
+        };
+      });
     }
   }
 }

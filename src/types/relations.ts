@@ -58,6 +58,18 @@ export type DealWithRelations = Row<"deals"> & {
   contact: Ref<"contacts", "id" | "last_name" | "first_name"> | null;
   owner: UserRef | null;
   deal_services: { service: NamedRef | null }[];
+  /**
+   * 元になったリード（T-0069）。
+   *
+   * **member では null になりうる。** leads の RLS は「自分が担当か
+   * manager 以上」なので、他人のリードから作られた商談は見えても
+   * リードは引けない。表示側は null 安全に書く
+   */
+  lead:
+    | (Ref<"leads", "id" | "lead_name"> & {
+        stage: ColoredRef | null;
+      })
+    | null;
 };
 
 /** deals.ts の getDeal に対応（DEAL_SELECT + 契約・アクティビティ・プロジェクト） */

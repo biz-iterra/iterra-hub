@@ -2,8 +2,10 @@ import {
   getPipelineTypes,
   getDealStages,
   getDealStatuses,
+  getLeadStages,
+  getLeadSources,
+  getAccountTypes,
 } from "@/actions/masters";
-import { getAccounts } from "@/actions/accounts";
 import { getCompanies } from "@/actions/companies";
 import { getContacts } from "@/actions/contacts";
 import { getCrmUsers } from "@/actions/users";
@@ -14,9 +16,12 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 /**
  * 商談の新規作成。
  *
- * 相手先は取引先・事業者情報・連絡先のいずれでもよい（取引先は契約成立まで
- * 存在しないため）。各詳細から「商談を追加」で来たときは
- * `?account_id=` / `?company_id=` / `?contact_id=` が渡り、初期選択になる。
+ * **商談はリードから始まる**（T-0070）。既存のリードを選ぶか、その場で作る。
+ * 相手先（事業者情報・連絡先）はリードから自動で埋まり、選び直せる。
+ * **取引先は選ばせない**（契約成立時に自動で作られる）。
+ *
+ * 各詳細から「商談を追加」で来たときは `?company_id=` / `?contact_id=` /
+ * `?lead_id=` が渡り、初期選択になる。
  */
 export default async function DealNewPage({
   searchParams,
@@ -28,27 +33,31 @@ export default async function DealNewPage({
     const raw = Array.isArray(params[key]) ? params[key]?.[0] : params[key];
     return raw && UUID_RE.test(raw) ? raw : "";
   };
-  const initialAccountId = pick("account_id");
   const initialCompanyId = pick("company_id");
   const initialContactId = pick("contact_id");
   const initialProjectId = pick("project_id");
+  const initialLeadId = pick("lead_id");
 
   const [
     pipelineTypesResult,
     dealStagesResult,
     dealStatusesResult,
-    accountsResult,
     companiesResult,
     contactsResult,
     usersResult,
+    leadStagesResult,
+    leadSourcesResult,
+    accountTypesResult,
   ] = await Promise.all([
     getPipelineTypes(),
     getDealStages(),
     getDealStatuses(),
-    getAccounts({ perPage: 1000 }),
     getCompanies({ perPage: 1000 }),
     getContacts({ perPage: 1000 }),
     getCrmUsers(),
+    getLeadStages(),
+    getLeadSources(),
+    getAccountTypes(),
   ]);
 
   type PipelineItem = {
@@ -58,7 +67,14 @@ export default async function DealNewPage({
   };
   type StageItem = { id: string; name: string; pipeline_type_id: string };
   type StatusItem = { id: string; name: string; pipeline_type_id: string };
-  type AccountItem = { id: string; account_code: string | null; name: string };
+  type LeadStageItem = {
+    id: string;
+    name: string;
+    is_deal_ready: boolean;
+    requires_deal: boolean;
+    sort_order: number;
+  };
+  type SimpleMaster = { id: string; name: string };
 
   const masters = {
     pipelineTypes: ((pipelineTypesResult.data ?? []) as PipelineItem[]).map(
@@ -80,10 +96,6 @@ export default async function DealNewPage({
         pipeline_type_id: s.pipeline_type_id,
       })
     ),
-    accounts: ((accountsResult.data?.rows ?? []) as AccountItem[]).map((a) => ({
-      value: a.id,
-      label: a.account_code ? `${a.account_code} ${a.name}` : a.name,
-    })),
     companies: ((companiesResult.data?.rows ?? []) as { id: string; name: string }[]).map(
       (c) => ({ value: c.id, label: c.name })
     ),
@@ -101,15 +113,31 @@ export default async function DealNewPage({
       value: u.id,
       label: u.full_name,
     })),
+    // 商談を作れる段階かの判定と、TQL 未満のリードを上げる先の決定に使う
+    leadStages: ((leadStagesResult.data ?? []) as LeadStageItem[]).map((s) => ({
+      id: s.id,
+      name: s.name,
+      is_deal_ready: s.is_deal_ready,
+      requires_deal: s.requires_deal,
+      sort_order: s.sort_order,
+    })),
+    accountTypes: ((accountTypesResult.data ?? []) as SimpleMaster[]).map((a) => ({
+      value: a.id,
+      label: a.name,
+    })),
+    leadSources: ((leadSourcesResult.data ?? []) as SimpleMaster[]).map((l) => ({
+      value: l.id,
+      label: l.name,
+    })),
   };
 
   return (
     <DealNewForm
       masters={masters}
-      initialAccountId={initialAccountId}
       initialCompanyId={initialCompanyId}
       initialContactId={initialContactId}
       initialProjectId={initialProjectId}
+      initialLeadId={initialLeadId}
     />
   );
 }

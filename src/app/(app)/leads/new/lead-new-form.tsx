@@ -9,6 +9,7 @@ import { useToast } from "@/components/ui/toast";
 import { isFieldValidationError } from "@/lib/errors";
 import { formContainerClass, fieldGridClass, fieldGrid3Class, formActionsClass } from "@/lib/layout";
 import { RequiredMark } from "@/components/ui/RequiredMark";
+import { SearchableSelect } from "@/components/ui/SearchableSelect";
 
 type SelectOption = { value: string; label: string };
 type StatusOption = SelectOption & { stage_id: string };
@@ -21,11 +22,12 @@ type Masters = {
   statuses: StatusOption[];
   temperatures: TempOption[];
   sources: SelectOption[];
+  companies: SelectOption[];
+  contacts: SelectOption[];
   accountTypes: AccountTypeOption[];
   largeSegments: SelectOption[];
   smallSegments: SmallSegmentOption[];
   owners: SelectOption[];
-  categories: SelectOption[];
 };
 
 type CurrentUser = { id: string; full_name: string; role: string };
@@ -99,9 +101,12 @@ function onBlur(e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTM
 export function LeadNewForm({
   masters,
   currentUser,
+  initialCompanyId = "",
 }: {
   masters: Masters;
   currentUser: CurrentUser;
+  /** 事業者情報の詳細から「リードを追加」で来たときの初期選択（T-0072） */
+  initialCompanyId?: string;
 }) {
   const router = useRouter();
   const { showToast } = useToast();
@@ -112,8 +117,9 @@ export function LeadNewForm({
     // 進捗セクション
     stage_id: "",
     status_id: "",
-    category_id: "",
     // 企業情報セクション
+    company_id: initialCompanyId,
+    contact_id: "",
     company_name: "",
     company_name_kana: "",
     representative_name: "",
@@ -227,13 +233,15 @@ export function LeadNewForm({
     const payload = {
       lead_name: values.lead_name,
       account_type_id: values.account_type_id,
+      // 登録済みの事業者・連絡先への紐づけ（T-0072）
+      company_id: values.company_id || null,
+      contact_id: values.contact_id || null,
       company_name: values.company_name || null,
       company_name_kana: values.company_name_kana || null,
       representative_name: values.representative_name || null,
       corporate_number: values.corporate_number || null,
       stage_id: values.stage_id,
       status_id: values.status_id || null,
-      category_id: values.category_id || null,
       url: values.url || null,
       company_phone: values.company_phone || null,
       lead_source_id: values.lead_source_id || null,
@@ -392,28 +400,55 @@ export function LeadNewForm({
               )}
             </div>
           </div>
+          {/*
+            カテゴリは**選ばせない**（2026-08-08。T-0072）。
+            トリガー trg_leads_set_category がステージと流入元から毎回上書きする
+            完全な導出値で、選んでも反映されなかった
+          */}
           <div style={{ maxWidth: 320 }}>
             <label style={styles.label}>カテゴリ</label>
-            <select
-              style={styles.input}
-              value={values.category_id}
-              onChange={(e) => set("category_id", e.target.value)}
-              onFocus={onFocus}
-              onBlur={onBlur}
-            >
-              <option value="">-- 未設定 --</option>
-              {masters.categories.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
+            <p style={styles.helpText}>
+              ステージと流入元から自動で決まります。保存後に詳細で確認できます。
+            </p>
           </div>
         </div>
 
         {/* ② 企業情報セクション */}
         <div style={styles.card}>
           <h2 style={styles.sectionTitle}>企業情報</h2>
+          {/*
+            登録済みの事業者に紐づける（T-0072）。
+            **事業者 1 : リード N。** 同じ会社から 2 件目のリードが来るのは
+            普通のことで、そのとき事業者は 1 つに寄せる。
+            2026-08-08 まで手動作成のリードは紐づける手段が無かった
+          */}
+          <div className={styles.grid2} style={{ marginBottom: "1rem" }}>
+            <div>
+              <label style={styles.label}>事業者情報</label>
+              <SearchableSelect
+                value={values.company_id}
+                onChange={(v) => set("company_id", v)}
+                options={masters.companies}
+                emptyOptionLabel="-- 未選択 --"
+                searchKind="company"
+                ariaLabel="事業者情報"
+              />
+              <p style={styles.helpText}>
+                登録済みならここで選びます。未登録なら下の「会社名」に書いてください
+              </p>
+            </div>
+            <div>
+              <label style={styles.label}>連絡先</label>
+              <SearchableSelect
+                value={values.contact_id}
+                onChange={(v) => set("contact_id", v)}
+                options={masters.contacts}
+                emptyOptionLabel="-- 未選択 --"
+                searchKind="contact"
+                ariaLabel="連絡先"
+              />
+            </div>
+          </div>
           <div className={styles.grid2} style={{ marginBottom: "1rem" }}>
             <div>
               <label style={styles.label}>会社名</label>
@@ -426,7 +461,10 @@ export function LeadNewForm({
                 onFocus={onFocus}
                 onBlur={onBlur}
               />
-              <p style={styles.helpText}>Opportunity 昇格時に自動で事業者情報が作成されます</p>
+              <p style={styles.helpText}>
+                事業者情報を選んでいないときの仮入力。昇格時に名寄せして、
+                同じ会社が既にあればそちらへ寄ります
+              </p>
             </div>
             <div>
               <label style={styles.label}>フリガナ</label>

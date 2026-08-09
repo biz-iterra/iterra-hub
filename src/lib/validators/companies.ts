@@ -27,10 +27,47 @@ const companyBaseSchema = z.object({
   company_status_id: uuidString("ステータスは必須です"),
 });
 
-export const createCompanySchema = companyBaseSchema.refine(
-  (data) => !data.invoice_registered || !!data.invoice_registration_number,
-  { message: "インボイス登録ありの場合、登録番号は必須です", path: ["invoice_registration_number"] }
-);
+/**
+ * 個人事業主の作成時に同時に作る「本人の連絡先」の下書き（T-0087）。
+ *
+ * 個人事業主は定義上本人が必ずいるのに、手入力での作成が連絡先を 1 件も作らず
+ * 事業主欄が空のまま運用されていた（T-0086）。作成と同時に本人を登録し、
+ * 事業主・主担当へ紐づける。書き込みは DB 関数 `create_company_with_contact` が行う。
+ *
+ * **姓名の制約は `contacts` と同じにする。** ここだけ緩いと、同じ連絡先が
+ * 作成経路によって通ったり弾かれたりする。
+ * ステータス・事業者・担当者は DB 関数が決めるのでここでは受け取らない。
+ */
+export const companyRepresentativeDraftSchema = z.object({
+  last_name: z.string().trim().min(1, "姓は必須です").max(50, "姓は50文字以内で入力してください"),
+  first_name: z.string().trim().min(1, "名は必須です").max(50, "名は50文字以内で入力してください"),
+  last_name_kana: z
+    .string()
+    .trim()
+    .max(50, "セイは50文字以内で入力してください")
+    .nullable()
+    .optional(),
+  first_name_kana: z
+    .string()
+    .trim()
+    .max(50, "メイは50文字以内で入力してください")
+    .nullable()
+    .optional(),
+});
+
+export const createCompanySchema = companyBaseSchema
+  .extend({
+    /**
+     * 同時に作る本人の連絡先。**省略・null なら会社だけを作る**
+     * （同時作成のチェックを外した場合。必須にはしない。氏名が分からない場面で
+     * 仮名を入れて通す運用に化けるため。外したものは整合性検査 Q15 が拾う）
+     */
+    representative: companyRepresentativeDraftSchema.nullable().optional(),
+  })
+  .refine(
+    (data) => !data.invoice_registered || !!data.invoice_registration_number,
+    { message: "インボイス登録ありの場合、登録番号は必須です", path: ["invoice_registration_number"] }
+  );
 
 export const updateCompanySchema = companyBaseSchema
   .partial()

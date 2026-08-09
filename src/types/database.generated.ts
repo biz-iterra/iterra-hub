@@ -7460,6 +7460,10 @@ export type Database = {
           contact_id: string
         }[]
       }
+      create_company_with_contact: {
+        Args: { p_company: Json; p_contact?: Json }
+        Returns: Json
+      }
       create_contact_with_details: {
         Args: {
           p_account_id?: string

@@ -148,11 +148,32 @@ export function CompanyNewForm({
     website_url: "",
     internal_memo: "",
   });
+  /**
+   * 事業主（本人の連絡先）の同時作成。個人事業主のときだけ使う（T-0087）。
+   *
+   * **既定はオン。ただし必須にはしない。** 氏名が分からないまま登録する場面で
+   * 仮名を入れて通す運用に化けるため。外して作った分は整合性検査 Q15 が拾う
+   * （docs/database-design.md § 22.2.4）。
+   */
+  const [createRepresentative, setCreateRepresentative] = useState(true);
+  const [representative, setRepresentative] = useState({
+    last_name: "",
+    first_name: "",
+    last_name_kana: "",
+    first_name_kana: "",
+  });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const set = <K extends keyof typeof values>(key: K, value: (typeof values)[K]) => {
     setValues((v) => ({ ...v, [key]: value }));
+  };
+
+  const setRep = <K extends keyof typeof representative>(
+    key: K,
+    value: (typeof representative)[K]
+  ) => {
+    setRepresentative((v) => ({ ...v, [key]: value }));
   };
 
   // 会社名を入力し終えたらフリガナの下書きを入れる。
@@ -222,6 +243,18 @@ export function CompanyNewForm({
       internal_memo: values.internal_memo || null,
     };
 
+    // 本人の連絡先は個人事業主のときだけ送る。法人で同時作成の欄は出さない
+    // （代表者と担当者が別人でありうるため、作成時に 1 人へ決め打てない）
+    const withRepresentative = isSoleProprietor && createRepresentative;
+    if (withRepresentative) {
+      payload.representative = {
+        last_name: representative.last_name,
+        first_name: representative.first_name,
+        last_name_kana: representative.last_name_kana || null,
+        first_name_kana: representative.first_name_kana || null,
+      };
+    }
+
     const result = await createCompany(payload);
     setSaving(false);
     if (result.error) {
@@ -232,7 +265,12 @@ export function CompanyNewForm({
       }
       return;
     }
-    showToast({ type: "success", message: "事業者情報を作成しました" });
+    showToast({
+      type: "success",
+      message: withRepresentative
+        ? "事業者情報と事業主の連絡先を作成しました"
+        : "事業者情報を作成しました",
+    });
     const newId = (result.data as { id?: string } | null)?.id;
     if (newId) {
       router.push(`/companies/${newId}`);
@@ -328,9 +366,11 @@ export function CompanyNewForm({
                 onBlur={onBlur}
               />
             </div>
-            {/* 個人事業主は本人しかいないので代表者を別に持たない。
-                代表者の連絡先への紐づけは詳細画面から行う（作成時点では
-                その会社の連絡先がまだ無いため、ここは自由入力のまま） */}
+            {/* 法人は代表者と窓口担当者が別人でありうるので、作成時に 1 人へ
+                決め打たない。ここは自由入力の氏名だけを持ち、連絡先（法人代表）への
+                紐づけは詳細画面から選ぶ。
+                個人事業主は本人しかいないため、この欄の代わりに
+                「事業主（本人の連絡先）」カードで連絡先ごと作る（T-0087） */}
             {!isSoleProprietor && (
               <div>
                 <label style={styles.label}>代表者名</label>
@@ -431,6 +471,110 @@ export function CompanyNewForm({
             </div>
           </div>
         </div>
+
+        {/*
+          事業主（本人の連絡先）。個人事業主のときだけ出す（T-0087）。
+          手入力での事業者作成が連絡先を 1 件も作らず、事業主欄が空のまま
+          運用されていた（T-0086）。個人事業主は定義上本人が必ずいるので、
+          ここで同時に作って事業主・主担当へ紐づける
+        */}
+        {isSoleProprietor && (
+          <div style={styles.card}>
+            <h2 style={styles.sectionTitle}>事業主（本人の連絡先）</h2>
+            <div style={{ ...styles.checkboxRow, marginBottom: "0.75rem" }}>
+              <input
+                id="create-representative"
+                type="checkbox"
+                checked={createRepresentative}
+                onChange={(e) => setCreateRepresentative(e.target.checked)}
+              />
+              <label
+                htmlFor="create-representative"
+                style={{ fontSize: "0.875rem", color: "var(--color-text-body)" }}
+              >
+                本人の連絡先を同時に作成し、事業主・主担当に設定する
+              </label>
+            </div>
+
+            {createRepresentative ? (
+              <>
+                <p
+                  style={{
+                    fontSize: "0.75rem",
+                    color: "var(--color-sumi600)",
+                    margin: "0 0 0.75rem 0",
+                  }}
+                >
+                  屋号が氏名と同じ場合も、ここには本人の氏名を入力してください。
+                </p>
+                <div className={styles.grid}>
+                  <div>
+                    <label style={styles.label}>
+                      姓
+                      <RequiredMark />
+                    </label>
+                    <input
+                      type="text"
+                      style={styles.input}
+                      value={representative.last_name}
+                      onChange={(e) => setRep("last_name", e.target.value)}
+                      required
+                      onFocus={onFocus}
+                      onBlur={onBlur}
+                    />
+                  </div>
+                  <div>
+                    <label style={styles.label}>
+                      名
+                      <RequiredMark />
+                    </label>
+                    <input
+                      type="text"
+                      style={styles.input}
+                      value={representative.first_name}
+                      onChange={(e) => setRep("first_name", e.target.value)}
+                      required
+                      onFocus={onFocus}
+                      onBlur={onBlur}
+                    />
+                  </div>
+                  <div>
+                    <label style={styles.label}>セイ</label>
+                    <input
+                      type="text"
+                      style={styles.input}
+                      value={representative.last_name_kana}
+                      onChange={(e) => setRep("last_name_kana", e.target.value)}
+                      onFocus={onFocus}
+                      onBlur={onBlur}
+                    />
+                  </div>
+                  <div>
+                    <label style={styles.label}>メイ</label>
+                    <input
+                      type="text"
+                      style={styles.input}
+                      value={representative.first_name_kana}
+                      onChange={(e) => setRep("first_name_kana", e.target.value)}
+                      onFocus={onFocus}
+                      onBlur={onBlur}
+                    />
+                  </div>
+                </div>
+              </>
+            ) : (
+              <p
+                style={{
+                  fontSize: "0.8125rem",
+                  color: "var(--color-sumi600)",
+                  margin: 0,
+                }}
+              >
+                連絡先は作られません。後から連絡先を登録し、詳細画面の「事業主」欄で紐づけてください。
+              </p>
+            )}
+          </div>
+        )}
 
         {/* 住所は作成後に登録する。addresses マスタへ紐づけるため相手の ID が要る */}
         <div style={styles.card}>

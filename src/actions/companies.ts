@@ -13,6 +13,7 @@ import { createClient } from "@/lib/supabase/server";
 import { conflictErrorMessage } from "@/lib/validators/common";
 import { createCompanySchema, updateCompanySchema } from "@/lib/validators";
 import { createCompanyDomainSchema } from "@/lib/validators/companies";
+import type { Json } from "@/types/database.generated";
 import type {
   CompanyDetail,
   CompanyWithRelations,
@@ -179,9 +180,50 @@ export async function createCompany(input: Record<string, unknown>): Promise<Act
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
   const parsed = createCompanySchema.safeParse(input);
-  if (!parsed.success) return { data: null, error: parsed.error.issues[0].message };
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    // 本人の連絡先（representative.*）は入力欄が別カードにあるので、
+    // どの欄の話か分かるように `[representative.列名]` を付ける。
+    // 事業者情報そのものの欄は従来どおり本文だけを返す（既存の見え方を変えない）
+    const message =
+      issue.path[0] === "representative"
+        ? `[${issue.path.join(".")}] ${issue.message}`
+        : issue.message;
+    return { data: null, error: message };
+  }
 
-  const values = await applyCompanyNameRules(supabase, parsed.data);
+  const { representative, ...companyInput } = parsed.data;
+  const values = await applyCompanyNameRules(supabase, companyInput);
+
+  // 本人の連絡先を同時に作る場合は 2 テーブルへの書き込みになるため DB 関数に任せる。
+  // アプリ側で順に INSERT すると、途中で失敗したときに
+  // 「会社はできたのに事業主が空」という T-0086 と同じ形が残る（§22.2.4）
+  if (representative) {
+    // rpc の JSONB 引数は Json 型を期待する。値は Zod で検査済みなのでここで形は崩れない
+    const { data: created, error: rpcError } = await supabase.rpc("create_company_with_contact", {
+      p_company: values as Json,
+      p_contact: {
+        ...representative,
+        // 個人事業主の本人は法人代表ではないので individual のまま事業者へ結ぶ
+        contact_type: "individual",
+      } as Json,
+    });
+    if (rpcError) return { data: null, error: toUserMessage(rpcError, { entityLabel: "事業者情報" }) };
+
+    const companyId = (created as { company_id?: string } | null)?.company_id;
+    if (!companyId) return { data: null, error: "事業者情報の作成結果を取得できませんでした" };
+
+    const { data: row, error: selectError } = await supabase
+      .from("companies")
+      .select()
+      .eq("id", companyId)
+      .single();
+    if (selectError) return { data: null, error: toUserMessage(selectError, { entityLabel: "事業者情報" }) };
+
+    revalidatePath("/companies");
+    revalidatePath("/contacts");
+    return { data: row, error: null };
+  }
 
   const { data, error } = await supabase
     .from("companies")

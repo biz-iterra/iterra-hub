@@ -1134,7 +1134,8 @@ UPDATE contracts SET deleted_at = now() WHERE id = '<唯一の契約>';
 
 ## 6. 整合性チェッククエリ集
 
-`db reset` 直後・大量取込後・本番デプロイ後に流す。**すべて 0 行が正常**（Q11 を除く）。
+`db reset` 直後・大量取込後・本番デプロイ後に流す。**すべて 0 行が正常**（Q11 を除く。
+Q14 だけは 2 行あることが正常）。
 
 ```sql
 -- Q1. 採番コードの重複（UNIQUE 制約があるため通常 0。制約を外した経路の検出用）
@@ -1226,6 +1227,18 @@ SELECT d.account_id, d.pipeline_type_id FROM deals d
 -- Q14. cron ジョブの登録確認（0 行なら異常）
 SELECT jobname, schedule FROM cron.job
  WHERE jobname IN ('purge_soft_deleted_records_daily', 'recalculate_lead_scores_weekly');
+
+-- Q15. 連絡先ゼロの個人事業主（T-0086 の再発検出。2026-08-09 追加）
+--      個人事業主は定義上本人が必ずいる。事業者だけあって連絡先が 1 件も無い状態は
+--      「事業主欄が空のまま運用される」形（docs/database-design.md § 22.2.4）。
+--      判定は **corporate_types.is_sole_proprietor フラグ**で行い、名称では判定しない
+--      （マスタを改名するとこの検査が黙って空振りする）。
+SELECT c.id, c.company_code, c.name FROM companies c
+ JOIN corporate_types ct ON ct.id = c.corporate_type_id
+ WHERE ct.is_sole_proprietor
+   AND c.deleted_at IS NULL
+   AND NOT EXISTS (SELECT 1 FROM contacts co
+                    WHERE co.company_id = c.id AND co.deleted_at IS NULL);
 ```
 
 ---
@@ -1233,8 +1246,9 @@ SELECT jobname, schedule FROM cron.job
 ## 7. テストで確認された/しにくい設計上の懸念（申し送り）
 
 0. **自動化状況（2026-08-09）**: `npm run test:db`（`scripts/test-db/`）で IT-01〜IT-08 / IT-31・IT-32 /
-   IT-33〜IT-45 / Q1〜Q14 / IT-RLS-20・IT-RLS-21 / IT-PERF-01 / IT-MASTER-01〜06 / IT-LEADSTAGE-01 /
-   IT-CONTRACT-01〜08（計 61 ケース）を自動化済み。詳細は `docs/test-strategy.md` §7。
+   IT-33〜IT-45 / Q1〜Q15 / IT-RLS-20・IT-RLS-21 / IT-PERF-01 / IT-MASTER-01〜06 / IT-LEADSTAGE-01 /
+   IT-CONTRACT-01〜08 / IT-COMPANY-CONTACT-01〜05（計 67 ケース）を自動化済み。
+   詳細は `docs/test-strategy.md` §7。
    T-0069（`deals.lead_id` 正本化）以降、上記のうち IT-36〜IT-39・IT-LEADSTAGE-01・IT-CONTRACT-07/08 は
    本文記載の手順・エラー文言と実装が乖離しており、自動化側は現行 DB の挙動に合わせている。
 
@@ -1387,3 +1401,44 @@ SELECT jobname, schedule FROM cron.job
 - 理由: 旧 `check_contract_deletion_against_leads` は `BEFORE UPDATE OF deleted_at`
   にしか張られておらず、**契約を消さずに剥がすと検査を素通り**した。
   `deal_id` を動かせるようにした時点で開く穴なので、同じマイグレーションで塞いだ
+
+## 個人事業主の作成時に本人の連絡先を同時に作る（2026-08-09 追加、T-0087）
+
+`create_company_with_contact`（マイグレーション `20260809120001`）の検証。
+設計は `docs/database-design.md` §22.2.4。**事業者と連絡先の 2 テーブルへ書くので、
+部分成功が残らないこと**が主題。自動化は `scripts/test-db/cases/10-company-with-contact.mjs`。
+
+### IT-COMPANY-CONTACT-01: 同時作成で事業者・連絡先・紐づけが揃う
+- 手順: member として `create_company_with_contact(p_company, p_contact)` を呼ぶ
+- 期待値: `{ company_id, contact_id }` が返り、
+  `companies.representative_contact_id` / `primary_contact_id` の両方に本人が入る。
+  連絡先は `company_id` がその事業者、`contact_type = 'individual'`、担当者は会社と同じ。
+  採番（`CMP-` / `CNT-`）も済んでいる
+- 理由: T-0086 は「事業者はあるが事業主も連絡先も無い」状態だった。**紐づけまで
+  揃って初めて再発防止になる**ので、作成の成功だけでは足りない
+
+### IT-COMPANY-CONTACT-02: `p_contact` が NULL なら事業者だけを作る
+- 手順: 同時作成のチェックを外した場合と同じく `p_contact` に NULL を渡す
+- 期待値: `contact_id` は null。連絡先は 0 件、事業主・主担当は NULL のまま
+- 理由: 同時作成は**必須にしない**（氏名不明時に仮名を入れて通す運用に化けるため）。
+  外した分は Q15 が検出する
+
+### IT-COMPANY-CONTACT-03: ステータス省略時は `is_new_default` を引く
+- 手順: `p_contact` に `contact_status_id` を入れずに呼ぶ
+- 期待値: 役割フラグ `contact_statuses.is_new_default` の立った行が入る
+- 理由: マスタの id をコードに焼き込まないため（CLAUDE.md「マスタの役割フラグ」）
+
+### IT-COMPANY-CONTACT-04: `is_new_default` が無ければ例外（事業者も残らない）
+- 手順: `UPDATE contact_statuses SET is_new_default = FALSE` してから呼ぶ
+- 期待値: 例外「連絡先の初期ステータス（is_new_default）が見つかりません。
+  マスタを確認してください」。**事業者も作られていない**
+- 理由: 非決定的な別ステータスへフォールバックすると、誤ったステータスの連絡先を
+  作り続けることになり気づきにくい（`resolve_or_create_contact` と同じ思想）
+
+### IT-COMPANY-CONTACT-05: 担当者が他人だと紐づけ失敗を例外にする
+- 手順: member が `p_company.owner_user_id` に別の利用者を入れて呼ぶ
+- 期待値: 例外「事業主の連絡先を紐づけられませんでした。担当者を自分にするか、
+  管理者に依頼してください」。事業者も連絡先も残らない
+- 理由: `companies` の UPDATE ポリシーは `is_admin() OR owner_user_id = auth.uid()`。
+  **RLS で弾かれた UPDATE はエラーにならず 0 行になる**ため、`GET DIAGNOSTICS ROW_COUNT`
+  を見ないと「連絡先はあるのに事業主が空」という T-0086 と同じ形が黙って再発する

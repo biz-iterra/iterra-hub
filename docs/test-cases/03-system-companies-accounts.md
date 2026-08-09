@@ -38,7 +38,8 @@
 
 ### validator / 補助
 
-- `src/lib/validators/companies.ts`（createCompanySchema / updateCompanySchema / createCompanyDomainSchema）
+- `src/lib/validators/companies.ts`（createCompanySchema / updateCompanySchema / createCompanyDomainSchema / companyRepresentativeDraftSchema）
+- `src/lib/company-type.ts`（事業種別が「個人事業主」かの判定 isSoleProprietorSelected）
 - `src/lib/validators/accounts.ts`（createAccountSchema / updateAccountSchema / createAccountContactSchema / createAccountRoleSchema）
 - `src/lib/validators/financial-info.ts`（金融機関コード 4 桁 / 支店コード 3 桁 / 口座番号 7 桁以内）
 - `src/lib/validators/common.ts`（UUID_REGEX / expectedUpdatedAtSchema / conflictErrorMessage）
@@ -49,7 +50,7 @@
 ### 関連 DB オブジェクト
 
 - テーブル: companies / accounts / account_contacts / account_roles / account_role_types / company_domains / company_statuses / company_verification_logs / entity_addresses / addresses / financial_info / entity_change_logs
-- DB 関数: upsert_company_domain / add_entity_address / set_primary_entity_address / expand_corporate_abbreviations / company_sort_key / resolve_or_create_company（取込経路）
+- DB 関数: upsert_company_domain / add_entity_address / set_primary_entity_address / expand_corporate_abbreviations / company_sort_key / resolve_or_create_company（取込経路）/ create_company_with_contact（個人事業主の同時作成。CMP-25）
 - トリガー: contracts AFTER INSERT による Account 自動作成・区分自動付与、entity_change_logs 自動記録、参照されなくなった addresses の掃除
 - マスタ値: company_statuses = 未確認(unverified `#6B7280`) / 実在確認済(verified `#4D7A65`) / 要確認(needs_review `#B88A2E`) / 閉鎖・解散(closed `#B03A2E`)
 
@@ -240,6 +241,43 @@
   - 属性情報の「最終確認」が「対象外（個人事業主）」と表示される
   - 編集ページでも法人番号欄が非表示
 - 自動化: Playwright候補
+
+### CMP-25: 個人事業主の作成で本人の連絡先を同時に作る（2026-08-09 追加、T-0087）
+
+- 対象: `/companies/new`（createCompany → `create_company_with_contact`）/ `/companies/[id]`
+- 権限: member（自分を担当者にした場合）
+- 事前条件: 事業種別マスタに `is_sole_proprietor` の立った行、
+  連絡先ステータスに `is_new_default` の立った行があること
+- 手順
+  1. `/companies/new` で事業種別に「個人事業主」を選ぶ
+  2. 現れた「事業主（本人の連絡先）」カードを確認する（既定でチェックはオン）
+  3. 姓・名を空のまま作成してみる。次に姓へ空白だけを入れて作成してみる
+  4. 姓「佐川」名「琴美」を入れて作成する
+  5. 詳細ページの「事業主」欄と右サイドバーの連絡先一覧を見る
+  6. 別の事業者を、同じカードのチェックを**外して**作成する
+  7. 事業種別に法人（例: 株式会社）を選び直す
+- 期待結果
+  - 2: カードは**個人事業主のときだけ**出る。姓・名に必須の印（`RequiredMark`）が付き、
+    「屋号が氏名と同じ場合も、ここには本人の氏名を入力してください」の補足が出る
+  - 3: どちらも作成されない。空のままは `required` によりブラウザ既定の必須チェックで止まり
+    （事業者名の欄と同じ挙動）、空白だけの場合は Zod が `trim()` してから見るため
+    `[representative.last_name] 姓は必須です` が**インライン**に出る
+    （トーストにしない。`docs/error-messages.md` §6.8）
+  - 4: 成功トーストは「**事業者情報と事業主の連絡先を作成しました**」
+  - 5: 「事業主」に佐川 琴美が入り、連絡先一覧にも同じ人が載っている
+    （`representative_contact_id` と `primary_contact_id` の両方）
+  - 6: チェックを外すと入力欄が消え「連絡先は作られません。後から連絡先を登録し、
+    詳細画面の『事業主』欄で紐づけてください」が出る。作成後の詳細は
+    事業主・連絡先ともに空（従来どおり）。成功トーストは「事業者情報を作成しました」
+  - 7: カードが消える（法人は代表者と窓口担当者が別人でありうるため、作成時に決め打たない）
+- 補足: 社内担当者を**自分以外**にした member が 4 を行うと、
+  「事業主の連絡先を紐づけられませんでした。担当者を自分にするか、管理者に依頼してください」
+  がトーストで出て、**事業者情報も作られない**（`companies` の UPDATE が RLS で 0 行になるため。
+  IT-COMPANY-CONTACT-05 と同じ経路）
+- 理由: T-0086。手入力での事業者作成が連絡先を 1 件も作らず、事業主欄が空のまま
+  運用されていた。外して作った分は整合性検査 Q15 が拾う
+- 自動化: DB 関数側は `npm run test:db`（IT-COMPANY-CONTACT-01〜05）で自動化済み。
+  画面は Playwright 候補
 
 ### CMP-11: 詳細ページの表示内容とレイアウト規約
 

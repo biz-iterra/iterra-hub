@@ -1,6 +1,7 @@
 /**
  * docs/test-cases/02-integration-db.md §6 整合性チェッククエリ集
- * Q1 〜 Q14。すべて 0 行が正常（Q11 を除く。doc の注記どおり参考値として出す）。
+ * Q1 〜 Q15。すべて 0 行が正常（Q11 と Q14 を除く。doc の注記どおり
+ * Q11 は参考値、Q14 は 2 行あることが正常）。
  *
  * db reset 直後の seed（リード 3,008 件含む）に対して実行する。
  * 他のケースが BEGIN〜ROLLBACK で後始末しているため、ここで作ったデータの影響は残らない。
@@ -231,4 +232,21 @@ export function register(test) {
     );
     ctx.assertEqual(r.rows.length, 2, "2 ジョブとも登録されていること");
   });
+
+  test("Q15", "連絡先ゼロの個人事業主（T-0086 の再発検出）", (ctx) =>
+    zero(
+      ctx,
+      "Q15",
+      "個人事業主に連絡先なし",
+      // 事業種別の判定は **is_sole_proprietor フラグ**で行う。名称で判定すると
+      // マスタの改名でこの検査が黙って空振りする（CLAUDE.md「マスタの役割フラグ」）
+      `SELECT c.id, c.company_code, c.name FROM companies c
+         JOIN corporate_types ct ON ct.id = c.corporate_type_id
+        WHERE ct.is_sole_proprietor
+          AND c.deleted_at IS NULL
+          AND NOT EXISTS (
+            SELECT 1 FROM contacts co
+             WHERE co.company_id = c.id AND co.deleted_at IS NULL)`
+    )
+  );
 }

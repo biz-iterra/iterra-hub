@@ -191,7 +191,8 @@ ITERRAの営業・取引管理CRMシステムを新規構築する。現在ス�
 
 パターンB: 個人コンタクト（individual）
   Contact ──(account_contacts)──→ Account
-  ※ 個人事業主などのContactはAccountに紐づく。company_id = NULL
+  ※ 個人のContactはAccountに紐づく。company_id = NULL
+  ※ 例外: 個人事業主の本人は company_id にその事業者を持つ（§22.2.4）
 
 パターンC: その他（other）
   Contact.company_id / account_contacts のいずれかに紐づけ可能
@@ -782,7 +783,10 @@ ITERRAの営業・取引管理CRMシステムを新規構築する。現在ス�
 **CHECK:**
 - invoice_registered = FALSE OR invoice_registration_number IS NOT NULL
 - contact_type IN ('corporate_rep','employee') の場合 company_id IS NOT NULL（アプリ層で制御）
-- contact_type = 'individual' の場合 company_id IS NULL（アプリ層で制御）
+- contact_type = 'individual' の場合 company_id IS NULL（アプリ層で制御）。
+  **例外: 個人事業主の本人は `company_id` にその事業者を持つ**（§22.2.4）。
+  個人事業主は法人ではないため `corporate_rep` にせず `individual` のまま事業者へ結ぶ。
+  整合性検査を `individual` へ広げるときはこの例外を除外すること
 
 **INDEX:** last_name + first_name, contact_status_id, owner_user_id, potential_number, company_id
 **CRUD:**
@@ -3701,6 +3705,45 @@ RLS は紐づく相手の `owner_user_id` に従う（`is_entity_address_accessi
 | 会社名の欄 | 代わりに**屋号名**を出す（§22.2.3） |
 
 **フォームの法人格の選択欄は隠さない。** そこで個人事業主を選ぶため。
+
+### 22.2.4 個人事業主の作成時に本人の連絡先を同時に作る（2026-08-09、T-0087）
+
+**経緯。** 本番の `CMP-003597`（個人事業主）で、事業主欄も連絡先一覧も空のまま
+運用されていた（T-0086）。調べると削除事故ではなく、**手入力での事業者作成が
+連絡先を一切作らない設計**が原因だった。新規作成フォームには
+「代表者の連絡先への紐づけは作成後に詳細画面から行う（作成時点ではその会社の
+連絡先がまだ無いため）」というコメントがあり、**作られていない連絡先を後から
+選ばせる導線**になっていた。個人事業主は定義上本人が必ず存在するため、
+作成と同時に本人の連絡先を作る。
+
+**DB 関数 `create_company_with_contact(p_company JSONB, p_contact JSONB)`。**
+戻り値は `{ "company_id": UUID, "contact_id": UUID | null }`。
+
+| 手順 | 内容 |
+|---|---|
+| 1 | `auth.uid()` が NULL なら例外（SECURITY INVOKER なので RLS はそのまま効く） |
+| 2 | `companies` を INSERT（`company_code` はトリガー採番、担当者は指定が無ければ実行者） |
+| 3 | `p_contact` が NULL ならここで終了（会社だけを作る） |
+| 4 | `contact_status_id` の指定が無ければ `contact_statuses.is_new_default` を引く。**無ければ例外**（`resolve_or_create_contact` と同じ思想。非決定的な別ステータスへフォールバックしない） |
+| 5 | `create_contact_with_details` を入れ子で呼ぶ（連絡先の書き込み規則を 1 箇所に保つ） |
+| 6 | `companies.representative_contact_id` / `primary_contact_id` を UPDATE。**影響行数が 0 なら例外**（下記） |
+
+**手順 6 の行数検査が要点。** `companies` の UPDATE ポリシーは
+`is_admin() OR owner_user_id = auth.uid()` なので、member が担当者を他人にして
+作ると **UPDATE が黙って 0 行**になり、「連絡先はあるのに事業主が空」という
+T-0086 と同じ形が再発する。`GET DIAGNOSTICS ROW_COUNT` で検出して例外にし、
+単一トランザクションなので会社ごと巻き戻す。
+
+**同時作成は既定オン + チェックボックスで外せる。** 必須にはしない。
+氏名が分からない場面で仮名を入れて通す運用に化けるため。外したものは
+下記の整合性検査で拾う。
+
+**法人（`corporate_rep`）への拡張は `p_contact.contact_type` の差し替えで届く。**
+今回のスコープは個人事業主のみで、Server Action は `individual` を渡している。
+
+**整合性検査 Q15「連絡先ゼロの個人事業主」**（`docs/test-cases/02-integration-db.md` §6）。
+判定は `corporate_types.is_sole_proprietor` フラグで行い、名称では判定しない。
+生きている個人事業主のうち `contacts.company_id` を持つ生きた連絡先が 1 件も無いものを出す。
 
 ### 22.3 画面での扱い
 

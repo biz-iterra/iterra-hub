@@ -213,3 +213,28 @@ SELECT '⑤ 反映後の役割フラグ' AS 区分, * FROM (
   UNION ALL SELECT 'pipeline_types.is_default',
          count(*) FILTER (WHERE is_default AND deleted_at IS NULL) FROM pipeline_types
 ) t ORDER BY (件数 <> 1) DESC, フラグ;
+
+-- ------------------------------------------------------------
+-- ⑥ 連絡先ゼロの個人事業主（整合性検査 Q15 / 2026-08-09 追加、T-0087）
+--
+-- 個人事業主は定義上本人が必ずいるのに、手入力での事業者作成が連絡先を
+-- 1 件も作らず、事業主欄が空のまま運用されていた（T-0086）。
+-- 20260809120001 以降は作成時に本人の連絡先を同時に作るが、
+-- 同時作成のチェックを外した分と過去分はここに出る。
+--
+-- **2026-08-09 時点で本番に既知 1 件（CMP-003597・修復予定）。修復後 0 行が正常。**
+-- 事業種別の判定は corporate_types.is_sole_proprietor フラグで行う
+-- （名称で判定するとマスタの改名でこの検査が黙って空振りする）。
+-- 詳細: docs/database-design.md § 22.2.4
+-- ------------------------------------------------------------
+SELECT '⑥ 連絡先ゼロの個人事業主' AS 区分,
+       c.company_code AS 事業者コード, c.name AS 事業者名,
+       c.representative_contact_id AS 事業主, c.created_at AS 作成日時
+  FROM companies c
+  JOIN corporate_types ct ON ct.id = c.corporate_type_id
+ WHERE ct.is_sole_proprietor
+   AND c.deleted_at IS NULL
+   AND NOT EXISTS (
+     SELECT 1 FROM contacts co
+      WHERE co.company_id = c.id AND co.deleted_at IS NULL)
+ ORDER BY c.created_at;

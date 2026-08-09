@@ -29,6 +29,7 @@ import { register as registerPerfTimeout } from "./cases/06-perf-timeout.mjs";
 import { register as registerMasterIntegrity } from "./cases/07-master-integrity.mjs";
 import { register as registerLeadStageRules } from "./cases/08-lead-stage-rules.mjs";
 import { register as registerContractNaming } from "./cases/09-contract-naming.mjs";
+import { register as registerCompanyWithContact } from "./cases/10-company-with-contact.mjs";
 
 const { Client } = pg;
 
@@ -45,6 +46,7 @@ async function main() {
   registerMasterIntegrity(harness.test);
   registerLeadStageRules(harness.test);
   registerContractNaming(harness.test);
+  registerCompanyWithContact(harness.test);
 
   console.log(`[test:db] connecting to ${dbUrl.replace(/:[^:@/]+@/, ":***@")}`);
   console.log(`[test:db] ${harness.cases.length} cases registered`);

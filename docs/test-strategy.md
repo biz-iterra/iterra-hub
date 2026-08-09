@@ -129,11 +129,13 @@ main への push / PR で Gate 1 と同一の 4 チェックが自動実行さ�
    `BEGIN`〜`ROLLBACK` で実行する（§1.3 のロール偽装含め、02 の想定どおり seed を汚さない）。
    ロール切り替えが要るケースは `SET LOCAL ROLE` + `set_config('request.jwt.claims', …)` で再現する。
 
-   - **移植済み 61 ケース**: IT-01〜IT-08（正規化系純粋関数）/ IT-31・IT-32（その他の関数）/
-     IT-33〜IT-45（トリガー）/ Q1〜Q14（整合性チェッククエリ、Q11 のみ「0 行」でなく件数の目安判定）/
+   - **移植済み 67 ケース**: IT-01〜IT-08（正規化系純粋関数）/ IT-31・IT-32（その他の関数）/
+     IT-33〜IT-45（トリガー）/ Q1〜Q15（整合性チェッククエリ、Q11 のみ「0 行」でなく件数の目安判定。
+     Q14 のみ 2 行あることが正常）/
      IT-RLS-20・IT-RLS-21（anon 不可視・security_invoker 検査）/ IT-PERF-01（statement_timeout 設定）/
      IT-MASTER-01〜06（マスタ整合。07 は grep ベースの静的検査のため対象外）/ IT-LEADSTAGE-01 /
-     IT-CONTRACT-01〜08。ケース ID は `npm run test:db` の実行結果にそのまま出る
+     IT-CONTRACT-01〜08 / IT-COMPANY-CONTACT-01〜05（個人事業主の同時作成。T-0087）。
+     ケース ID は `npm run test:db` の実行結果にそのまま出る
    - **未移植（次フェーズ）**: IT-09〜IT-30（resolve_or_create_company/contact・
      promote_lead_to_deal・スコアリング。複数テーブルにまたがる大きめの前提データが要り時間切れ）、
      IT-RLS-01〜19・22（ロールごとの可視範囲マトリクス。§1.3 の手順で機械的に再現できることは

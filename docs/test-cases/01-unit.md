@@ -38,6 +38,7 @@
 | `src/lib/search-query.ts` | `search-query.test.ts` | `sanitizeSearchTerm`（`,` `(` `)` `.` `'` `"` `\` `%` `_` の除去、前後空白 trim、空文字/null/undefined、記号のみは空文字）、`buildIlikePattern`（パターン組み立て、空入力で null） |
 | `src/lib/validators/contact-social-accounts.ts` | `contact-social-accounts.test.ts` | `contactSocialAccountBaseSchema`（account_id の trim → 必須チェックの順序、空白のみ拒否、service_id の UUID 検証、workspace 等の空文字→null）、`contactSocialAccountDraftSchema`（contact_id 無しで成功、service_id/account_id 必須。T-0026） |
 | `src/lib/validators/contacts.ts` | `contacts.test.ts` | `createContactSchema.social_accounts`（任意・空配列可、行ごとの service_id/account_id 必須、上限 20 件、workspace/display_name の空文字→null。T-0026） |
+| `src/lib/validators/companies.ts` | `companies.test.ts` | `createCompanySchema.representative`（未指定・null で成功＝同時作成は任意、姓名必須、空白のみ拒否、カナ任意、50 文字上限）、既存検査の非回帰（事業者名・ステータス必須、インボイス refine が extend 後も効く、法人番号 13 桁）、`updateCompanySchema` が `representative` を持たないこと。T-0087 |
 | `src/lib/validators/lead-activities.ts` | `lead-activities.test.ts` | `leadActivityUpdateSchema` の `expected_updated_at`（楽観ロック用。未指定でも成功＝後方互換、文字列指定時の往復） |
 | `src/lib/validators/campaigns.ts` | `campaigns.test.ts` | `campaignUpdateSchema` の `expected_updated_at`（未指定でも成功、文字列往復）、既存の日付 `refine` との両立 |
 | `src/lib/validators/leads.ts` | `leads.test.ts` | `leadCustomerActivityUpdateSchema` の `expected_updated_at`（楽観ロック用。未指定でも成功＝後方互換、文字列指定時の往復） |

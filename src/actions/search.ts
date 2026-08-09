@@ -71,41 +71,45 @@ export async function globalSearch(query: string): Promise<SearchResult[]> {
       .limit(RESULT_LIMIT),
     supabase
       .from("deals")
-      .select("id, name")
+      .select("id, name, deal_code")
       .is("deleted_at", null)
-      .ilike("name", like)
+      .or(`name.ilike.${like},deal_code.ilike.${like}`)
       .limit(RESULT_LIMIT),
     supabase
       .from("accounts")
-      .select("id, name")
+      .select("id, name, account_code")
       .is("deleted_at", null)
-      .ilike("name", like)
+      .or(`name.ilike.${like},account_code.ilike.${like}`)
       .limit(RESULT_LIMIT),
     supabase
       .from("companies")
-      .select("id, name")
+      .select("id, name, company_code")
       .is("deleted_at", null)
-      .ilike("name", like)
+      .or(`name.ilike.${like},company_code.ilike.${like}`)
       .limit(RESULT_LIMIT),
     supabase
       .from("contacts")
-      .select("id, last_name, first_name")
+      .select("id, last_name, first_name, contact_code")
       .is("deleted_at", null)
-      .or(`last_name.ilike.${like},first_name.ilike.${like}`)
+      .or(
+        `last_name.ilike.${like},first_name.ilike.${like},contact_code.ilike.${like}`,
+      )
       .limit(RESULT_LIMIT),
     supabase
       .from("contracts")
-      .select("id, contract_name, contract_display_name")
+      .select("id, contract_name, contract_display_name, contract_code")
       .is("deleted_at", null)
       // 契約名は自動生成（締結日_契約書名_契約種別_金額_契約ID）。
       // 人が入れた契約書名でも引けるように両方に当てる
-      .or(`contract_display_name.ilike.${like},contract_name.ilike.${like}`)
+      .or(
+        `contract_display_name.ilike.${like},contract_name.ilike.${like},contract_code.ilike.${like}`,
+      )
       .limit(RESULT_LIMIT),
     supabase
       .from("projects")
-      .select("id, name")
+      .select("id, name, project_code")
       .is("deleted_at", null)
-      .ilike("name", like)
+      .or(`name.ilike.${like},project_code.ilike.${like}`)
       .limit(RESULT_LIMIT),
     supabase
       .from("campaigns")
@@ -134,7 +138,7 @@ export async function globalSearch(query: string): Promise<SearchResult[]> {
       typeLabel: TYPE_LABELS.deal,
       id: row.id,
       title: row.name,
-      subtitle: null,
+      subtitle: row.deal_code,
       href: `/deals/${row.id}`,
     });
   }
@@ -145,7 +149,7 @@ export async function globalSearch(query: string): Promise<SearchResult[]> {
       typeLabel: TYPE_LABELS.account,
       id: row.id,
       title: row.name,
-      subtitle: null,
+      subtitle: row.account_code,
       href: `/accounts/${row.id}`,
     });
   }
@@ -156,7 +160,7 @@ export async function globalSearch(query: string): Promise<SearchResult[]> {
       typeLabel: TYPE_LABELS.company,
       id: row.id,
       title: row.name,
-      subtitle: null,
+      subtitle: row.company_code,
       href: `/companies/${row.id}`,
     });
   }
@@ -167,7 +171,7 @@ export async function globalSearch(query: string): Promise<SearchResult[]> {
       typeLabel: TYPE_LABELS.contact,
       id: row.id,
       title: `${row.last_name}${row.first_name}`,
-      subtitle: null,
+      subtitle: row.contact_code,
       href: `/contacts/${row.id}`,
     });
   }
@@ -179,7 +183,7 @@ export async function globalSearch(query: string): Promise<SearchResult[]> {
       id: row.id,
       // 自動生成の契約名は契約コードを必ず含むので空にならない
       title: row.contract_display_name ?? row.contract_name ?? "(契約名未設定)",
-      subtitle: null,
+      subtitle: row.contract_code,
       href: `/contracts/${row.id}`,
     });
   }
@@ -190,7 +194,7 @@ export async function globalSearch(query: string): Promise<SearchResult[]> {
       typeLabel: TYPE_LABELS.project,
       id: row.id,
       title: row.name,
-      subtitle: null,
+      subtitle: row.project_code,
       href: `/projects/${row.id}`,
     });
   }

@@ -7,7 +7,7 @@
 | 区分 | 対象 |
 |---|---|
 | 画面 | `/login`、`/dashboard`、`/admin`（マスタ管理）、`/admin/deleted`、`/admin/members`、`/admin/logs`、`/admin/freee`、`/admin/freee/partners`、`/admin/freee/sync`、`/admin/freee/register`、`/profile`（Gmail / Google コンタクトの連携）、`/manual`、共通レイアウト（サイドバー `src/components/layout/sidebar.tsx` / ヘッダー `header.tsx` / グローバル検索 `global-search.tsx`） |
-| Server Action | `src/actions/masters.ts`, `members.ts`, `users.ts`, `deleted.ts`, `change-logs.ts`, `search.ts`, `lookup.ts`, `freee.ts`, `google-contacts.ts` |
+| Server Action | `src/actions/masters.ts`, `members.ts`, `users.ts`, `deleted.ts`, `change-logs.ts`, `search.ts`, `lookup.ts`, `freee.ts`, `google-contacts.ts`, `leads/score-recalc.ts` |
 | middleware | `src/middleware.ts` + `src/lib/supabase/middleware.ts`（認証リダイレクト。※ロール別のルーティングは middleware に無く、各ページ / Server Action / RLS が担う） |
 | API | `/api/health`（`src/app/api/health/route.ts`）、`/api/freee/auth`・`/api/freee/callback`・`/api/freee/sync`、`/api/google-contacts/auth`・`/callback`・`/sync` |
 
@@ -714,6 +714,28 @@
   - すべて `error: "管理者権限が必要です"` が返り、データは変更されない（画面の出し分けに依存しない）
 - 自動化区分: 自動(API)
 
+### ADM-31: 全 Lead スコア再計算（ジョブ方式、`admin_bulk_jobs`）
+
+- 対象: `/admin` リード・マーケティング > スコアリングルール タブの「全件を再計算」、
+  `triggerLeadScoreRecalc` / `getLeadScoreRecalcJob` / `getActiveLeadScoreRecalcJobs`
+  （`src/actions/leads/score-recalc.ts`）、ワーカー `process_admin_bulk_jobs`
+- 権限: admin
+- 背景: 全 Lead を総当たりで処理するため件数に比例して時間がかかる。HTTP リクエストの
+  中では実行しない（`docs/database-design.md` §27）。IT 版は `02-integration-db.md` の
+  IT-JOB-02
+- 手順:
+  1. admin で「スコアリングルール」タブを開き「全件を再計算」を押す
+  2. cron を待たず `SELECT process_admin_bulk_jobs();` を手で 1 回実行する
+  3. ボタンをもう一度押して 2 重に投入し、両方が処理されるまで待つ
+  4. member / manager のセッションで `triggerLeadScoreRecalc()` を直接呼ぶ
+- 期待結果:
+  - 1: ボタンが「再計算中...」になり、「全 Lead のスコアを再計算しています。この画面を閉じても再計算は続きます。」の青い案内が出る
+  - 2: 案内が消え、成功トースト「{N} 件のリードを再計算しました」が出る（N は Lead の総件数）
+  - 3: 2 件とも `succeeded` になる（同時に処理しても取りこぼさない。`FOR UPDATE SKIP LOCKED` で二重処理はしない）
+  - 4: `error: "管理者権限が必要です"`。`admin_bulk_jobs` へは 1 行も入らない
+  - 画面を閉じて開き直しても実行中のジョブを拾い直し、案内が再度表示される
+- 自動化区分: 自動(Playwright) + SQL 検証
+
 ---
 
 ### FRE-01: freee 連携設定画面の表示（未設定 / 未接続 / 接続済み）
@@ -1199,9 +1221,11 @@
 - 手順:
   1. ヘッダーの検索欄（プレースホルダ「検索 (Ctrl+K)」）に 1 文字だけ入力する
   2. seed に存在する語（例: 事業者名の一部 2 文字以上）を入力する
+  3. seed に存在するコード（例: `CMP-000001`。前方の `CMP-000` だけでも可）を入力する
 - 期待結果:
   - 1 文字ではドロップダウンに結果が出ない（2 文字以上で検索。300ms デバウンス）
   - 2 文字以上で「リード / ディール / 取引先 / 事業者情報 / 連絡先 / 契約 / プロジェクト / キャンペーン」のグループ見出し付きで該当が表示され、各エンティティ最大 5 件
+  - **コードでも引ける**（対象: ディール `deal_code` / 取引先 `account_code` / 事業者情報 `company_code` / 連絡先 `contact_code` / 契約 `contract_code` / プロジェクト `project_code`。リード・キャンペーンはコード列自体が無い）。該当行の副題にコードが表示される
   - 結果クリックで該当詳細ページ（`/leads/{id}` 等）へ遷移し、検索欄がクリアされる
   - 該当なしの場合は「該当なし」と表示される
 - 自動化区分: 自動(Playwright)

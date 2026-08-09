@@ -37,6 +37,17 @@ export const updateContactSocialAccountSchema = contactSocialAccountBaseSchema
   .omit({ contact_id: true })
   .partial();
 
+/**
+ * 連絡先の新規作成でまとめて登録する SNS・チャットの下書き。
+ *
+ * まだ ID の無い相手が対象なので contact_id を持たない（他の下書き
+ * ＝ `contactEmailDraftSchema` 等と同じ形。`src/lib/validators/contacts.ts` の
+ * `createContactSchema` が配列として受け取る）。
+ */
+export const contactSocialAccountDraftSchema = contactSocialAccountBaseSchema.omit({
+  contact_id: true,
+});
+
 export type CreateContactSocialAccountInput = z.input<
   typeof createContactSocialAccountSchema
 >;

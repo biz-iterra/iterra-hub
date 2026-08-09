@@ -2347,7 +2347,10 @@ Lead 登録・更新時に `lead_source_id` が設定されている場合、紐
 - **statement_timeout 対策:** `SET LOCAL statement_timeout = 0` で pg_cron 実行中はタイムアウト無効化
 - **冪等性:** DO ブロックで既存 job を `cron.unschedule` してから再登録。マイグレーション 2 回適用でもエラーにならない
 - **マスタ変更の反映タイミング:** `lead_score_rules` / `lead_company_sizes` / `lead_score_thresholds` の変更は翌週日曜 03:00 に自動反映。即時反映が必要な場合は管理者が手動実行（下記）
-- **手動実行:** `SELECT recalculate_all_lead_scores();`（admin のみ）
+- **手動実行（画面）:** マスタ・取込 → 「リード スコアルール」タブの「全件を再計算」。
+  2026-08-09 にジョブ方式へ変更（`admin_bulk_jobs` / `job_type = 'lead_score_recalc'`。§27）。
+  HTTP リクエストの中では実行しない。SQL から `SELECT recalculate_all_lead_scores();` を
+  直接叩く経路（admin のみ）も残っている
 - **戻り値:** 処理した Lead 件数（INT）
 - **ログ:** `RAISE NOTICE '[recalculate_all_lead_scores] N リードの再計算を完了'`
 
@@ -3529,6 +3532,9 @@ P2 は `is_mobile_phone()`（`070`/`080`/`090` + 8 桁）で携帯に限る。�
 検出条件は姓名一致・会社違いで、カナが両方あって食い違う組は除外する。
 **検出は取込の中でしか走らない**ため、取込を通っていない連絡先どうしの重複は
 `/contacts/merge-candidates` の「候補を洗い直す」（全件版）でしか挙がらない。
+この全件版は 2026-08-09 にジョブ方式へ変更した（`admin_bulk_jobs` /
+`job_type = 'contact_merge_detection'`。§27）。全連絡先の総当たりは件数に比例して
+伸びるため、HTTP リクエストの中では実行しない。
 
 統合は 18 の外部キーに跨るため単一トランザクションで行う。一意制約があるものは
 重複しない行だけを移す。名刺・住所はすべて移し、**主の印は残す側を優先する**
@@ -4153,9 +4159,31 @@ reset は「マイグレーション → seed」の順で走るため、UPDATE �
 | `p_emails` / `p_phones` | 複数可。`is_primary` の指定が無ければ**先頭を主にする**（複数立つと表示側が選べない） |
 | `p_address` | 1 件だけ。2 件目以降は編集画面で足す。`add_entity_address()` に委ねる |
 | `p_account_id` | 取引先の詳細から来たときの紐づけ。`account_contacts` に張る |
+| `p_social_accounts` | 複数可。`{ service_id, account_id, workspace, display_name }`。サービスごとの入力欄の出し分けは TS 側（`ContactSocialAccountsDraft`）が持ち、DB 側は配列を受けて 1 件ずつ書くだけ（2026-08-09、T-0026） |
 
 SECURITY INVOKER なので **RLS がそのまま効く**（連絡先を作れない利用者は子も作れない）。
-SNS・チャットは対象外（サービスごとに入力欄が変わるため。T-0026）。
+
+#### 25.1.1 SNS・チャットも新規作成に載せる（2026-08-09、T-0026）
+
+上表の `p_social_accounts` を追加するまでは対象外にしていた（サービスごとに入力欄が
+変わるため設計を分けていた）。実装は既存の `contact_social_accounts` と同じ形（配列を
+受け取り 1 件ずつ INSERT）で足りたため、`create_contact_with_details()` に引数を 1 つ
+追加するだけで済んだ。
+
+**PostgreSQL は引数の個数が変わると `CREATE OR REPLACE FUNCTION` では置き換えにならず
+別オーバーロードとして増える**（実機で確認済み）。マイグレーションでは旧シグネチャ
+（5 引数）を `DROP FUNCTION` してから 6 引数で作り直している
+（`20260809110001_contact_with_details_social_accounts.sql`）。
+
+サービスごとの必須欄（Slack のワークスペース等）の検査は既存の
+`SocialAccountsEditor`（その場で追加する版）と同じく **クライアント側でだけ**行う
+（`contact_social_accounts` に CHECK 制約は無い）。DB は一意制約
+（`uq_contact_social_account`: `contact_id, service_id, account_id, workspace`）だけを持つ。
+**この一意制約は `workspace` が NULL のとき機能しない**（PostgreSQL は既定で
+UNIQUE 制約中の NULL 同士を区別しないため、`workspace` を持たないサービス
+＝ ほとんどのサービスでは同じ ID を重複登録できてしまう）。既存の
+`SocialAccountsEditor` 経由でも同じ穴があり、今回の新規作成対応で新たに
+持ち込んだものではない。修正は別タスクとする。
 
 ### 25.2 親から子を追加する導線
 
@@ -4196,6 +4224,7 @@ DB は `deals_counterparty_check` で「account / company / contact のいずれ
 | ファイル | 内容 |
 |---|---|
 | `20260805000003_create_contact_with_details.sql` | 連絡先と連絡手段・住所・取引先紐づけを 1 トランザクションで作る関数 |
+| `20260809110001_contact_with_details_social_accounts.sql` | `create_contact_with_details()` に `p_social_accounts` を追加（旧シグネチャを DROP してから作り直し）。T-0026 |
 
 ## 26. freee との相互同期（2026-08-04）
 
@@ -4662,3 +4691,73 @@ POST が通ったら、**必ずミラーへ入れて紐付けまで済ませる*
 | `20260805000014_freee_code_read_only.sql` | 取引先コードの取り込みを明示的に拒否（無言の無視をやめる）。§26.8 |
 | `20260805000015_freee_register_company.sql` | 取引先コードで自動紐付け。CRM → freee の新規登録に要る 4 関数。§26.13 |
 | `20260805000016_freee_name_kana_title.sql` | 名称を name と long_name の両方で比較。敬称の既定値「様」。§26.8.1 / §26.8.2 |
+
+## 27. 管理者向け一括ジョブ（admin_bulk_jobs、2026-08-09）
+
+### 27.1 背景
+
+統合候補の一括検出（`detect_all_contact_merge_candidates`、§21.5）と
+全 Lead スコア再計算（`recalculate_all_lead_scores`、§11.12.7）は、どちらも全件を
+総当たりで処理するため件数に比例して実行時間が伸びる。従来は関数単位で
+`statement_timeout` を延長して凌いでいたが（`20260804000001`）、これは DB 側の
+8 秒の壁を外すだけで、**HTTP 層のタイムアウト（Cloudflare の約 100 秒）は消えない**。
+名刺取込（`lead_import_jobs`）で本番停止に至った経緯と同じ構造のため、
+実行を HTTP リクエストの外へ移した（T-0020）。
+
+### 27.2 `admin_bulk_jobs`
+
+名刺取込のジョブ表と同じ形を踏襲するが、この 2 つは入力（payload）を持たない
+「全件を洗い直すだけ」の操作のため、1 つの表を `job_type` で共有する。
+
+| カラム | 型 | 説明 |
+|---|---|---|
+| `job_type` | TEXT | `contact_merge_detection`（統合候補の一括検出）/ `lead_score_recalc`（全 Lead スコア再計算） |
+| `status` | TEXT | `queued` / `running` / `succeeded` / `failed` |
+| `attempts` | INTEGER | 実行を試みた回数 |
+| `requested_by` / `requested_at` | UUID / TIMESTAMPTZ | 投入者・投入時刻 |
+| `started_at` / `finished_at` | TIMESTAMPTZ | ワーカーの実行開始・終了 |
+| `result_count` | INTEGER | `contact_merge_detection` なら新規候補件数、`lead_score_recalc` なら再計算した Lead 件数 |
+| `error_message` | TEXT | 失敗理由の原文（画面に出す前に `toUserMessage()` を通す） |
+
+### 27.3 フロー
+
+```
+1. 投入: Server Action が admin_bulk_jobs へ 1 件 INSERT して即座に返す
+2. 実行: pg_cron が毎分 process_admin_bulk_jobs を起動し、
+         queued を 1 件取り出して（FOR UPDATE SKIP LOCKED）job_type ごとに
+         既存の関数を呼ぶ（判定ロジックは変えていない）
+3. 参照: 画面はジョブの status をポーリングする。閉じても実行は続く
+```
+
+ワーカーが呼ぶ関数は、権限判定を含む「入口」関数ではなく、判定を含まない
+「内側」の関数にしている。
+
+| job_type | ワーカーが呼ぶ関数 |
+|---|---|
+| `contact_merge_detection` | `record_contact_merge_candidates(NULL)`（`detect_all_contact_merge_candidates()` は呼ばない） |
+| `lead_score_recalc` | `recalculate_all_lead_scores()` |
+
+**理由:** pg_cron 実行には `auth.uid()` が無く、`is_manager_or_above()` /
+`is_admin()` を内部で呼ぶ `detect_all_contact_merge_candidates()` をそのまま
+ワーカーから呼ぶと判定が意図通りに働かない。権限確認は投入側
+（`admin_bulk_jobs` の RLS INSERT ポリシー + Server Action のロールチェック）で
+完結させ、ワーカーは判定を持たない関数を直接呼ぶ。これは `lead_import_jobs` の
+ワーカーが `import_eight_leads` を直接呼ぶのと同じ分担であり、`detect_all_contact_merge_candidates()`
+自体は SQL から直接叩く手動運用の入口として変更せず残す。
+
+### 27.4 RLS
+
+| job_type | 必要権限 |
+|---|---|
+| `contact_merge_detection` | manager 以上 |
+| `lead_score_recalc` | admin のみ |
+
+SELECT / INSERT ともに `job_type` に応じた条件を 1 ポリシーにまとめている。
+**UPDATE ポリシーは無い**（実行中のジョブを利用者が `queued` へ戻せてしまうため。
+状態を書くのはワーカーだけ）。DELETE は admin のみ（履歴の整理用）。
+
+### 27.5 マイグレーション
+
+| ファイル | 内容 |
+|---|---|
+| `20260809100001_admin_bulk_jobs.sql` | `admin_bulk_jobs` テーブル・RLS・`process_admin_bulk_jobs`・pg_cron 登録 |

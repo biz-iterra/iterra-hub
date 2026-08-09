@@ -4,7 +4,7 @@ ITERRA CRM (iterra-hub) のテスト全体方針。**デプロイ判定の正本
 各テストレベルの詳細ケースは `docs/test-cases/` 配下に置く。
 実施結果の記録は `docs/test-checklist.md`（デプロイゲート実施記録）に残す。
 
-最終更新: 2026-08-03
+最終更新: 2026-08-09
 
 ## 1. 背景と原則
 
@@ -123,9 +123,33 @@ main への push / PR で Gate 1 と同一の 4 チェックが自動実行さ�
    worktree を作ったまま Gate 1 を回すと、別ブランチの作業コピーとその `.next` 生成物まで
    検査・実行されてしまうため（2026-08-04 に lint 4,353 件のエラーと
    単体テストの二重実行として顕在化した）
-2. **Phase 2**: 結合テストの SQL ケース（02）を `scripts/db-tests/` に SQL + 実行スクリプトとして固定化し、
-   `npm run test:db` を追加
-3. **Phase 3**: GitHub Actions で `supabase start` → test:db → test:e2e を nightly 実行
+2. ~~**Phase 2**~~ **第一弾完了（2026-08-09）**: 結合テストのケース（02）を Node スクリプトで
+   固定化し、`npm run test:db` を追加した（`scripts/test-db/`）。
+   ローカル Supabase（既定 `127.0.0.1:54332`）へ `pg` パッケージで直結し、各ケースを
+   `BEGIN`〜`ROLLBACK` で実行する（§1.3 のロール偽装含め、02 の想定どおり seed を汚さない）。
+   ロール切り替えが要るケースは `SET LOCAL ROLE` + `set_config('request.jwt.claims', …)` で再現する。
+
+   - **移植済み 61 ケース**: IT-01〜IT-08（正規化系純粋関数）/ IT-31・IT-32（その他の関数）/
+     IT-33〜IT-45（トリガー）/ Q1〜Q14（整合性チェッククエリ、Q11 のみ「0 行」でなく件数の目安判定）/
+     IT-RLS-20・IT-RLS-21（anon 不可視・security_invoker 検査）/ IT-PERF-01（statement_timeout 設定）/
+     IT-MASTER-01〜06（マスタ整合。07 は grep ベースの静的検査のため対象外）/ IT-LEADSTAGE-01 /
+     IT-CONTRACT-01〜08。ケース ID は `npm run test:db` の実行結果にそのまま出る
+   - **未移植（次フェーズ）**: IT-09〜IT-30（resolve_or_create_company/contact・
+     promote_lead_to_deal・スコアリング。複数テーブルにまたがる大きめの前提データが要り時間切れ）、
+     IT-RLS-01〜19・22（ロールごとの可視範囲マトリクス。§1.3 の手順で機械的に再現できることは
+     IT-RLS-20/21 で実証済みだが件数が多く未着手）、IT-JOB-01（cron ワーカー＋
+     `SKIP LOCKED` の多重起動検証）、IT-FREEE-01・IT-FREEE-02（freee 連携。都道府県コード等の
+     外部データ形状に依存する大きめのフィクスチャが要る）
+   - 02 の一部ケースは 2026-08-08 の T-0069（`deals.lead_id` 正本化。20260808000005 ほか）で
+     エラー文言・判定経路が変わっている（例: 「商談」→「ディール」、`leads.promoted_deal_id` 直書き
+     → `deals.lead_id` 経由）。移植時に現行 DB の挙動へ合わせており、02 の該当本文は未更新のままなので
+     文言の細部は一致しない箇所がある（判定内容・検査対象は同じ）
+   - 新規依存: `pg` / `@types/pg`（devDependencies）。理由: ロール偽装（`SET LOCAL ROLE` /
+     `set_config('request.jwt.claims', …)`）や `SAVEPOINT` を使う複数ステップの手続き的なテストが
+     大半で、`supabase-js` の `.rpc()` 越しではこれらを表現できない。ローカル/CI 双方に `psql` の
+     インストールを前提にできないため、`psql` 起動ではなく Node の PostgreSQL クライアントを選んだ
+3. **Phase 3**: GitHub Actions で `supabase start` → test:db → test:e2e を nightly 実行。
+   IT-RLS-01〜19・22 など未移植分の追加もあわせて行う
 4. 移行完了後、`scripts/test-*.py` は削除する（歴史的経緯は git にある）
 
 自動化済みかどうかは各テストケースの「自動化」欄で管理する（Vitest済み / Playwright済み / Playwright候補 / 手動のみ / SQL検証）。

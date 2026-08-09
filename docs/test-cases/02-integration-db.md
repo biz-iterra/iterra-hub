@@ -959,6 +959,59 @@ SELECT process_lead_import_jobs();   --> 0
   **UPDATE ポリシーが無い**ため admin でも状態を書き換えられないこと
 - 自動化区分: SQL 検証
 
+### IT-JOB-02: 統合候補の一括検出と全 Lead スコア再計算がジョブ方式で完了する（2026-08-09 追加、T-0020）
+
+- 対象: マイグレーション `20260809100001`（`admin_bulk_jobs` / `process_admin_bulk_jobs`）
+- 背景: `lead_import_jobs` と同じ理由（`docs/database-design.md` §27）。この 2 つは
+  入力を持たない「全件を洗い直すだけ」の操作なので 1 つの表を `job_type` で共有する
+- 手順・期待:
+
+```sql
+-- 1. cron に登録されていること
+SELECT jobname, schedule, active FROM cron.job WHERE jobname = 'process_admin_bulk_jobs';
+--   '* * * * *' / active = t
+
+-- 2. 統合候補の検出（manager が投入したことにする）
+INSERT INTO admin_bulk_jobs (job_type, requested_by)
+VALUES ('contact_merge_detection', '<manager の crm_users.id>')
+RETURNING id, status, attempts;
+--   queued / 0
+
+SELECT process_admin_bulk_jobs();   --> 1（処理した件数）
+
+SELECT status, attempts, result_count, error_message
+  FROM admin_bulk_jobs WHERE job_type = 'contact_merge_detection'
+ ORDER BY requested_at DESC LIMIT 1;
+--   succeeded / 1 / 新規候補件数 / NULL
+
+-- 3. 全 Lead スコア再計算（admin が投入したことにする）
+INSERT INTO admin_bulk_jobs (job_type, requested_by)
+VALUES ('lead_score_recalc', '<admin の crm_users.id>')
+RETURNING id;
+
+SELECT process_admin_bulk_jobs();   --> 1
+
+SELECT status, result_count FROM admin_bulk_jobs
+ WHERE job_type = 'lead_score_recalc' ORDER BY requested_at DESC LIMIT 1;
+--   succeeded / Lead の総件数
+
+-- 4. 待ちが無ければ 0 を返すこと（空振りしても落ちない）
+SELECT process_admin_bulk_jobs();   --> 0
+```
+
+- **ワーカーは判定を持たない内側の関数を直接呼ぶこと**: `record_contact_merge_candidates(NULL)` /
+  `recalculate_all_lead_scores()`。`detect_all_contact_merge_candidates()` を経由すると
+  cron 実行には `auth.uid()` が無く `is_manager_or_above()` の判定が意図通りに働かないため、
+  ワーカーからは呼ばない（§27.3）
+- 失敗時は `status = 'failed'` かつ `error_message` に原文が入ること（`record_contact_merge_candidates`
+  を一時的に壊すなどして確認）
+- **多重起動しても二重処理しないこと**: 2 つのセッションで同時に `process_admin_bulk_jobs()` を呼び、
+  片方が 0 を返す（`FOR UPDATE SKIP LOCKED`）
+- RLS: `contact_merge_detection` は member から 0 件に見え、`lead_score_recalc` は
+  manager からも 0 件に見えること（admin のみ）。**UPDATE ポリシーが無い**ため
+  admin でも状態を書き換えられないこと
+- 自動化区分: SQL 検証
+
 ### IT-FREEE-01: freee 取引先の取込と自動紐付け（2026-08-04 追加）
 
 - 対象: マイグレーション `20260805000001`（`upsert_freee_partners`）
@@ -1178,6 +1231,12 @@ SELECT jobname, schedule FROM cron.job
 ---
 
 ## 7. テストで確認された/しにくい設計上の懸念（申し送り）
+
+0. **自動化状況（2026-08-09）**: `npm run test:db`（`scripts/test-db/`）で IT-01〜IT-08 / IT-31・IT-32 /
+   IT-33〜IT-45 / Q1〜Q14 / IT-RLS-20・IT-RLS-21 / IT-PERF-01 / IT-MASTER-01〜06 / IT-LEADSTAGE-01 /
+   IT-CONTRACT-01〜08（計 61 ケース）を自動化済み。詳細は `docs/test-strategy.md` §7。
+   T-0069（`deals.lead_id` 正本化）以降、上記のうち IT-36〜IT-39・IT-LEADSTAGE-01・IT-CONTRACT-07/08 は
+   本文記載の手順・エラー文言と実装が乖離しており、自動化側は現行 DB の挙動に合わせている。
 
 1. ~~**resolve_or_create_contact の既定ステータス探索が「見込み」に退行している。**~~
    **→ 2026-08-03 に修正済み（`20260803000001_fix_contact_default_status_regression.sql`）。**

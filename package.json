@@ -13,7 +13,8 @@
     "test:e2e": "playwright test --grep-invert @sweep",
     "db:types": "supabase gen types typescript --local > src/types/database.generated.ts",
     "db:er": "node scripts/generate-er-diagram.mjs",
-    "test:sweep": "playwright test e2e/zz-sweep.e2e.ts"
+    "test:sweep": "playwright test e2e/zz-sweep.e2e.ts",
+    "test:db": "node scripts/test-db/run.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.2",
@@ -41,10 +42,12 @@
     "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/pg": "^8.21.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.3",
+    "pg": "^8.23.0",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.1.10"

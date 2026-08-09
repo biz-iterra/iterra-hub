@@ -21,6 +21,7 @@ import {
   ShieldCheck,
   LifeBuoy,
   ChevronRight,
+  Link2,
 } from "lucide-react";
 
 // ===============================
@@ -313,6 +314,12 @@ const TOC = [
   { id: "section-9", no: "09", label: "編集・削除の共通ルール", icon: Pencil },
   { id: "section-10", no: "10", label: "アクセス制御と見え方", icon: ShieldCheck },
   { id: "section-11", no: "11", label: "よくあるトラブルと対処", icon: LifeBuoy },
+  {
+    id: "section-12",
+    no: "12",
+    label: "外部連携（Gmail・Google コンタクト・freee 会計）",
+    icon: Link2,
+  },
 ];
 
 // ===============================
@@ -368,7 +375,7 @@ export default function ManualPage() {
             統合 CRM の操作手順を、作業フロー付きで網羅する。
           </p>
           <div className="flex items-center gap-3 mt-5">
-            <Badge tone="amber">最終更新 2026-04-21</Badge>
+            <Badge tone="amber">最終更新 2026-08-09</Badge>
             <Badge tone="sage">バージョン main</Badge>
           </div>
         </div>
@@ -1314,6 +1321,204 @@ export default function ManualPage() {
             ]}
           />
         </Card>
+
+        {/* --- 12. 外部連携 --- */}
+        <Card id="section-12">
+          <SectionHeader
+            number="12"
+            icon={Link2}
+            title="外部連携（Gmail・Google コンタクト・freee 会計）"
+            caption="External Integrations"
+          />
+          <Paragraph>
+            どの連携も「接続」してから「同期」を行う。接続先のデータを勝手に書き換えることはなく、
+            <strong>CRM が正</strong>として扱う（freee 会計だけは項目ごとにどちらを正にするか選べる）。
+          </Paragraph>
+
+          <SubHeading>12.1 Gmail 連携（プロフィール）</SubHeading>
+          <Paragraph>
+            連携すると、そのアカウントの送受信が連絡先の
+            <strong>アクティビティ</strong>として並ぶ。取り込むのは件名・相手・日時だけで、
+            本文と添付は CRM に保存しない（中身は Gmail 側で開く）。
+          </Paragraph>
+          <Steps
+            items={[
+              <>
+                <Code>/profile</Code> を開く（ヘッダーのユーザーメニューから遷移）。
+              </>,
+              <>
+                「Gmail 連携」カードの{" "}
+                <Badge tone="terra">アカウントを連携</Badge>{" "}
+                → Google のログイン画面で許可する。
+              </>,
+              "接続すると一覧に表示される。「同期」で取り込みを開始する。",
+              "連絡先詳細の「アクティビティ」に、件名・日時・送受信の向きが並ぶ。クリックすると Gmail が別タブで開く。",
+              "「解除」で連携を止める。取り込み済みのやり取りは履歴として残る。",
+            ]}
+          />
+          <Callout tone="warning" title="未設定の環境では接続できない">
+            環境変数（<Code>GOOGLE_OAUTH_CLIENT_ID</Code> /{" "}
+            <Code>GOOGLE_OAUTH_CLIENT_SECRET</Code> /{" "}
+            <Code>GMAIL_TOKEN_ENCRYPTION_KEY</Code>）が未設定の環境では
+            「Gmail 連携が未設定です」と表示され、接続ボタンは出ない。
+          </Callout>
+
+          <SubHeading>12.2 Google コンタクト連携（プロフィール）</SubHeading>
+          <Paragraph>
+            CRM の連絡先を Google コンタクトの<strong>「ITERRA CRM」グループ</strong>
+            へ同期する。スマホの電話帳や Gmail の宛先補完に相手の名前が出るようになる。
+            <strong>触るのはこのグループの中だけ</strong>で、個人の連絡先には手を付けない。
+            社内メモ・診断結果・ステータスは同期しない。
+          </Paragraph>
+          <Steps
+            items={[
+              <>
+                <Code>/profile</Code> の「Google コンタクト連携」カードで{" "}
+                <Badge tone="terra">Google と連携する</Badge>。
+              </>,
+              <>
+                連携時に Google から「連絡先の表示、編集、ダウンロード、完全な削除」の許可を求められる。
+                Google の連絡先スコープは 1 段階しかなく、書き込むにはこれを許可する必要がある。
+                実際に作成・更新・削除するのは「ITERRA CRM」グループに入れた連絡先だけ。
+              </>,
+              <>
+                「同期」で登録・更新・削除を反映する。件数が多い場合は 1 回の上限で打ち切られ、
+                「もう一度同期を押すと続きから進みます」と案内される。
+              </>,
+              "「解除」で同期を止める。Google 側の連絡先は残る（消したい場合は Google の画面で「ITERRA CRM」グループごと削除する）。",
+            ]}
+          />
+          <Callout tone="info">
+            会社の Google アカウントで連携する。環境変数（
+            <Code>GOOGLE_CONTACTS_CLIENT_ID</Code> /{" "}
+            <Code>GOOGLE_CONTACTS_CLIENT_SECRET</Code> /{" "}
+            <Code>GOOGLE_CONTACTS_TOKEN_ENCRYPTION_KEY</Code>）が未設定の環境では接続ボタンは出ない。
+          </Callout>
+
+          <SubHeading>12.3 freee 会計連携（/admin/freee・admin 専用）</SubHeading>
+          <Paragraph>
+            freee 会計にある取引先を CRM へ取り込み、事業者情報と突き合わせる。
+            <strong>freee 側のデータは自動で書き換えない</strong>（読み取りのみ）。
+            書き換えるのは差分画面で人が確定した項目だけ。
+          </Paragraph>
+
+          <SubHeading>作業フロー: 接続と同期</SubHeading>
+          <Steps
+            items={[
+              <>
+                <Code>/admin/freee</Code>{" "}
+                を開く（サイドバー「マスタ・取込」→「freee 連携」）。
+              </>,
+              <>
+                「freee と接続する」→ freee のログイン画面で事業所へのアクセスを許可する。
+              </>,
+              "接続後は事業所名・接続日時・最終同期日時・最終の全件同期日時が表示される。",
+            ]}
+          />
+          <Table
+            headers={["ボタン", "内容"]}
+            rows={[
+              ["今すぐ同期", "前回同期日以降に更新された取引先だけを取り込む（差分）"],
+              [
+                "全件同期（削除も検出）",
+                "全件を取り直す。freee 側で削除された取引先が分かるのはこれだけ",
+              ],
+              ["接続を解除", "以後の同期を止める。取り込み済みのデータと紐付けは残る"],
+            ]}
+          />
+          <Paragraph>
+            本番では日次（差分）・週次（全件）で自動実行される。手動同期は確認や急ぎのとき用。
+            環境変数（<Code>FREEE_CLIENT_ID</Code> / <Code>FREEE_CLIENT_SECRET</Code> /{" "}
+            <Code>FREEE_TOKEN_ENCRYPTION_KEY</Code>）が未設定の環境では「未設定です」と出て接続ボタンは表示されない。
+          </Paragraph>
+
+          <SubHeading>作業フロー: 突合（/admin/freee/partners）</SubHeading>
+          <Paragraph>
+            <strong>インボイス登録番号が一致した取引先は自動で紐付く。</strong>
+            それ以外は「未紐付け」で並ぶので、行を開いて候補を見ながら次のいずれかを選ぶ。
+          </Paragraph>
+          <Table
+            headers={["操作", "いつ使うか"]}
+            rows={[
+              [
+                "候補の「これに紐付ける」",
+                "CRM に同じ相手が既にいる。候補は名称・メールドメイン・電話の一致から出る",
+              ],
+              ["「事業者情報として登録」", "CRM にまだいない。事業者情報を新しく作って紐付ける"],
+              ["「対象外にする」", "CRM に持つ必要が無い相手（税務署・銀行など）"],
+            ]}
+          />
+          <Callout tone="warning" title="取引先（Account）はここでは作られない">
+            取引先は契約が成立したときにだけ作られる仕組みのため、ここで作るのは事業者情報まで。
+          </Callout>
+
+          <SubHeading>
+            作業フロー: 連携する事業者を追加する（/admin/freee/register）
+          </SubHeading>
+          <Paragraph>
+            CRM にあって freee に無い事業者情報を、freee 側へ新しく登録する画面。
+            一覧を開いて行を展開すると freee 側の似た取引先が候補として出るので、
+            <strong>既にあるなら新規登録ではなく紐付けを選ぶ</strong>
+            （freee は取引先名の重複を許すため、確認せずに作ると表記ゆれで同じ相手が 2
+            つできる）。
+          </Paragraph>
+          <UList
+            items={[
+              "候補が無ければ「freee に登録する」で新規登録する",
+              "登録すると取引先コードに CRM の事業者コード（例: CMP-…）が入り、以後はこのコードで自動的に突合される",
+              "取引先コードは登録のときにしか入れられない。作り直しでは直せないため、似た取引先が無いか必ず確認してから登録する",
+            ]}
+          />
+
+          <SubHeading>作業フロー: 差分の確認と反映（/admin/freee/sync）</SubHeading>
+          <Paragraph>
+            取り込んだ freee の値と CRM の値を項目ごとに見比べ、どちらを正として反映するか選ぶ画面。
+            <strong>既定はすべて「CRM → freee」</strong>。会計側の修正を採りたい項目だけ
+            「freee → CRM」に切り替える。反映しない項目は「触らない」のままにしておく。
+          </Paragraph>
+          <UList
+            items={[
+              <>
+                <strong>担当者名</strong>は freee
+                側の値をそのまま取り込めない（氏名の切れ目が分からず、同名の別人に紐づく恐れがあるため）。
+                「この名前の連絡先を探す」で候補を出し、人が選んで紐づける
+              </>,
+              <>
+                <strong>担当者メール</strong>は、同じ人が 2
+                社の担当者で会社ごとに使い分けている場合に備え、行の「連携に使うメール」欄からその場で選べる（連携プロファイルへ直接保存される）
+              </>,
+              <>
+                <strong>取引先コード</strong>はどちらへも反映できない。freee
+                の更新 API がコードを受け付けず（登録時のみ）、事業者コードは CRM
+                が採番するため。揃えたい場合は freee の画面で直接入力する
+              </>,
+              <>
+                どちらの向きにも直せない項目は
+                <strong>「この項目は突き合わせない」</strong>
+                で対象外にできる。対象外は差分一覧から消えるため、
+                <strong>戻す入口は画面上部の「突き合わせ対象外にした項目」に置かれている</strong>。値そのものは変えない
+              </>,
+            ]}
+          />
+          <Callout tone="warning" title="freee は会計のデータ">
+            「CRM → freee」を選んだ項目は freee 側が書き換わる。反映は 1
+            相手ずつ、「この相手の差分を反映」で確定する。
+          </Callout>
+
+          <SubHeading>連携プロファイル（事業者情報の詳細・admin 限定）</SubHeading>
+          <Paragraph>
+            freee へ渡す値をどのレコードから取るかを、事業者情報ごとに選べる設定。
+            <strong>値そのものではなく、レコードを選ぶ</strong>ため、CRM 側の情報を直せば連携値も追随する。
+            対象は<strong>担当者・担当者メール・電話・住所・口座</strong>の 5 項目。
+          </Paragraph>
+          <UList
+            items={[
+              "未選択は「既定に従う」（主担当・主メール・主住所・主口座・代表電話）",
+              "担当者を選び直すとメールの選択は外れる（別人のメールを送らないため）。担当者の候補はその事業者に関わる連絡先（所属または兼務）だけ",
+              "同じ人が 2 社の担当者で、会社ごとにメールを使い分けている場合に必要になる（主メールは連絡先に 1 つしか立たないため）",
+            ]}
+          />
+        </Card>
       </div>
 
       {/* ===== フッター ===== */}
@@ -1328,7 +1533,7 @@ export default function ManualPage() {
           className="text-xs"
           style={{ color: "var(--color-sumi600)" }}
         >
-          ITERRA CRM · 運用マニュアル · 最終更新 2026-04-21
+          ITERRA CRM · 運用マニュアル · 最終更新 2026-08-09
         </p>
         <p
           className="text-xs mt-1"

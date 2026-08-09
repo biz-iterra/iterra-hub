@@ -1,6 +1,6 @@
 # システムテスト仕様: 連絡先・タレント
 
-最終更新: 2026-08-03
+最終更新: 2026-08-09
 
 実装（画面・Server Action・validator・DB 関数）から導出したシステムテスト仕様。
 テスト環境: http://localhost:2000（`npx supabase start` + `npm run dev`）。
@@ -20,7 +20,7 @@
 | Server Action | `src/actions/contacts.ts`、`contact-channels.ts`、`contact-merge.ts`、`contact-social-accounts.ts`、`business-cards.ts`、`talents.ts`、`talent-classification.ts` |
 | validator | `src/lib/validators/contacts.ts`、`talents.ts`、`common.ts`（birthDateSchema / urlSchema / uuidString / expectedUpdatedAtSchema）、`contact-social-accounts.ts`、`talent-classification.ts` |
 | 判定ロジック | `src/lib/talent-classification/`（system-classifier / grade-calculator / job-type-classifier）、`src/lib/diagnosis/`（calcPotentialNumber / calcZodiacSign） |
-| DB 関数 | `merge_contacts` / `merge_contacts_preview` / `detect_all_contact_merge_candidates` / `contact_merge_candidate_pairs` / `set_primary_contact_email(phone)` / `apply_business_card_as_current` |
+| DB 関数 | `merge_contacts` / `merge_contacts_preview` / `detect_all_contact_merge_candidates` / `record_contact_merge_candidates` / `contact_merge_candidate_pairs` / `set_primary_contact_email(phone)` / `apply_business_card_as_current` / `process_admin_bulk_jobs`（統合候補の一括検出ジョブのワーカー） |
 
 対象外: リード取込（Eight CSV）そのもの（`docs/lead-import-eight.md` 系）、メール同期の取込処理（candidates 画面の承認・対象外操作のみ対象）、アクティビティ記録。
 
@@ -373,19 +373,25 @@
 
 ### 連絡先マージ（/contacts/merge-candidates）
 
-### CNT-28: 候補の一括検出（洗い直し）
-- 対象: 「候補を洗い直す」ボタン、`detectAllMergeCandidates` → `detect_all_contact_merge_candidates` / `contact_merge_candidate_pairs`
+### CNT-28: 候補の一括検出（洗い直し、ジョブ方式）
+- 対象: 「候補を洗い直す」ボタン、`detectAllMergeCandidates` → `admin_bulk_jobs`（`job_type = 'contact_merge_detection'`）
+  → ワーカー `process_admin_bulk_jobs` → `record_contact_merge_candidates` / `contact_merge_candidate_pairs`
+  （2026-08-09 にジョブ方式へ変更。`docs/database-design.md` §27。IT 版は `02-integration-db.md` の IT-JOB-02）
 - 権限: manager
 - 事前条件:
   - A: 姓名が完全一致し `company_id` が異なる連絡先 2 件（カナ未入力）
   - B: 姓名一致・会社違いだがカナが両方入力されており食い違う 2 件
   - C: 姓名一致・同一 company の 2 件
-- 手順: manager で `/contacts/merge-candidates` を開き「候補を洗い直す」を押す。もう一度押す
+- 手順:
+  1. manager で `/contacts/merge-candidates` を開き「候補を洗い直す」を押す
+  2. cron を待たず `SELECT process_admin_bulk_jobs();` を手で 1 回実行する
+  3. もう一度「候補を洗い直す」→ 手動実行する
 - 期待結果:
-  - 1 回目: トースト「統合候補が N 件見つかりました」。A の組だけが `contact_merge_candidates` に `reason = 'same_name_diff_company'`、`status = 'pending'` で記録される。B（カナ矛盾）と C（同一会社）は候補に挙がらない
+  - 1: ボタンが「検出中...」になり、「検出を実行しています。この画面を閉じても検出は続きます。」の青い案内が出る
+  - 2: 案内が消え、トースト「統合候補が N 件見つかりました」。A の組だけが `contact_merge_candidates` に `reason = 'same_name_diff_company'`、`status = 'pending'` で記録される。B（カナ矛盾）と C（同一会社）は候補に挙がらない
   - (A,B) と (B,A) が別候補として二重登録されない（UUID 小さい側が contact_id）
-  - 2 回目: 既存候補は再記録されず（ON CONFLICT DO NOTHING）、トースト「新しい統合候補はありませんでした」
-- 自動化区分: PW
+  - 3: 既存候補は再記録されず（ON CONFLICT DO NOTHING）、トースト「新しい統合候補はありませんでした」
+- 自動化区分: PW + SQL 検証
 
 ### CNT-29: マージ操作の manager 以上限定
 - 対象: `requireManager`、DB 関数側の `is_manager_or_above()`
@@ -548,6 +554,28 @@
   - ステータスは自身の状態を表す語彙のみ（seed: 「アクティブ」「休眠」「退職」）
   - 「見込み」「ディール中」「受注」等の営業ステージ・リード温度感の語彙が選択肢に存在しない（進度はリード / ディール側で管理する規約）
 - 自動化区分: PW（SQL での seed 検証併用）
+
+### CNT-41: 新規作成に SNS・チャットを載せる（T-0026）
+- 対象: `/contacts/new` の `ContactSocialAccountsDraft`、`createContact`、`createContactSchema.social_accounts`、DB 関数 `create_contact_with_details`（`p_social_accounts`）
+- 権限: admin
+- 事前条件: `social_services` マスタ投入済み（Chatwork・Slack を含む。Slack は `requires_workspace = true`）
+- 手順:
+  1. `/contacts/new` で姓名・ステータスに加え、連絡手段の「SNS・チャット」で「追加」→ Chatwork を選び ID を入力して「作成」
+  2. 別の連絡先を作成し、「SNS・チャット」で Slack を選ぶ（ワークスペース欄が現れることを確認）→ ワークスペースを空のまま「作成」
+  3. 別の連絡先を作成し、「SNS・チャット」で同じサービス・同じ ID ・同じワークスペースの行を 2 つ入れて「作成」
+  4. 別の連絡先を作成し、「SNS・チャット」の行を追加したまま何も入力せず「作成」（メール・電話・住所は未入力のままでよい）
+- 期待結果:
+  - 1: success トースト「連絡先を作成しました」。詳細ページの「SNS・チャット」に Chatwork が色付きで表示される（DB: `contacts` と `contact_social_accounts` が同一トランザクションで作成される）
+  - 2: エラー「SNS・チャットのワークスペース ID（T から始まる）を入力してください」等、`service.workspace_label` を使った文言がインライン表示される（送信されない。`ValidateSocialAccountDraft` は `SocialAccountsEditor` の `validate()` と同じ判定）
+  - 3: エラートースト「[social_accounts] 同じ SNS・チャットの ID が既に登録されています」。`contacts` にも行が作られない（DB 関数が単一トランザクションのため、一意制約違反で全体がロールバックされる）
+  - 4: 完全な空行は無視され、通常どおり連絡先だけが作成される（SNS・チャット無し）
+- 自動化区分: PW + API
+- 既知の制約（本タスクでは対象外）: `contact_social_accounts` の一意制約
+  （`uq_contact_social_account`: `contact_id, service_id, account_id, workspace`）は
+  `workspace` が NULL のとき機能しない（PostgreSQL は UNIQUE 制約中の NULL 同士を区別しない）。
+  ワークスペースを持たないサービス（Chatwork・LINE 等）では、上記 3 の重複防止が働かない
+  組み合わせがある。既存の編集画面（`SocialAccountsEditor`）にも同じ穴があり、
+  今回の新規作成対応で新たに持ち込んだものではない（`docs/database-design.md` §25.1.1）。
 
 ---
 

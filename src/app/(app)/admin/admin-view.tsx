@@ -1,10 +1,16 @@
 "use client";
 
 import { useState, useEffect, useCallback, useId, type FormEvent } from "react";
-import { ArrowUpRight } from "lucide-react";
+import { AlertTriangle, ArrowUpRight, Loader2, RefreshCw } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 import { CompanyVerificationPanel } from "./company-verification-panel";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import {
+  triggerLeadScoreRecalc,
+  getLeadScoreRecalcJob,
+  getActiveLeadScoreRecalcJobs,
+  type LeadScoreRecalcJob,
+} from "@/actions/leads/score-recalc";
 import {
   getPipelineTypes, createPipelineType, updatePipelineType, deletePipelineType,
   getDealStages, createDealStage, updateDealStage, deleteDealStage,
@@ -1243,6 +1249,171 @@ function LeadSegmentsTab() {
   );
 }
 
+// ===== 全 Lead スコア再計算（ジョブ方式）=====
+
+/**
+ * ジョブの状態を見に行く間隔。
+ * ワーカーは毎分動くので、これより細かくしても着手は早くならない。
+ * 進み具合が画面に出るまでの体感を短くするためだけの値（名刺取込・統合候補検出と同じ値）
+ */
+const SCORE_RECALC_POLL_INTERVAL_MS = 3000;
+
+/**
+ * 全 Lead のスコアを再計算する。
+ *
+ * 週次で pg_cron が自動実行するが、スコアリングルールを直後に変更したときは
+ * ここから即時反映できる。全件を総当たりで処理するため、実行は pg_cron の
+ * ワーカー（process_admin_bulk_jobs）に任せ、ここではジョブを投入して
+ * 状態をポーリングするだけ（名刺取込・統合候補の一括検出と同じ画面表現）。
+ */
+type LeadScoreRecalcControl = {
+  starting: boolean;
+  running: boolean;
+  job: LeadScoreRecalcJob | null;
+  run: () => Promise<void>;
+};
+
+// ボタン（見出し行）とバナー（全幅の行）を別の場所に描くため、状態はフックに持つ。
+// バナーを見出し行の flex に入れると「追加」ボタンが押し下げられる
+function useLeadScoreRecalc(): LeadScoreRecalcControl {
+  const { showToast } = useToast();
+  const [starting, setStarting] = useState(false);
+  const [job, setJob] = useState<LeadScoreRecalcJob | null>(null);
+
+  // 開き直したときに実行中のジョブを拾い直す
+  useEffect(() => {
+    let canceled = false;
+    if (job) return;
+
+    (async () => {
+      const res = await getActiveLeadScoreRecalcJobs();
+      if (canceled || !res.data || res.data.length === 0) return;
+      setJob(res.data[0]);
+    })();
+
+    return () => {
+      canceled = true;
+    };
+  }, [job]);
+
+  // 実行中のジョブをポーリングする
+  useEffect(() => {
+    if (!job || job.status === "succeeded" || job.status === "failed") return;
+
+    const timer = setInterval(async () => {
+      const res = await getLeadScoreRecalcJob(job.id);
+      if (!res.data) return;
+      setJob(res.data);
+      if (res.data.status === "succeeded") {
+        const count = res.data.recalculatedCount ?? 0;
+        showToast({ type: "success", message: `${count.toLocaleString()} 件のリードを再計算しました` });
+        setJob(null);
+      } else if (res.data.status === "failed") {
+        showToast({ type: "error", message: res.data.errorMessage ?? "スコア再計算に失敗しました" });
+      }
+    }, SCORE_RECALC_POLL_INTERVAL_MS);
+
+    return () => clearInterval(timer);
+  }, [job, showToast]);
+
+  async function run() {
+    setStarting(true);
+    const { data, error } = await triggerLeadScoreRecalc();
+    setStarting(false);
+
+    if (error) {
+      showToast({ type: "error", message: error });
+      return;
+    }
+    if (data) {
+      const accepted = await getLeadScoreRecalcJob(data.jobId);
+      setJob(
+        accepted.data ?? {
+          id: data.jobId,
+          status: "queued",
+          requestedAt: new Date().toISOString(),
+          startedAt: null,
+          finishedAt: null,
+          recalculatedCount: null,
+          errorMessage: null,
+        }
+      );
+    }
+  }
+
+  const running = job?.status === "queued" || job?.status === "running";
+
+  return { starting, running, job, run };
+}
+
+function LeadScoreRecalcButton({ recalc }: { recalc: LeadScoreRecalcControl }) {
+  const { starting, running, run } = recalc;
+
+  return (
+    <button
+      type="button"
+      style={{ ...styles.btnOutline, ...styles.btnSmall, opacity: starting || running ? 0.6 : 1 }}
+      onClick={run}
+      disabled={starting || running}
+    >
+      <span style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem" }}>
+        {running ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+        {running ? "再計算中..." : "全件を再計算"}
+      </span>
+    </button>
+  );
+}
+
+function LeadScoreRecalcBanner({ recalc }: { recalc: LeadScoreRecalcControl }) {
+  const { running, job } = recalc;
+
+  if (running) {
+    return (
+      <div
+        style={{
+          backgroundColor: "rgba(59, 130, 246, 0.08)",
+          border: "1px solid rgba(59, 130, 246, 0.3)",
+          borderRadius: "var(--radius-md)",
+          padding: "0.75rem 1rem",
+          color: "#1D4ED8",
+          fontSize: "0.8125rem",
+          marginBottom: "1rem",
+        }}
+      >
+        <strong style={{ display: "flex", alignItems: "center", gap: "0.375rem", marginBottom: "0.25rem" }}>
+          <Loader2 size={14} className="animate-spin" />
+          {job?.status === "queued" ? "再計算の順番を待っています" : "全 Lead のスコアを再計算しています"}
+        </strong>
+        この画面を閉じても再計算は続きます。あとで開き直せば結果を確認できます。
+      </div>
+    );
+  }
+
+  if (job?.status === "failed") {
+    return (
+      <div
+        style={{
+          backgroundColor: "rgba(239, 68, 68, 0.08)",
+          border: "1px solid rgba(239, 68, 68, 0.3)",
+          borderRadius: "var(--radius-md)",
+          padding: "0.75rem 1rem",
+          color: "var(--color-error)",
+          fontSize: "0.8125rem",
+          marginBottom: "1rem",
+        }}
+      >
+        <strong style={{ display: "flex", alignItems: "center", gap: "0.375rem", marginBottom: "0.25rem" }}>
+          <AlertTriangle size={14} />
+          スコア再計算に失敗しました
+        </strong>
+        {job.errorMessage ?? "原因を特定できませんでした"}
+      </div>
+    );
+  }
+
+  return null;
+}
+
 // ===== Lead Score Rules Tab（参照切れハイライト付き）=====
 
 type ScoreRuleMasters = {
@@ -1268,6 +1439,7 @@ function LeadScoreRulesTab({ scoreMasters }: { scoreMasters?: ScoreRuleMasters }
   const [deleteItem, setDeleteItem] = useState<LeadScoreRule | null>(null);
   const [loading, setLoading] = useState(false);
   const { showToast } = useToast();
+  const recalc = useLeadScoreRecalc();
 
   const CATEGORY_OPTIONS = [
     { value: "attribute", label: "属性" },
@@ -1386,12 +1558,17 @@ function LeadScoreRulesTab({ scoreMasters }: { scoreMasters?: ScoreRuleMasters }
         </div>
       )}
 
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", flexWrap: "wrap", gap: "0.5rem" }}>
         <h2 style={{ ...styles.title, fontSize: "1rem", fontWeight: 600 }}>スコアリングルール</h2>
-        <button style={styles.btnPrimary} onClick={() => setShowCreate(true)}>
-          追加
-        </button>
+        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", justifyContent: "flex-end" }}>
+          <LeadScoreRecalcButton recalc={recalc} />
+          <button style={styles.btnPrimary} onClick={() => setShowCreate(true)}>
+            追加
+          </button>
+        </div>
       </div>
+
+      <LeadScoreRecalcBanner recalc={recalc} />
 
       <div className={tableScrollClass}>
         <table style={{ width: "100%", borderCollapse: "collapse" }}>

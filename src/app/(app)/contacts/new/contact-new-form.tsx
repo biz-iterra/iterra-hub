@@ -14,6 +14,11 @@ import {
   ContactChannelsDraft,
   type ChannelDraft,
 } from "@/components/contacts/ContactChannelsDraft";
+import {
+  ContactSocialAccountsDraft,
+  type SocialAccountDraft,
+} from "@/components/contacts/ContactSocialAccountsDraft";
+import type { SocialService } from "@/actions/contact-social-accounts";
 
 type SelectOption = { value: string; label: string };
 
@@ -143,13 +148,30 @@ function onBlur(
   e.currentTarget.style.boxShadow = "";
 }
 
+/** SNS・チャットの下書き 1 件を検査する。SocialAccountsEditor の validate() と揃える */
+function validateSocialAccountDraft(
+  row: SocialAccountDraft,
+  services: SocialService[]
+): string | null {
+  if (!row.service_id) return "SNS・チャットのサービスを選んでください";
+  if (!row.account_id.trim()) return "SNS・チャットの ID を入力してください";
+  const service = services.find((s) => s.id === row.service_id);
+  if (service?.requires_workspace && !row.workspace.trim()) {
+    return `SNS・チャットの${service.workspace_label}を入力してください`;
+  }
+  return null;
+}
+
 export function ContactNewForm({
   masters,
+  socialServices,
   initialCompanyId = "",
   initialAccountId = "",
   defaultOwnerUserId,
 }: {
   masters: Masters;
+  /** SNS・チャットのサービスマスタ。選んだサービスで入力欄が変わる */
+  socialServices: SocialService[];
   /** 担当者の既定値（ログイン中の利用者） */
   defaultOwnerUserId?: string;
   /** 事業者情報の詳細から来たときの初期選択。固定はしない（付け替えられる） */
@@ -184,6 +206,7 @@ export function ContactNewForm({
   // 書き込みは DB 関数 create_contact_with_details が単一トランザクションで行う
   const [emails, setEmails] = useState<ChannelDraft[]>([]);
   const [phones, setPhones] = useState<ChannelDraft[]>([]);
+  const [socialAccounts, setSocialAccounts] = useState<SocialAccountDraft[]>([]);
   const [address, setAddress] = useState({
     postal_code: "",
     prefecture: "",
@@ -204,8 +227,23 @@ export function ContactNewForm({
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    setSaving(true);
     setError(null);
+
+    // 完全な空行（サービス未選択かつ ID 未入力）は無視する。
+    // それ以外は入りかけとみなし、揃っていなければ送信前に止める
+    // （SocialAccountsEditor の validate() と揃える）
+    const socialAccountRows = socialAccounts.filter(
+      (r) => r.service_id !== "" || r.account_id.trim() !== ""
+    );
+    for (const row of socialAccountRows) {
+      const message = validateSocialAccountDraft(row, socialServices);
+      if (message) {
+        setError(message);
+        return;
+      }
+    }
+
+    setSaving(true);
 
     const payload: Record<string, unknown> = {
       last_name: values.last_name,
@@ -234,6 +272,12 @@ export function ContactNewForm({
       phones: phones
         .filter((r) => r.value.trim() !== "")
         .map((r) => ({ phone: r.value.trim(), label: r.label, is_primary: r.is_primary })),
+      social_accounts: socialAccountRows.map((r) => ({
+        service_id: r.service_id,
+        account_id: r.account_id.trim(),
+        workspace: r.workspace.trim() || null,
+        display_name: r.display_name.trim() || null,
+      })),
       address,
     };
 
@@ -488,6 +532,11 @@ export function ContactNewForm({
           <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
             <ContactChannelsDraft channel="email" rows={emails} onChange={setEmails} />
             <ContactChannelsDraft channel="phone" rows={phones} onChange={setPhones} />
+            <ContactSocialAccountsDraft
+              services={socialServices}
+              rows={socialAccounts}
+              onChange={setSocialAccounts}
+            />
           </div>
         </div>
 

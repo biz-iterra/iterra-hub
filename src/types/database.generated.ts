@@ -668,6 +668,53 @@ export type Database = {
           },
         ]
       }
+      admin_bulk_jobs: {
+        Row: {
+          attempts: number
+          error_message: string | null
+          finished_at: string | null
+          id: string
+          job_type: string
+          requested_at: string
+          requested_by: string
+          result_count: number | null
+          started_at: string | null
+          status: string
+        }
+        Insert: {
+          attempts?: number
+          error_message?: string | null
+          finished_at?: string | null
+          id?: string
+          job_type: string
+          requested_at?: string
+          requested_by: string
+          result_count?: number | null
+          started_at?: string | null
+          status?: string
+        }
+        Update: {
+          attempts?: number
+          error_message?: string | null
+          finished_at?: string | null
+          id?: string
+          job_type?: string
+          requested_at?: string
+          requested_by?: string
+          result_count?: number | null
+          started_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_bulk_jobs_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "crm_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       business_cards: {
         Row: {
           address_id: string | null
@@ -7420,6 +7467,7 @@ export type Database = {
           p_contact: Json
           p_emails?: Json
           p_phones?: Json
+          p_social_accounts?: Json
         }
         Returns: string
       }
@@ -7609,6 +7657,7 @@ export type Database = {
       normalize_domain: { Args: { p_input: string }; Returns: string }
       normalize_person_name: { Args: { p_name: string }; Returns: string }
       phone_line_type: { Args: { p_phone: string }; Returns: string }
+      process_admin_bulk_jobs: { Args: never; Returns: number }
       process_lead_import_jobs: { Args: never; Returns: number }
       promote_lead_to_deal: {
         Args: {

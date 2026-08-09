@@ -5,6 +5,7 @@ import {
   uuidString,
   urlSchema,
 } from "./common";
+import { contactSocialAccountDraftSchema } from "./contact-social-accounts";
 
 const contactBaseSchema = z.object({
   last_name: z.string().min(1, "姓は必須です").max(50),
@@ -71,6 +72,13 @@ export const createContactSchema = contactBaseSchema.extend({
   emails: z.array(contactEmailDraftSchema).max(10).optional(),
   phones: z.array(contactPhoneDraftSchema).max(10).optional(),
   address: contactAddressDraftSchema.nullable().optional(),
+  /**
+   * SNS・チャット。サービスごとに入れるものが違う（LINE ID / Chatwork の
+   * ルーム ID / Slack はワークスペース + メンバー ID）が、形の検査は
+   * 既存の連絡口追加（`contact-social-accounts.ts`）と同じくここでは行わない
+   * （どのサービスがワークスペース必須かはマスタが持つため）。
+   */
+  social_accounts: z.array(contactSocialAccountDraftSchema).max(20).optional(),
   /**
    * 取引先の詳細から追加したときの紐づけ先。**contacts の列ではない**
    * （連絡先と取引先は account_contacts で N:M）。DB 関数が紐づけを張る

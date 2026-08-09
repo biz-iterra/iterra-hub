@@ -83,22 +83,126 @@ export async function countPendingMergeCandidates(): Promise<number> {
   return count ?? 0;
 }
 
+// ------------------------------------------------------------
+// 統合候補の一括検出（ジョブ方式）
+//
+// 全連絡先を総当たりで突き合わせるため件数に比例して時間がかかる。
+// HTTP リクエストの中で完結させると件数が増えるたびに同じ壁（DB の
+// statement_timeout → Cloudflare のタイムアウト）に当たるため、投入と実行を分け、
+// 実行は pg_cron のワーカー（process_admin_bulk_jobs）に任せる。
+// 名刺取込のジョブ方式（lead_import_jobs）と同じ考え方（docs/database-design.md §27）。
+// ------------------------------------------------------------
+
+/** 詳細ページと同じ形式で id を検証する（CLAUDE.md の [id] ルート規約に合わせる） */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export type ContactMergeDetectionJob = {
+  id: string;
+  status: "queued" | "running" | "succeeded" | "failed";
+  requestedAt: string;
+  startedAt: string | null;
+  finishedAt: string | null;
+  /** 新たに挙がった統合候補の件数（succeeded のとき埋まる） */
+  newCandidateCount: number | null;
+  /** 失敗理由。DB には原文が入るので、ここで日本語へ直してから返す */
+  errorMessage: string | null;
+};
+
+type JobRow = {
+  id: string;
+  status: ContactMergeDetectionJob["status"];
+  requested_at: string;
+  started_at: string | null;
+  finished_at: string | null;
+  result_count: number | null;
+  error_message: string | null;
+};
+
+const JOB_COLUMNS = "id, status, requested_at, started_at, finished_at, result_count, error_message";
+
+function toDetectionJob(row: JobRow): ContactMergeDetectionJob {
+  return {
+    id: row.id,
+    status: row.status,
+    requestedAt: row.requested_at,
+    startedAt: row.started_at,
+    finishedAt: row.finished_at,
+    newCandidateCount: row.result_count,
+    errorMessage: row.error_message
+      ? toUserMessage({ message: row.error_message }, { entityLabel: "連絡先" })
+      : null,
+  };
+}
+
 /**
- * 全連絡先を突き合わせて候補を洗い直す。
+ * 全連絡先を突き合わせて候補を洗い直すジョブを投入する。
  *
  * 検出は名刺取込の中でしか走らないため、取込を通っていない連絡先どうしの
  * 重複は誰も見つけないまま残る。棚卸しのための入口。
- * 記録するだけで統合はしない。戻り値は新たに挙がった件数。
+ * 記録するだけで統合はしない。実行は pg_cron のワーカーが行うため、
+ * ここで返るのは「受け付けた」ことだけ。結果はジョブを取り直して見る。
  */
-export async function detectAllMergeCandidates(): Promise<ActionResult<number>> {
+export async function detectAllMergeCandidates(): Promise<ActionResult<{ jobId: string }>> {
   const auth = await requireManager();
   if ("error" in auth) return { data: null, error: auth.error };
 
-  const { data, error } = await auth.supabase.rpc("detect_all_contact_merge_candidates");
-  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "連絡先" }) };
+  const { data, error } = await auth.supabase
+    .from("admin_bulk_jobs")
+    .insert({ job_type: "contact_merge_detection", requested_by: auth.userId })
+    .select("id")
+    .single();
+
+  if (error) {
+    return {
+      data: null,
+      error: `検出を開始できませんでした。${toUserMessage(error, { entityLabel: "統合候補の検出ジョブ", operation: "create" })}`,
+    };
+  }
 
   revalidatePath("/contacts/merge-candidates");
-  return { data: data ?? 0, error: null };
+  return { data: { jobId: data.id }, error: null };
+}
+
+/** 統合候補の検出ジョブを 1 件取る（画面のポーリング用） */
+export async function getContactMergeDetectionJob(
+  jobId: string
+): Promise<ActionResult<ContactMergeDetectionJob>> {
+  const auth = await requireManager();
+  if ("error" in auth) return { data: null, error: auth.error };
+
+  if (!UUID_RE.test(jobId)) return { data: null, error: "不正なパラメータです" };
+
+  const { data, error } = await auth.supabase
+    .from("admin_bulk_jobs")
+    .select(JOB_COLUMNS)
+    .eq("id", jobId)
+    .eq("job_type", "contact_merge_detection")
+    .maybeSingle<JobRow>();
+
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "連絡先" }) };
+  if (!data) return { data: null, error: "検出ジョブが見つかりません" };
+
+  return { data: toDetectionJob(data), error: null };
+}
+
+/** 実行待ち・実行中の検出ジョブ（画面を開き直したときに拾い直すため） */
+export async function getActiveContactMergeDetectionJobs(): Promise<
+  ActionResult<ContactMergeDetectionJob[]>
+> {
+  const auth = await requireManager();
+  if ("error" in auth) return { data: null, error: auth.error };
+
+  const { data, error } = await auth.supabase
+    .from("admin_bulk_jobs")
+    .select(JOB_COLUMNS)
+    .eq("job_type", "contact_merge_detection")
+    .in("status", ["queued", "running"])
+    .order("requested_at", { ascending: true })
+    .returns<JobRow[]>();
+
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "連絡先" }) };
+
+  return { data: (data ?? []).map(toDetectionJob), error: null };
 }
 
 /**

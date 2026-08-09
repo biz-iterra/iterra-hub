@@ -195,7 +195,14 @@ export async function createContact(
 
   // 連絡手段・住所は連絡先本体とは別のテーブルなので、値をここで切り離して
   // DB 関数へ渡す（アプリ側で順に INSERT すると途中失敗で中途半端に残る）
-  const { emails, phones, address, account_id: accountId, ...contactFields } = parsed.data;
+  const {
+    emails,
+    phones,
+    address,
+    social_accounts: socialAccounts,
+    account_id: accountId,
+    ...contactFields
+  } = parsed.data;
 
   const values: Record<string, unknown> = {
     ...contactFields,
@@ -223,9 +230,17 @@ export async function createContact(
     p_phones: (phones ?? []) as Json,
     p_address: hasAddress ? (address as Json) : undefined,
     p_account_id: accountId ?? undefined,
+    p_social_accounts: (socialAccounts ?? []) as Json,
   });
 
-  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "連絡先" }) };
+  if (error) {
+    // SNS・チャットの一意制約（uq_contact_social_account）。編集画面の追加
+    // （contact-social-accounts.ts）と同じ文言に揃える
+    if (error.code === "23505" && /uq_contact_social_account/.test(error.message ?? "")) {
+      return { data: null, error: "[social_accounts] 同じ SNS・チャットの ID が既に登録されています" };
+    }
+    return { data: null, error: toUserMessage(error, { entityLabel: "連絡先" }) };
+  }
 
   const { data, error: fetchErr } = await supabase
     .from("contacts")

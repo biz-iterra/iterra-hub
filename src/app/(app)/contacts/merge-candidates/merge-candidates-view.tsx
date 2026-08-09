@@ -1,22 +1,32 @@
 "use client";
 
-import { useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Merge, RefreshCw, X } from "lucide-react";
+import { AlertTriangle, ArrowRight, Loader2, Merge, RefreshCw, X } from "lucide-react";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import {
   detectAllMergeCandidates,
+  getActiveContactMergeDetectionJobs,
+  getContactMergeDetectionJob,
   mergeContactsAction,
   previewContactMerge,
   rejectMergeCandidate,
+  type ContactMergeDetectionJob,
 } from "@/actions/contact-merge";
 import type {
   ContactMergeCandidate,
   ContactMergePreview,
   ContactMergeSide,
 } from "@/types/relations";
+
+/**
+ * 検出ジョブの状態を見に行く間隔。
+ * ワーカーは毎分動くので、これより細かくしても着手は早くならない。
+ * 進み具合が画面に出るまでの体感を短くするためだけの値（名刺取込と同じ値）
+ */
+const POLL_INTERVAL_MS = 3000;
 
 /**
  * 統合候補の判断画面。
@@ -156,41 +166,117 @@ export function MergeCandidatesView({
 /**
  * 全件を突き合わせて候補を洗い直す。
  * 検出は名刺取込の中でしか走らないので、それ以外で増えた重複はここから拾う。
+ *
+ * 全連絡先の総当たりは件数に比例して伸びるため、実行は pg_cron のワーカーに任せる
+ * ジョブ方式（`admin_bulk_jobs`）。ここではジョブを投入し、状態をポーリングする
+ * （名刺取込と同じ画面表現。閉じても検出は続く）。
  */
 export function DetectAllButton() {
   const router = useRouter();
   const { showToast } = useToast();
-  const [running, setRunning] = useState(false);
+  const [starting, setStarting] = useState(false);
+  const [job, setJob] = useState<ContactMergeDetectionJob | null>(null);
+
+  // 開き直したときに実行中のジョブを拾い直す
+  useEffect(() => {
+    let canceled = false;
+    if (job) return;
+
+    (async () => {
+      const res = await getActiveContactMergeDetectionJobs();
+      if (canceled || !res.data || res.data.length === 0) return;
+      setJob(res.data[0]);
+    })();
+
+    return () => {
+      canceled = true;
+    };
+  }, [job]);
+
+  // 実行中のジョブをポーリングする
+  useEffect(() => {
+    if (!job || job.status === "succeeded" || job.status === "failed") return;
+
+    const timer = setInterval(async () => {
+      const res = await getContactMergeDetectionJob(job.id);
+      if (!res.data) return;
+      setJob(res.data);
+      if (res.data.status === "succeeded") {
+        const count = res.data.newCandidateCount ?? 0;
+        showToast({
+          type: count > 0 ? "success" : "info",
+          message: count > 0 ? `統合候補が ${count} 件見つかりました` : "新しい統合候補はありませんでした",
+        });
+        router.refresh();
+        setJob(null);
+      } else if (res.data.status === "failed") {
+        showToast({ type: "error", message: res.data.errorMessage ?? "検出に失敗しました" });
+      }
+    }, POLL_INTERVAL_MS);
+
+    return () => clearInterval(timer);
+  }, [job, showToast, router]);
 
   async function run() {
-    setRunning(true);
+    setStarting(true);
     const { data, error } = await detectAllMergeCandidates();
-    setRunning(false);
+    setStarting(false);
 
     if (error) {
       showToast({ type: "error", message: error });
       return;
     }
-    showToast({
-      type: data ? "success" : "info",
-      message: data
-        ? `統合候補が ${data} 件見つかりました`
-        : "新しい統合候補はありませんでした",
-    });
-    router.refresh();
+    if (data) {
+      const accepted = await getContactMergeDetectionJob(data.jobId);
+      setJob(
+        accepted.data ?? {
+          id: data.jobId,
+          status: "queued",
+          requestedAt: new Date().toISOString(),
+          startedAt: null,
+          finishedAt: null,
+          newCandidateCount: null,
+          errorMessage: null,
+        }
+      );
+    }
   }
 
+  const running = job?.status === "queued" || job?.status === "running";
+
   return (
-    <button
-      type="button"
-      className="hover:bg-[var(--color-bg-hover)]"
-      style={{ ...styles.btnGhost, ...(running ? styles.btnBusy : null) }}
-      onClick={run}
-      disabled={running}
-    >
-      <RefreshCw size={14} />
-      {running ? "検出中..." : "候補を洗い直す"}
-    </button>
+    <>
+      <button
+        type="button"
+        className="hover:bg-[var(--color-bg-hover)]"
+        style={{ ...styles.btnGhost, ...(starting || running ? styles.btnBusy : null) }}
+        onClick={run}
+        disabled={starting || running}
+      >
+        <RefreshCw size={14} />
+        {running ? "検出中..." : "候補を洗い直す"}
+      </button>
+
+      {running && (
+        <div style={{ ...styles.alertInfo, width: "100%" }}>
+          <strong style={styles.alertTitle}>
+            <Loader2 size={16} className="animate-spin" />
+            {job?.status === "queued" ? "検出の順番を待っています" : "検出を実行しています"}
+          </strong>
+          この画面を閉じても検出は続きます。あとで開き直せば結果を確認できます。
+        </div>
+      )}
+
+      {job?.status === "failed" && (
+        <div style={{ ...styles.alertError, width: "100%" }}>
+          <strong style={styles.alertTitle}>
+            <AlertTriangle size={16} />
+            検出に失敗しました
+          </strong>
+          {job.errorMessage ?? "原因を特定できませんでした"}
+        </div>
+      )}
+    </>
   );
 }
 
@@ -336,5 +422,30 @@ const styles = {
   btnBusy: {
     cursor: "progress",
     opacity: 0.6,
+  } as CSSProperties,
+  // 実行中の案内。成功でも失敗でもないので緑・赤とは別の色を使う（名刺取込と同じ配色）
+  alertInfo: {
+    backgroundColor: "rgba(59, 130, 246, 0.08)",
+    border: "1px solid rgba(59, 130, 246, 0.3)",
+    borderRadius: "var(--radius-md)",
+    padding: "0.875rem 1rem",
+    color: "#1D4ED8",
+    fontSize: "0.875rem",
+    marginTop: "0.5rem",
+  } as CSSProperties,
+  alertError: {
+    backgroundColor: "rgba(239, 68, 68, 0.08)",
+    border: "1px solid rgba(239, 68, 68, 0.3)",
+    borderRadius: "var(--radius-md)",
+    padding: "0.875rem 1rem",
+    color: "var(--color-error)",
+    fontSize: "0.875rem",
+    marginTop: "0.5rem",
+  } as CSSProperties,
+  alertTitle: {
+    display: "flex",
+    alignItems: "center",
+    gap: "0.375rem",
+    marginBottom: "0.375rem",
   } as CSSProperties,
 };

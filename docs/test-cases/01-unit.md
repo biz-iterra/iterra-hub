@@ -1,6 +1,6 @@
 # 単体テスト仕様（Vitest）
 
-最終更新: 2026-08-04
+最終更新: 2026-08-09
 
 ## 1. 対象と方針
 
@@ -36,7 +36,8 @@
 | `src/lib/app-origin.ts` | `app-origin.test.ts` | `isReachableOrigin`（0.0.0.0 / :: / 壊れた URL）、`resolveExternalOrigin`（APP_ORIGIN 優先、末尾スラッシュ、フォールバック、両方不可で null、不正設定で null） |
 | `src/lib/social-links.ts` | `social-links.test.ts` | `buildSocialDmUrl`（差し替え、workspace 必須、空 ID、雛形なし、記号エンコード、素通し、http(s) 以外拒否）、`isPassthroughTemplate` |
 | `src/lib/search-query.ts` | `search-query.test.ts` | `sanitizeSearchTerm`（`,` `(` `)` `.` `'` `"` `\` `%` `_` の除去、前後空白 trim、空文字/null/undefined、記号のみは空文字）、`buildIlikePattern`（パターン組み立て、空入力で null） |
-| `src/lib/validators/contact-social-accounts.ts` | `contact-social-accounts.test.ts` | `contactSocialAccountBaseSchema`（account_id の trim → 必須チェックの順序、空白のみ拒否、service_id の UUID 検証、workspace 等の空文字→null） |
+| `src/lib/validators/contact-social-accounts.ts` | `contact-social-accounts.test.ts` | `contactSocialAccountBaseSchema`（account_id の trim → 必須チェックの順序、空白のみ拒否、service_id の UUID 検証、workspace 等の空文字→null）、`contactSocialAccountDraftSchema`（contact_id 無しで成功、service_id/account_id 必須。T-0026） |
+| `src/lib/validators/contacts.ts` | `contacts.test.ts` | `createContactSchema.social_accounts`（任意・空配列可、行ごとの service_id/account_id 必須、上限 20 件、workspace/display_name の空文字→null。T-0026） |
 | `src/lib/validators/lead-activities.ts` | `lead-activities.test.ts` | `leadActivityUpdateSchema` の `expected_updated_at`（楽観ロック用。未指定でも成功＝後方互換、文字列指定時の往復） |
 | `src/lib/validators/campaigns.ts` | `campaigns.test.ts` | `campaignUpdateSchema` の `expected_updated_at`（未指定でも成功、文字列往復）、既存の日付 `refine` との両立 |
 | `src/lib/validators/leads.ts` | `leads.test.ts` | `leadCustomerActivityUpdateSchema` の `expected_updated_at`（楽観ロック用。未指定でも成功＝後方互換、文字列指定時の往復） |

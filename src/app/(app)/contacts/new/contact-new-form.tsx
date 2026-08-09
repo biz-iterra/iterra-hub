@@ -147,8 +147,11 @@ export function ContactNewForm({
   masters,
   initialCompanyId = "",
   initialAccountId = "",
+  defaultOwnerUserId,
 }: {
   masters: Masters;
+  /** 担当者の既定値（ログイン中の利用者） */
+  defaultOwnerUserId?: string;
   /** 事業者情報の詳細から来たときの初期選択。固定はしない（付け替えられる） */
   initialCompanyId?: string;
   /** 取引先の詳細から来たときの紐づけ先。account_contacts に張られる */
@@ -172,7 +175,9 @@ export function ContactNewForm({
     blood_type: "" as BloodType,
     lead_source_id: "",
     line_user_id: "",
-    owner_user_id: "",
+    // **担当者はログイン中の利用者を既定にする。**
+    // 自分が起票したものを自分に付けるのが大半で、毎回選ばせると付け忘れが出る
+    owner_user_id: defaultOwnerUserId ?? "",
     internal_memo: "",
   });
   // 連絡手段と住所は別テーブルだが、**作成時にまとめて登録する**（編集画面と揃える）。

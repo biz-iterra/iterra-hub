@@ -4,7 +4,7 @@ import {
   getLeadSources,
 } from "@/actions/masters";
 import { getCompanies } from "@/actions/companies";
-import { getCrmUsers } from "@/actions/users";
+import { getCrmUsers, getCurrentUser } from "@/actions/users";
 import { AccountNewForm } from "./account-new-form";
 
 export default async function AccountNewPage() {
@@ -46,5 +46,9 @@ export default async function AccountNewPage() {
     })),
   };
 
-  return <AccountNewForm masters={masters} />;
+  const me = await getCurrentUser();
+
+  return (
+    <AccountNewForm masters={masters} defaultOwnerUserId={me.data?.id} />
+  );
 }

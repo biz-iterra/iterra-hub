@@ -370,7 +370,7 @@ export function LeadNewForm({
             </div>
             <div>
               {/*
-                **この画面では商談を伴うステージを選べない**（stages を
+                **この画面ではディールを伴うステージを選べない**（stages を
                 requires_deal で絞ってある）。ステータスを持たないステージ向けの
                 分岐は到達しないため置かない。ステージを増やすときは
                 requires_deal で表すこと（判定をここに書き戻さない）

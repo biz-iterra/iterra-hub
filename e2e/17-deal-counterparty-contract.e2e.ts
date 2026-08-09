@@ -8,15 +8,15 @@ import {
 } from "./helpers";
 
 /**
- * E2E-17 [A] 商談の相手先を複数紐づける / 契約の紐づけ・解除・自動命名
+ * E2E-17 [A] ディールの相手先を複数紐づける / 契約の紐づけ・解除・自動命名
  * 仕様: docs/test-cases/08-e2e-scenarios.md §E2E-17
  *
- * T-0064: 商談の相手は「Ａ社のＢさん」であることが普通。2026-08-07 まで画面が
+ * T-0064: ディールの相手は「Ａ社のＢさん」であることが普通。2026-08-07 まで画面が
  * ラジオで 1 つしか選ばせておらず、DB 制約（いずれか 1 つ以上）より狭かった。
  *
  * T-0065: 契約は `deal_id` が NOT NULL だったため、「紐づける」が必ず
- * **他の商談から奪う付け替え**になっていた。NULL 許容にして、
- * **どの商談にも紐づいていない契約だけ**を候補にする。
+ * **他のディールから奪う付け替え**になっていた。NULL 許容にして、
+ * **どのディールにも紐づいていない契約だけ**を候補にする。
  *
  * T-0067: 紐づけを解除できる（契約そのものは残る）。
  *
@@ -56,22 +56,22 @@ test.describe("E2E-17", () => {
     await page.waitForURL(new RegExp(`/contacts/${UUID_RE.source}$`));
     const contactId = page.url().split("/").pop()!;
 
-    // **セールスの商談には元になったリードが必要**（T-0069）。
-    // 商談を起こせる段階（選定 = TQL）で作る
+    // **セールスのディールには元になったリードが必要**（T-0069）。
+    // ディールを起こせる段階（選定 = TQL）で作る
     const leadName = e2eName("17-lead");
     await page.goto(`/leads/new?company_id=${companyId}`);
     await fieldByLabel(page, "リード名 *").fill(leadName);
-    await fieldByLabel(page, "ステージ *").selectOption({ label: "選定" });
+    await fieldByLabel(page, "ステージ *").selectOption({ label: "リード選定" });
     await selectFirstRealOption(fieldByLabel(page, "ステータス *"));
     await fieldByLabel(page, "事業者種別 *").selectOption({ label: "法人" });
     await page.getByRole("button", { name: "作成" }).click();
     await expectSuccessToast(page, "リードを作成しました");
 
-    /** 商談を作る。相手先は引数で渡したものだけ埋める */
+    /** ディールを作る。相手先は引数で渡したものだけ埋める */
     const createDeal = async (name: string, withContact: boolean) => {
       await page.goto("/deals/new");
 
-      // リードを選ぶ（商談はリードから始まる）
+      // リードを選ぶ（ディールはリードから始まる）
       const leadSelect = page.getByRole("combobox", { name: "リード" });
       await leadSelect.fill(leadName);
       await page.getByRole("option", { name: new RegExp(leadName) }).first().click();
@@ -81,7 +81,7 @@ test.describe("E2E-17", () => {
       // 取引先の欄も無いこと（契約成立時に自動で作られる。T-0070）
       await expect(page.getByRole("combobox", { name: "取引先" })).toHaveCount(0);
       await expect(
-        page.getByText("契約は商談を作成したあとに登録できます", { exact: false })
+        page.getByText("契約はディールを作成したあとに登録できます", { exact: false })
       ).toBeVisible();
 
       await fieldByLabel(page, "取引名 *").fill(name);
@@ -101,17 +101,16 @@ test.describe("E2E-17", () => {
         await expect(companySelect).toHaveValue(new RegExp(companyName));
       }
 
-      await selectFirstRealOption(fieldByLabel(page, "パイプライン *"));
-      await selectFirstRealOption(fieldByLabel(page, "ステージ *"));
+        await selectFirstRealOption(fieldByLabel(page, "ステージ *"));
       await selectFirstRealOption(fieldByLabel(page, "ステータス *"));
 
       await page.getByRole("button", { name: "作成" }).click();
-      await expectSuccessToast(page, "商談を作成しました");
+      await expectSuccessToast(page, "ディールを作成しました");
       await page.waitForURL(new RegExp(`/deals/${UUID_RE.source}$`));
       return page.url().split("/").pop()!;
     };
 
-    // ---- 1. 事業者情報と連絡先を同時に紐づけた商談（T-0064）----
+    // ---- 1. 事業者情報と連絡先を同時に紐づけたディール（T-0064）----
     const dealId = await createDeal(dealName, true);
 
     // 詳細で**両方**リンクが出ること（1 件だけ返す実装だと連絡先が隠れる）
@@ -121,10 +120,10 @@ test.describe("E2E-17", () => {
     ).toBeVisible();
     await expect(page.getByText("取引先は契約時に作成")).toBeVisible();
 
-    // ---- 2. 商談を選ばずに契約を作れること（T-0065）----
+    // ---- 2. ディールを選ばずに契約を作れること（T-0065）----
     await page.goto("/contracts/new");
-    // 商談に必須マークが無いこと
-    const dealLabel = page.locator("label", { hasText: "商談" }).first();
+    // ディールに必須マークが無いこと
+    const dealLabel = page.locator("label", { hasText: "ディール" }).first();
     await expect(dealLabel.getByText("（必須）")).toHaveCount(0);
 
     await fieldByLabel(page, "契約書名").fill(contractName);
@@ -151,7 +150,7 @@ test.describe("E2E-17", () => {
       new RegExp(`20260807_${contractName}_.+_2000000_CTR-`)
     );
 
-    // ---- 4. すでに別の商談に紐づいている契約は候補に出ないこと（T-0065）----
+    // ---- 4. すでに別のディールに紐づいている契約は候補に出ないこと（T-0065）----
     const otherDealId = await createDeal(otherDealName, false);
     await page.goto(`/contracts/new?deal_id=${otherDealId}`);
     await fieldByLabel(page, "契約書名").fill(otherContractName);
@@ -169,14 +168,14 @@ test.describe("E2E-17", () => {
     // バッジ（「すぐ反映」）と説明文（「…すぐ反映されます」）の両方を確かめる
     await expect(page.getByText("すぐ反映", { exact: true })).toBeVisible();
     await expect(page.getByText("すぐ反映されます")).toBeVisible();
-    await expect(page.getByText("この商談に紐づく契約はまだありません。")).toBeVisible();
+    await expect(page.getByText("このディールに紐づく契約はまだありません。")).toBeVisible();
 
     // ---- 6. 未紐づけの契約だけが候補に出ること ----
     await page.getByRole("button", { name: "既存の契約を紐づける" }).click();
     const modal = page.getByRole("dialog");
     await expect(modal).toBeVisible();
     await expect(modal.getByText(new RegExp(contractName))).toBeVisible();
-    // 他の商談に紐づいている契約は出ない
+    // 他のディールに紐づいている契約は出ない
     await expect(modal.getByText(new RegExp(otherContractName))).toHaveCount(0);
 
     await modal
@@ -184,7 +183,7 @@ test.describe("E2E-17", () => {
       .filter({ hasText: contractName })
       .getByRole("button", { name: "紐づける" })
       .click();
-    await expectSuccessToast(page, "契約をこの商談に紐づけました");
+    await expectSuccessToast(page, "契約をこのディールに紐づけました");
 
     // ---- 7. 紐づいた契約が表に出ること ----
     await page.goto(`/deals/${dealId}/edit`);
@@ -200,7 +199,7 @@ test.describe("E2E-17", () => {
     await expectSuccessToast(page, "契約の紐づけを解除しました");
 
     await page.goto(`/deals/${dealId}/edit`);
-    await expect(page.getByText("この商談に紐づく契約はまだありません。")).toBeVisible();
+    await expect(page.getByText("このディールに紐づく契約はまだありません。")).toBeVisible();
 
     // ---- 9. 解除した契約が候補に戻っていること ----
     await page.getByRole("button", { name: "既存の契約を紐づける" }).click();
@@ -210,7 +209,7 @@ test.describe("E2E-17", () => {
     await page.getByRole("button", { name: "閉じる" }).click();
 
     // ---- 後片付け ----
-    // 契約が残っていると商談を消せず、取引先が残っていると事業者情報を消せない。
+    // 契約が残っているとディールを消せず、取引先が残っていると事業者情報を消せない。
     // 取引先は契約作成のトリガーが作ったもので、契約を消しても残る
     const removeVia = async (url: string, toast: string) => {
       await page.goto(url);
@@ -219,8 +218,8 @@ test.describe("E2E-17", () => {
       await expectSuccessToast(page, toast);
     };
 
-    // **両方の商談から取引先を集める。** 契約を後から紐づけたときにも
-    // ensure_account_on_contract が走るので（T-0065）、解除済みの商談にも残る
+    // **両方のディールから取引先を集める。** 契約を後から紐づけたときにも
+    // ensure_account_on_contract が走るので（T-0065）、解除済みのディールにも残る
     const accountIds = new Set<string>();
     for (const id of [dealId, otherDealId]) {
       await page.goto(`/deals/${id}`);
@@ -233,8 +232,8 @@ test.describe("E2E-17", () => {
 
     await removeVia(`/contracts/${contractId}/edit`, "契約を削除しました");
     await removeVia(`/contracts/${otherContractId}/edit`, "契約を削除しました");
-    await removeVia(`/deals/${dealId}/edit`, "商談を削除しました");
-    await removeVia(`/deals/${otherDealId}/edit`, "商談を削除しました");
+    await removeVia(`/deals/${dealId}/edit`, "ディールを削除しました");
+    await removeVia(`/deals/${otherDealId}/edit`, "ディールを削除しました");
     await page.goto("/leads");
     await page.getByRole("link", { name: leadName }).first().click();
     await page.waitForURL(new RegExp(`/leads/${UUID_RE.source}$`));

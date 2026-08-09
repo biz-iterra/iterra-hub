@@ -249,7 +249,7 @@ export function ContractsView({ initialData, isManagerOrAbove, contractTypes }: 
             render: (row) => row.contract_type?.name ?? "—",
           },
           {
-            label: "商談",
+            label: "ディール",
             className: "whitespace-nowrap",
             render: (row) =>
               row.deal ? (

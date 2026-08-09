@@ -779,7 +779,7 @@ docker compose up -d
 | 13 | リードを編集して保存 | 反映される |
 | 14 | **楽観ロック**: 同じリードを 2 つのタブで開き、両方で保存 | 後から保存した側が「他のユーザーによって更新されています」で弾かれる |
 | 15 | **変更履歴**: 編集後に `entity_change_logs` を確認 | 変更カラムのみ記録され、`changed_by` に石田の UUID が入る |
-| 16 | **Deal 昇格**: リードを Opportunity ステージへ | Company / Contact / Account / Deal が同時に作成される |
+| 16 | **Deal 昇格**: リードを オポチュニティステージへ | Company / Contact / Account / Deal が同時に作成される |
 | 17 | 昇格済みリードを再度昇格 | 「すでに Deal に昇格済みです」で拒否される |
 
 #### パフォーマンス（本番固有）
@@ -855,7 +855,7 @@ SELECT l.table_name, l.operation, l.changed_fields, u.full_name, l.changed_at
 - `score` / `score_updated_at` / `temperature_id` は**含まれない**（自動計算による派生値は
   記録対象外。マイグレーション 20260728000003）
 
-#### #16 Deal 昇格（実際に商談化するリードで）
+#### #16 Deal 昇格（実際にディール化するリードで）
 
 リードのステージを Opportunity（`auto_promote_to_deal = true` のステージ）へ変更する。
 
@@ -880,7 +880,7 @@ SELECT lead_name, promoted_deal_id, promoted_company_id, promoted_contact_id, pr
 
 #### #17 二重昇格の拒否（#16 の直後）
 
-同じリードをもう一度 Opportunity ステージへ変更する。
+同じリードをもう一度 オポチュニティステージへ変更する。
 
 **期待:** 「このリードはすでに Deal に昇格済みです」で拒否され、Company / Contact /
 Account / Deal が**増えない**。増えていたら二重発火の防止が効いていない。

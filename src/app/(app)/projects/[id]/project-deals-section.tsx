@@ -14,10 +14,10 @@ import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { tableScrollClass } from "@/lib/layout";
 
 /**
- * プロジェクトに紐づく商談。
+ * プロジェクトに紐づくディール。
  *
- * 商談とプロジェクトは多対多で、どちらが親とも言えないため両側から足し外しできる
- * （商談側は詳細ページの「プロジェクト」）。列が多いので右カラムのリストではなく
+ * ディールとプロジェクトは多対多で、どちらが親とも言えないため両側から足し外しできる
+ * （ディール側は詳細ページの「プロジェクト」）。列が多いので右カラムのリストではなく
  * 本文側のテーブルで出す。
  */
 
@@ -72,7 +72,7 @@ export function ProjectDealsSection({
 }: {
   projectId: string;
   deals: LinkedDeal[];
-  /** 足せる商談。既に紐づいているものは呼び出し側で除いておく */
+  /** 足せるディール。既に紐づいているものは呼び出し側で除いておく */
   options: DealOption[];
   editable?: boolean;
 }) {
@@ -108,7 +108,7 @@ export function ProjectDealsSection({
 
   async function add() {
     if (!draft) {
-      showToast({ type: "error", message: "商談を選んでください" });
+      showToast({ type: "error", message: "ディールを選んでください" });
       return;
     }
     const ok = await run(async () => {
@@ -126,7 +126,7 @@ export function ProjectDealsSection({
 
   return (
     <DetailSection
-      title={`紐づく商談（${deals.length}件）`}
+      title={`紐づくディール（${deals.length}件）`}
       icon={Handshake}
       action={
         <span
@@ -139,11 +139,11 @@ export function ProjectDealsSection({
           <span style={{ fontSize: "0.75rem", color: "var(--color-sumi600)" }}>
             合計金額: ¥{totalAmount.toLocaleString()}
           </span>
-          {/* 既存の商談は下の「紐づけを追加」で選ぶ。ここは新しく起こす導線 */}
+          {/* 既存のディールは下の「紐づけを追加」で選ぶ。ここは新しく起こす導線 */}
           {editable && (
             <AddRelatedLink
               href={`/deals/new?project_id=${projectId}`}
-              label="商談を新規作成"
+              label="ディールを新規作成"
             />
           )}
         </span>
@@ -154,7 +154,7 @@ export function ProjectDealsSection({
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr>
-                {["コード", "商談名", "パイプライン", "ステージ", "金額", "取引先"].map(
+                {["コード", "ディール名", "パイプライン", "ステージ", "金額", "取引先"].map(
                   (h) => (
                     <th key={h} style={th}>
                       {h}
@@ -229,7 +229,7 @@ export function ProjectDealsSection({
         </div>
       ) : (
         <p style={{ color: "var(--color-sumi400)", fontSize: "0.875rem", margin: 0 }}>
-          まだ商談が紐づいていません
+          まだディールが紐づいていません
         </p>
       )}
 
@@ -250,7 +250,7 @@ export function ProjectDealsSection({
               nullable={false}
               disabled={busy}
               autoFocus
-              ariaLabel="紐づける商談"
+              ariaLabel="紐づけるディール"
               searchKind="deal"
             />
             <button

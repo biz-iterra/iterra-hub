@@ -1,13 +1,13 @@
 -- ============================================================
--- 商談とリードの規則を deals.lead_id へ移す（T-0069）
+-- ディールとリードの規則を deals.lead_id へ移す（T-0069）
 --
 --   前のマイグレーションで `deals.lead_id` を正本にした。ここでは
 --   ①リード必須の強制 ②`promoted_deal_id`（派生値）の維持
 --   ③既存の判定 4 つを `lead_id` 経由へ差し替える。
 --
---   **1 リードに商談 N 本**になったので、「商談を消せるか」の判断が変わる。
---   これまでは「参照している商談を消すな」だったが、
---   これからは「**消したあとに生きた商談が 0 件になるなら**消すな」。
+--   **1 リードにディール N 本**になったので、「ディールを消せるか」の判断が変わる。
+--   これまでは「参照しているディールを消すな」だったが、
+--   これからは「**消したあとに生きたディールが 0 件になるなら**消すな」。
 --
 --   差し替える関数は 2026-08-08 の T-0065 で触ったばかりのものを含む。
 --   `20260808000001` の版を土台にしている（取りこぼすと T-0065 の修正が
@@ -19,17 +19,17 @@
 --
 --   CHECK 制約では他テーブル（pipeline_types）を参照できないのでトリガーにする。
 --
---   **既存の商談を詰ませない。** 規則の導入前からある `lead_id` が無い商談は、
+--   **既存のディールを詰ませない。** 規則の導入前からある `lead_id` が無いディールは、
 --   金額を直すといった普通の編集ができなくなってはいけない。
 --   `lead_id` も `pipeline_type_id` も動かない UPDATE は素通しする
 --   （`check_lead_stage_requirements` と同じ判断）。
 -- ------------------------------------------------------------
 --   **「TQL 以上」はここで見ない。** 昇格（リードを Sales へ上げる操作）は
---   「商談を作ってからステージを上げる」順序で動く（逆にすると
---   `check_lead_stage_requirements` の「Sales には商談が必要」と噛み合わない）。
---   つまり昇格の途中では、リードはまだ獲得や育成のまま商談が作られる。
+--   「ディールを作ってからステージを上げる」順序で動く（逆にすると
+--   `check_lead_stage_requirements` の「Sales にはディールが必要」と噛み合わない）。
+--   つまり昇格の途中では、リードはまだ獲得や育成のままディールが作られる。
 --   ここで段階を強制すると**昇格という正当な経路が壊れる**。
---   段階の検査は `create_deal_with_lead`（商談の新規作成画面が通る経路）で行う。
+--   段階の検査は `create_deal_with_lead`（ディールの新規作成画面が通る経路）で行う。
 CREATE OR REPLACE FUNCTION check_deal_lead_requirement()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -52,7 +52,7 @@ BEGIN
   IF NEW.lead_id IS NULL THEN
     IF COALESCE(v_requires_lead, FALSE) THEN
       RAISE EXCEPTION
-        'この商談には元になったリードが必要です。既存のリードを選ぶか、リードを新規作成してください';
+        'このディールには元になったリードが必要です。既存のリードを選ぶか、リードを新規作成してください';
     END IF;
     RETURN NEW;
   END IF;
@@ -64,7 +64,7 @@ BEGIN
   END IF;
 
   IF v_lead.deleted_at IS NOT NULL THEN
-    RAISE EXCEPTION '削除されたリードには商談を紐づけられません';
+    RAISE EXCEPTION '削除されたリードにはディールを紐づけられません';
   END IF;
 
   RETURN NEW;
@@ -72,7 +72,7 @@ END;
 $$;
 
 COMMENT ON FUNCTION check_deal_lead_requirement IS
-'商談に元リードが必要か（pipeline_types.requires_lead）を検査する。段階（is_deal_ready）は昇格経路を壊すのでここでは見ない。create_deal_with_lead が見る';
+'ディールに元リードが必要か（pipeline_types.requires_lead）を検査する。段階（is_deal_ready）は昇格経路を壊すのでここでは見ない。create_deal_with_lead が見る';
 
 DROP TRIGGER IF EXISTS trg_deal_lead_requirement ON deals;
 CREATE TRIGGER trg_deal_lead_requirement
@@ -82,10 +82,10 @@ CREATE TRIGGER trg_deal_lead_requirement
 -- ------------------------------------------------------------
 -- 2. leads.promoted_deal_id（派生値）の維持
 --
---   正本は `deals.lead_id`。この列は「最初に紐づいた商談」を指すだけの
+--   正本は `deals.lead_id`。この列は「最初に紐づいたディール」を指すだけの
 --   派生値で、**アプリからは書かない**。
 --
---   商談が消えたり紐づけが外れたら、他の生きた商談（最古）へ張り替える。
+--   ディールが消えたり紐づけが外れたら、他の生きたディール（最古）へ張り替える。
 --   1 本も無ければ NULL に戻す。
 -- ------------------------------------------------------------
 CREATE OR REPLACE FUNCTION sync_lead_promoted_deal()
@@ -125,7 +125,7 @@ END;
 $$;
 
 COMMENT ON FUNCTION sync_lead_promoted_deal IS
-'leads.promoted_deal_id（派生値）を deals.lead_id から維持する。最初に紐づいた商談を指し、それが消えたら次の商談へ張り替える';
+'leads.promoted_deal_id（派生値）を deals.lead_id から維持する。最初に紐づいたディールを指し、それが消えたら次のディールへ張り替える';
 
 DROP TRIGGER IF EXISTS trg_deals_sync_lead_promoted ON deals;
 CREATE TRIGGER trg_deals_sync_lead_promoted
@@ -136,7 +136,7 @@ CREATE TRIGGER trg_deals_sync_lead_promoted
 -- 3. ステージ要件を deals.lead_id 経由にする
 --
 --   これまで `NEW.promoted_deal_id` を見ていた。派生値なので、
---   正本から数え直す形に変える。**1 リード N 商談**なので
+--   正本から数え直す形に変える。**1 リード N ディール**なので
 --   「1 本でも生きていればよい」。
 -- ------------------------------------------------------------
 CREATE OR REPLACE FUNCTION check_lead_stage_requirements()
@@ -164,7 +164,7 @@ BEGIN
        WHERE lead_id = NEW.id AND deleted_at IS NULL
     ) THEN
       RAISE EXCEPTION
-        '「%」へ進めるには商談が必要です。このリードに紐づく商談がありません',
+        '「%」へ進めるにはディールが必要です。このリードに紐づくディールがありません',
         v_stage.name;
     END IF;
   END IF;
@@ -179,7 +179,7 @@ BEGIN
          AND c.deleted_at IS NULL
     ) THEN
       RAISE EXCEPTION
-        '「%」へ進めるには契約が必要です。商談に契約が登録されていないため、このステージには変更できません',
+        '「%」へ進めるには契約が必要です。ディールに契約が登録されていないため、このステージには変更できません',
         v_stage.name;
     END IF;
   END IF;
@@ -189,13 +189,13 @@ END;
 $$;
 
 COMMENT ON FUNCTION check_lead_stage_requirements IS
-'リードのステージ遷移時に、そのステージが要求する実体（商談・契約）の存在を確認する。判定は deals.lead_id 経由。ステージが変わるときだけ検査する';
+'リードのステージ遷移時に、そのステージが要求する実体（ディール・契約）の存在を確認する。判定は deals.lead_id 経由。ステージが変わるときだけ検査する';
 
 -- ------------------------------------------------------------
--- 4. 商談の削除ガード
+-- 4. ディールの削除ガード
 --
---   1 リード N 商談になったので「参照されている商談は消せない」では厳しすぎる。
---   **消したあとに生きた商談が 0 件になる場合だけ**拒む。
+--   1 リード N ディールになったので「参照されているディールは消せない」では厳しすぎる。
+--   **消したあとに生きたディールが 0 件になる場合だけ**拒む。
 -- ------------------------------------------------------------
 CREATE OR REPLACE FUNCTION check_deal_deletion_against_leads()
 RETURNS TRIGGER
@@ -230,7 +230,7 @@ BEGIN
 
   IF v_lead_name IS NOT NULL THEN
     RAISE EXCEPTION
-      'この商談はリード「%」が参照している唯一の商談です。先にリードのステージを下げてから削除してください',
+      'このディールはリード「%」が参照している唯一のディールです。先にリードのステージを下げてから削除してください',
       v_lead_name;
   END IF;
 
@@ -239,7 +239,7 @@ END;
 $$;
 
 COMMENT ON FUNCTION check_deal_deletion_against_leads IS
-'商談の論理削除で「ステージは Sales 以降なのに商談が無い」状態を作らせない。1 リードに複数の商談があるときは、最後の 1 本だけ拒む';
+'ディールの論理削除で「ステージは Sales 以降なのにディールが無い」状態を作らせない。1 リードに複数のディールがあるときは、最後の 1 本だけ拒む';
 
 -- ------------------------------------------------------------
 -- 5. 契約の削除・紐づけ解除ガード（T-0065 の版を土台に lead_id 経由へ）
@@ -261,7 +261,7 @@ BEGIN
     RETURN NEW;
   END IF;
 
-  -- もともとどの商談にも付いていなければ、リードが参照しようがない
+  -- もともとどのディールにも付いていなければ、リードが参照しようがない
   IF OLD.deal_id IS NULL THEN
     RETURN NEW;
   END IF;
@@ -302,7 +302,7 @@ END;
 $$;
 
 COMMENT ON FUNCTION check_contract_detach_against_leads IS
-'契約の論理削除・商談からの紐づけ解除で「ステージは取引先なのに契約が無い」状態を作らせない。判定は deals.lead_id 経由';
+'契約の論理削除・ディールからの紐づけ解除で「ステージは取引先なのに契約が無い」状態を作らせない。判定は deals.lead_id 経由';
 
 -- ------------------------------------------------------------
 -- 6. 取引先の自動作成（T-0065 の版を土台に lead_id 経由へ）
@@ -386,7 +386,7 @@ BEGIN
       v_company.lead_source_id, COALESCE(v_deal.owner_user_id, v_actor), v_actor
     ) RETURNING id INTO v_account_id;
 
-    -- 商談の相手担当者をそのまま取引先の主担当にする
+    -- ディールの相手担当者をそのまま取引先の主担当にする
     IF v_deal.contact_id IS NOT NULL THEN
       INSERT INTO account_contacts (account_id, contact_id, role)
       VALUES (v_account_id, v_deal.contact_id, 'primary')
@@ -424,7 +424,7 @@ END;
 $$;
 
 COMMENT ON FUNCTION ensure_account_on_contract IS
-'契約の登録・商談への紐づけ時に、取引先が未作成の商談へ取引先を作って紐付ける。契約と同一トランザクションで実行される';
+'契約の登録・ディールへの紐づけ時に、取引先が未作成のディールへ取引先を作って紐付ける。契約と同一トランザクションで実行される';
 
 -- ------------------------------------------------------------
 -- 7. 不整合の検出ビューも lead_id 経由へ

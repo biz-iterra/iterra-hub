@@ -14,7 +14,7 @@
 
 ## 顧客と取引
 
-名刺から事業者・連絡先が生まれ、商談を経て契約で取引先ができる。
+名刺から事業者・連絡先が生まれ、ディールを経て契約で取引先ができる。
 
 ```mermaid
 erDiagram
@@ -78,7 +78,7 @@ erDiagram
 
 ## リードとマーケティング
 
-取り込んだリードを育て、商談へ昇格させるまで。
+取り込んだリードを育て、ディールへ昇格させるまで。
 
 ```mermaid
 erDiagram
@@ -207,7 +207,7 @@ erDiagram
 | `lead_score_rules` | リード加点ルールマスタ |
 | `lead_small_segments` | リード 小セグメント（旧: inside_sales_small_segments） |
 | `lead_sources` |  |
-| `lead_stages` | リードステージ（7段階: 獲得/育成/選定/SQL/Opportunity/Customer/Dead） |
+| `lead_stages` | リードステージ（7段階: リード獲得/ナーチャリング/リード選定/ディール/オポチュニティ/取引先/デッド） |
 | `lead_statuses` | リードステータス（ステージに従属、UNIQUE(stage_id, code)） |
 | `lead_temperatures` | リード温度感マスタ（hot/warm/cold） |
 | `pipeline_types` |  |

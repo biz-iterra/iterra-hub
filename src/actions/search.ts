@@ -25,7 +25,7 @@ const RESULT_LIMIT = 5;
 
 const TYPE_LABELS: Record<SearchResultType, string> = {
   lead: "リード",
-  deal: "商談",
+  deal: "ディール",
   account: "取引先",
   company: "事業者情報",
   contact: "連絡先",

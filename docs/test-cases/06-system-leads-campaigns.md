@@ -58,7 +58,7 @@
 - 権限: admin
 - 事前条件: LD-01 と同じ
 - 手順:
-  1. ステージフィルタで「獲得」を選ぶ
+  1. ステージフィルタで「リード獲得」を選ぶ
   2. ステータスフィルタの選択肢を確認する
   3. キーワードに「株式会社」を入力する
   4. 担当者・カテゴリ・温度感でも順に絞り込む
@@ -76,7 +76,7 @@
 - 権限: admin
 - 事前条件: lead_score_rules に lead_source / stage 等の加点ルールが存在する（seed 投入済み）
 - 手順:
-  1. `/leads/new` で lead_name「テスト商事」、取引先種別「法人」、ステージ「獲得」、当該ステージのステータス、リードソース、担当者 admin を入力
+  1. `/leads/new` で lead_name「テスト商事」、取引先種別「法人」、ステージ「リード獲得」、当該ステージのステータス、リードソース、担当者 admin を入力
   2. 保存する
   3. 作成されたリード詳細でスコアと温度感を確認する
   4. SQL: `SELECT score, temperature_id FROM leads WHERE lead_name = 'テスト商事'` と `lead_score_breakdowns` の行を確認
@@ -117,7 +117,7 @@
 
 - 対象: `createLead` / `updateLead` のステージ整合性分岐
 - 権限: admin
-- 事前条件: 「獲得」「育成」など複数ステージとそれぞれのステータスが存在。Opportunity ステージ（`auto_promote_to_deal = true`）にはステータス定義がない
+- 事前条件: 「リード獲得」「ナーチャリング」など複数ステージとそれぞれのステータスが存在。オポチュニティステージ（`auto_promote_to_deal = true`）にはステータス定義がない
 - 手順:
   1. 通常ステージを選び status_id を null のまま送信（Server Action 直叩き）
   2. 通常ステージ A を選び、別ステージ B 所属の status_id を送信
@@ -267,16 +267,16 @@
 - 権限: admin
 - 事前条件: 取引先種別「法人」・company_name「昇格テスト株式会社」・担当者情報（contact_last_name 等）・corporate_number 未重複・url 入力済みの未昇格リード。pipeline_types に slug=sales が存在
 - 手順:
-  1. 編集画面でステージを Opportunity（auto_promote_to_deal = true）に変更して保存する
+  1. 編集画面でステージを オポチュニティ（auto_promote_to_deal = true）に変更して保存する
   2. 昇格確認ダイアログで確定する
   3. SQL で companies / contacts / accounts / deals / leads の各行を確認する
 - 期待結果:
-  - トースト「商談に昇格しました。事業者情報と連絡先も作成されました」
+  - トースト「ディールに昇格しました。事業者情報と連絡先も作成されました」
   - companies に**新規**行（name = 昇格テスト株式会社、name_kana / representative_name / corporate_number / phone = company_phone、website_url = leads.url を転記）— 既存 Company への紐付けはしない
   - contacts に新規行（contact_type = corporate_rep、姓名 = contact_last_name / first_name、website_url = null）
   - accounts に新規行（account_status = 見込み、name = company_name）※契約前でも昇格経路では Account が作られる
   - deals に新規行（name = 「<lead_name> 案件」、sales パイプラインの先頭ステージ・先頭ステータス、owner = リード担当者）
-  - leads.promoted_deal_id / promoted_company_id / promoted_contact_id / promoted_account_id が設定され、status_id は null（Opportunity にステータスなし）
+  - leads.promoted_deal_id / promoted_company_id / promoted_contact_id / promoted_account_id が設定され、status_id は null（オポチュニティ にステータスなし）
 - 自動化区分: 自動(Playwright)（DB 検証は SQL 併用）
 
 ### LD-16: Deal 昇格（個人）— Contact(individual) と URL 転記先の分岐
@@ -284,9 +284,9 @@
 - 対象: 同上（個人分岐）
 - 権限: admin
 - 事前条件: 取引先種別「個人事業主」等（slug が corporate / government 以外）、company_name なし、url 入力済み、contact_phone 空・company_phone 入力済みの未昇格リード
-- 手順: LD-15 と同様に Opportunity へ変更して保存する
+- 手順: LD-15 と同様に オポチュニティ へ変更して保存する
 - 期待結果:
-  - トースト「商談に昇格しました。連絡先も作成されました」（事業者情報の文言なし）
+  - トースト「ディールに昇格しました。連絡先も作成されました」（事業者情報の文言なし）
   - companies は**作成されない**
   - contacts に新規行（contact_type = individual、website_url = leads.url、電話 = company_phone のフォールバック）
   - contact_last_name 未入力の場合、lead_name をスペース分割して姓・名にフォールバックする
@@ -299,13 +299,13 @@
 - 権限: admin
 - 事前条件: companies に corporate_number = `9999999999999` の企業「重複商事」が存在。同番号を持つ法人リード（未昇格）
 - 手順:
-  1. 編集画面でステージを Opportunity に変更し、昇格確認ダイアログで確定する
+  1. 編集画面でステージを オポチュニティ に変更し、昇格確認ダイアログで確定する
   2. `SELECT stage_id, status_id, promoted_deal_id FROM leads WHERE id = ...` で状態を確認する
-  3. corporate_number を別番号に修正して再度保存する（ステージは Opportunity のまま）
+  3. corporate_number を別番号に修正して再度保存する（ステージは オポチュニティ のまま）
 - 期待結果:
   1. 昇格が**ブロック**され、確認ダイアログ内にインラインでエラー「[corporate_number] 法人番号 9999999999999 の企業「重複商事」が既に登録されています。別企業なら法人番号を修正してください。同一企業への昇格はできません。受信値: 9999999999999 ステージは元に戻しましたので、内容をご確認のうえ再度保存してください」が表示される
-  2. companies / contacts / accounts / deals に新規行が作られない（DB 関数トランザクションのため中間データも残らない）。`updateLead` が昇格失敗を検知すると `stage_id` / `status_id` を編集前の値へ戻す UPDATE を追加発行するため、リードは Opportunity に**留まらず**元のステージ・ステータスに戻り、`promoted_deal_id` は NULL のまま（不変条件「auto_promote_to_deal なステージのリードは promoted_deal_id を持つ」を維持。旧仕様の不整合は §3 懸念 2 参照＝解消済み）
-  3. corporate_number 修正後の再保存では、ステージが既に Opportunity から戻っているため再度「Opportunity へ変更」する遷移として扱われ、`promoteLeadToDeal` が再試行されて成功する（万一ステージ変更を伴わない保存でも、現在のステージが auto_promote_to_deal かつ promoted_deal_id が NULL であれば再試行される）
+  2. companies / contacts / accounts / deals に新規行が作られない（DB 関数トランザクションのため中間データも残らない）。`updateLead` が昇格失敗を検知すると `stage_id` / `status_id` を編集前の値へ戻す UPDATE を追加発行するため、リードは オポチュニティ に**留まらず**元のステージ・ステータスに戻り、`promoted_deal_id` は NULL のまま（不変条件「auto_promote_to_deal なステージのリードは promoted_deal_id を持つ」を維持。旧仕様の不整合は §3 懸念 2 参照＝解消済み）
+  3. corporate_number 修正後の再保存では、ステージが既に オポチュニティ から戻っているため再度「オポチュニティ へ変更」する遷移として扱われ、`promoteLeadToDeal` が再試行されて成功する（万一ステージ変更を伴わない保存でも、現在のステージが auto_promote_to_deal かつ promoted_deal_id が NULL であれば再試行される）
 - 自動化区分: 自動(Playwright)
 
 ### LD-18: 二重昇格の防止
@@ -314,11 +314,11 @@
 - 権限: admin
 - 事前条件: LD-15 で昇格済みのリード
 - 手順:
-  1. 昇格済みリードを再度編集し、別ステージ → Opportunity に戻して保存する
+  1. 昇格済みリードを再度編集し、別ステージ → オポチュニティ に戻して保存する
   2. Server Action 直叩きで `promoteLeadToDeal(leadId)` を呼ぶ
 - 期待結果:
-  1. 保存は成功するが商談は**再生成されない**（deals の件数不変。promoted_deal_id 既存のためスキップ）
-  2. 「このリードはすでに商談に昇格済みです」が返る
+  1. 保存は成功するがディールは**再生成されない**（deals の件数不変。promoted_deal_id 既存のためスキップ）
+  2. 「このリードはすでにディールに昇格済みです」が返る
 - 自動化区分: 自動(API)
 
 ### LD-19: 昇格の必須情報・ステージ条件エラー
@@ -328,8 +328,8 @@
 - 事前条件: (a) account_type_id 未設定の未昇格リード、(b) 通常ステージのリード、(c) member が担当者でないリード
 - 手順: それぞれ Server Action 直叩きで promoteLeadToDeal を実行する
 - 期待結果:
-  - (a) `[ステージ遷移] Opportunity 昇格には lead_name と account_type_id が必要です`（UI では編集画面が法人名入力時に種別を自動補完するため API で検証）
-  - (b) `現在のステージは商談昇格対象ではありません`
+  - (a) `[ステージ遷移] オポチュニティ 昇格には lead_name と account_type_id が必要です`（UI では編集画面が法人名入力時に種別を自動補完するため API で検証）
+  - (b) `現在のステージはディール昇格対象ではありません`
   - (c) member 実行時 `このリードを昇格させる権限がありません`
 - 自動化区分: 自動(API)
 
@@ -337,73 +337,73 @@
 
 - 対象: `updateLead` + DB トリガー `trg_lead_stage_requirements`（`docs/database-design.md` §24）
 - 権限: admin
-- 事前条件: 商談を持たないリード（`promoted_deal_id IS NULL`）を用意する
+- 事前条件: ディールを持たないリード（`promoted_deal_id IS NULL`）を用意する
 - 手順:
   1. 獲得のリードを「取引先」へ直接変更して保存する
-  2. 商談が自動生成されたリード（Sales / Opportunity）を「取引先」へ変更して保存する
-  3. その商談に契約を 1 件作ってから、再度「取引先」へ変更して保存する
+  2. ディールが自動生成されたリード（ディール / オポチュニティ）を「取引先」へ変更して保存する
+  3. そのディールに契約を 1 件作ってから、再度「取引先」へ変更して保存する
   4. Server Action を直叩きして 1 と同じ操作を行う
 - 期待結果:
-  1. `「取引先」へ進めるには商談が必要です。…` がトーストに出て、ステージは変わらない
+  1. `「取引先」へ進めるにはディールが必要です。…` がトーストに出て、ステージは変わらない
   2. `「取引先」へ進めるには契約が必要です。…`
   3. 保存できる。ステージが「取引先」になる
   4. UI を介さなくても同じ文言で拒否される（**画面の出し分けに依存しない**）
 - 自動化区分: 自動(Playwright + API)
 
-### LD-24: Sales へ進めると商談が自動生成され、ステータスが消えない（2026-08-04 追加）
+### LD-24: ディール へ進めるとディールが自動生成され、ステータスが消えない（2026-08-04 追加）
 
 - 対象: `updateLead` の昇格順序 / `stageHasStatuses` 判定
 - 権限: admin
 - 手順:
-  1. 育成のリードを「Sales」＋ステータス「商談化」に変更して保存する
+  1. ナーチャリングのリードを「ディール」＋ステータス「商談化」に変更して保存する
   2. 保存後の詳細画面と `/deals` を確認する
-  3. 続けて「Opportunity」へ変更して保存する
+  3. 続けて「オポチュニティ」へ変更して保存する
 - 期待結果:
-  1. 保存できる。**商談が自動生成される**（Sales も `auto_promote_to_deal`）
+  1. 保存できる。**ディールが自動生成される**（ディール も `auto_promote_to_deal`）
   2. ステータスが「商談化」のまま残る（**旧実装は `auto_promote_to_deal` で status を NULL にしていた**）。
-     商談一覧に新しい商談が出る
-  3. Opportunity はステータス定義が無いので `status_id` が NULL になる。
-     **商談は二重に作られない**（`promoted_deal_id` があるため再昇格しない）
+     ディール一覧に新しいディールが出る
+  3. オポチュニティ はステータス定義が無いので `status_id` が NULL になる。
+     **ディールは二重に作られない**（`promoted_deal_id` があるため再昇格しない）
 - 自動化区分: 自動(Playwright)
 
 ### LD-25: 昇格に失敗してもステージは動かない（2026-08-04 追加）
 
-- 対象: `updateLead` の「商談を先に作る」順序
+- 対象: `updateLead` の「ディールを先に作る」順序
 - 権限: admin
 - 事前条件: 法人番号が既存企業と重複するリード（昇格が必ず失敗する状態）
 - 手順:
-  1. そのリードを「Sales」へ変更して保存する
+  1. そのリードを「ディール」へ変更して保存する
   2. 保存後にリードのステージを確認する
 - 期待結果:
-  - `商談昇格に失敗しました: [corporate_number] …` が返る
+  - `ディール昇格に失敗しました: [corporate_number] …` が返る
   - **ステージは元のまま**（旧実装は先にステージを変えてから補償処理で戻していた。
-    戻す処理自体が失敗すると Opportunity のまま商談なしで残る穴があった）
-  - 商談は作られていない
+    戻す処理自体が失敗すると オポチュニティ のままディールなしで残る穴があった）
+  - ディールは作られていない
 - 自動化区分: 自動(API)
 
-### LD-26: 商談が要るステージは新規作成では選べない（2026-08-04 追加）
+### LD-26: ディールが要るステージは新規作成では選べない（2026-08-04 追加）
 
 - 対象: `/leads/new`（選択肢の絞り込み）+ `createLead`
 - 権限: admin
 - 手順:
   1. `/leads/new` のステージ選択肢を確認する
-  2. Server Action を直叩きし、`stage_id` に Sales を指定して作成する
+  2. Server Action を直叩きし、`stage_id` に ディール を指定して作成する
 - 期待結果:
-  1. 選択肢は 獲得 / 育成 / 選定 / Dead のみ。**Sales / Opportunity / 取引先 は出ない**
-  2. `[stage_id] 「Sales」は商談が必要なステージのため、新規作成では選べません。…`
+  1. 選択肢は リード獲得 / ナーチャリング / リード選定 / デッド のみ。**ディール / オポチュニティ / 取引先 は出ない**
+  2. `[stage_id] 「ディール」はディールが必要なステージのため、新規作成では選べません。…`
 - 自動化区分: 自動(Playwright + API)
 
-### LD-27: 参照されている商談・契約は削除できない（2026-08-04 追加）
+### LD-27: 参照されているディール・契約は削除できない（2026-08-04 追加）
 
 - 対象: `check_deal_deletion_against_leads` / `check_contract_deletion_against_leads`
 - 権限: admin
 - 手順:
   1. 「取引先」ステージのリードが参照する契約を削除する
-  2. 同じリードが参照する商談を削除する
-  3. リードのステージを「育成」へ下げてから、1・2 をやり直す
+  2. 同じリードが参照するディールを削除する
+  3. リードのステージを「ナーチャリング」へ下げてから、1・2 をやり直す
 - 期待結果:
   1. `この契約はリード「…」が参照している唯一の契約です。先にリードのステージを下げてから削除してください`
-  2. `この商談はリード「…」が参照しています。…`
+  2. `このディールはリード「…」が参照しています。…`
   3. どちらも削除できる
 - 自動化区分: 自動(API)
 
@@ -416,11 +416,11 @@
   昇格が全滅**した。ステージ以外を先に保存してから昇格するよう直した
 - 手順:
   1. 事業者種別が未設定のリードを開く（取込・seed 由来のもの）
-  2. 編集画面で事業者種別を選び、**同じ保存で**ステージを Sales / Opportunity に変える
+  2. 編集画面で事業者種別を選び、**同じ保存で**ステージを ディール / オポチュニティ に変える
   3. リード名も変えて同じ操作を行う
 - 期待結果:
   - 2: 昇格が成功する（`リード名と事業者種別が必要です` にならない）
-  - 3: 作られた商談・事業者情報に**変更後の**名前が付く
+  - 3: 作られたディール・事業者情報に**変更後の**名前が付く
   - 昇格に失敗した場合は、該当の入力欄の下に理由が出る（トーストではない）
 - 自動化区分: 自動(Playwright)（E2E-12 が 3 を担保）
 
@@ -1014,7 +1014,7 @@
 - 権限: admin
 - 事前条件: IMP-12 で web_form ソースのリードが作成済み
 - 手順: `/progress/inquiry` を開き、新規リードがカテゴリ inquiry として集計に含まれることを確認する
-- 期待結果: 合計件数に +1 され、カンバンの「獲得」列（ステータス: 未対応）に現れる。`/leads` のカテゴリフィルタ結果とも一致する
+- 期待結果: 合計件数に +1 され、カンバンの「リード獲得」列（ステータス: 未対応）に現れる。`/leads` のカテゴリフィルタ結果とも一致する
 - 自動化区分: 自動(Playwright)
 
 ---

@@ -8,8 +8,8 @@
 
 export const MASTER_LABELS: Record<string, string> = {
   pipeline_types: "パイプライン種別",
-  deal_stages: "商談ステージ",
-  deal_statuses: "商談ステータス",
+  deal_stages: "ディールステージ",
+  deal_statuses: "ディールステータス",
   contract_types: "契約種別",
   corporate_types: "法人格",
   services: "サービス",
@@ -48,7 +48,7 @@ export const ENTITY_LABELS: Record<string, string> = {
   companies: "事業者情報",
   contacts: "連絡先",
   accounts: "取引先",
-  deals: "商談",
+  deals: "ディール",
   contracts: "契約",
   leads: "リード",
   campaigns: "キャンペーン",
@@ -65,7 +65,7 @@ export const ENTITY_LABELS: Record<string, string> = {
   account_contacts: "取引先の担当者",
   talent_skills: "タレントのスキル",
   talent_careers: "タレントの経歴",
-  deal_services: "商談のサービス",
+  deal_services: "ディールのサービス",
   lead_owners: "リードの副担当",
   lead_campaigns: "リードのキャンペーン",
   crm_users: "ユーザー",

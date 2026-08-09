@@ -8,7 +8,7 @@ import { authFile, type Role } from "./roles";
  * かつて多くのフォームが保存成功時に `router.push(...); router.refresh();` を
  * 直後に連続で呼んでおり、refresh が現在ルートの再フェッチを始めることで
  * 進行中の遷移が打ち消され、トーストは出るのに URL が変わらないことがあった。
- * プロダクトオーナーの実操作（Gate 4）で「契約・商談・連絡先の保存後に
+ * プロダクトオーナーの実操作（Gate 4）で「契約・ディール・連絡先の保存後に
  * 画面が変わらない」として報告され、`router.refresh()` を除去して
  * キャッシュ更新を Server Action の `revalidatePath` に寄せることで解消した。
  *

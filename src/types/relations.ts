@@ -48,7 +48,7 @@ export type DealWithRelations = Row<"deals"> & {
   pipeline_type: (NamedRef & { screen_key: string | null }) | null;
   deal_stage: SortedColoredRef | null;
   deal_status: SortedColoredRef | null;
-  /** 取引先は契約成立時に作られるため、契約前の商談では null */
+  /** 取引先は契約成立時に作られるため、契約前のディールでは null */
   account:
     | (Ref<"accounts", "id" | "account_code" | "name"> & {
         company: NamedRef | null;
@@ -63,7 +63,7 @@ export type DealWithRelations = Row<"deals"> & {
    * 元になったリード（T-0069）。
    *
    * **member では null になりうる。** leads の RLS は「自分が担当か
-   * manager 以上」なので、他人のリードから作られた商談は見えても
+   * manager 以上」なので、他人のリードから作られたディールは見えても
    * リードは引けない。表示側は null 安全に書く
    */
   lead:
@@ -85,7 +85,7 @@ export type DealDetail = DealWithRelations & {
     | "start_date"
     | "end_date"
     | "amount"
-    // 商談の編集画面から紐づけを解除するときの楽観ロックに使う
+    // ディールの編集画面から紐づけを解除するときの楽観ロックに使う
     | "updated_at"
     | "deleted_at"
   >[];
@@ -442,8 +442,8 @@ export type ContractDetail = ContractWithRelations & {
 /**
  * contracts.ts の listLinkableContracts に対応。
  *
- * 商談へ紐づける候補。**どの商談にも紐づいていない契約だけ**が来る（T-0065）。
- * 他の商談の契約は候補にしないので、移動元を持たない。
+ * ディールへ紐づける候補。**どのディールにも紐づいていない契約だけ**が来る（T-0065）。
+ * 他のディールの契約は候補にしないので、移動元を持たない。
  */
 export type LinkableContract = Ref<
   "contracts",

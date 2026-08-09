@@ -11,7 +11,10 @@ import { isFieldValidationError } from "@/lib/errors";
 import { calculateDefaultCloseDate } from "@/lib/deals/expected-close-date";
 import { formContainerClass, fieldGridClass, formActionsClass } from "@/lib/layout";
 import { RequiredMark } from "@/components/ui/RequiredMark";
-import { pipelineListPath } from "@/lib/deals/pipeline-screen";
+import {
+  pipelineListLabel,
+  pipelineListPath,
+} from "@/lib/deals/pipeline-screen";
 import {
   DealLeadPicker,
   type DealLeadPickerValue,
@@ -40,7 +43,7 @@ type Masters = {
   companies: SelectOption[];
   contacts: SelectOption[];
   owners: SelectOption[];
-  /** リードのステージ全件。商談を作れる段階かの判定と、上げ先の決定に使う */
+  /** リードのステージ全件。ディールを作れる段階かの判定と、上げ先の決定に使う */
   leadStages: LeadStageForDeal[];
   accountTypes: SelectOption[];
   leadSources: SelectOption[];
@@ -49,10 +52,10 @@ type Masters = {
 /**
  * 相手先。**排他ではない。**
  *
- * 商談の相手は「Ａ社のＢさん」であることが普通なので、事業者情報と連絡先を
+ * ディールの相手は「Ａ社のＢさん」であることが普通なので、事業者情報と連絡先を
  * 同時に選べる（DB の `deals_counterparty_check` も「いずれか 1 つ以上」）。
  * **取引先は選ばせない**（2026-08-08。T-0070）。契約が成立したときに
- * 自動で作られるもので、商談を作る時点では存在しない。
+ * 自動で作られるもので、ディールを作る時点では存在しない。
  */
 const COUNTERPARTY_FIELDS = [
   {
@@ -178,33 +181,59 @@ export function DealNewForm({
   initialContactId = "",
   initialProjectId = "",
   initialLeadId = "",
+  defaultOwnerUserId,
+  pipelineTypeId,
+  requiresLead,
 }: {
   masters: Masters;
-  /** 各詳細から「商談を追加」で来たときの初期選択。いずれも固定はしない */
+  /** 担当者の既定値（ログイン中の利用者） */
+  defaultOwnerUserId?: string;
+  /**
+   * どのパイプラインで作るか。**画面が決めるので選ばせない**（T-0079）。
+   * セールス / プロキュアメント / パートナーシップのそれぞれから来る
+   */
+  pipelineTypeId: string;
+  /**
+   * このパイプラインでリードが要るか（`pipeline_types.requires_lead`）。
+   * セールスは必須。プロキュアメント・パートナーシップは相手が既にいる
+   * ところから始まるので要らない
+   */
+  requiresLead: boolean;
+  /** 各詳細から「ディールを追加」で来たときの初期選択。いずれも固定はしない */
   initialCompanyId?: string;
   initialContactId?: string;
   /** プロジェクトから来たときの紐づけ先。作成後に deal_projects が張られる */
   initialProjectId?: string;
-  /** リード詳細の「商談を追加」から来たとき */
+  /** リード詳細の「ディールを追加」から来たとき */
   initialLeadId?: string;
 }) {
   const router = useRouter();
   const { showToast } = useToast();
+
+  // 画面が決めたパイプライン。選択欄は無い（T-0079）
+  const pipeline = masters.pipelineTypes.find((p) => p.value === pipelineTypeId);
+
   const [values, setValues] = useState({
     name: "",
-    pipeline_type_id: "",
+    pipeline_type_id: pipelineTypeId,
     deal_stage_id: "",
     deal_status_id: "",
     amount: "",
     company_id: initialCompanyId,
     contact_id: initialContactId,
-    owner_user_id: "",
+    // **担当者はログイン中の利用者を既定にする。**
+    // 自分が起票したものを自分に付けるのが大半で、毎回選ばせると付け忘れが出る
+    owner_user_id: defaultOwnerUserId ?? "",
     application_date: "",
     review_completed_date: "",
-    expected_close_date: "",
+    expected_close_date:
+      calculateDefaultCloseDate(
+        new Date(),
+        pipeline?.default_close_months ?? null
+      ) ?? "",
   });
 
-  // リード。商談はここから始まる（T-0070）
+  // リード。ディールはここから始まる（T-0070）
   const [leadValue, setLeadValue] = useState<DealLeadPickerValue>({
     mode: "existing",
     leadId: initialLeadId,
@@ -224,7 +253,19 @@ export function DealNewForm({
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [autoCloseDateNote, setAutoCloseDateNote] = useState<string | null>(null);
+  // **クローズ予定日の既定は初期表示で入れる。** パイプラインを選ぶ操作が
+  // 無くなったので、選択のたびに計算していた従来の入口が消えた
+  const [autoCloseDateNote, setAutoCloseDateNote] = useState<string | null>(
+    () => {
+      const months = pipeline?.default_close_months ?? null;
+      if (!pipeline || calculateDefaultCloseDate(new Date(), months) === null) {
+        return null;
+      }
+      return `${pipeline.label}パイプラインの既定（${
+        months === 0 ? "0ヶ月後 = 今日" : `${months}ヶ月後`
+      }）を設定しました。変更できます`;
+    }
+  );
   // クローズ予定日をユーザーが一度でも手で編集したら、以降はパイプライン変更で上書きしない
   const closeDateTouchedRef = useRef(false);
 
@@ -248,10 +289,8 @@ export function DealNewForm({
 
   const raiseTargetStage = pickRaiseTargetStage(masters.leadStages);
 
-  // 選んだパイプラインの一覧へ戻る。未選択ならセールス
-  const currentListPath = pipelineListPath(
-    masters.pipelineTypes.find((p) => p.value === values.pipeline_type_id)?.screen_key
-  );
+  // 作成元の一覧へ戻る
+  const currentListPath = pipelineListPath(pipeline?.screen_key);
 
   const set = <K extends keyof typeof values>(
     key: K,
@@ -276,37 +315,6 @@ export function DealNewForm({
     [masters.dealStatuses, values.pipeline_type_id]
   );
 
-  const handlePipelineChange = (nextId: string) => {
-    // 一度でも手動編集していれば、クローズ予定日はパイプライン変更で上書きしない
-    if (closeDateTouchedRef.current) {
-      setValues((v) => ({
-        ...v,
-        pipeline_type_id: nextId,
-        deal_stage_id: "",
-        deal_status_id: "",
-      }));
-      return;
-    }
-
-    const pipeline = masters.pipelineTypes.find((p) => p.value === nextId);
-    const months = pipeline?.default_close_months ?? null;
-    const defaultDate = calculateDefaultCloseDate(new Date(), months);
-
-    setValues((v) => ({
-      ...v,
-      pipeline_type_id: nextId,
-      deal_stage_id: "",
-      deal_status_id: "",
-      expected_close_date: defaultDate ?? "",
-    }));
-
-    setAutoCloseDateNote(
-      defaultDate && pipeline
-        ? `${pipeline.label}パイプラインの既定（${months === 0 ? "0ヶ月後 = 今日" : `${months}ヶ月後`}）を設定しました。変更できます`
-        : null
-    );
-  };
-
   const handleCloseDateChange = (value: string) => {
     closeDateTouchedRef.current = true;
     setAutoCloseDateNote(null);
@@ -325,18 +333,28 @@ export function DealNewForm({
       return;
     }
 
-    // リードは商談の起点。押す前に画面で弾く（DB のトリガーでも弾かれる）
-    if (leadValue.mode === "existing") {
+    // リードはディールの起点。押す前に画面で弾く（DB のトリガーでも弾かれる）
+    if (!requiresLead) {
+      // リードが要らないパイプライン。相手先は下の共通チェックで見る
+    } else if (leadValue.mode === "existing") {
       if (!leadValue.leadId) {
         setSaving(false);
         setError("リードを選んでください");
+        return;
+      }
+      // **リードの中身がまだ届いていないうちは作らせない。**
+      // 相手先と取引名はリードから埋まるので、待たずに押すと
+      // 「相手先を選んでください」という的外れな理由で止まる
+      if (!selectedLead) {
+        setSaving(false);
+        setError("リードの情報を読み込んでいます。少し待ってからもう一度お試しください");
         return;
       }
       const verdict = evaluateLeadForDeal(selectedLead);
       if (!verdict.ok && verdict.needsStageRaise && !leadValue.raiseStage) {
         setSaving(false);
         setError(
-          `${verdict.message}「${raiseTargetStage?.name ?? "選定"}」へ進めて商談を作る、にチェックを入れてください。`
+          `${verdict.message}「${raiseTargetStage?.name ?? "リード選定"}」へ進めてディールを作る、にチェックを入れてください。`
         );
         return;
       }
@@ -366,14 +384,17 @@ export function DealNewForm({
     }
 
     const payload = {
-      lead_mode: leadValue.mode,
-      lead_id: leadValue.mode === "existing" ? leadValue.leadId : null,
+      // リードを要さないパイプラインは "none"。要否の正本は
+      // DB の pipeline_types.requires_lead
+      lead_mode: requiresLead ? leadValue.mode : ("none" as const),
+      lead_id:
+        requiresLead && leadValue.mode === "existing" ? leadValue.leadId : null,
       new_lead:
-        leadValue.mode === "new" && raiseTargetStage
+        requiresLead && leadValue.mode === "new" && raiseTargetStage
           ? {
               lead_name: leadValue.newLead.lead_name,
               account_type_id: leadValue.newLead.account_type_id,
-              // 新規のリードは商談を作れる段階（選定）から始める
+              // 新規のリードはディールを作れる段階（選定）から始める
               stage_id: raiseTargetStage.id,
               status_id: null,
               lead_source_id: leadValue.newLead.lead_source_id || null,
@@ -416,7 +437,7 @@ export function DealNewForm({
       }
       return;
     }
-    showToast({ type: "success", message: "商談を作成しました" });
+    showToast({ type: "success", message: "ディールを作成しました" });
     // router.push の直後に router.refresh() を呼ぶと、進行中のナビゲーションが
     // 現在ルートの再フェッチに差し替わって遷移が起きない。キャッシュの更新は
     // Server Action 側の revalidatePath に任せる（2026-08-03 修正）
@@ -442,14 +463,15 @@ export function DealNewForm({
         }}
       >
         <ArrowLeft size={16} />
-        一覧に戻る
+        {pipelineListLabel(pipeline?.screen_key)}一覧に戻る
       </Link>
       <div style={styles.headerRow}>
-        <h1 style={styles.title}>商談を新規作成</h1>
+        <h1 style={styles.title}>ディールを新規作成</h1>
       </div>
 
       <form onSubmit={handleSubmit}>
-        {/* リード。商談はここから始まる（T-0070） */}
+        {/* リード。セールスのディールはここから始まる（T-0070） */}
+        {requiresLead && (
         <DealLeadPicker
           value={leadValue}
           onChange={setLeadValue}
@@ -460,6 +482,7 @@ export function DealNewForm({
           companies={masters.companies}
           contacts={masters.contacts}
         />
+        )}
 
         {/* 基本情報 */}
         <div style={styles.card}>
@@ -542,29 +565,19 @@ export function DealNewForm({
           </div>
         </div>
 
-        {/* パイプライン */}
+        {/* 進捗 */}
         <div style={styles.card}>
-          <h2 style={styles.sectionTitle}>パイプライン</h2>
+          <h2 style={styles.sectionTitle}>進捗</h2>
+          {/*
+            **パイプラインは選ばせない**（T-0079）。セールス / プロキュアメント /
+            パートナーシップのそれぞれから作るので、ここで選び直せると
+            作成後に別の画面へ消えたように見える。どこで作っているかだけ示す。
+          */}
+          <p style={{ ...styles.helperText, margin: "0 0 1rem 0" }}>
+            {pipelineListLabel(pipeline?.screen_key)}（
+            {pipeline?.label ?? "パイプライン未設定"}）として作成します。
+          </p>
           <div className={styles.grid}>
-            <div>
-              <label style={styles.label}>パイプライン<RequiredMark /></label>
-              <select
-                style={styles.input}
-                value={values.pipeline_type_id}
-                onChange={(e) => handlePipelineChange(e.target.value)}
-                required
-                onFocus={onFocus}
-                onBlur={onBlur}
-              >
-                <option value="">-- 選択 --</option>
-                {masters.pipelineTypes.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div />
             <div>
               <label style={styles.label}>ステージ<RequiredMark /></label>
               <select
@@ -650,15 +663,15 @@ export function DealNewForm({
         </div>
 
         {/*
-          契約はここでは作れない。商談の ID が無いと `/contracts/new?deal_id=` を
+          契約はここでは作れない。ディールの ID が無いと `/contracts/new?deal_id=` を
           組み立てられないため。名前だけ打たせると契約テーブルと二重管理に
           なるので案内に留める（T-0063）
         */}
         <div style={styles.card}>
           <h2 style={styles.sectionTitle}>契約</h2>
           <p style={{ ...styles.helperText, margin: 0 }}>
-            契約は商談を作成したあとに登録できます。作成後の編集画面から「契約を新規作成」するか、
-            どの商談にも紐づいていない契約を紐づけてください。
+            契約はディールを作成したあとに登録できます。作成後の編集画面から「契約を新規作成」するか、
+            どのディールにも紐づいていない契約を紐づけてください。
           </p>
         </div>
 

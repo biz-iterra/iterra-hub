@@ -37,7 +37,7 @@ test.describe("E2E-02", () => {
     await page.waitForURL("**/leads/new");
 
     await fieldByLabel(page, "リード名 *").fill(leadName);
-    await fieldByLabel(page, "ステージ *").selectOption({ label: "獲得" });
+    await fieldByLabel(page, "ステージ *").selectOption({ label: "リード獲得" });
     await selectFirstRealOption(fieldByLabel(page, "ステータス *"));
     await fieldByLabel(page, "事業者種別 *").selectOption({ label: "法人" });
 

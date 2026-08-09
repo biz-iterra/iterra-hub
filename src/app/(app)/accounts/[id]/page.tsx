@@ -374,12 +374,12 @@ export default async function AccountDetailPage({
           </DetailSection>
 
           <DetailSection
-            title="商談一覧"
+            title="ディール一覧"
             icon={Handshake}
             action={
               <AddRelatedLink
                 href={`/deals/new?account_id=${account.id}`}
-                label="商談を追加"
+                label="ディールを追加"
               />
             }
           >
@@ -429,7 +429,7 @@ export default async function AccountDetailPage({
         {/* ======== Right ======== */}
         <div className={sectionStackClass}>
           {/*
-            この取引先の窓口。契約を登録すると商談の相手担当者が主担当として
+            この取引先の窓口。契約を登録するとディールの相手担当者が主担当として
             自動で入る。以降に窓口が増えたり役割が変わったりしたときは
             ここで直す（連絡先側は閲覧のみ。同じ紐づけの入口を 2 つにしない）。
           */}

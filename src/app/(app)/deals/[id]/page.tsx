@@ -144,7 +144,7 @@ export default async function DealDetailPage({
     return (
       <div style={{ padding: "2rem" }}>
         <p style={{ color: "var(--color-text-body)", marginBottom: "1rem" }}>
-          商談が見つかりません
+          ディールが見つかりません
         </p>
         <Link href="/sales" style={backLinkStyle}>
           <ArrowLeft size={16} />
@@ -179,7 +179,7 @@ export default async function DealDetailPage({
   const linkedProjectIds = new Set(linkedProjects.map((dp) => dp.project!.id));
 
   /**
-   * 商談で扱うサービス。中間テーブルを 1 行ずつ足し外しする API しか無いので、
+   * ディールで扱うサービス。中間テーブルを 1 行ずつ足し外しする API しか無いので、
    * 選び直しの結果と今の状態の差分だけを送る。
    */
   async function saveServices(values: string[]) {
@@ -222,7 +222,7 @@ export default async function DealDetailPage({
     <div className={detailContainerClass}>
       {/* ---- Header ---- */}
       <div style={{ marginBottom: "1.5rem" }}>
-        {/* **その商談のパイプラインの画面へ戻る**（T-0073） */}
+        {/* **そのディールのパイプラインの画面へ戻る**（T-0073） */}
         <Link
           href={pipelineListPath(deal.pipeline_type?.screen_key)}
           style={{ ...backLinkStyle, marginBottom: "0.75rem" }}
@@ -286,7 +286,7 @@ export default async function DealDetailPage({
               />
               {/*
                 元になったリード（T-0069）。**member では null になりうる**
-                （leads の RLS は自分の担当か manager 以上）。商談自体は見える
+                （leads の RLS は自分の担当か manager 以上）。ディール自体は見える
               */}
               <InfoField
                 label="元リード"
@@ -303,7 +303,7 @@ export default async function DealDetailPage({
                 full
                 value={deal.account_id}
                 nullable={false}
-                // 取引先は契約成立時に作られる。まだ無い商談で選ばせると
+                // 取引先は契約成立時に作られる。まだ無いディールで選ばせると
                 // 契約前に取引先が増えてしまうので、その場合は案内だけ出す
                 editable={canEdit && Boolean(deal.account_id)}
                 options={accountOptions}
@@ -429,7 +429,7 @@ export default async function DealDetailPage({
             />
           </DetailSection>
 
-          {/* 商談とプロジェクトは多対多。編集ページから移した */}
+          {/* ディールとプロジェクトは多対多。編集ページから移した */}
           <DetailSection title="プロジェクト" icon={FolderKanban}>
             <RelationListSection
               label="プロジェクト"

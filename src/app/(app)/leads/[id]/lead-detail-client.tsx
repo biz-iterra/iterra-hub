@@ -749,7 +749,7 @@ function CustomerActivityModal({
   );
 }
 
-/** リードから起きた商談（一覧に出す分だけ） */
+/** リードから起きたディール（一覧に出す分だけ） */
 type LinkedDeal = {
   id: string;
   deal_code: string | null;
@@ -772,8 +772,8 @@ export function LeadDetailClient({
   currentUser: { id: string; full_name: string; role: string };
   initialLeadCampaigns?: CampaignRef[];
   /**
-   * このリードから起きた商談（T-0069）。
-   * **1 リードに複数の商談が下がる。** 昇格で作った 1 本目のあとも、
+   * このリードから起きたディール（T-0069）。
+   * **1 リードに複数のディールが下がる。** 昇格で作った 1 本目のあとも、
    * `/deals/new?lead_id=` から足せる
    */
   linkedDeals?: LinkedDeal[];
@@ -1043,7 +1043,7 @@ export function LeadDetailClient({
                   textDecoration: "none",
                 }}
               >
-                商談昇格済み
+                ディール昇格済み
                 <ArrowUpRight size={12} />
               </Link>
             )}
@@ -1174,11 +1174,11 @@ export function LeadDetailClient({
           </DetailSection>
 
           {/*
-            商談。**1 リードに複数の商談が下がる**（T-0069）。
+            ディール。**1 リードに複数のディールが下がる**（T-0069）。
             昇格で作った 1 本目のあとも `/deals/new?lead_id=` から足せる
           */}
           <DetailSection
-            title="商談"
+            title="ディール"
             icon={Handshake}
             action={
               <Link
@@ -1193,13 +1193,13 @@ export function LeadDetailClient({
                 }}
               >
                 <Plus size={14} />
-                商談を追加
+                ディールを追加
               </Link>
             }
           >
             {linkedDeals.length === 0 ? (
               <p style={{ color: "var(--color-sumi400)", fontSize: "0.875rem", margin: 0 }}>
-                このリードから起きた商談はまだありません。
+                このリードから起きたディールはまだありません。
               </p>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>

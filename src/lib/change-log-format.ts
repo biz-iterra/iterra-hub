@@ -95,7 +95,7 @@ const TABLE_FIELD_LABELS: Record<string, Record<string, string>> = {
     company_id: "事業者情報",
   },
   deals: {
-    name: "商談名",
+    name: "ディール名",
     pipeline_type_id: "パイプライン",
     deal_stage_id: "ステージ",
     deal_status_id: "ステータス",
@@ -117,7 +117,7 @@ const TABLE_FIELD_LABELS: Record<string, Record<string, string>> = {
     start_date: "開始日",
     end_date: "終了日",
     cancellation_date: "解約日",
-    deal_id: "商談",
+    deal_id: "ディール",
   },
   leads: {
     lead_name: "リード名",
@@ -134,7 +134,7 @@ const TABLE_FIELD_LABELS: Record<string, Record<string, string>> = {
     contact_email: "担当者メール",
     contact_last_name: "担当者（姓）",
     contact_first_name: "担当者（名）",
-    promoted_deal_id: "昇格先の商談",
+    promoted_deal_id: "昇格先のディール",
     promoted_company_id: "昇格先の事業者情報",
     promoted_contact_id: "昇格先の連絡先",
     promoted_account_id: "昇格先の取引先",
@@ -142,10 +142,10 @@ const TABLE_FIELD_LABELS: Record<string, Record<string, string>> = {
     capital: "資本金",
   },
   lead_stages: {
-    requires_deal: "商談が必要",
+    requires_deal: "ディールが必要",
     requires_contract: "契約が必要",
     is_terminal: "終端",
-    auto_promote_to_deal: "商談を自動生成",
+    auto_promote_to_deal: "ディールを自動生成",
     is_inquiry_default: "問い合わせ取込の既定",
     is_qualification: "選定段階",
     is_system_required: "システム必須",
@@ -158,7 +158,7 @@ const TABLE_FIELD_LABELS: Record<string, Record<string, string>> = {
   },
   lead_categories: {
     progress_view: "進捗画面",
-    is_sales_qualified: "商談化カテゴリ",
+    is_sales_qualified: "ディール化カテゴリ",
     is_system_required: "システム必須",
   },
   lead_sources: {
@@ -191,7 +191,7 @@ const TABLE_FIELD_LABELS: Record<string, Record<string, string>> = {
     is_system_required: "システム必須",
   },
   pipeline_types: {
-    is_default: "商談化の既定",
+    is_default: "ディール化の既定",
     default_close_months: "クローズ予定の既定",
     is_system_required: "システム必須",
   },

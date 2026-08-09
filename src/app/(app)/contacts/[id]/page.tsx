@@ -134,7 +134,7 @@ export default async function ContactDetailPage({
     getCurrentUser(),
     getSocialServices(),
     getContactSocialAccounts(id),
-    // 契約前の商談は連絡先に紐づくことがある（database-design.md §16）
+    // 契約前のディールは連絡先に紐づくことがある（database-design.md §16）
     getDeals({ contactId: id, perPage: 50 }),
   ]);
   const contactDeals = contactDealsPage?.rows ?? [];
@@ -438,7 +438,7 @@ export default async function ContactDetailPage({
           {/* 連絡先と取引先はどちらが親とも言えないので、両側から足し外しできる */}
           {/*
             取引先への紐づけは契約から生まれる（契約を登録すると
-            ensure_account_on_contract が取引先を作り、商談の相手担当者を
+            ensure_account_on_contract が取引先を作り、ディールの相手担当者を
             主担当として登録する）。人が連絡先側から足すものではないので
             ここは閲覧のみ。窓口を足し外しするのは取引先詳細の「連絡先一覧」。
           */}
@@ -491,12 +491,12 @@ export default async function ContactDetailPage({
           </DetailSection>
 
           <DetailSection
-            title="商談"
+            title="ディール"
             icon={Handshake}
             action={
               <AddRelatedLink
                 href={`/deals/new?contact_id=${c.id}`}
-                label="商談を追加"
+                label="ディールを追加"
               />
             }
           >

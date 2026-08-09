@@ -28,7 +28,7 @@ describe("fieldLabel", () => {
   });
 
   it("マスタの制御列も日本語にする（今日から記録対象）", () => {
-    expect(fieldLabel("lead_stages", "requires_deal")).toBe("商談が必要");
+    expect(fieldLabel("lead_stages", "requires_deal")).toBe("ディールが必要");
     expect(fieldLabel("account_statuses", "is_active_default")).toBe("契約中の既定");
     expect(fieldLabel("lead_categories", "is_system_required")).toBe("システム必須");
   });

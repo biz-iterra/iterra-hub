@@ -9,7 +9,7 @@
 --   その生成名がさらに材料になって二重に連結されていく。
 --
 --   **金額は contracts に持つ。** `deals.amount` は使わない。
---   1 商談に複数の契約が下がるため「商談の金額 = この契約の金額」ではない。
+--   1 ディールに複数の契約が下がるため「ディールの金額 = この契約の金額」ではない。
 --
 -- なぜ DB 側で組み立てるか（CLAUDE.md「値の整形は TS 側」の例外）:
 --
@@ -35,7 +35,7 @@ ALTER TABLE contracts ADD COLUMN IF NOT EXISTS amount BIGINT CHECK (amount >= 0)
 ALTER TABLE contracts ADD COLUMN IF NOT EXISTS contract_display_name TEXT;
 
 COMMENT ON COLUMN contracts.amount IS
-'契約金額。deals.amount とは別（1 商談に複数の契約が下がるため）';
+'契約金額。deals.amount とは別（1 ディールに複数の契約が下がるため）';
 
 COMMENT ON COLUMN contracts.contract_display_name IS
 '契約名（自動生成）。締結日_契約書名_契約種別_金額_契約ID。保存時にトリガーが組み立てる。人は編集しない';

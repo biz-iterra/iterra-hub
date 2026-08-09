@@ -231,7 +231,7 @@ ITERRAの営業・取引管理CRMシステムを新規構築する。現在ス�
 | talents | talent_skills | 1:N | 任意 | スキルは0件でも可 |
 | talents | talent_careers | 1:N | 任意 | 経歴は0件でも可 |
 | skill_categories | skills | 1:N | 必須 | スキルは必ずカテゴリに属する |
-| deals | contracts | 1:N | 任意 | 契約は商談に紐づかない状態を持てる（20260808000001。§16.6.1） |
+| deals | contracts | 1:N | 任意 | 契約はディールに紐づかない状態を持てる（20260808000001。§16.6.1） |
 | deals | deal_services | 1:N | 任意 | サービス紐づけは任意 |
 | deals | deal_activities | 1:N | 任意 | ディールへの対応履歴（メール・電話・打合せ等） |
 | deal_activities | deal_activity_emails | 1:0..1 | 任意 | メール対応時の詳細情報 |
@@ -312,7 +312,7 @@ ITERRAの営業・取引管理CRMシステムを新規構築する。現在ス�
   （`inside_sales` は Phase D で撤去済み。2026-04-19）
 
 **default_close_months について:**
-- 商談（`deals`）を新規作成したとき、`deals.expected_close_date` を「今日 ＋ N ヶ月」で初期設定するための既定月数（作成後も手動変更可）
+- ディール（`deals`）を新規作成したとき、`deals.expected_close_date` を「今日 ＋ N ヶ月」で初期設定するための既定月数（作成後も手動変更可）
 - NULL の場合は自動設定しない（`expected_close_date` は空欄で作成される）
 - 商材によってリードタイムが異なるため、パイプライン種別ごとに admin から調整する
 
@@ -807,7 +807,7 @@ ITERRAの営業・取引管理CRMシステムを新規構築する。現在ス�
 | 8 | アカウントID | `account_id` | UUID | | FK→T03.id | | | | | **契約成立時に作られるため、契約前は NULL**（20260731000006） |
 | 8a | カンパニーID | `company_id` | UUID | | FK→T02.id | | | | | 取引先が未作成の間の相手法人 |
 | 8b | コンタクトID | `contact_id` | UUID | | FK→T04.id | | | | | 取引先が未作成の間の相手担当者 |
-| 8c | **リードID** | **`lead_id`** | UUID | | FK→T09.id | | | | | **紐づけの正本**（20260808000004）。1 リードに商談 N 本。requires_lead なパイプラインでは必須。§16.6.3 |
+| 8c | **リードID** | **`lead_id`** | UUID | | FK→T09.id | | | | | **紐づけの正本**（20260808000004）。1 リードにディール N 本。requires_lead なパイプラインでは必須。§16.6.3 |
 | 9 | 取引担当者ID | `owner_user_id` | UUID | | FK→T01.id | | | | | |
 | 10 | ~~契約書名~~ | ~~`contract_name`~~ | TEXT | | | | | | | **【非推奨・2026-08-07】契約の正本は T06 contracts（`contracts.deal_id` で紐づく）。アプリからは読み書きしない**（20260807000001。§16.6.1） |
 | 11 | 申請日 | `application_date` | DATE | | | | | | | |
@@ -819,7 +819,7 @@ ITERRAの営業・取引管理CRMシステムを新規構築する。現在ス�
 | 17 | 作成日時 | `created_at` | TIMESTAMPTZ | | | | NN | NOW() | | 更新不可 |
 | 18 | 更新日時 | `updated_at` | TIMESTAMPTZ | | | | NN | NOW() | | トリガー自動更新 |
 
-**CHECK:** `account_id IS NOT NULL OR company_id IS NOT NULL OR contact_id IS NOT NULL`（相手が特定できない商談は作れない）
+**CHECK:** `account_id IS NOT NULL OR company_id IS NOT NULL OR contact_id IS NOT NULL`（相手が特定できないディールは作れない）
 
 **取引先の作られ方（2026-07-31 変更）:**
 取引先は契約主体なので、契約が成立するまで作らない。
@@ -924,12 +924,12 @@ UIは `pipeline_types.slug` をキーにしたレジストリパターンで拡�
 |---|--------|--------|-----|----|----|----|----|----------|-------------|-------------|
 | 1 | ID | `id` | UUID | PK | | | NN | gen_random_uuid() | | |
 | 2 | 契約コード | `contract_code` | VARCHAR(10) | | | UK | NN | トリガー自動採番 | 'CTR-'＋6桁連番 | 更新不可 |
-| 3 | ディールID | `deal_id` | UUID | | FK→T05.id | | | | | **任意**（20260808000001）。どの商談にも紐づかない契約を持てる。§16.6.1 |
+| 3 | ディールID | `deal_id` | UUID | | FK→T05.id | | | | | **任意**（20260808000001）。どのディールにも紐づかない契約を持てる。§16.6.1 |
 | 4 | 契約方法 | `contract_method` | TEXT | | | | | | 'paper','electronic','verbal' | |
 | 5 | 契約種別ID | `contract_type_id` | UUID | | FK→M02.id | | | | | |
 | 6 | 契約書名 | `contract_name` | TEXT | | | | | | | max 200文字。**人が入れる文書名**。契約名の材料になる |
 | 6a | **契約名** | **`contract_display_name`** | TEXT | | | | | | | **自動生成**（締結日_契約書名_契約種別_金額_契約ID）。人は編集しない。§16.6.2 |
-| 6b | 金額 | `amount` | BIGINT | | | | | | >= 0 | `deals.amount` とは別（1 商談に複数の契約が下がる） |
+| 6b | 金額 | `amount` | BIGINT | | | | | | >= 0 | `deals.amount` とは別（1 ディールに複数の契約が下がる） |
 | 7 | 契約相手先種別 | `counterparty_type` | TEXT | | | | | | 'company','individual' | |
 | 8 | 契約相手先カンパニーID | `counterparty_company_id` | UUID | | FK→T02.id | | | | | counterparty_type='company'の場合 |
 | 9 | 契約相手先コンタクトID | `counterparty_contact_id` | UUID | | FK→T04.id | | | | | counterparty_type='individual'の場合 |
@@ -1315,7 +1315,7 @@ URL をそのまま開く。
 **これは「所属」ではなく「取引の窓口」。**
 人がどの事業者に属するかは `contacts.company_id` が持つ。この表が表すのは
 *その取引先の案件で誰が窓口か* で、契約を登録したときに
-`ensure_account_on_contract()` が商談の相手担当者を `role=primary` で自動登録する
+`ensure_account_on_contract()` がディールの相手担当者を `role=primary` で自動登録する
 （§ 16.6）。取引先そのものが契約成立まで作られないので、この紐づけも
 契約より前には生まれない。
 
@@ -1968,7 +1968,7 @@ potential-profiling から**移植しなかった**要素：
 
 ### 11.1 エンティティ概要
 
-Lead は Deal より上流の「見込み客」を管理するエンティティ。インサイドセールス架電〜アポ獲得〜商談化（Deal 昇格）の一連フローを担う。
+Lead は Deal より上流の「見込み客」を管理するエンティティ。インサイドセールス架電〜アポ獲得〜ディール化（Deal 昇格）の一連フローを担う。
 
 ```
 [lead_stages] 1──N [lead_statuses]
@@ -1996,13 +1996,16 @@ Lead は Deal より上流の「見込み客」を管理するエンティティ
 
 | slug | 名称 | is_terminal | auto_promote_to_deal | requires_deal | requires_contract | 説明 |
 |------|------|-------------|---------------------|---------------|-------------------|------|
-| `generation` | 獲得 | false | false | false | false | リスト化〜未架電段階 |
-| `nurturing` | 育成 | false | false | false | false | 架電試行〜資料送付段階 |
-| `qualification` | 選定 | false | false | false | false | アポ獲得〜確定段階 |
-| `sales` | Sales | false | **true** | **true** | false | 商談が動いている段階（旧 `sql` → `sales` に rename: 20260419000013） |
-| `opportunity` | Opportunity | false | **true** | **true** | false | Deal 昇格トリガー |
+| `generation` | リード獲得 | false | false | false | false | リスト化〜未架電段階 |
+| `nurturing` | ナーチャリング | false | false | false | false | 架電試行〜資料送付段階 |
+| `qualification` | リード選定 | false | false | false | false | 見込みがあるか判断する段階 |
+| `sales` | ディール | false | **true** | **true** | false | ディールが動いている段階（旧 `sql` → `sales` に rename: 20260419000013） |
+| `opportunity` | オポチュニティ | false | **true** | **true** | false | Deal 昇格トリガー |
 | `customer` | **取引先** | **true** | false | **true** | **true** | 契約が成立し取引が始まった相手（端末） |
-| `dead` | Dead | **true** | false | false | false | 失注・辞退等（端末） |
+| `dead` | デッド | **true** | false | false | false | 失注・辞退等（端末） |
+
+**表示名は本番の値**（2026-08-08 に照合し seed を合わせた）。slug は変えていない。
+判定は slug とフラグで行い、**名称で分岐しない**（改名で壊れるため）。
 
 **`customer` の表示名は「取引先」**（2026-08-04 変更）。顧客・仕入れ先・協業パートナーの
 いずれもありうるため、関係の方向を名前で決め打たない。方向は取引先区分（`account_roles`）が表す。
@@ -2015,24 +2018,31 @@ Lead は Deal より上流の「見込み客」を管理するエンティティ
 
 | ステージ | code | 名称 |
 |---------|------|------|
-| 獲得 | `list_ready` | リスト化済 |
-| 獲得 | `not_called` | 未架電 |
-| 獲得 | `not_started` | 未着手 |
-| 獲得 | `call_scheduled` | 架電予定 |
-| 育成 | `calling` | 架電試行中 |
-| 育成 | `continuing_call` | 継続架電 |
-| 育成 | `awaiting_recall` | 再架電待ち |
-| 育成 | `material_sent` | 資料送付済 |
-| 選定 | `appointment_obtained` | アポ獲得 |
-| Sales | `negotiation` | 商談化 |
-| Sales | `handed_over` | 引継済 |
-| **Opportunity** | —（なし） | **status_id = NULL**（Deal 昇格トリガーステージ。Deal 側で進捗管理） |
+| リード獲得 | `list_ready` | リスト化済 |
+| リード獲得 | `not_called` | 未架電 |
+| リード獲得 | `not_started` | 未着手 |
+| リード獲得 | `card_exchanged` | 名刺交換済 |
+| ナーチャリング | `calling` | 架電試行中 |
+| ナーチャリング | `continuing_call` | 継続架電 |
+| ナーチャリング | `awaiting_recall` | 再架電待ち |
+| ナーチャリング | `material_sent` | 資料送付済 |
+| ナーチャリング | `opt_out` | DM/TLオプトアウト |
+| リード選定 | `appointment_obtained` | 見込み判断中 |
+| ディール | `negotiation` | 商談化 |
+| ディール | `handed_over` | 引継済 |
+| **オポチュニティ** | —（なし） | **status_id = NULL**（Deal 昇格トリガーステージ。Deal 側で進捗管理） |
 | 取引先 | `closed_won` | 成約 |
-| Dead | `lost` | 失注 |
-| Dead | `declined` | 辞退 |
-| Dead | `unreachable` | 連絡不能 |
-| Dead | `approach_prohibited` | アプローチ禁止 |
-| Dead | `opt_out` | オプトアウト |
+| デッド | `lost` | 失注 |
+| デッド | `declined` | 辞退 |
+| デッド | `unreachable` | 連絡不能 |
+| デッド | `approach_prohibited` | アプローチ禁止 |
+
+全 17 件。**本番と 1 行ずつ照合してある**（2026-08-08）。
+
+- `call_scheduled`（架電予定）は本番で廃止済み。seed からも外した
+- `opt_out` は「もう接触しない」ではなく「DM / テレアポを止める」扱いなので
+  デッドではなく**ナーチャリング**に置く
+- `card_exchanged` の UUID は本番で採番された `7d779305-…`。seed もこれに揃えてある
 
 ### 11.4 デマンドファネル（M22 lead_categories）と v_leads_with_category View
 
@@ -2819,50 +2829,50 @@ Admin のマスタ管理から色を編集できる（`colorSwatch` フィール
 
 ### 16.6 取引先の作成タイミング
 
-`contracts` の AFTER INSERT トリガー `ensure_account_on_contract()` が、取引先未作成の商談に取引先を作って紐付ける。
+`contracts` の AFTER INSERT トリガー `ensure_account_on_contract()` が、取引先未作成のディールに取引先を作って紐付ける。
 
 - 契約と同一トランザクションで完結する（「契約はあるが取引先が無い」状態を作らない）
 - 取引先名は法人名を優先し、個人取引なら担当者名を使う
 - 種別は法人紐付きなら「法人」、無ければ「個人事業主」
-- 商談の相手担当者を `account_contacts` に `primary` で登録する
+- ディールの相手担当者を `account_contacts` に `primary` で登録する
 - 昇格元リードの `promoted_account_id` も更新する
-- **SECURITY DEFINER。** 契約を登録する manager が商談の担当者とは限らず、`deals` の UPDATE ポリシー（owner / admin）では紐付けが 0 行更新で静かに失敗するため
+- **SECURITY DEFINER。** 契約を登録する manager がディールの担当者とは限らず、`deals` の UPDATE ポリシー（owner / admin）では紐付けが 0 行更新で静かに失敗するため
 
-### 16.6.1 商談と契約の持ち方（2026-08-07 / T-0063、2026-08-08 / T-0065・T-0067）
+### 16.6.1 ディールと契約の持ち方（2026-08-07 / T-0063、2026-08-08 / T-0065・T-0067）
 
-**契約の正本は `contracts` の 1 か所。** 商談から見た契約は `contracts.deal_id` の
+**契約の正本は `contracts` の 1 か所。** ディールから見た契約は `contracts.deal_id` の
 逆参照で引く。`deals` 側に契約の情報を持たない。
 
-`deals.contract_name` は契約テーブルができる前の名残で、商談の新規作成・編集
+`deals.contract_name` は契約テーブルができる前の名残で、ディールの新規作成・編集
 フォームが手入力させていた。同じ「契約書名」が 2 か所にあり、片方を直しても
 片方が古いまま残る状態だったため、**2026-08-07 に画面と Zod スキーマから外した**
 （`20260807000001` で列に非推奨の COMMENT を付与。列自体は落とさない）。
 
 **`contracts.deal_id` は任意**（`20260808000001` で NOT NULL を外した）。
-どの商談にも紐づかない契約を持てる。導線は次の 3 つ:
+どのディールにも紐づかない契約を持てる。導線は次の 3 つ:
 
 | 操作 | 入口 | 実装 |
 |---|---|---|
-| 新しく契約を登録する | 商談編集の「契約を新規作成」／商談詳細の「契約を追加」 | `/contracts/new?deal_id=` |
-| すでにある契約を紐づける | 商談編集の「既存の契約を紐づける」 | `linkContractToDeal()` |
-| 紐づけを解除する | 商談編集の各行「紐づけ解除」／契約詳細の商談欄 | `unlinkContractFromDeal()` |
+| 新しく契約を登録する | ディール編集の「契約を新規作成」／ディール詳細の「契約を追加」 | `/contracts/new?deal_id=` |
+| すでにある契約を紐づける | ディール編集の「既存の契約を紐づける」 | `linkContractToDeal()` |
+| 紐づけを解除する | ディール編集の各行「紐づけ解除」／契約詳細のディール欄 | `unlinkContractFromDeal()` |
 
-**紐づけ候補は「どの商談にも紐づいていない契約」だけ。** 2026-08-07 の実装は
-`deal_id` が NOT NULL だったため、紐づけが必ず**他の商談から奪う付け替え**に
+**紐づけ候補は「どのディールにも紐づいていない契約」だけ。** 2026-08-07 の実装は
+`deal_id` が NOT NULL だったため、紐づけが必ず**他のディールから奪う付け替え**に
 なっていた。利用者の指摘で 2026-08-08 に付け替えを廃止した。
 
 - 候補の SQL は `.is("deal_id", null)`。**`.neq("deal_id", …)` は使えない**
   （`NULL <> 'x'` が UNKNOWN になり、欲しい未紐づけの行が丸ごと落ちる）
 - 楽観ロック（契約の `updated_at`）は**必須**。候補一覧や編集画面を開いたまま
   放置している間に、他の人が同じ契約を触っている可能性がある
-- 解除は `deal_id` も突き合わせる（古い画面から別の商談の紐づけを外さない）
+- 解除は `deal_id` も突き合わせる（古い画面から別のディールの紐づけを外さない）
 
-**契約は商談の新規作成画面からは作れない。** 商談の ID が無いと
+**契約はディールの新規作成画面からは作れない。** ディールの ID が無いと
 `/contracts/new?deal_id=` を組み立てられないため、案内だけ置いている。
 
 取引先を作る `ensure_account_on_contract` は **`AFTER INSERT OR UPDATE OF deal_id`**
 （`20260808000001` で UPDATE を追加）。後から紐づけても取引先が作られる。
-**解除しても取引先は消さない**（契約があった事実は残り、他の商談や連絡先が
+**解除しても取引先は消さない**（契約があった事実は残り、他のディールや連絡先が
 ぶら下がっている可能性がある）。
 
 **リードのステージ要件は解除でも守る。** `check_contract_deletion_against_leads` は
@@ -2884,7 +2894,7 @@ Admin のマスタ管理から色を編集できる（`colorSwatch` フィール
 |---|---|
 | `contract_name` | **契約書名**（人が入れる文書名）。materialの 1 つ |
 | `contract_display_name` | **契約名**（自動生成）。人は編集しない |
-| `amount` | 契約金額。**`deals.amount` とは別**（1 商談に複数の契約が下がる） |
+| `amount` | 契約金額。**`deals.amount` とは別**（1 ディールに複数の契約が下がる） |
 
 - 日付は `YYYYMMDD`、金額は桁区切りなしの数字、部品内の `_` は `-` に置換
 - **欠けた部品は落として連結する**（`__` を作らない）。契約コードは必ず入るので空にならない
@@ -2913,26 +2923,26 @@ Admin のマスタ管理から色を編集できる（`colorSwatch` フィール
 材料を 1 つ直すたびに「金額」と「契約名」の 2 行が並んで見えるため。
 前例は `20260728000003`（スコア等の自動計算を除外）。
 
-### 16.6.3 商談とリードの紐づけ（2026-08-08 / T-0069・T-0070）
+### 16.6.3 ディールとリードの紐づけ（2026-08-08 / T-0069・T-0070）
 
-**紐づけの正本は `deals.lead_id`。** 1 リードに商談 N 本が下がる
-（2 回目・3 回目の商談も同じリードに紐づく）。
+**紐づけの正本は `deals.lead_id`。** 1 リードにディール N 本が下がる
+（2 回目・3 回目のディールも同じリードに紐づく）。
 
-`leads.promoted_deal_id` は**「最初に紐づいた商談」の派生値**へ降格した。
+`leads.promoted_deal_id` は**「最初に紐づいたディール」の派生値**へ降格した。
 トリガー `sync_lead_promoted_deal` が維持し、**アプリからは書かない**。
-判定（ステージ要件・商談の削除ガード・契約の紐づけ解除ガード）はすべて
+判定（ステージ要件・ディールの削除ガード・契約の紐づけ解除ガード）はすべて
 `deals.lead_id` 経由へ移した。列を落とさなかったのは、撤去すると
 DB オブジェクト 6 個・UI 3 箇所・E2E 4 本に一斉波及するため。
 
 | 規則 | 置き場所 | 強制するもの |
 |---|---|---|
 | リードが要るか | `pipeline_types.requires_lead` | `check_deal_lead_requirement`（トリガー） |
-| 商談を起こしてよい段階か | `lead_stages.is_deal_ready` | **`create_deal_with_lead`（RPC）だけ** |
+| ディールを起こしてよい段階か | `lead_stages.is_deal_ready` | **`create_deal_with_lead`（RPC）だけ** |
 
 **段階の検査をトリガーに置いてはいけない。** 昇格（リードを Sales へ上げる操作）は
-「商談を作ってからステージを上げる」順序で動く（逆にすると
-`check_lead_stage_requirements` の「Sales には商談が必要」と噛み合わない）。
-つまり昇格の途中では、リードがまだ獲得や育成のまま商談が作られる。
+「ディールを作ってからステージを上げる」順序で動く（逆にすると
+`check_lead_stage_requirements` の「Sales にはディールが必要」と噛み合わない）。
+つまり昇格の途中では、リードがまだ獲得や育成のままディールが作られる。
 ここで段階を強制すると**昇格という正当な経路が壊れる**（実装中に踏んだ）。
 
 **フラグ名に「TQL」「営業」を使わない。** パイプラインが増えても、
@@ -2941,15 +2951,15 @@ DB オブジェクト 6 個・UI 3 箇所・E2E 4 本に一斉波及するため
 `is_qualification OR requires_deal` から導くので、新しい名指しを増やさない。
 **Dead が自動で外れる**のも効く）。
 
-**既存の商談は遡って埋めず、止めもしない**（grandfathering）。
-全商談に必須を効かせると既存の編集が全部止まる。検出は `v_deals_without_lead`。
+**既存のディールは遡って埋めず、止めもしない**（grandfathering）。
+全ディールに必須を効かせると既存の編集が全部止まる。検出は `v_deals_without_lead`。
 
 入口は 2 つあり、役割が違う。
 
 | 入口 | 役割 | 回数 |
 |---|---|---|
-| リード編集 → Sales/Opportunity | **昇格**。リードのテキストから事業者情報・連絡先・商談をまとめて作る | 1 回だけ |
-| `/deals/new` | **商談を足す**。既にあるリードに 2 本目・3 本目 | 何回でも |
+| リード編集 → Sales/Opportunity | **昇格**。リードのテキストから事業者情報・連絡先・ディールをまとめて作る | 1 回だけ |
+| `/deals/new` | **ディールを足す**。既にあるリードに 2 本目・3 本目 | 何回でも |
 
 昇格は「リードの `company_name` などのテキストから実体を起こす」唯一の経路なので残す。
 
@@ -2965,7 +2975,7 @@ DB オブジェクト 6 個・UI 3 箇所・E2E 4 本に一斉波及するため
 `set_lead_category`）・ビュー（`v_leads_with_category`）・列名（`leads.category_id`）は
 そのまま（CLAUDE.md「コードは変更しない、名前変更は可」）。
 
-改称の影響が表示に閉じるのは、**商談を作れる段階の判定を
+改称の影響が表示に閉じるのは、**ディールを作れる段階の判定を
 `lead_stages.is_deal_ready` に寄せてある**ため（§16.6.3）。ファネルの
 呼び名や `sort_order` に依存する判定はどこにも無い。
 
@@ -2976,7 +2986,7 @@ DB オブジェクト 6 個・UI 3 箇所・E2E 4 本に一斉波及するため
 
 ### 16.6.5 パイプラインごとに画面を分ける（2026-08-08 / T-0073・T-0074）
 
-利用者の判断「商談（セールス）と仕入れ・業務委託は性質が異なる」。
+利用者の判断「ディール（セールス）と仕入れ・業務委託は性質が異なる」。
 
 | パイプライン | 画面 | パス |
 |---|---|---|
@@ -2990,17 +3000,29 @@ slug は `20260805000019` で自動採番になり「引くな」とされてい
 （UI 表示名と内部名を分ける方針。slug を変えると `account_role_types` の
 対応や過去のマイグレーションの前提が崩れる）。
 
-**一覧だけを分け、商談の詳細（`/deals/{id}`）は分けていない。** 分けると
+**一覧だけを分け、ディールの詳細（`/deals/{id}`）は分けていない。** 分けると
 契約・プロジェクト・リード・横断検索・活動履歴のリンク元が全部パイプラインを
 知る必要が出る。詳細から一覧へ戻るときだけ `screen_key` で行き先を選ぶ
 （`src/lib/deals/pipeline-screen.ts`）。`/deals` は `/sales` へ逃がす。
 
 **仕入れ・業務委託はステージもステータスも 0 件だった**（seed にあるのは営業だけ）。
-選ぶとカンバンが列ゼロになり、ステージ・ステータスが必須の商談は作れなかった。
+選ぶとカンバンが列ゼロになり、ステージ・ステータスが必須のディールは作れなかった。
 `20260808000008` で 6 段階ずつ入れた。
 
 - プロキュアメント: 候補 → 問い合わせ → 見積り → 交渉 → 発注 → 完了
 - パートナーシップ: 候補 → 打診 → 条件調整 → 契約 → 稼働 → 完了
+
+**同名のステージが既にあれば拾い上げる（UUID を決め打ちで INSERT しない）。**
+本番の業務委託には管理画面で作られた「契約」（表示順 0・説明が空）と
+ステータス「手続き」が 1 件ずつあった。決め打ちで入れると「契約」が二重になり、
+かといって消すと紐づいたディールが行き場を失う。`ensure_pipeline_stages()` は
+**パイプライン + 名前**で引き、見つかれば足りない項目だけ埋める。
+
+- 表示順は **`0`（まだ並べていない）のときだけ**入れる。毎回上書きすると
+  管理画面で並べ替えたものが次の `db push` で戻ってしまう
+- **既にステータスが置かれているステージには足さない。** 運用者が自分で
+  組んだ段階なので、こちらの案を上乗せしない（本番の「契約」は「手続き」だけが残る）
+- ステータス側もステージを **UUID ではなく名前で引く**（拾い上げた行は UUID が違う）
 
 **投入は `ensure_pipeline_stages()` に置き、`apply_master_role_flags()` から呼ぶ。**
 `db reset` は「マイグレーション → seed」の順なので、マイグレーションの本文で
@@ -3008,6 +3030,24 @@ INSERT すると `pipeline_types` の行がまだ無く外部キー違反にな�
 役割フラグと同じ入口に繋げば、`db reset` でも本番でも当たる。
 `apply_master_role_flags()` は入口だけになり、中身は `_core` と
 `ensure_pipeline_stages` / `apply_pipeline_screen_keys` の 3 つに分かれている。
+
+**新規作成でパイプラインは選ばせない**（2026-08-08 / T-0079）。
+`/deals/new?pipeline=<screen_key>` で決まり、指定が無ければ
+「ディール化の既定」（`pipeline_types.is_default`）を使う。3 つの画面それぞれから
+作るので、作成画面で選び直せると**作った直後に別の画面へ消えたように見える**。
+
+**リードが要るかもパイプラインが決める**（`pipeline_types.requires_lead`）。
+セールスは必須、プロキュアメント・パートナーシップは不要（相手＝仕入れ先・
+委託先が既にいるところから始まる）。判定は 3 か所すべてがこのフラグに従う。
+
+| 層 | 見るもの |
+|---|---|
+| 画面（`deal-new-form.tsx`） | `requiresLead` が偽ならリードの欄を出さず、検査もしない |
+| Zod（`createDealWithLeadSchema`） | `lead_mode: "none"` を受け付ける。画面が送ってきた形を受け止めるだけ |
+| DB（`create_deal_with_lead`） | **強制はここ。** `pipeline_types.requires_lead` を引き、必須なのにリードが無ければ例外 |
+
+画面と Zod は行き止まりを作らないための前倒しで、**正本は DB**。
+画面を通さない経路（RPC の直呼び）も同じ規則で塞がる。
 
 **ダッシュボードのファネルは 1 パイプラインだけを描く**（T-0075）。
 以前は `deal_stages` をパイプライン無関係に全件並べており、仕入れ・業務委託の
@@ -3050,7 +3090,7 @@ INSERT すると `pipeline_types` の行がまだ無く外部キー違反にな�
 | `20260808000004_deals_lead_link.sql` | `deals.lead_id`・`requires_lead`・`is_deal_ready`（§16.6.3） |
 | `20260808000005_deals_lead_rules.sql` | リード必須の強制と、判定の `lead_id` 経由への移設（§16.6.3） |
 | `20260808000006_promote_lead_resolve_company.sql` | 昇格を名寄せ経由にする（§16.6.4） |
-| `20260808000007_create_deal_with_lead.sql` | 商談をリード起点で作る RPC（§16.6.3） |
+| `20260808000007_create_deal_with_lead.sql` | ディールをリード起点で作る RPC（§16.6.3） |
 | `20260808000008_pipeline_screens_and_stages.sql` | `screen_key` と、仕入れ・業務委託のステージ（§16.6.5） |
 
 ---
@@ -3117,7 +3157,7 @@ INSERT すると `pipeline_types` の行がまだ無く外部キー違反にな�
 ### 17.4 契約成立時の自動付与
 
 `ensure_account_on_contract()`（§16.6）を拡張し、取引先を作る／作らないに関わらず
-**契約した商談のパイプラインに対応する区分を必ず付与する**。
+**契約したディールのパイプラインに対応する区分を必ず付与する**。
 
 ```
 営業パイプラインで契約     → 顧客
@@ -3141,7 +3181,7 @@ INSERT すると `pipeline_types` の行がまだ無く外部キー違反にな�
 ### 18.1 ステータスの意味づけを変更
 
 `company_statuses` は アクティブ / 休眠 / 取引停止 / 見込み だった。これは取引状態の語彙で、
-取引先区分（§17）や商談と役割が重なる。名刺取込で作られた 3,597 件が一律「見込み」になり
+取引先区分（§17）やディールと役割が重なる。名刺取込で作られた 3,597 件が一律「見込み」になり
 意味を持たなくなっていたため、**実在性ベース**に置き換えた。
 
 | code | 名前 | 意味 | 色 |
@@ -3797,7 +3837,7 @@ member / manager には見せない。同期は service_role が RLS をバイ�
 
 | 列 | 意味 |
 |---|---|
-| `requires_deal` | このステージへ進むには商談が要る（§24 のトリガーが強制） |
+| `requires_deal` | このステージへ進むにはディールが要る（§24 のトリガーが強制） |
 | `requires_contract` | さらに契約も要る |
 | `is_terminal` | 終端。ここから先へは進めない |
 | `auto_promote_to_deal` | 昇格の予告を画面に出す |
@@ -3904,7 +3944,7 @@ export const COMPANY_STATUS_ACTIVE = "c1000000-0000-0000-0000-000000000001";
 | `lead_customer_activity_types` | `is_form_submit` | 問い合わせフォーム送信 |
 | `lead_categories` | `progress_view` / `is_sales_qualified` | 進捗画面との対応 |
 | `account_types` | `requires_corporate_fields` / `is_company_default` / `is_sole_proprietor_default` | 法人向け項目・自動生成の既定 |
-| `pipeline_types` | `is_default` | 商談化の既定 |
+| `pipeline_types` | `is_default` | ディール化の既定 |
 
 **「既定」は部分 UNIQUE で 1 行に制限する。** 2 行 true だと不定になる。
 
@@ -3986,7 +4026,7 @@ SELECT apply_master_role_flags();   -- 何度でも実行できる
 | `lead_stages.slug = 'opportunity'`（昇格ステージ） | 到達しない分岐だったので**削除**（`requires_deal` で除外済み） |
 | `account_types.slug IN ('corporate','government')`（法人向け項目） | `account_types.requires_corporate_fields` |
 | `account_types.slug = 'corporate'`（企業名からの既定） | `account_types.is_company_default` |
-| `pipeline_types.slug = 'sales'`（商談化の既定） | `pipeline_types.is_default` |
+| `pipeline_types.slug = 'sales'`（ディール化の既定） | `pipeline_types.is_default` |
 | `lead_categories.code IN ('inquiry','mql','tql')`（進捗画面） | `lead_categories.progress_view` |
 
 これは既存方針（**判定をコードに書かない。`requires_deal` で表す**。§24）の延長。
@@ -4008,11 +4048,11 @@ SELECT apply_master_role_flags();   -- 何度でも実行できる
 
 ### 24.1 背景
 
-ステージが Sales / Opportunity / Customer なのに商談も契約も無いリードを作れてしまった。
+ステージが Sales / Opportunity / Customer なのにディールも契約も無いリードを作れてしまった。
 穴は 3 つあった。
 
-1. **Customer へ直行できた。** 獲得 → Customer とステージだけ変えれば、商談も契約も無いまま「成約済み」になる
-2. **Sales は「商談化」という名前なのに商談を要求していなかった**
+1. **Customer へ直行できた。** 獲得 → Customer とステージだけ変えれば、ディールも契約も無いまま「成約済み」になる
+2. **Sales は「商談化」という名前なのにディールを要求していなかった**
 3. **Opportunity の不変条件が `src/actions/leads.ts` の中にしか無かった。**
    SQL 直接・service_role 経由・将来の別経路ですり抜ける状態で、多層防御になっていなかった
 
@@ -4020,17 +4060,17 @@ SELECT apply_master_role_flags();   -- 何度でも実行できる
 
 **ステージが要求する実体を、そのステージへ進む時点で満たしていること。**
 
-| ステージ | 商談 | 契約 |
+| ステージ | ディール | 契約 |
 |---|---|---|
-| 獲得 / 育成 / 選定 | 不要 | 不要 |
+| リード獲得 / ナーチャリング / リード選定 | 不要 | 不要 |
 | Sales | **必須** | 不要 |
 | Opportunity | **必須** | 不要 |
-| 取引先（`customer`） | **必須** | **必須**（商談に紐づく契約が 1 件以上） |
+| 取引先（`customer`） | **必須** | **必須**（ディールに紐づく契約が 1 件以上） |
 | Dead | 不要 | 不要 |
 
 規則はハードコードせず `lead_stages.requires_deal` / `requires_contract` で持つ。
 判定をコードに書かないので、ステージを増やしても分岐を足さずに済む。
-**契約を求めるなら商談も要る**（契約は商談にぶら下がるため）を CHECK 制約で担保している。
+**契約を求めるならディールも要る**（契約はディールにぶら下がるため）を CHECK 制約で担保している。
 
 **この 2 つのフラグはマスタ管理画面からは編集できない**（`auto_promote_to_deal` /
 `is_terminal` と同じ扱い。`leadStageCreateSchema` に含めていない）。業務の骨格に関わる
@@ -4042,8 +4082,8 @@ SELECT apply_master_role_flags();   -- 何度でも実行できる
 |---|---|---|
 | DB | `check_lead_stage_requirements()` + `trg_lead_stage_requirements` | **どの経路からも**違反を作らせない。`BEFORE INSERT OR UPDATE OF stage_id ON leads` |
 | DB | `check_deal_deletion_against_leads()` / `check_contract_deletion_against_leads()` | 逆向きの穴（実体を消して不整合を作る）を塞ぐ |
-| Server Action | `createLead` | 商談が要るステージを新規作成では拒否（何をすればよいかまで文言にする） |
-| Server Action | `updateLead` | **商談を先に作ってから** leads を更新する（下記） |
+| Server Action | `createLead` | ディールが要るステージを新規作成では拒否（何をすればよいかまで文言にする） |
+| Server Action | `updateLead` | **ディールを先に作ってから** leads を更新する（下記） |
 | 画面 | `/leads/new` | `requires_deal` のステージを選択肢から外す |
 
 **ステージが変わるときだけ検査する。** 常時検査にすると、規則の導入前から不整合だった行の
@@ -4052,14 +4092,14 @@ SELECT apply_master_role_flags();   -- 何度でも実行できる
 
 ### 24.4 昇格の順序（2026-08-04 変更）
 
-**商談の生成を leads の更新より先に行う。**
+**ディールの生成を leads の更新より先に行う。**
 
 ```
 旧: leads を UPDATE → promote_lead_to_deal → 失敗したらステージを手で戻す（補償処理）
 新: promote_lead_to_deal → leads を UPDATE（失敗しても leads は手つかず）
 ```
 
-トリガーが「商談なしで Sales 以降へ進む」ことを拒否するため、旧順序では保存自体が通らない。
+トリガーが「ディールなしで Sales 以降へ進む」ことを拒否するため、旧順序では保存自体が通らない。
 先に作れば、昇格が失敗しても leads は元のままなので**補償処理が要らなくなる**
 （CLAUDE.md の「複数テーブルへの書き込みは DB 関数にまとめる」に対する応急処置を 1 つ解消）。
 
@@ -4069,7 +4109,7 @@ SELECT apply_master_role_flags();   -- 何度でも実行できる
 ### 24.5 ステータスの有無で分岐する
 
 `status_id` を NULL にするかは **「そのステージにステータスが定義されているか」** で決める。
-`auto_promote_to_deal` で判定していたが、Sales も商談を自動生成するようになったため、
+`auto_promote_to_deal` で判定していたが、Sales もディールを自動生成するようになったため、
 そのままだと Sales のステータス（商談化 / 引継済）が消えてしまう。
 
 | ステージ | ステータス定義 | `status_id` |
@@ -4125,9 +4165,9 @@ SNS・チャットは対象外（サービスごとに入力欄が変わるた�
 |---|---|---|
 | 事業者情報 | 連絡先 | `/contacts/new?company_id=` |
 | 取引先 | 連絡先 | `/contacts/new?account_id=`（`account_contacts` に張る） |
-| 事業者情報 / 取引先 / 連絡先 | 商談 | `/deals/new?company_id=` / `?account_id=` / `?contact_id=` |
-| プロジェクト | 商談 | `/deals/new?project_id=`（`deal_projects` に張る） |
-| 商談 | 契約 | `/contracts/new?deal_id=` |
+| 事業者情報 / 取引先 / 連絡先 | ディール | `/deals/new?company_id=` / `?account_id=` / `?contact_id=` |
+| プロジェクト | ディール | `/deals/new?project_id=`（`deal_projects` に張る） |
+| ディール | 契約 | `/contracts/new?deal_id=` |
 | 連絡先 | タレント | `/talents/new?contact_id=` |
 
 **移動先では初期選択にするだけで固定しない。** 間違えた導線から来たときに相手先を
@@ -4136,9 +4176,9 @@ SNS・チャットは対象外（サービスごとに入力欄が変わるた�
 詳細ページが閲覧専用という原則は崩していない。ここで行うのは**別のエンティティの
 作成ページへ移動すること**だけで、この画面で値を書き換えるわけではない。
 
-### 25.3 商談の相手先は 3 択（不具合の修正）
+### 25.3 ディールの相手先は 3 択（不具合の修正）
 
-`deals.account_id` を必須にしている画面と Zod が残っており、**契約前の相手と商談を
+`deals.account_id` を必須にしている画面と Zod が残っており、**契約前の相手とディールを
 作れなかった**。2026-07-31 に「取引先は契約成立まで作らない」方針へ変えた際の追従漏れ。
 
 DB は `deals_counterparty_check` で「account / company / contact のいずれか 1 つ以上」を

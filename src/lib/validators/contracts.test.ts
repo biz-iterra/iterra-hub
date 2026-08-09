@@ -11,19 +11,19 @@ import {
  * 2026-08-08 に `contracts.deal_id` を NULL 許容へ変え（T-0065）、
  * 契約に金額を持たせた（T-0068）。スキーマがそれに追随していること。
  *
- * 紐づけ／解除は**楽観ロックを必須**にしている。候補一覧や商談の編集画面を
+ * 紐づけ／解除は**楽観ロックを必須**にしている。候補一覧やディールの編集画面を
  * 開いたまま放置している間に、他の人が同じ契約を触っている可能性があるため。
  */
 
 const uuid = "00000000-0000-4000-8000-000000000001";
 
 describe("createContractSchema", () => {
-  it("商談を選ばなくても通る（未紐づけの契約を作れる）", () => {
+  it("ディールを選ばなくても通る（未紐づけの契約を作れる）", () => {
     const result = createContractSchema.safeParse({ contract_name: "業務委託基本契約書" });
     expect(result.success).toBe(true);
   });
 
-  it("商談に null を渡しても通る", () => {
+  it("ディールに null を渡しても通る", () => {
     expect(createContractSchema.safeParse({ deal_id: null }).success).toBe(true);
   });
 
@@ -71,7 +71,7 @@ describe("linkContractToDealSchema / unlinkContractFromDealSchema", () => {
     ).toBe(false);
   });
 
-  it("解除でも商談は必須（いま本当にその商談に付いているかを突き合わせる）", () => {
+  it("解除でもディールは必須（いま本当にそのディールに付いているかを突き合わせる）", () => {
     const { deal_id: _omitted, ...withoutDeal } = valid;
     expect(unlinkContractFromDealSchema.safeParse(withoutDeal).success).toBe(false);
   });

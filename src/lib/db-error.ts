@@ -44,7 +44,7 @@ const COLUMN_LABELS: Record<string, string> = {
   large_segment_id: "大セグメント",
   small_segment_id: "小セグメント",
   pipeline_type_id: "パイプライン",
-  deal_stage_id: "商談ステージ",
+  deal_stage_id: "ディールステージ",
   skill_category_id: "スキルカテゴリ",
   temperature_id: "温度感",
   category: "区分",

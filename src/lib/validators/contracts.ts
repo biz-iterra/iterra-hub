@@ -3,11 +3,11 @@ import { expectedUpdatedAtSchema, uuidString } from "./common";
 
 const contractBaseSchema = z.object({
   /**
-   * 商談（任意）。
+   * ディール（任意）。
    *
-   * **どの商談にも紐づかない契約を持てる**（2026-08-08。T-0065）。
-   * 以前は NOT NULL で、商談の画面からの「紐づけ」が必ず
-   * 他の商談から奪う付け替えになっていた。
+   * **どのディールにも紐づかない契約を持てる**（2026-08-08。T-0065）。
+   * 以前は NOT NULL で、ディールの画面からの「紐づけ」が必ず
+   * 他のディールから奪う付け替えになっていた。
    */
   deal_id: uuidString().nullable().optional(),
   contract_method: z.enum(["paper", "electronic", "verbal"]).nullable().optional(),
@@ -17,8 +17,8 @@ const contractBaseSchema = z.object({
   /**
    * 契約金額。
    *
-   * `deals.amount` とは別に持つ。1 商談に複数の契約が下がるため
-   * 「商談の金額 = この契約の金額」ではない（T-0068）。
+   * `deals.amount` とは別に持つ。1 ディールに複数の契約が下がるため
+   * 「ディールの金額 = この契約の金額」ではない（T-0068）。
    */
   amount: z.number().int().min(0, "金額は 0 以上で入力してください").nullable().optional(),
   counterparty_type: z.enum(["company", "individual"]).nullable().optional(),
@@ -51,35 +51,35 @@ export const updateContractSchema = contractBaseSchema
   .extend({ expected_updated_at: expectedUpdatedAtSchema });
 
 /**
- * どの商談にも紐づいていない契約を、商談へ紐づける。
+ * どのディールにも紐づいていない契約を、ディールへ紐づける。
  *
- * **他の商談に紐づいている契約は対象にしない**（T-0065）。付け替えを許すと
- * 別の商談から黙って契約を奪うことになるため、いったん元の商談で
+ * **他のディールに紐づいている契約は対象にしない**（T-0065）。付け替えを許すと
+ * 別のディールから黙って契約を奪うことになるため、いったん元のディールで
  * 紐づけを解除してもらう。
  */
 export const linkContractToDealSchema = z.object({
   contract_id: uuidString("契約を選んでください"),
-  deal_id: uuidString("商談は必須です"),
+  deal_id: uuidString("ディールは必須です"),
   /**
    * 楽観ロック: 選んだ時点の契約の `updated_at`。
    *
    * 他の更新系と違い**必須**にしている。候補一覧を開いたまま放置すると、
-   * その間に他の人が同じ契約を別の商談へ紐づけている可能性がある
+   * その間に他の人が同じ契約を別のディールへ紐づけている可能性がある
    */
   expected_updated_at: z.string().min(1, "契約の更新時刻が取れませんでした。画面を再読み込みしてください"),
 });
 
 /**
- * 契約を商談から外す（`deal_id` を NULL に戻す）。
+ * 契約をディールから外す（`deal_id` を NULL に戻す）。
  *
- * **契約そのものは残る。** どの商談にも紐づかない状態になり、
- * あとから同じ商談にも別の商談にも紐づけ直せる（T-0067）。
+ * **契約そのものは残る。** どのディールにも紐づかない状態になり、
+ * あとから同じディールにも別のディールにも紐づけ直せる（T-0067）。
  *
- * `deal_id` を受け取るのは「いま本当にこの商談に付いているか」を
- * 突き合わせるため。古い画面から押されたときに別の商談の紐づけを外さない。
+ * `deal_id` を受け取るのは「いま本当にこのディールに付いているか」を
+ * 突き合わせるため。古い画面から押されたときに別のディールの紐づけを外さない。
  */
 export const unlinkContractFromDealSchema = z.object({
   contract_id: uuidString("契約を選んでください"),
-  deal_id: uuidString("商談は必須です"),
+  deal_id: uuidString("ディールは必須です"),
   expected_updated_at: z.string().min(1, "契約の更新時刻が取れませんでした。画面を再読み込みしてください"),
 });

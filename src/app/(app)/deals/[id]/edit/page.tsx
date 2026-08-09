@@ -60,7 +60,7 @@ export default async function DealEditPage({
     return (
       <div style={{ padding: "2rem" }}>
         <p style={{ color: "var(--color-text-body)", marginBottom: "1rem" }}>
-          商談が見つかりません
+          ディールが見つかりません
         </p>
         <Link
           href="/sales"

@@ -57,24 +57,8 @@ ITERRA CRM（顧客関係管理）システム。
 ├── docker-compose.yml     # app + cloudflared
 ├── src/
 │   ├── app/(auth)/        # 認証不要ページ (login)
-│   ├── app/(app)/         # 認証必須ページ
-│   │   ├── dashboard/     # ダッシュボード（KPI・ファネル・最近の商談）
-│   │   ├── deals/         # 商談（カンバン/テーブル切替）
-│   │   ├── contacts/      # 連絡先（一覧・検索）
-│   │   ├── companies/     # 事業者情報（一覧・検索）
-│   │   ├── accounts/      # 取引先（一覧・検索）
-│   │   ├── contracts/     # 契約（一覧・検索）
-│   │   ├── talents/       # タレント（一覧・検索・系統/グレード/職種の自動判定）
-│   │   ├── leads/         # リード（マーケティング・スコアリング・Deal昇格）
-│   │   ├── campaigns/     # キャンペーン
-│   │   ├── projects/      # プロジェクト
-│   │   ├── manual/        # 操作マニュアル（静的ページ）
-│   │   └── admin/         # マスタ管理（7グループ・23タブ・CRUD）
+│   ├── app/(app)/         # 認証必須ページ（エンティティ別の一覧・詳細・編集。構成は ls で確認）
 │   ├── app/api/health/    # ヘルスチェック（Docker healthcheck / 外形監視用）
-│   ├── actions/           # Server Actions（masters, companies, accounts, contacts, deals, contracts, talents, activities）
-│   ├── components/ui/     # shadcn/ui コンポーネント
-│   ├── components/layout/ # レイアウト (sidebar, header)
-│   ├── hooks/             # カスタムフック
 │   ├── lib/supabase/      # Supabaseクライアント (client, server, middleware, admin)
 │   ├── lib/talent-classification/ # 系統・グレード・職種の判定ロジック（純粋関数）
 │   ├── lib/validators/    # Zodスキーマ（common, masters, companies, accounts, contacts, deals, contracts, talents, activities）
@@ -215,7 +199,7 @@ lock を触ったら push 前に `npm ci` がローカルで通ることを確�
 - **マスタテーブル:** SELECT は認証済み全員、INSERT/UPDATE/DELETE は admin のみ
 - **companies/accounts/contacts:** **SELECT は認証済み全員**（2026-08-03 変更。マイグレーション 20260803000008）。
   UPDATE / DELETE は従来どおり `owner_user_id = auth.uid()` または admin。
-  member が他の担当者の取引先に対して商談を起こせないと業務が回らないため参照だけ広げた。
+  member が他の担当者の取引先に対してディールを起こせないと業務が回らないため参照だけ広げた。
   従属テーブル（メール・電話・SNS・ドメイン・住所・名刺・account_contacts）も参照は全員可
 - **deals/leads:** member は `owner_user_id = auth.uid()`（leads は副担当 `lead_owners` を含む）のみ、manager/admin は全件。
   営業の担当分離が意味を持つため、こちらは広げていない
@@ -231,7 +215,7 @@ lock を触ったら push 前に `npm ci` がローカルで通ることを確�
 
 | UI 表示名 | 内部名（コード・DB） |
 |---|---|
-| 商談 | deal / deals |
+| ディール | deal / deals |
 | 取引先 | account / accounts |
 | 事業者情報 | company / companies |
 | 連絡先 | contact / contacts |
@@ -240,12 +224,17 @@ lock を触ったら push 前に `npm ci` がローカルで通ることを確�
 | 社内対応 | lead_activities |
 | 顧客行動 | lead_customer_activities |
 
+「ディール」は 2026-08-08 に「商談」から改称した。パイプラインを
+セールス / プロキュアメント / パートナーシップの 3 画面に分けた結果、
+仕入れ先や委託先との取引まで「商談」と呼ぶのが実態に合わなくなったため。
+**内部名は `deal` のまま**で、画面・トースト・エラー文言をすべて「ディール」に揃えてある。
+
 「事業者情報」は 2026-08-02 に「法人情報」から改称した。法人だけでなく個人事業主も
 同じ器に入れる運用にしたため（`docs/database-design.md § 22.2.1`）。
 
 リードステージの「Customer」は 2026-08-04 に **「取引先」** へ改称した（slug は `customer` のまま）。
 顧客・仕入れ先・協業パートナーのいずれもありうるため、関係の方向を名前で決め打たない。
-**ステージと実体の整合は DB トリガーが強制する**（Sales 以降は商談必須、取引先はさらに契約必須。
+**ステージと実体の整合は DB トリガーが強制する**（Sales 以降はディール必須、取引先はさらに契約必須。
 `docs/database-design.md § 24`）。ステージを増やす・要件を変えるときは
 `lead_stages.requires_deal` / `requires_contract` で表す。判定をコードに書かない。
 
@@ -277,7 +266,7 @@ Lead ─取込→ Company + Contact          名刺はリードであると同�
 ```
 
 - `deals.account_id` は **任意**。ただし account / company / contact のいずれか 1 つは必須（CHECK 制約）
-- 商談の相手先表示は `src/lib/deal-counterparty.ts` を使う。取引先 → 事業者情報 → 連絡先の順にフォールバックする。画面ごとに分岐を書かない
+- ディールの相手先表示は `src/lib/deal-counterparty.ts` を使う。取引先 → 事業者情報 → 連絡先の順にフォールバックする。画面ごとに分岐を書かない
 - 事業者の名寄せは **法人番号 > メールドメイン（`company_domains`）> 住所+名称 > 名称** の順。
   **住所だけでは決めない**（雑居ビルやレンタルオフィスには何社も入っている）。同名の会社を区別する決め手として使う。
   判定は DB 関数 `resolve_or_create_company` / `resolve_or_create_contact` に集約されており、取込と遡及処理が同じ関数を通る
@@ -299,17 +288,5 @@ Lead ─取込→ Company + Contact          名刺はリードであると同�
 
 ### RLS ポリシーの書き方（性能）
 
-**引数なしの関数（`auth.uid()` / `is_admin()` / `is_manager_or_above()`）は
-必ずスカラーサブクエリで包む。** 裸で書くとプランナが行ごとの評価を強制し、
-全行で関数が呼ばれる。
-
-```sql
--- ✗ 行ごとに評価される
-USING (is_manager_or_above() OR owner_user_id = auth.uid())
--- ✓ InitPlan になりクエリ全体で 1 回
-USING ((SELECT is_manager_or_above()) OR owner_user_id = (SELECT auth.uid()))
-```
-
-leads 3,008 件の一覧で 154ms → 1.76ms（マイグレーション `20260803000021` で
-既存 205 ポリシーを一括変換済み）。**引数ありの関数（`is_lead_accessible(lead_id)` など
-行の値に依存するもの）は包まない。** 意味が変わる。
+RLS ポリシーを書く・変えるときは `.claude/rules/rls-performance.md` に従う
+（引数なし関数のスカラーサブクエリ化＝InitPlan 化の規約。マイグレーション作業時に自動で読み込まれる）。

@@ -249,7 +249,7 @@ function buildMessage(
     p.cards && `名刺 ${p.cards} 枚`,
     p.addresses && `住所 ${p.addresses} 件`,
     p.leads && `リード ${p.leads} 件`,
-    p.deals && `商談 ${p.deals} 件`,
+    p.deals && `ディール ${p.deals} 件`,
     p.contracts && `契約 ${p.contracts} 件`,
     p.accounts && `取引先の紐付け ${p.accounts} 件`,
     p.emails_synced && `メール履歴 ${p.emails_synced} 件`,

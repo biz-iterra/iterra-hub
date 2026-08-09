@@ -15,7 +15,7 @@ export default async function SalesPage({
     <DealPipelineWorkspace
       screenKey="sales"
       title="セールス"
-      description="顧客への営業。リードから起こした商談を追う"
+      description="顧客への営業。リードから起こしたディールを追う"
       searchParams={await searchParams}
     />
   );

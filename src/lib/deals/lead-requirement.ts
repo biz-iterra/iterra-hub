@@ -1,8 +1,8 @@
 /**
- * 商談を作れるリードかの判定（T-0069 / T-0070）。
+ * ディールを作れるリードかの判定（T-0069 / T-0070）。
  *
- * **セールスの商談には元になったリードが必要**で、そのリードは
- * 商談を起こしてよい段階（`lead_stages.is_deal_ready` = 選定 = TQL 以上）に
+ * **セールスのディールには元になったリードが必要**で、そのリードは
+ * ディールを起こしてよい段階（`lead_stages.is_deal_ready` = リード選定 = TQL 以上）に
  * いなければならない。DB のトリガー `check_deal_lead_requirement` が
  * 最終的に強制するが、画面では**押す前に**知らせたい。
  *
@@ -13,9 +13,9 @@
 export type LeadStageForDeal = {
   id: string;
   name: string;
-  /** 商談を起こしてよい段階か（選定 = TQL 以上） */
+  /** ディールを起こしてよい段階か（リード選定 = TQL 以上） */
   is_deal_ready: boolean;
-  /** 商談が既にあることを前提とする段階か（Sales 以降） */
+  /** ディールが既にあることを前提とする段階か（ディール 以降） */
   requires_deal: boolean;
   sort_order: number;
 };
@@ -29,7 +29,7 @@ export type LeadForDeal = {
 };
 
 export type LeadForDealVerdict =
-  /** そのまま商談を作れる */
+  /** そのままディールを作れる */
   | { ok: true }
   /** ステージを上げれば作れる */
   | { ok: false; needsStageRaise: true; message: string }
@@ -37,7 +37,7 @@ export type LeadForDealVerdict =
   | { ok: false; needsStageRaise: false; message: string };
 
 /**
- * そのリードで商談を作れるか。
+ * そのリードでディールを作れるか。
  *
  * ステージが未取得（`null`）のときは**作れない扱いにしない**。
  * 参照権限の都合で埋まらないことがあり、そこで止めると
@@ -60,7 +60,9 @@ export function evaluateLeadForDeal(
     return {
       ok: false,
       needsStageRaise: true,
-      message: `このリードは「${lead.stage.name}」段階です。商談を作るには「選定」以上へ進めます。`,
+      // **上げ先の名前をここに書かない。** ステージ名は管理画面で変えられる。
+      // 呼び出し側が `pickRaiseTargetStage()` の結果を続けて出す
+      message: `このリードは「${lead.stage.name}」段階です。ディールを作るには段階を進めます。`,
     };
   }
 
@@ -70,8 +72,8 @@ export function evaluateLeadForDeal(
 /**
  * ステージを上げる先。
  *
- * **商談を起こしてよくて、まだ商談を前提としない段階**（= 選定）を選ぶ。
- * Sales 以降は「商談があること」を要求するので、商談を作る前には上げられない
+ * **ディールを起こしてよくて、まだディールを前提としない段階**（= リード選定）を選ぶ。
+ * ディール以降は「ディールがあること」を要求するので、ディールを作る前には上げられない
  * （`check_lead_stage_requirements` に弾かれる）。
  */
 export function pickRaiseTargetStage(
@@ -84,7 +86,7 @@ export function pickRaiseTargetStage(
 }
 
 /**
- * 商談名の既定値。
+ * ディール名の既定値。
  *
  * リードから昇格したときと同じ形にする（`promoteLeadToDeal` が
  * `${lead_name} 案件` を組み立てている）。入口が違っても名前が揃うように。

@@ -255,9 +255,9 @@ export default async function DashboardPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
           <KpiCard
-            label="進行中商談"
+            label="進行中ディール"
             value={String(activeDealsCount)}
-            sub="クローズ前の商談"
+            sub="クローズ前のディール"
             icon={Target}
           />
           <KpiCard
@@ -387,7 +387,7 @@ export default async function DashboardPage() {
             className="text-base font-bold mb-4"
             style={{ color: "var(--color-text-title)" }}
           >
-            最近の商談
+            最近のディール
           </h2>
           {recentDealsError ? (
             <p className="text-sm" style={{ color: "var(--color-sumi600)" }}>
@@ -395,7 +395,7 @@ export default async function DashboardPage() {
             </p>
           ) : !recentDeals || recentDeals.length === 0 ? (
             <p className="text-sm" style={{ color: "var(--color-sumi500)" }}>
-              商談がありません
+              ディールがありません
             </p>
           ) : (
             <div className="overflow-x-auto">
@@ -593,7 +593,7 @@ export default async function DashboardPage() {
             className="text-base font-bold mb-4"
             style={{ color: "var(--color-text-title)" }}
           >
-            担当者別商談数
+            担当者別ディール数
           </h2>
           {ownerDealsError ? (
             <p className="text-sm" style={{ color: "var(--color-sumi600)" }}>
@@ -601,7 +601,7 @@ export default async function DashboardPage() {
             </p>
           ) : ownerStats.length === 0 ? (
             <p className="text-sm" style={{ color: "var(--color-sumi500)" }}>
-              進行中の商談がありません
+              進行中のディールがありません
             </p>
           ) : (
             <div className="space-y-3">

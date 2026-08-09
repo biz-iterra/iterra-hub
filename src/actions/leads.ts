@@ -243,7 +243,7 @@ export async function createLead(
     .eq("id", d.stage_id)
     .single();
 
-  // 商談が要るステージは新規作成では選べない。新規リードに商談は無く、
+  // ディールが要るステージは新規作成では選べない。新規リードにディールは無く、
   // DB トリガー（trg_lead_stage_requirements）に弾かれるため、
   // ここで何をすればよいかまで書いた文言にして返す
   if (stageInfo.data?.requires_deal) {
@@ -251,15 +251,15 @@ export async function createLead(
       ok: false,
       errors: {
         stage_id: [
-          `[stage_id] 「${stageInfo.data.name}」は商談が必要なステージのため、新規作成では選べません。` +
-            `獲得〜選定のいずれかで作成し、商談化するタイミングでステージを進めてください。受信値: ${d.stage_id}`,
+          `[stage_id] 「${stageInfo.data.name}」はディールが必要なステージのため、新規作成では選べません。` +
+            `ディールが不要なステージで作成し、ディール化するタイミングでステージを進めてください。受信値: ${d.stage_id}`,
         ],
       },
     };
   }
 
   // **ステータスを NULL にするかは「そのステージにステータスが定義されているか」で決める。**
-  // auto_promote_to_deal で判定すると、商談を自動生成しつつステータスも持つステージで
+  // auto_promote_to_deal で判定すると、ディールを自動生成しつつステータスも持つステージで
   // ステータスが消えてしまう（updateLead 側と同じ理由）
   const { count: statusCount } = await supabase
     .from("lead_statuses")
@@ -397,8 +397,9 @@ export async function updateLead(
   const isPromoteStage = newStageRow?.auto_promote_to_deal === true;
 
   // **ステータスを NULL にするかは「そのステージにステータスが定義されているか」で決める。**
-  // auto_promote_to_deal で判定すると、商談を自動生成しつつステータスも持つステージ
-  // （Sales の 商談化 / 引継済）でステータスが消えてしまう
+  // auto_promote_to_deal で判定すると、ディールを自動生成しつつステータスも持つステージ
+  // （ディール段階の「商談化」「引継済」。この 2 つはマスタの実値なので改称しない）で
+  // ステータスが消えてしまう
   const { count: statusCount } = await supabase
     .from("lead_statuses")
     .select("id", { count: "exact", head: true })
@@ -469,9 +470,9 @@ export async function updateLead(
     last_updated_by: user.id,
   };
 
-  // ---------- 商談の先行生成 ----------
-  // **leads を更新する前に商談を作る。** DB トリガー trg_lead_stage_requirements が
-  // 「商談なしで Sales 以降へ進める」ことを拒否するため、順序が逆だと保存自体が失敗する。
+  // ---------- ディールの先行生成 ----------
+  // **leads を更新する前にディールを作る。** DB トリガー trg_lead_stage_requirements が
+  // 「ディールなしで Sales 以降へ進める」ことを拒否するため、順序が逆だと保存自体が失敗する。
   // 先に作れば、昇格が失敗したときも leads はステージが元のままなので
   // 巻き戻し（旧実装の補償処理）が要らない。
   //
@@ -479,9 +480,9 @@ export async function updateLead(
   // 今回の編集で入力した値が届かないと「lead_name と account_type_id が必要です」で
   // 失敗するため、**ステージ以外の項目は昇格より先に保存する**。
   // ステージを据え置けばトリガーは発火しない（UPDATE OF stage_id のため）。
-  // **紐づく商談があるかは `deals.lead_id` で数える**（T-0069）。
-  // `promoted_deal_id` は派生値で、`/deals/new` から作った商談でも入るが、
-  // ここでそちらを見ると「商談があるのに昇格が走って 2 本目ができる」経路が
+  // **紐づくディールがあるかは `deals.lead_id` で数える**（T-0069）。
+  // `promoted_deal_id` は派生値で、`/deals/new` から作ったディールでも入るが、
+  // ここでそちらを見ると「ディールがあるのに昇格が走って 2 本目ができる」経路が
   // 残る（判定を正本へ寄せる）
   const { count: linkedDealCount } = await supabase
     .from("deals")
@@ -527,7 +528,7 @@ export async function updateLead(
       }
       return {
         ok: false,
-        errors: { _: [`商談昇格に失敗しました: ${promoteResult.error}`] },
+        errors: { _: [`ディール昇格に失敗しました: ${promoteResult.error}`] },
       };
     }
 
@@ -732,13 +733,13 @@ export async function promoteLeadToDeal(
   if (!promotable) {
     return {
       data: null,
-      error: "現在のステージは商談昇格対象ではありません",
+      error: "現在のステージはディール昇格対象ではありません",
     };
   }
 
   // 二重発火防止: already promoted
   if (lead.promoted_deal_id) {
-    return { data: null, error: "このリードはすでに商談に昇格済みです" };
+    return { data: null, error: "このリードはすでにディールに昇格済みです" };
   }
 
   // 必須情報チェック。
@@ -748,13 +749,13 @@ export async function promoteLeadToDeal(
   if (!lead.lead_name) {
     return {
       data: null,
-      error: "[lead_name] リード名を入力してください。商談に昇格するには必要です",
+      error: "[lead_name] リード名を入力してください。ディールに昇格するには必要です",
     };
   }
   if (!lead.account_type_id) {
     return {
       data: null,
-      error: "[account_type_id] 事業者種別を選択してください。商談に昇格するには必要です",
+      error: "[account_type_id] 事業者種別を選択してください。ディールに昇格するには必要です",
     };
   }
 
@@ -792,7 +793,7 @@ export async function promoteLeadToDeal(
     return {
       data: null,
       error:
-        "既定のパイプラインが設定されていません（マスタ・取込 → パイプライン種別で「商談化の既定」を 1 つ選んでください）",
+        "既定のパイプラインが設定されていません（マスタ・取込 → パイプライン種別で「ディール化の既定」を 1 つ選んでください）",
     };
   }
 
@@ -807,7 +808,7 @@ export async function promoteLeadToDeal(
     .single();
 
   if (!firstStage) {
-    return { data: null, error: "商談ステージが見つかりません" };
+    return { data: null, error: "ディールステージが見つかりません" };
   }
 
   const { data: firstStatus } = await supabase
@@ -820,7 +821,7 @@ export async function promoteLeadToDeal(
     .single();
 
   if (!firstStatus) {
-    return { data: null, error: "商談ステータスが見つかりません" };
+    return { data: null, error: "ディールステータスが見つかりません" };
   }
 
   // --- 既定ステータスの解決 ---
@@ -921,7 +922,7 @@ export async function promoteLeadToDeal(
     );
     return {
       data: null,
-      error: rpcError?.message ?? "商談昇格に失敗しました",
+      error: rpcError?.message ?? "ディール昇格に失敗しました",
     };
   }
 

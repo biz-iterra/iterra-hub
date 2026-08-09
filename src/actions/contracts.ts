@@ -141,7 +141,7 @@ export async function createContract(
     .single();
 
   if (error) return { data: null, error: toUserMessage(error, { entityLabel: "契約" }) };
-  // 契約成立の AFTER INSERT トリガーが取引先を作り商談に紐付けるので、そちらも再検証する
+  // 契約成立の AFTER INSERT トリガーが取引先を作りディールに紐付けるので、そちらも再検証する
   revalidatePath("/contracts");
   revalidatePath("/accounts");
   revalidateDealLists();
@@ -184,13 +184,13 @@ export async function updateContract(
   return { data, error: null };
 }
 
-// ---------- 商談への付け替え ----------
+// ---------- ディールへの付け替え ----------
 
 /**
- * 商談へ紐づけられる契約の候補を返す。
+ * ディールへ紐づけられる契約の候補を返す。
  *
- * **どの商談にも紐づいていない契約だけ**を返す（T-0065）。他の商談の契約を
- * 出すと、選んだ瞬間にその商談から契約が消える付け替えになってしまう。
+ * **どのディールにも紐づいていない契約だけ**を返す（T-0065）。他のディールの契約を
+ * 出すと、選んだ瞬間にそのディールから契約が消える付け替えになってしまう。
  *
  * `.neq("deal_id", …)` は使えない。SQL の NULL 比較（`NULL <> 'x'` が UNKNOWN）で
  * **未紐づけの行が丸ごと落ちる**ため、まさに欲しいものが出てこない。
@@ -227,9 +227,9 @@ export async function listLinkableContracts(params: {
 }
 
 /**
- * どの商談にも紐づいていない契約を、商談へ紐づける。
+ * どのディールにも紐づいていない契約を、ディールへ紐づける。
  *
- * **他の商談に紐づいている契約は受け付けない**（T-0065）。候補一覧を開いたまま
+ * **他のディールに紐づいている契約は受け付けない**（T-0065）。候補一覧を開いたまま
  * 放置している間に他の人が紐づけた、という取り違えを弾く。
  *
  * 紐づけた時点で `ensure_account_on_contract` が走り、取引先が無ければ作られる
@@ -259,13 +259,13 @@ export async function linkContractToDeal(
   }
   if (!before) return { data: null, error: "契約が見つかりません" };
   if (before.deal_id === parsed.data.deal_id) {
-    return { data: null, error: "この契約はすでにこの商談に紐づいています" };
+    return { data: null, error: "この契約はすでにこのディールに紐づいています" };
   }
   if (before.deal_id) {
     return {
       data: null,
       error:
-        "この契約はすでに別の商談に紐づいています。もとの商談で紐づけを解除してから操作してください",
+        "この契約はすでに別のディールに紐づいています。もとのディールで紐づけを解除してから操作してください",
     };
   }
 
@@ -289,14 +289,14 @@ export async function linkContractToDeal(
 }
 
 /**
- * 契約を商談から外す（`deal_id` を NULL に戻す）。
+ * 契約をディールから外す（`deal_id` を NULL に戻す）。
  *
- * **契約そのものは残る。** どの商談にも紐づかない状態になり、
- * あとから同じ商談にも別の商談にも紐づけ直せる（T-0067）。
+ * **契約そのものは残る。** どのディールにも紐づかない状態になり、
+ * あとから同じディールにも別のディールにも紐づけ直せる（T-0067）。
  *
  * 外すと「ステージは取引先なのに契約が無い」リードを作れてしまうため、
  * DB のトリガー（`check_contract_detach_against_leads`）が日本語の理由付きで拒む。
- * 取引先は消さない（他の商談や連絡先がぶら下がっている）。
+ * 取引先は消さない（他のディールや連絡先がぶら下がっている）。
  */
 export async function unlinkContractFromDeal(
   input: z.infer<typeof unlinkContractFromDealSchema>
@@ -310,8 +310,8 @@ export async function unlinkContractFromDeal(
   const parsed = unlinkContractFromDealSchema.safeParse(input);
   if (!parsed.success) return { data: null, error: parsed.error.issues[0].message };
 
-  // いま本当にこの商談に付いているか。古い画面から押されたときに
-  // 別の商談の紐づけを外さないため
+  // いま本当にこのディールに付いているか。古い画面から押されたときに
+  // 別のディールの紐づけを外さないため
   const { data: before, error: beforeError } = await supabase
     .from("contracts")
     .select("deal_id")
@@ -326,7 +326,7 @@ export async function unlinkContractFromDeal(
   if (before.deal_id !== parsed.data.deal_id) {
     return {
       data: null,
-      error: "この契約はすでにこの商談から外れています。画面を再読み込みしてください",
+      error: "この契約はすでにこのディールから外れています。画面を再読み込みしてください",
     };
   }
 

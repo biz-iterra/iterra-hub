@@ -107,7 +107,7 @@ export default async function CompanyDetailPage({
       getCurrentUser(),
       // 口座番号を含むので manager 未満には返らない（null になる）
       getCompanyFinancialInfo(id),
-      // 契約前の商談は取引先ではなくこの事業者に紐づく（database-design.md §16）
+      // 契約前のディールは取引先ではなくこの事業者に紐づく（database-design.md §16）
       getDeals({ companyId: id, perPage: 50 }),
       // freee へ渡す値の選択。**admin 以外は使わない**ので表示側で出し分ける
       getCompanyIntegrationProfile(id, "freee"),
@@ -674,16 +674,16 @@ export default async function CompanyDetailPage({
           )}
 
           {/*
-            商談。取引先は契約成立まで作られないため、契約前の商談は
+            ディール。取引先は契約成立まで作られないため、契約前のディールは
             この事業者情報に紐づく。ここから起こせるようにしておく
           */}
           <DetailSection
-            title="商談"
+            title="ディール"
             icon={Handshake}
             action={
               <AddRelatedLink
                 href={`/deals/new?company_id=${company.id}`}
-                label="商談を追加"
+                label="ディールを追加"
               />
             }
           >

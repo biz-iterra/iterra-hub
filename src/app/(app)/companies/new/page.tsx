@@ -1,5 +1,5 @@
 import { getCorporateTypes, getLeadSources, getCompanyStatuses } from "@/actions/masters";
-import { getCrmUsers } from "@/actions/users";
+import { getCrmUsers, getCurrentUser } from "@/actions/users";
 import { CompanyNewForm } from "./company-new-form";
 
 export default async function CompanyNewPage() {
@@ -31,5 +31,9 @@ export default async function CompanyNewPage() {
     })),
   };
 
-  return <CompanyNewForm masters={masters} />;
+  const me = await getCurrentUser();
+
+  return (
+    <CompanyNewForm masters={masters} defaultOwnerUserId={me.data?.id} />
+  );
 }

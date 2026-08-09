@@ -144,7 +144,7 @@ export function ContractNewForm({
   initialDealId = "",
 }: {
   masters: Masters;
-  /** 商談の詳細から来たときの初期選択。固定はしない */
+  /** ディールの詳細から来たときの初期選択。固定はしない */
   initialDealId?: string;
 }) {
   const router = useRouter();
@@ -186,8 +186,8 @@ export function ContractNewForm({
     setSaving(true);
     setError(null);
 
-    // 商談は任意。どの商談にも紐づかない契約を先に作り、あとから
-    // 商談の編集画面で紐づけられる（T-0065）
+    // ディールは任意。どのディールにも紐づかない契約を先に作り、あとから
+    // ディールの編集画面で紐づけられる（T-0065）
     const amountNum = values.amount.trim() === "" ? null : Number(values.amount);
     if (amountNum !== null && (Number.isNaN(amountNum) || amountNum < 0)) {
       setSaving(false);
@@ -272,17 +272,17 @@ export function ContractNewForm({
           <h2 style={styles.sectionTitle}>基本情報</h2>
           <div className={styles.grid}>
             <div>
-              <label style={styles.label}>商談</label>
+              <label style={styles.label}>ディール</label>
               <SearchableSelect
                 value={values.deal_id}
                 onChange={(v) => set("deal_id", v)}
                 options={masters.deals}
                 emptyOptionLabel="-- 未選択 --"
                 searchKind="deal"
-                ariaLabel="商談"
+                ariaLabel="ディール"
               />
               <p style={styles.helperText}>
-                未選択のままでも登録できます。あとから商談の編集画面で紐づけられます。
+                未選択のままでも登録できます。あとからディールの編集画面で紐づけられます。
               </p>
             </div>
             <div>

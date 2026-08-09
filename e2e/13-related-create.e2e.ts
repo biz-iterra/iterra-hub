@@ -76,13 +76,13 @@ test.describe("E2E-13", () => {
     // 事業者情報にも紐づいている
     await expect(page.getByRole("link", { name: companyName }).first()).toBeVisible();
 
-    // ---- 5. 連絡先詳細から商談を追加できる（相手先が連絡先で初期選択される）----
-    const addDeal = page.getByRole("link", { name: "商談を追加" });
+    // ---- 5. 連絡先詳細からディールを追加できる（相手先が連絡先で初期選択される）----
+    const addDeal = page.getByRole("link", { name: "ディールを追加" });
     await expect(addDeal).toBeVisible();
     await addDeal.click();
     await page.waitForURL(new RegExp(`/deals/new\\?contact_id=${contactId}`));
-    // 取引先が無くても商談を作れること（契約成立まで取引先は存在しないため）
-    await expect(page.getByRole("heading", { name: "商談を新規作成" })).toBeVisible();
+    // 取引先が無くてもディールを作れること（契約成立まで取引先は存在しないため）
+    await expect(page.getByRole("heading", { name: "ディールを新規作成" })).toBeVisible();
     // 相手先は排他ではなく、連絡先だけが埋まった状態で始まること（T-0064）。
     // 事業者情報の欄は空で、ここで併せて選べる
     await expect(
@@ -91,7 +91,7 @@ test.describe("E2E-13", () => {
     await expect(page.getByRole("combobox", { name: "事業者情報" })).toHaveValue("");
     // **取引先の欄は無い**（契約成立時に自動で作られるもの。T-0070）
     await expect(page.getByRole("combobox", { name: "取引先" })).toHaveCount(0);
-    // **商談はリードから始まる**（T-0070）。リードの欄が最上部にあること
+    // **ディールはリードから始まる**（T-0070）。リードの欄が最上部にあること
     await expect(
       page.getByRole("radio", { name: "既存のリードから選ぶ" })
     ).toBeChecked();

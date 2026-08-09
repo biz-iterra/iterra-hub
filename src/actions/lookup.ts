@@ -74,7 +74,7 @@ export async function searchLookupOptions(
         perPage: LIMIT,
       });
       return (data?.rows ?? []).map((l) => {
-        // **ステージを出す。** 商談を作れる段階か（選定 = TQL 以上）を
+        // **ステージを出す。** ディールを作れる段階か（選定 = TQL 以上）を
         // 選ぶ前に見せたい（T-0070）
         const parts = [l.company_name, l.stage?.name].filter(
           (v): v is string => typeof v === "string" && v.length > 0

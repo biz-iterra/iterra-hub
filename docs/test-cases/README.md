@@ -9,7 +9,7 @@
 | [02-integration-db.md](02-integration-db.md) | 結合 | DB 関数・トリガー・RLS・整合性チェッククエリ |
 | [03-system-companies-accounts.md](03-system-companies-accounts.md) | システム | 事業者情報・取引先 |
 | [04-system-contacts-talents.md](04-system-contacts-talents.md) | システム | 連絡先・タレント |
-| [05-system-deals-contracts-projects.md](05-system-deals-contracts-projects.md) | システム | 商談・契約・プロジェクト |
+| [05-system-deals-contracts-projects.md](05-system-deals-contracts-projects.md) | システム | ディール・契約・プロジェクト |
 | [06-system-leads-campaigns.md](06-system-leads-campaigns.md) | システム | リード・キャンペーン・アクティビティ・取込 |
 | [07-system-platform-admin.md](07-system-platform-admin.md) | システム | 認証・管理・ダッシュボード・共通基盤 |
 | [08-e2e-scenarios.md](08-e2e-scenarios.md) | E2E | 業務ジャーニー（Playwright、ランク S はデプロイ毎） |

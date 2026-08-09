@@ -248,7 +248,7 @@ export default async function ProjectDetailPage({
         </div>
       </div>
 
-      {/* 下段: 紐づく商談（全幅）。多対多なのでここから足し外しできる */}
+      {/* 下段: 紐づくディール（全幅）。多対多なのでここから足し外しできる */}
       <ProjectDealsSection
         projectId={id}
         deals={deals.map((d) => ({

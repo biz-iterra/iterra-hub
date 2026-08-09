@@ -37,7 +37,7 @@ test.describe("E2E-01", () => {
     await page.waitForURL("**/dashboard");
 
     await expect(page.getByRole("heading", { name: "ダッシュボード" })).toBeVisible();
-    await expect(page.getByText("進行中商談")).toBeVisible();
+    await expect(page.getByText("進行中ディール")).toBeVisible();
     await expect(page.getByText("パイプラインファネル")).toBeVisible();
 
     // 3. ログアウト → /login へ戻り、/deals への直アクセスが再び弾かれる

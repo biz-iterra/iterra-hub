@@ -64,11 +64,11 @@ export async function getDeals(params?: {
   stageId?: string;
   statusId?: string;
   ownerUserId?: string;
-  /** 相手先での絞り込み。各詳細ページの「商談」セクションが使う */
+  /** 相手先での絞り込み。各詳細ページの「ディール」セクションが使う */
   accountId?: string;
   companyId?: string;
   contactId?: string;
-  /** 元になったリードでの絞り込み。リード詳細の「商談」セクションが使う（T-0069） */
+  /** 元になったリードでの絞り込み。リード詳細の「ディール」セクションが使う（T-0069） */
   leadId?: string;
   page?: number;
   perPage?: number;
@@ -126,7 +126,7 @@ export async function getDeals(params?: {
   }
 
   const { data, error, count } = await query;
-  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "商談" }) };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "ディール" }) };
   return { data: { rows: data ?? [], total: count ?? 0 }, error: null };
 }
 
@@ -201,9 +201,9 @@ export async function getDealsForKanban(
 }
 
 /**
- * 商談の新規作成でリードを選んだときに引く要約（T-0070）。
+ * ディールの新規作成でリードを選んだときに引く要約（T-0070）。
  *
- * 相手先（事業者情報・連絡先）の自動補完と、商談を作れる段階かの判定に使う。
+ * 相手先（事業者情報・連絡先）の自動補完と、ディールを作れる段階かの判定に使う。
  * **`leads` の RLS がそのまま効く**（他人のリードは引けない）。
  */
 export async function getLeadForDealCreation(
@@ -270,7 +270,7 @@ export async function getDeal(id: string): Promise<ActionResult<DealDetail>> {
     .order("activity_at", { referencedTable: "deal_activities", ascending: false })
     .single();
 
-  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "商談" }) };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "ディール" }) };
   return { data, error: null };
 }
 
@@ -288,7 +288,7 @@ function revalidateAfterDealCreate(params: {
 }
 
 /**
- * 商談を作る（リードを介さない経路）。
+ * ディールを作る（リードを介さない経路）。
  *
  * **書き込みは DB 関数 `create_deal_with_lead` にまとめている。**
  * 以前は deals / 履歴 2 本 / deal_projects を別々に投げており、
@@ -319,10 +319,10 @@ export async function createDeal(
     p_project_id: projectId ?? undefined,
   });
 
-  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "商談" }) };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "ディール" }) };
 
   const dealId = (result as { deal_id?: string } | null)?.deal_id;
-  if (!dealId) return { data: null, error: "商談の作成に失敗しました" };
+  if (!dealId) return { data: null, error: "ディールの作成に失敗しました" };
 
   const { data: deal, error: fetchError } = await supabase
     .from("deals")
@@ -331,7 +331,7 @@ export async function createDeal(
     .single();
 
   if (fetchError) {
-    return { data: null, error: toUserMessage(fetchError, { entityLabel: "商談" }) };
+    return { data: null, error: toUserMessage(fetchError, { entityLabel: "ディール" }) };
   }
 
   revalidateAfterDealCreate({ leadId, projectId });
@@ -339,16 +339,16 @@ export async function createDeal(
 }
 
 /**
- * リード起点で商談を作る（T-0070）。
+ * リード起点でディールを作る（T-0070）。
  *
  * 既存のリードを選ぶか、その場でリードを作る。TQL 未満のリードは
- * `raise_stage_id` を渡して選定へ上げてから商談を作る。
- * **リードの作成・ステージの引き上げ・商談・履歴が単一トランザクション**で、
+ * `raise_stage_id` を渡して選定へ上げてからディールを作る。
+ * **リードの作成・ステージの引き上げ・ディール・履歴が単一トランザクション**で、
  * 途中で落ちればリードも残らない。
  */
 export async function createDealWithLead(
   input: z.infer<typeof createDealWithLeadSchema>
-): Promise<ActionResult<{ deal_id: string; lead_id: string }>> {
+): Promise<ActionResult<{ deal_id: string; lead_id: string | null }>> {
   const { supabase, user } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
 
@@ -383,25 +383,30 @@ export async function createDealWithLead(
     p_project_id: projectId ?? undefined,
   });
 
-  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "商談" }) };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "ディール" }) };
 
-  const payload = result as { deal_id?: string; lead_id?: string } | null;
-  if (!payload?.deal_id || !payload.lead_id) {
-    return { data: null, error: "商談の作成に失敗しました" };
+  const payload = result as { deal_id?: string; lead_id?: string | null } | null;
+  if (!payload?.deal_id) {
+    return { data: null, error: "ディールの作成に失敗しました" };
   }
+  // **リードが無いこともある。** プロキュアメント・パートナーシップは
+  // `pipeline_types.requires_lead = FALSE`（相手が既にいるところから始まる）
+  const createdLeadId = payload.lead_id ?? null;
 
   revalidatePath("/leads");
-  revalidateAfterDealCreate({ leadId: payload.lead_id, projectId });
+  revalidateAfterDealCreate({ leadId: createdLeadId ?? undefined, projectId });
 
   // スコアは DB 関数の中で計算しない（createLead と同じ扱い）。
-  // 失敗しても商談は成立しているので握りつぶす
-  try {
-    await recalculateLeadScore(createAdminClient(), payload.lead_id);
-  } catch (e) {
-    console.warn("[createDealWithLead] recalculateLeadScore WARN:", e);
+  // 失敗してもディールは成立しているので握りつぶす
+  if (createdLeadId) {
+    try {
+      await recalculateLeadScore(createAdminClient(), createdLeadId);
+    } catch (e) {
+      console.warn("[createDealWithLead] recalculateLeadScore WARN:", e);
+    }
   }
 
-  return { data: { deal_id: payload.deal_id, lead_id: payload.lead_id }, error: null };
+  return { data: { deal_id: payload.deal_id, lead_id: createdLeadId }, error: null };
 }
 
 // ---------- 更新 ----------
@@ -415,8 +420,8 @@ export async function updateDeal(
   // owner チェック（admin 以外は自分の担当のみ）
   if (role !== "admin") {
     const { data: existing } = await supabase.from("deals").select("owner_user_id").eq("id", id).single();
-    if (!existing) return { data: null, error: "商談が見つかりません" };
-    if (existing.owner_user_id !== user.id) return { data: null, error: "この商談を編集する権限がありません" };
+    if (!existing) return { data: null, error: "ディールが見つかりません" };
+    if (existing.owner_user_id !== user.id) return { data: null, error: "このディールを編集する権限がありません" };
   }
 
   const parsed = updateDealSchema.safeParse(input);
@@ -429,7 +434,7 @@ export async function updateDeal(
     .eq("id", id)
     .single();
 
-  if (fetchError) return { data: null, error: toUserMessage(fetchError, { entityLabel: "商談" }) };
+  if (fetchError) return { data: null, error: toUserMessage(fetchError, { entityLabel: "ディール" }) };
 
   // expected_updated_at は DB カラムではないため更新値から除外する
   const { expected_updated_at, ...fields } = parsed.data;
@@ -451,9 +456,9 @@ export async function updateDeal(
 
   const { data: deal, error } = await updateQuery.select().maybeSingle();
 
-  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "商談" }) };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "ディール" }) };
   if (!deal) {
-    return { data: null, error: conflictErrorMessage("この商談") };
+    return { data: null, error: conflictErrorMessage("このディール") };
   }
 
   // ステージ変更履歴
@@ -509,11 +514,11 @@ export async function moveDealCard(
     .select("id, owner_user_id, pipeline_type_id, deal_stage_id, deal_status_id")
     .eq("id", dealId)
     .single();
-  if (fetchError || !current) return { data: null, error: "商談が見つかりません" };
+  if (fetchError || !current) return { data: null, error: "ディールが見つかりません" };
 
   // owner チェック（admin 以外は自分の担当のみ）
   if (role !== "admin" && current.owner_user_id !== user.id) {
-    return { data: null, error: "この商談を編集する権限がありません" };
+    return { data: null, error: "このディールを編集する権限がありません" };
   }
 
   let newStageId = current.deal_stage_id;
@@ -530,7 +535,7 @@ export async function moveDealCard(
       .order("sort_order", { ascending: true })
       .limit(1)
       .maybeSingle();
-    if (statusError) return { data: null, error: toUserMessage(statusError, { entityLabel: "商談" }) };
+    if (statusError) return { data: null, error: toUserMessage(statusError, { entityLabel: "ディール" }) };
     if (!statusRow) {
       return { data: null, error: "移動先ステージにステータスが未定義です" };
     }
@@ -544,7 +549,7 @@ export async function moveDealCard(
       .eq("id", targetId)
       .is("deleted_at", null)
       .maybeSingle();
-    if (statusError) return { data: null, error: toUserMessage(statusError, { entityLabel: "商談" }) };
+    if (statusError) return { data: null, error: toUserMessage(statusError, { entityLabel: "ディール" }) };
     if (!statusRow) return { data: null, error: "移動先ステータスが見つかりません" };
     newStatusId = statusRow.id;
     if (statusRow.deal_stage_id) newStageId = statusRow.deal_stage_id;
@@ -560,7 +565,7 @@ export async function moveDealCard(
       .select(DEAL_SELECT)
       .eq("id", dealId)
       .single();
-    if (error) return { data: null, error: toUserMessage(error, { entityLabel: "商談" }) };
+    if (error) return { data: null, error: toUserMessage(error, { entityLabel: "ディール" }) };
     return { data: deal, error: null };
   }
 
@@ -580,8 +585,8 @@ export async function moveDealCard(
     .select(DEAL_SELECT)
     .maybeSingle();
 
-  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "商談" }) };
-  if (!deal) return { data: null, error: conflictErrorMessage("この商談") };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "ディール" }) };
+  if (!deal) return { data: null, error: conflictErrorMessage("このディール") };
 
   if (stageChanged) {
     await supabase.from("deal_stage_histories").insert({
@@ -633,7 +638,7 @@ export async function deleteDeal(id: string): Promise<ActionResult<null>> {
     })
     .eq("id", id);
 
-  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "商談", operation: "delete"}) };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "ディール", operation: "delete"}) };
   revalidateDealLists();
   revalidatePath(`/deals/${id}`);
   revalidatePath("/dashboard");
@@ -656,7 +661,7 @@ export async function addDealService(
     .select()
     .single();
 
-  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "商談" }) };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "ディール" }) };
   return { data, error: null };
 }
 
@@ -674,6 +679,6 @@ export async function removeDealService(
     .eq("deal_id", dealId)
     .eq("service_id", serviceId);
 
-  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "商談", operation: "delete"}) };
+  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "ディール", operation: "delete"}) };
   return { data: null, error: null };
 }

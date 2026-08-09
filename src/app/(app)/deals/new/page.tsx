@@ -8,20 +8,25 @@ import {
 } from "@/actions/masters";
 import { getCompanies } from "@/actions/companies";
 import { getContacts } from "@/actions/contacts";
-import { getCrmUsers } from "@/actions/users";
+import { getCrmUsers, getCurrentUser } from "@/actions/users";
 import { DealNewForm } from "./deal-new-form";
+import { parseScreenKey } from "@/lib/deals/pipeline-screen";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
- * 商談の新規作成。
+ * ディールの新規作成。
  *
- * **商談はリードから始まる**（T-0070）。既存のリードを選ぶか、その場で作る。
+ * **ディールはリードから始まる**（T-0070）。既存のリードを選ぶか、その場で作る。
  * 相手先（事業者情報・連絡先）はリードから自動で埋まり、選び直せる。
  * **取引先は選ばせない**（契約成立時に自動で作られる）。
  *
- * 各詳細から「商談を追加」で来たときは `?company_id=` / `?contact_id=` /
+ * 各詳細から「ディールを追加」で来たときは `?company_id=` / `?contact_id=` /
  * `?lead_id=` が渡り、初期選択になる。
+ *
+ * **パイプラインは `?pipeline=` で決まり、画面では選ばせない**（T-0079）。
+ * セールス / プロキュアメント / パートナーシップのそれぞれから作るため。
+ * 指定が無い・知らない値のときは「ディール化の既定」のパイプラインを使う。
  */
 export default async function DealNewPage({
   searchParams,
@@ -37,6 +42,7 @@ export default async function DealNewPage({
   const initialContactId = pick("contact_id");
   const initialProjectId = pick("project_id");
   const initialLeadId = pick("lead_id");
+  const screenKey = parseScreenKey(params["pipeline"]);
 
   const [
     pipelineTypesResult,
@@ -45,6 +51,7 @@ export default async function DealNewPage({
     companiesResult,
     contactsResult,
     usersResult,
+    meResult,
     leadStagesResult,
     leadSourcesResult,
     accountTypesResult,
@@ -55,6 +62,7 @@ export default async function DealNewPage({
     getCompanies({ perPage: 1000 }),
     getContacts({ perPage: 1000 }),
     getCrmUsers(),
+    getCurrentUser(),
     getLeadStages(),
     getLeadSources(),
     getAccountTypes(),
@@ -65,6 +73,8 @@ export default async function DealNewPage({
     name: string;
     default_close_months: number | null;
     screen_key: string | null;
+    is_default: boolean;
+    requires_lead: boolean;
   };
   type StageItem = { id: string; name: string; pipeline_type_id: string };
   type StatusItem = { id: string; name: string; pipeline_type_id: string };
@@ -76,6 +86,14 @@ export default async function DealNewPage({
     sort_order: number;
   };
   type SimpleMaster = { id: string; name: string };
+
+  const pipelines = (pipelineTypesResult.data ?? []) as PipelineItem[];
+  // 画面から渡ったパイプライン。無ければ「ディール化の既定」、それも無ければ先頭
+  const pipeline =
+    (screenKey ? pipelines.find((p) => p.screen_key === screenKey) : null) ??
+    pipelines.find((p) => p.is_default) ??
+    pipelines[0] ??
+    null;
 
   const masters = {
     pipelineTypes: ((pipelineTypesResult.data ?? []) as PipelineItem[]).map(
@@ -115,7 +133,7 @@ export default async function DealNewPage({
       value: u.id,
       label: u.full_name,
     })),
-    // 商談を作れる段階かの判定と、TQL 未満のリードを上げる先の決定に使う
+    // ディールを作れる段階かの判定と、TQL 未満のリードを上げる先の決定に使う
     leadStages: ((leadStagesResult.data ?? []) as LeadStageItem[]).map((s) => ({
       id: s.id,
       name: s.name,
@@ -140,6 +158,9 @@ export default async function DealNewPage({
       initialContactId={initialContactId}
       initialProjectId={initialProjectId}
       initialLeadId={initialLeadId}
+      defaultOwnerUserId={meResult.data?.id}
+      pipelineTypeId={pipeline?.id ?? ""}
+      requiresLead={pipeline?.requires_lead ?? false}
     />
   );
 }

@@ -1,18 +1,18 @@
 "use client";
 
 /**
- * 商談の新規作成でリードを決める部分（T-0070）。
+ * ディールの新規作成でリードを決める部分（T-0070）。
  *
- * **セールスの商談には元になったリードが必要**（`pipeline_types.requires_lead`）。
+ * **セールスのディールには元になったリードが必要**（`pipeline_types.requires_lead`）。
  * 既存のリードを選ぶか、その場で作る。
  *
  * TQL 未満（`lead_stages.is_deal_ready` が偽）のリードは**選ばせないのではなく、
  * その場で選定へ上げる**。選べなくすると、リード一覧へ戻って直して
- * また商談の入力をやり直すことになる。ただし黙って上げるのは論外なので、
+ * またディールの入力をやり直すことになる。ただし黙って上げるのは論外なので、
  * チェックボックスで明示的に同意させる。
  *
  * リードの新規作成も**この画面の中で**行う。`/leads/new` へ飛ばすと
- * 入力中の商談が消える。
+ * 入力中のディールが消える。
  *
  * Phase 2 で `/sales` へ移すため、フォーム本体から切り出してある。
  */
@@ -235,7 +235,7 @@ export function DealLeadPicker({
         リード<RequiredMark />
       </h2>
       <p style={styles.lead}>
-        商談は<strong>リードから始めます</strong>。既にあるリードを選ぶか、ここで新しく作ってください。
+        ディールは<strong>リードから始めます</strong>。既にあるリードを選ぶか、ここで新しく作ってください。
       </p>
 
       <div style={styles.modeRow} role="radiogroup" aria-label="リードの選び方">
@@ -300,7 +300,7 @@ export function DealLeadPicker({
             <div style={styles.warning}>
               <div style={styles.warningHead}>
                 <AlertTriangle size={14} />
-                このリードはまだ商談を作れる段階ではありません
+                このリードはまだディールを作れる段階ではありません
               </div>
               <div>{verdict.message}</div>
               <label style={styles.consentRow}>
@@ -310,7 +310,7 @@ export function DealLeadPicker({
                   onChange={(e) => onChange({ ...value, raiseStage: e.target.checked })}
                 />
                 <span>
-                  「{raiseTarget.name}」へ進めて商談を作る
+                  「{raiseTarget.name}」へ進めてディールを作る
                 </span>
               </label>
             </div>
@@ -329,7 +329,7 @@ export function DealLeadPicker({
               onBlur={onBlur}
             />
             <p style={styles.helperText}>
-              ステージは「{raiseTarget?.name ?? "選定"}」で作成されます。
+              ステージは「{raiseTarget?.name ?? "リード選定"}」で作成されます。
             </p>
           </div>
           <div>

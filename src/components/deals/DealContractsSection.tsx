@@ -1,20 +1,20 @@
 "use client";
 
 /**
- * 商談の編集画面に置く契約セクション。
+ * ディールの編集画面に置く契約セクション。
  *
- * **商談フォームの「契約名」を置き換えるもの**（T-0063）。以前は
+ * **ディールフォームの「契約名」を置き換えるもの**（T-0063）。以前は
  * `deals.contract_name` というテキスト列を手入力させていたが、契約の実体は
  * `contracts` にあり二重管理になっていた。ここでは契約レコードそのものを扱う。
  *
- * **契約は商談が保存されるまで作れない**（新規作成画面には置かない）。
- * 商談の ID が無いと `/contracts/new?deal_id=` を組み立てられないため。
+ * **契約はディールが保存されるまで作れない**（新規作成画面には置かない）。
+ * ディールの ID が無いと `/contracts/new?deal_id=` を組み立てられないため。
  *
- * **紐づけ・解除は商談本体の「保存」とは別に、その場で反映される。**
+ * **紐づけ・解除はディール本体の「保存」とは別に、その場で反映される。**
  * フォームの中に置いてあるので（T-0066。以前はフォームの外にあり、
  * 削除・保存ボタンと接して見えた）、そのことが分かるよう
  * アクセント罫・「すぐ反映」バッジ・説明文の 3 つで示す。
- * **中のボタンはすべて `type="button"`。** submit すると商談が保存されてしまう。
+ * **中のボタンはすべて `type="button"`。** submit するとディールが保存されてしまう。
  */
 
 import { useCallback, useEffect, useId, useRef, useState, useTransition } from "react";
@@ -33,7 +33,7 @@ import { tableScrollClass } from "@/lib/layout";
 import type { LinkableContract } from "@/types/relations";
 import type { CSSProperties } from "react";
 
-/** 編集画面が受け取る、この商談に紐づいている契約 */
+/** 編集画面が受け取る、このディールに紐づいている契約 */
 export type DealContractRow = {
   id: string;
   contract_code: string;
@@ -244,7 +244,7 @@ export function DealContractsSection({
       </p>
 
       {alive.length === 0 ? (
-        <p style={styles.empty}>この商談に紐づく契約はまだありません。</p>
+        <p style={styles.empty}>このディールに紐づく契約はまだありません。</p>
       ) : (
         <div className={tableScrollClass}>
           <table
@@ -309,7 +309,7 @@ export function DealContractsSection({
         title="契約の紐づけを解除"
         message={
           unlinkTarget
-            ? `「${contractLabel(unlinkTarget)}」をこの商談から外します。契約そのものは残り、どの商談にも紐づかない状態になります。あとから同じ商談にも別の商談にも紐づけ直せます。`
+            ? `「${contractLabel(unlinkTarget)}」をこのディールから外します。契約そのものは残り、どのディールにも紐づかない状態になります。あとから同じディールにも別のディールにも紐づけ直せます。`
             : ""
         }
         confirmLabel="解除する"
@@ -321,10 +321,10 @@ export function DealContractsSection({
 }
 
 /**
- * どの商談にも紐づいていない契約を選んで、この商談へ紐づけるモーダル。
+ * どのディールにも紐づいていない契約を選んで、このディールへ紐づけるモーダル。
  *
- * **他の商談に紐づいている契約は候補に出さない**（T-0065）。出すと、
- * 選んだ瞬間にその商談から契約が消える付け替えになってしまう。
+ * **他のディールに紐づいている契約は候補に出さない**（T-0065）。出すと、
+ * 選んだ瞬間にそのディールから契約が消える付け替えになってしまう。
  */
 function LinkContractModal({
   dealId,
@@ -374,7 +374,7 @@ function LinkContractModal({
       showToast({ type: "error", message: result.error });
       return;
     }
-    showToast({ type: "success", message: "契約をこの商談に紐づけました" });
+    showToast({ type: "success", message: "契約をこのディールに紐づけました" });
     onClose();
     router.refresh();
   };
@@ -454,8 +454,8 @@ function LinkContractModal({
               margin: "0 0 0.75rem 0",
             }}
           >
-            <strong>どの商談にも紐づいていない契約</strong>だけが候補です。
-            他の商談に紐づいている契約は、その商談で紐づけを解除してから選んでください。
+            <strong>どのディールにも紐づいていない契約</strong>だけが候補です。
+            他のディールに紐づいている契約は、そのディールで紐づけを解除してから選んでください。
           </p>
 
           <SearchInput
@@ -469,7 +469,7 @@ function LinkContractModal({
               <p style={styles.empty}>読み込み中...</p>
             ) : rows.length === 0 ? (
               <p style={styles.empty}>
-                紐づけられる契約がありません。新しく登録するか、他の商談で紐づけを解除してください。
+                紐づけられる契約がありません。新しく登録するか、他のディールで紐づけを解除してください。
               </p>
             ) : (
               <table

@@ -81,7 +81,7 @@ const navGroups: NavGroup[] = [
     items: [
       { label: "リード", href: "/leads", icon: UserSearch },
       // カテゴリごとに追い方が違うので画面を分ける。
-      // SQL（商談化したもの）は商談で追うため、ここには置かない
+      // SQL（ディール化したもの）はディールで追うため、ここには置かない
       {
         label: "問い合わせ進捗",
         href: "/progress/inquiry",
@@ -126,7 +126,7 @@ const navGroups: NavGroup[] = [
         label: "取引先",
         href: "/accounts",
         icon: Briefcase,
-        description: "契約・商談の主体",
+        description: "契約・ディールの主体",
       },
       {
         label: "事業者情報",

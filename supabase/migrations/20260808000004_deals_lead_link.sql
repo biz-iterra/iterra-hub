@@ -1,16 +1,16 @@
 -- ============================================================
--- 商談にリードを紐づける土台（T-0069）
+-- ディールにリードを紐づける土台（T-0069）
 --
---   `deals` に `lead_id` が無く、商談側からリードを辿れなかった。
---   逆引きは `leads.promoted_deal_id` の 1 本だけで、**1 リード 1 商談**しか
---   表せない（2 回目以降の商談をリードに紐づけられない）。
+--   `deals` に `lead_id` が無く、ディール側からリードを辿れなかった。
+--   逆引きは `leads.promoted_deal_id` の 1 本だけで、**1 リード 1 ディール**しか
+--   表せない（2 回目以降のディールをリードに紐づけられない）。
 --
 --   `deals.lead_id` を**紐づけの正本**にし、`promoted_deal_id` は
---   「最初に紐づいた商談」の派生値へ降格する（次のマイグレーションで
+--   「最初に紐づいたディール」の派生値へ降格する（次のマイグレーションで
 --   トリガーが維持する）。**列は落とさない。** 撤去すると DB オブジェクト 6 個・
 --   UI 3 箇所・E2E 4 本に一斉波及するため、降格にとどめて二重管理の実害だけ消す。
 --
---   必須条件は `pipeline_types.requires_lead`、「商談を起こしてよい段階」は
+--   必須条件は `pipeline_types.requires_lead`、「ディールを起こしてよい段階」は
 --   `lead_stages.is_deal_ready` で表す。**「TQL」「営業」という語を DB に入れない**
 --   ので、パイプラインを増やしても、リードカテゴリの呼び名を変えても影響しない。
 -- ============================================================
@@ -21,19 +21,19 @@
 ALTER TABLE deals ADD COLUMN IF NOT EXISTS lead_id UUID REFERENCES leads(id);
 
 COMMENT ON COLUMN deals.lead_id IS
-'この商談の元になったリード。**紐づけの正本**。1 リードに複数の商談が下がる。leads.promoted_deal_id は「最初に紐づいた商談」の派生値';
+'このディールの元になったリード。**紐づけの正本**。1 リードに複数のディールが下がる。leads.promoted_deal_id は「最初に紐づいたディール」の派生値';
 
 COMMENT ON COLUMN leads.promoted_deal_id IS
-'【派生値】最初に紐づいた商談。正本は deals.lead_id で、トリガー sync_lead_promoted_deal が維持する。アプリから書かない';
+'【派生値】最初に紐づいたディール。正本は deals.lead_id で、トリガー sync_lead_promoted_deal が維持する。アプリから書かない';
 
 CREATE INDEX IF NOT EXISTS deals_lead_idx
   ON deals (lead_id)
   WHERE lead_id IS NOT NULL AND deleted_at IS NULL;
 
 -- ------------------------------------------------------------
--- 2. 既存商談の移行
+-- 2. 既存ディールの移行
 --
---   `promoted_deal_id` は**非 UNIQUE** なので、同じ商談を指すリードが
+--   `promoted_deal_id` は**非 UNIQUE** なので、同じディールを指すリードが
 --   複数ありうる。最古のリードを採る。
 -- ------------------------------------------------------------
 DO $$
@@ -54,7 +54,7 @@ BEGIN
      AND d.lead_id IS NULL;
 
   GET DIAGNOSTICS v_n = ROW_COUNT;
-  RAISE NOTICE '既存商談にリードを紐づけた: % 件', v_n;
+  RAISE NOTICE '既存ディールにリードを紐づけた: % 件', v_n;
 END;
 $$;
 
@@ -69,13 +69,13 @@ ALTER TABLE pipeline_types
   ADD COLUMN IF NOT EXISTS requires_lead BOOLEAN NOT NULL DEFAULT FALSE;
 
 COMMENT ON COLUMN pipeline_types.requires_lead IS
-'このパイプラインの商談は元になったリードを必須にする。check_deal_lead_requirement が強制する';
+'このパイプラインのディールは元になったリードを必須にする。check_deal_lead_requirement が強制する';
 
 ALTER TABLE lead_stages
   ADD COLUMN IF NOT EXISTS is_deal_ready BOOLEAN NOT NULL DEFAULT FALSE;
 
 COMMENT ON COLUMN lead_stages.is_deal_ready IS
-'この段階のリードは商談を起こしてよい（選定 = TQL 以上）。獲得・育成・Dead は FALSE';
+'この段階のリードはディールを起こしてよい（選定 = TQL 以上）。獲得・育成・Dead は FALSE';
 
 -- ------------------------------------------------------------
 -- 4. 役割フラグの適用
@@ -118,7 +118,7 @@ BEGIN
   UPDATE lead_stages SET is_qualification = TRUE
    WHERE slug = 'qualification' AND NOT is_qualification;
 
-  -- 商談を起こしてよい段階（選定 = TQL 以上）。
+  -- ディールを起こしてよい段階（選定 = TQL 以上）。
   -- **新しい名指しを増やさず既存フラグから導く。** Dead が自動で外れるのが効く
   UPDATE lead_stages SET is_deal_ready = TRUE
    WHERE (is_qualification OR requires_deal) AND NOT is_deal_ready;
@@ -218,7 +218,7 @@ BEGIN
   UPDATE pipeline_types SET is_default = TRUE
    WHERE slug = 'sales' AND NOT is_default;
 
-  -- セールスの商談は元になったリードを必須にする（T-0069）
+  -- セールスのディールは元になったリードを必須にする（T-0069）
   UPDATE pipeline_types SET requires_lead = TRUE
    WHERE slug = 'sales' AND NOT requires_lead;
   GET DIAGNOSTICS v_n = ROW_COUNT;
@@ -284,9 +284,9 @@ END;
 $$;
 
 -- ------------------------------------------------------------
--- 5. 規則の導入前からある「リードの無い商談」を見えるようにする
+-- 5. 規則の導入前からある「リードの無いディール」を見えるようにする
 --
---   既存商談は遡って埋めない（業務判断が要る）。止めもしない。
+--   既存ディールは遡って埋めない（業務判断が要る）。止めもしない。
 --   代わりに一覧で見えるようにして、人が画面から紐づけられるようにする。
 --   `v_lead_stage_violations` と同じ考え方。
 -- ------------------------------------------------------------
@@ -305,4 +305,4 @@ SELECT d.id            AS deal_id,
    AND d.lead_id IS NULL;
 
 COMMENT ON VIEW v_deals_without_lead IS
-'リードを要求するパイプラインなのに、元になったリードが無い商談。規則の導入前からある行';
+'リードを要求するパイプラインなのに、元になったリードが無いディール。規則の導入前からある行';

@@ -24,10 +24,11 @@ import { SearchInput } from "@/components/ui/SearchInput";
 import { DataTable } from "@/components/ui/DataTable";
 import { Pagination } from "@/components/ui/Pagination";
 import { useToast } from "@/components/ui/toast";
+import { pipelineNewPath } from "@/lib/deals/pipeline-screen";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants/pagination";
 import type { DealWithRelations, Paged } from "@/types/relations";
 
-type Pipeline = { id: string; name: string };
+type Pipeline = { id: string; name: string; screen_key?: string | null };
 // color はカンバンの列の色に使う（マスタ由来。src/lib/kanban-color.ts）
 type Stage = { id: string; name: string; sort_order: number; color: string | null };
 type Status = { id: string; name: string; sort_order: number; color: string | null };
@@ -133,7 +134,7 @@ function daysBetween(fromStr: string, toStr: string): number {
 type DueInfo = { label: string; color: string; severe: boolean; soon: boolean };
 
 /**
- * クローズ予定日の表示情報。クローズ済み・未設定の商談は対象外。
+ * クローズ予定日の表示情報。クローズ済み・未設定のディールは対象外。
  * 期日超過 → error 系、7日以内 → warning 系、それ以外 → 通常色。
  */
 function getDueInfo(deal: DealWithRelations): DueInfo | null {
@@ -217,7 +218,7 @@ export function DealsView({
   stages,
   statuses,
   users,
-  title = "商談",
+  title = "ディール",
   description,
   showPipelineSelector = true,
 }: {
@@ -358,7 +359,7 @@ export function DealsView({
       if (error || !data) {
         setKanbanData(previousKanbanData);
         setMovedDealId(null);
-        showToast({ type: "error", message: error ?? "商談の移動に失敗しました" });
+        showToast({ type: "error", message: error ?? "ディールの移動に失敗しました" });
         return;
       }
 
@@ -414,8 +415,10 @@ export function DealsView({
             </p>
           )}
         </div>
+        {/* **どのパイプラインで作るかは画面が決める**（T-0079）。作成画面に
+            選択欄は無いので、ここで渡す */}
         <Link
-          href="/deals/new"
+          href={pipelineNewPath(selectedPipeline?.screen_key)}
           className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white transition-colors"
           style={{
             backgroundColor: "var(--color-terra)",
@@ -612,7 +615,7 @@ export function DealsView({
             {/* カンバン検索 */}
             <SearchInput
               value={search}
-              placeholder="商談名で検索..."
+              placeholder="ディール名で検索..."
 onChange={(v) => params.setFilter("search", v)}
             />
           </>
@@ -651,7 +654,7 @@ onChange={(v) => params.setFilter("search", v)}
           />
           <SearchInput
             value={search}
-            placeholder="商談名で検索..."
+            placeholder="ディール名で検索..."
             onChange={(v) => params.setFilter("search", v)}
           />
           <FilterClearButton onClear={params.clear} />
@@ -758,7 +761,7 @@ function KanbanView({
       )
     : rawColumns;
 
-  // 検索クエリによるクライアントサイド絞り込み（商談名 / 取引先名 を大文字小文字区別なし部分一致）
+  // 検索クエリによるクライアントサイド絞り込み（ディール名 / 取引先名 を大文字小文字区別なし部分一致）
   const q = searchQuery.trim().toLowerCase();
   const columns = q
     ? filteredByColumn.map((c) => ({
@@ -889,7 +892,7 @@ function KanbanView({
                   border: "1px dashed var(--color-border-default)",
                 }}
               >
-                商談なし
+                ディールなし
               </div>
             ) : (
               col.deals.map((deal) => (
@@ -1113,7 +1116,7 @@ function TableView({
       getKey={(deal) => deal.id}
       getHref={(deal) => `/deals/${deal.id}`}
       emptyIcon={Handshake}
-      emptyMessage="商談がありません"
+      emptyMessage="ディールがありません"
       sort={sort}
       onSortChange={onSortChange}
       columns={[

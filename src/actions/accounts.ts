@@ -215,7 +215,7 @@ export async function deleteAccount(
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
   if (role !== "admin") return { data: null, error: "管理者権限が必要です" };
 
-  // 配下にアクティブな商談が存在するか確認（closed_at IS NULL かつ 未削除）
+  // 配下にアクティブなディールが存在するか確認（closed_at IS NULL かつ 未削除）
   const { count } = await supabase
     .from("deals")
     .select("id", { count: "exact", head: true })
@@ -226,7 +226,7 @@ export async function deleteAccount(
   if (count && count > 0) {
     return {
       data: null,
-      error: "アクティブな商談が存在するため削除できません",
+      error: "アクティブなディールが存在するため削除できません",
     };
   }
 

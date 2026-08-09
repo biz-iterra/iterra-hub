@@ -162,9 +162,9 @@ export function DealEditForm({
   deal: DealData;
   masters: Masters;
   isAdmin: boolean;
-  /** 削除したあとに戻る一覧（その商談のパイプラインの画面。T-0073） */
+  /** 削除したあとに戻る一覧（そのディールのパイプラインの画面。T-0073） */
   listPath: string;
-  /** この商談に紐づいている契約。表示と紐づけ操作は下部のセクションが持つ */
+  /** このディールに紐づいている契約。表示と紐づけ操作は下部のセクションが持つ */
   contracts: DealContractRow[];
   /** contracts の書き込みは manager 以上に限る（RLS と同じ条件） */
   canManageContracts: boolean;
@@ -191,7 +191,7 @@ export function DealEditForm({
     if (result.error) {
       return { error: result.error };
     }
-    showToast({ type: "success", message: "商談を削除しました" });
+    showToast({ type: "success", message: "ディールを削除しました" });
     // router.refresh() は呼ばない（push が中断され遷移しなくなる）。
     // キャッシュ更新は Server Action 側の revalidatePath に任せる
     router.push(listPath);
@@ -294,10 +294,10 @@ export function DealEditForm({
         }}
       >
         <ArrowLeft size={16} />
-        商談詳細に戻る
+        ディール詳細に戻る
       </Link>
       <div style={styles.headerRow}>
-        <h1 style={styles.title}>商談を編集</h1>
+        <h1 style={styles.title}>ディールを編集</h1>
       </div>
 
       <form onSubmit={handleSubmit}>
@@ -498,7 +498,7 @@ export function DealEditForm({
 
       <ConfirmDialog
         open={confirmDelete}
-        title="商談を削除"
+        title="ディールを削除"
         message={`「${deal.name}」を削除します。紐づく契約が存在する場合は削除できません。復元はシステム管理者に依頼してください。`}
         confirmLabel="削除する"
         danger

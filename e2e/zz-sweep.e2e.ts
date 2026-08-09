@@ -12,7 +12,7 @@ import { authFile } from "./roles";
  * ここでやること:
  *   - 主要な一覧・新規作成が **開くこと**（500 や JS エラーを拾う）
  *   - 表示の出し分け（個人事業主に法人向けの項目を出さない）
- *   - 画面を跨ぐ約束（商談の相手先 3 択、連絡先の連絡手段・住所 など）
+ *   - 画面を跨ぐ約束（ディールの相手先 3 択、連絡先の連絡手段・住所 など）
  *
  * 失敗しても途中で止めず、最後にまとめて出す。
  * **画面を変えたら、この一覧に足すこと。**
@@ -47,7 +47,7 @@ test.describe("変更した画面の総ざらい", () => {
       "/companies",
       "/contacts",
       "/accounts",
-      // 商談はパイプラインごとに画面が分かれている（T-0073）
+      // ディールはパイプラインごとに画面が分かれている（T-0073）
       "/sales",
       "/procurement",
       "/partnership",
@@ -151,11 +151,11 @@ test.describe("変更した画面の総ざらい", () => {
       });
     }
 
-    // ---- 4. 商談はリード起点で、相手先は排他でないこと（T-0064 / T-0070）----
-    await check("商談の新規作成", async () => {
+    // ---- 4. ディールはリード起点で、相手先は排他でないこと（T-0064 / T-0070）----
+    await check("ディールの新規作成", async () => {
       await page.goto("/deals/new");
 
-      // **リードが最上部にある**（商談はリードから始まる）
+      // **リードが最上部にある**（ディールはリードから始まる）
       await expect(
         page.getByRole("radio", { name: "既存のリードから選ぶ" }),
         "リードの欄が無い"
@@ -170,7 +170,7 @@ test.describe("変更した画面の総ざらい", () => {
       // **取引先は選ばせない**（契約成立時に自動で作られる）
       await expect(
         page.getByRole("combobox", { name: "取引先" }),
-        "商談の新規作成に取引先の欄が残っている"
+        "ディールの新規作成に取引先の欄が残っている"
       ).toHaveCount(0);
       // ラジオに戻っていないこと（1 つしか選べないと「Ａ社のＢさん」を表せない）
       await expect(
@@ -180,7 +180,7 @@ test.describe("変更した画面の総ざらい", () => {
       // 契約名の手入力欄は無いこと（contracts へ一本化した。T-0063）
       await expect(
         page.getByLabel("契約名"),
-        "商談の新規作成に契約名の入力欄が残っている"
+        "ディールの新規作成に契約名の入力欄が残っている"
       ).toHaveCount(0);
     });
 
@@ -199,7 +199,7 @@ test.describe("変更した画面の総ざらい", () => {
         // **カンバンの列が 0 個でない**。仕入れ・業務委託はステージが
         // 0 件で使えない状態だった（T-0074）
         await expect(
-          page.locator("main").getByText("商談なし").first(),
+          page.locator("main").getByText("ディールなし").first(),
           `${path} のカンバンに列が無い（ステージ未投入の疑い）`
         ).toBeVisible({ timeout: 15_000 });
       }
@@ -211,7 +211,7 @@ test.describe("変更した画面の総ざらい", () => {
       await expect(page, "/deals が /sales へ飛ばない").toHaveURL(/\/sales/);
     });
 
-    // ---- 4b. 契約は商談を選ばずに作れて、金額を持てること（T-0065 / T-0068）----
+    // ---- 4b. 契約はディールを選ばずに作れて、金額を持てること（T-0065 / T-0068）----
     await check("契約の新規作成", async () => {
       await page.goto("/contracts/new");
       // このフォームの label は htmlFor を持たないので getByLabel では掴めない。
@@ -224,11 +224,11 @@ test.describe("変更した画面の総ざらい", () => {
           .locator("xpath=following-sibling::input[1]"),
         "契約の新規作成に金額欄が無い"
       ).toBeVisible();
-      // 商談は任意。必須マークが付いていたら紐づけの前提が崩れている
-      const dealLabel = page.locator("label", { hasText: "商談" }).first();
+      // ディールは任意。必須マークが付いていたら紐づけの前提が崩れている
+      const dealLabel = page.locator("label", { hasText: "ディール" }).first();
       await expect(
         dealLabel.getByText("（必須）"),
-        "契約の商談欄に必須マークが残っている"
+        "契約のディール欄に必須マークが残っている"
       ).toHaveCount(0);
     });
 

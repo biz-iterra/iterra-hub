@@ -855,9 +855,9 @@ function PipelineTab() {
     { key: "name", label: "名前", required: true, type: "text" },
     {
       key: "is_default",
-      label: "商談化の既定",
+      label: "ディール化の既定",
       type: "checkbox",
-      helpText: "リードを商談へ昇格するときに使うパイプライン。1 つだけ選べます",
+      helpText: "リードをディールへ昇格するときに使うパイプライン。1 つだけ選べます",
     },
     { key: "definition", label: "定義", type: "textarea" },
     {
@@ -868,7 +868,7 @@ function PipelineTab() {
       width: "180px",
       nullable: true,
       helpText:
-        "商談を新規作成したとき、クローズ予定日を今日から何ヶ月後に初期設定するか（作成後も手動で変更可）。空欄なら自動設定しない",
+        "ディールを新規作成したとき、クローズ予定日を今日から何ヶ月後に初期設定するか（作成後も手動で変更可）。空欄なら自動設定しない",
       emptyDisplay: "自動設定しない",
       unit: "ヶ月後",
     },
@@ -887,7 +887,7 @@ function PipelineTab() {
   const statusFields: FieldDef[] = [
     { key: "name", label: "名前", required: true, type: "text" },
     { key: "definition", label: "定義", type: "textarea" },
-    { key: "deal_stage_id", label: "商談ステージ", type: "select", options: stageOptions },
+    { key: "deal_stage_id", label: "ディールステージ", type: "select", options: stageOptions },
     { key: "sort_order", label: "表示順", type: "number", min: 0 },
     { key: "color", label: "バッジ色 (#RRGGBB)", type: "text", colorSwatch: true, helpText: COLOR_HELP_TEXT },
   ];
@@ -931,7 +931,7 @@ function PipelineTab() {
           {/* Stages */}
           <div style={{ ...styles.card, padding: "1.25rem" }}>
             <SimpleMasterTab
-              title="商談ステージ"
+              title="ディールステージ"
               items={stages}
               onCreate={(input) => createDealStage({ ...input, pipeline_type_id: selectedPipeline })}
               onUpdate={updateDealStage}
@@ -944,7 +944,7 @@ function PipelineTab() {
           {/* Statuses */}
           <div style={{ ...styles.card, padding: "1.25rem" }}>
             <SimpleMasterTab
-              title="商談ステータス"
+              title="ディールステータス"
               items={statuses}
               onCreate={(input) => createDealStatus({ ...input, pipeline_type_id: selectedPipeline })}
               onUpdate={updateDealStatus}
@@ -2201,7 +2201,7 @@ export function AdminView() {
               { key: "is_churned_default", label: "解約後の既定", type: "checkbox",
                 helpText: "契約が終了した取引先に自動で付きます。1 つだけ" },
               { key: "is_prospect_default", label: "契約前の既定", type: "checkbox",
-                helpText: "商談段階の取引先に自動で付きます。1 つだけ" },
+                helpText: "ディール段階の取引先に自動で付きます。1 つだけ" },
               { key: "definition", label: "定義", type: "textarea" },
               { key: "color", label: "バッジ色 (#RRGGBB)", type: "text", colorSwatch: true, helpText: COLOR_HELP_TEXT },
             ]}

@@ -120,7 +120,13 @@ function onBlur(e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTM
   e.currentTarget.style.boxShadow = "";
 }
 
-export function CompanyNewForm({ masters }: { masters: Masters }) {
+export function CompanyNewForm({
+  masters,
+  defaultOwnerUserId,
+}: {
+  masters: Masters;
+  defaultOwnerUserId?: string;
+}) {
   const router = useRouter();
   const { showToast } = useToast();
   const [values, setValues] = useState({
@@ -132,7 +138,9 @@ export function CompanyNewForm({ masters }: { masters: Masters }) {
     corporate_type_id: "",
     company_status_id: "",
     lead_source_id: "",
-    owner_user_id: "",
+    // **担当者はログイン中の利用者を既定にする。**
+    // 自分が起票したものを自分に付けるのが大半で、毎回選ばせると付け忘れが出る
+    owner_user_id: defaultOwnerUserId ?? "",
     corporate_number: "",
     invoice_registration_number: "",
     phone: "",

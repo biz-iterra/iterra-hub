@@ -37,7 +37,7 @@ export const createPipelineTypeSchema = z.object({
   definition: masterDefinitionSchema,
   sort_order: sortOrderSchema,
   default_close_months: defaultCloseMonthsSchema,
-  // 商談化で使う既定のパイプライン。DB の部分 UNIQUE が 1 行だけに制限する
+  // ディール化で使う既定のパイプライン。DB の部分 UNIQUE が 1 行だけに制限する
   is_default: z.boolean().optional(),
 });
 export const updatePipelineTypeSchema = createPipelineTypeSchema.partial();
@@ -186,7 +186,7 @@ export const createDealStatusSchema = z.object({
   name: masterNameSchema(100),
   definition: masterDefinitionSchema,
   pipeline_type_id: uuidString("[pipeline_type_id] パイプラインを選択してください"),
-  deal_stage_id: uuidString("[deal_stage_id] 商談ステージの指定が不正です").nullable().optional(),
+  deal_stage_id: uuidString("[deal_stage_id] ディールステージの指定が不正です").nullable().optional(),
   sort_order: sortOrderSchema,
   color: badgeColorSchema,
 });

@@ -1,15 +1,15 @@
 -- ============================================================
--- 商談をリード起点で作る（T-0070）
+-- ディールをリード起点で作る（T-0070）
 --
---   商談の新規作成は「既存のリードを選ぶ」か「リードを新規作成する」から
+--   ディールの新規作成は「既存のリードを選ぶ」か「リードを新規作成する」から
 --   始まる。TQL 未満のリードはその場で選定へ上げられる。
 --
 --   これらは**同じトランザクションで行う必要がある**。
 --   supabase-js は複数文を 1 トランザクションにできないので、
 --   アプリ側で順に投げると
---     ・リードだけできて商談ができない
---     ・ステージを上げただけで商談ができない
---     ・商談はできたが履歴が欠ける
+--     ・リードだけできてディールができない
+--     ・ステージを上げただけでディールができない
+--     ・ディールはできたが履歴が欠ける
 --   といった中途半端な状態が残る（CLAUDE.md の「複数テーブルへの書き込みは
 --   DB 関数にまとめる」）。
 --
@@ -18,7 +18,7 @@
 --   別々に投げており、途中で落ちると履歴が欠けていた。
 --
 --   **SECURITY DEFINER にしない。** RLS をそのまま効かせる
---   （member が他人のリードで商談を作れてしまわないように）。
+--   （member が他人のリードでディールを作れてしまわないように）。
 -- ============================================================
 
 CREATE OR REPLACE FUNCTION create_deal_with_lead(
@@ -44,17 +44,27 @@ DECLARE
   v_contact_id UUID;
   v_d          RECORD;
   v_stage      lead_stages%ROWTYPE;
+  v_requires_lead BOOLEAN;
 BEGIN
   IF v_user_id IS NULL THEN
     RAISE EXCEPTION '認証が必要です';
   END IF;
 
   -- ── 1. リードを用意する ───────────────────────────────────────────────────
-  IF v_lead_id IS NULL THEN
-    IF p_new_lead IS NULL THEN
-      RAISE EXCEPTION 'この商談には元になったリードが必要です。既存のリードを選ぶか、リードを新規作成してください';
+  --
+  --   **リードが要るかはパイプラインが決める**（`pipeline_types.requires_lead`）。
+  --   セールスは必須だが、プロキュアメント・パートナーシップは
+  --   相手（仕入れ先・委託先）が既にいる状態から始まるので要らない。
+  SELECT requires_lead INTO v_requires_lead
+    FROM pipeline_types
+   WHERE id = (p_deal ->> 'pipeline_type_id')::UUID;
+
+  IF v_lead_id IS NULL AND p_new_lead IS NULL THEN
+    IF COALESCE(v_requires_lead, FALSE) THEN
+      RAISE EXCEPTION 'このディールには元になったリードが必要です。既存のリードを選ぶか、リードを新規作成してください';
     END IF;
 
+  ELSIF v_lead_id IS NULL THEN
     INSERT INTO leads (
       lead_name, stage_id, status_id, lead_source_id, account_type_id,
       company_id, contact_id, company_name, owner_user_id,
@@ -79,7 +89,7 @@ BEGIN
 
   ELSIF p_raise_stage_id IS NOT NULL THEN
     -- ── 2. TQL 未満のリードをその場で上げる ─────────────────────────────────
-    -- 上げた結果が商談を起こせる段階かは、この下の 2b で確かめる
+    -- 上げた結果がディールを起こせる段階かは、この下の 2b で確かめる
     UPDATE leads
        SET stage_id        = p_raise_stage_id,
            status_id       = COALESCE(p_raise_status_id, status_id),
@@ -92,25 +102,28 @@ BEGIN
     END IF;
   END IF;
 
-  SELECT * INTO v_lead FROM leads WHERE id = v_lead_id AND deleted_at IS NULL;
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'リードが見つかりません';
+  -- ── 2. リードを読む（リードがある場合だけ） ───────────────────────────────
+  IF v_lead_id IS NOT NULL THEN
+    SELECT * INTO v_lead FROM leads WHERE id = v_lead_id AND deleted_at IS NULL;
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'リードが見つかりません';
+    END IF;
   END IF;
 
-  -- ── 2b. 商談を起こしてよい段階か ──────────────────────────────────────────
+  -- ── 2b. ディールを起こしてよい段階か ──────────────────────────────────────────
   --
-  --   **この経路（商談の新規作成画面）でだけ見る。** トリガー側で一律に
+  --   **この経路（ディールの新規作成画面）でだけ見る。** トリガー側で一律に
   --   強制すると、昇格（リードを Sales へ上げる操作）が壊れる。昇格は
-  --   「商談を作ってからステージを上げる」順序で動くため、その途中では
-  --   リードがまだ獲得や育成のまま商談が作られる。
+  --   「ディールを作ってからステージを上げる」順序で動くため、その途中では
+  --   リードがまだリード獲得やナーチャリングのままディールが作られる。
   SELECT * INTO v_stage FROM lead_stages WHERE id = v_lead.stage_id;
-  IF FOUND AND NOT v_stage.is_deal_ready THEN
+  IF v_lead_id IS NOT NULL AND FOUND AND NOT v_stage.is_deal_ready THEN
     RAISE EXCEPTION
-      'リード「%」は「%」段階です。商談を作るには「選定」以上へ進めてください',
+      'リード「%」は「%」段階です。ディールを作れる段階まで進めてください',
       v_lead.lead_name, v_stage.name;
   END IF;
 
-  -- ── 3. 商談 ───────────────────────────────────────────────────────────────
+  -- ── 3. ディール ───────────────────────────────────────────────────────────────
   SELECT * INTO v_d
     FROM jsonb_to_record(p_deal) AS d(
       name             TEXT,
@@ -167,4 +180,4 @@ END;
 $function$;
 
 COMMENT ON FUNCTION create_deal_with_lead IS
-'商談をリード起点で作る。リードの新規作成・ステージの引き上げ・商談・履歴・プロジェクト紐づけを単一トランザクションで行う';
+'ディールをリード起点で作る。リードの新規作成・ステージの引き上げ・ディール・履歴・プロジェクト紐づけを単一トランザクションで行う';

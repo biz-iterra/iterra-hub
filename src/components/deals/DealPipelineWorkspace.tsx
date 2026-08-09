@@ -7,7 +7,7 @@ import { LIST_FILTER_KEYS } from "@/lib/list-sort";
 import { DealsView } from "@/app/(app)/deals/deals-view";
 
 /**
- * パイプライン 1 つ分の商談画面（T-0073）。
+ * パイプライン 1 つ分のディール画面（T-0073）。
  *
  * **セールス / プロキュアメント / パートナーシップで画面を分ける。**
  * 性質が異なる（顧客への営業 / 仕入れ先との取引 / 委託先との関係）ので、

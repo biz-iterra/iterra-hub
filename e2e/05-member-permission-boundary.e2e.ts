@@ -52,7 +52,7 @@ test.describe("E2E-05", () => {
 
       // 4. 他人（admin）の事業者情報は「閲覧できる」が「編集はできない」
       //    2026-08-03 に参照を認証済み全員へ広げた（20260803000008）。
-      //    他の担当者の取引先に商談を起こせないと業務が回らないため。
+      //    他の担当者の取引先にディールを起こせないと業務が回らないため。
       //    書き込みの範囲は変えていないので、境界は更新の可否で見る
       await page.goto(`/companies/${othersCompanyId}`);
       await expect(page.getByRole("heading", { name: othersCompanyName })).toBeVisible();

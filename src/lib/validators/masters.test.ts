@@ -142,7 +142,7 @@ describe("その他マスタの必須カラム", () => {
     expect(result.success).toBe(true);
   });
 
-  it("パイプライン種別は「商談化の既定」を受け付ける", () => {
+  it("パイプライン種別は「ディール化の既定」を受け付ける", () => {
     const result = createPipelineTypeSchema.safeParse({
       name: "営業",
       is_default: true,

@@ -216,11 +216,11 @@ export function LeadEditClient({
 
   /** 選択中のステージ名。昇格ダイアログの見出しに使う */
   const selectedStageName = useMemo(
-    () => masters.stages.find((s) => s.value === values.stage_id)?.label ?? "商談",
+    () => masters.stages.find((s) => s.value === values.stage_id)?.label ?? "ディール",
     [masters.stages, values.stage_id]
   );
 
-  // 保存すると商談が自動生成されるステージか（昇格の予告に使う）
+  // 保存するとディールが自動生成されるステージか（昇格の予告に使う）
   const isPromoteStage = useMemo(
     () =>
       values.stage_id
@@ -322,8 +322,8 @@ export function LeadEditClient({
       showToast({
         type: "success",
         message: isCorporateSelected
-          ? "商談に昇格しました。事業者情報と連絡先も作成されました"
-          : "商談に昇格しました。連絡先も作成されました",
+          ? "ディールに昇格しました。事業者情報と連絡先も作成されました"
+          : "ディールに昇格しました。連絡先も作成されました",
       });
     } else {
       showToast({ type: "success", message: "保存しました" });
@@ -395,7 +395,7 @@ export function LeadEditClient({
         onClose={() => setDeleteOpen(false)}
       />
 
-      {/* 商談昇格の確認ダイアログ */}
+      {/* ディール昇格の確認ダイアログ */}
       <PromoteConfirmDialog
         open={promoteConfirmOpen}
         stageName={selectedStageName}
@@ -580,7 +580,7 @@ export function LeadEditClient({
               ))}
             </select>
             <p style={styles.helpText}>
-              「Opportunity」ステージに変更して保存すると商談昇格が試みられます
+              「Opportunity」ステージに変更して保存するとディール昇格が試みられます
             </p>
           </div>
           <div>
@@ -617,7 +617,7 @@ export function LeadEditClient({
             )}
             {!stageHasStatuses && (
               <p style={{ ...styles.helpText, color: "var(--color-terra)" }}>
-                このステージでは商談が自動生成されます
+                このステージではディールが自動生成されます
               </p>
             )}
             {stageHasStatuses && values.stage_id && !values.status_id && (
@@ -769,7 +769,7 @@ export function LeadEditClient({
   );
 }
 
-// ---- 商談昇格の確認ダイアログ ----
+// ---- ディール昇格の確認ダイアログ ----
 // Sales / Opportunity のどちらでも出る（auto_promote_to_deal なステージが対象）
 function PromoteConfirmDialog({
   open,
@@ -869,12 +869,12 @@ function PromoteConfirmDialog({
             <ul style={listStyle}>
               <li>事業者情報</li>
               <li>連絡先</li>
-              <li>商談</li>
+              <li>ディール</li>
             </ul>
           ) : (
             <ul style={listStyle}>
               <li>連絡先</li>
-              <li>商談</li>
+              <li>ディール</li>
             </ul>
           )}
           <p style={{ margin: "0.5rem 0 0 0", color: "var(--color-sumi500)" }}>

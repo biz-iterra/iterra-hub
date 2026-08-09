@@ -119,7 +119,13 @@ function onBlur(
   e.currentTarget.style.boxShadow = "";
 }
 
-export function AccountNewForm({ masters }: { masters: Masters }) {
+export function AccountNewForm({
+  masters,
+  defaultOwnerUserId,
+}: {
+  masters: Masters;
+  defaultOwnerUserId?: string;
+}) {
   const router = useRouter();
   const { showToast } = useToast();
   const [values, setValues] = useState({
@@ -128,7 +134,9 @@ export function AccountNewForm({ masters }: { masters: Masters }) {
     account_type_id: "",
     account_status_id: "",
     lead_source_id: "",
-    owner_user_id: "",
+    // **担当者はログイン中の利用者を既定にする。**
+    // 自分が起票したものを自分に付けるのが大半で、毎回選ばせると付け忘れが出る
+    owner_user_id: defaultOwnerUserId ?? "",
     description: "",
   });
   const [saving, setSaving] = useState(false);

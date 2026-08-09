@@ -63,8 +63,8 @@ INSERT INTO account_contacts (account_id, contact_id, role) VALUES
 
 -- リード
 --
--- **セールスの商談には元になったリードが必須**（pipeline_types.requires_lead。
--- T-0069）。ステージは商談を起こしてよい段階（is_deal_ready）から選ぶ。
+-- **セールスのディールには元になったリードが必須**（pipeline_types.requires_lead。
+-- T-0069）。ステージはディールを起こしてよい段階（is_deal_ready）から選ぶ。
 -- **UUID や slug で名指ししない。** 役割フラグで引く
 INSERT INTO leads (
   id, lead_name, stage_id, status_id, lead_source_id,

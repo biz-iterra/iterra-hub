@@ -218,4 +218,4 @@ END;
 $function$;
 
 COMMENT ON FUNCTION promote_lead_to_deal IS
-'リードを商談へ昇格させる。事業者情報は resolve_or_create_company で名寄せし、既存があれば再利用する（事業者 1 : リード N）。deals.lead_id を埋める';
+'リードをディールへ昇格させる。事業者情報は resolve_or_create_company で名寄せし、既存があれば再利用する（事業者 1 : リード N）。deals.lead_id を埋める';

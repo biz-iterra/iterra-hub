@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 import { createDealSchema, createDealWithLeadSchema } from "./deals";
 
 /**
- * UT-76: 商談のバリデーション（T-0070）
+ * UT-76: ディールのバリデーション（T-0070）
  *
  * **新規作成は取引先を受け取らない。** 取引先は契約が成立したときに
- * `ensure_account_on_contract` が作るもので、商談を作る時点では存在しない。
+ * `ensure_account_on_contract` が作るもので、ディールを作る時点では存在しない。
  * DB 制約（相手先はいずれか 1 つ以上）に合わせて選ばせていたが、
  * 業務の流れとして筋が通っていなかった。
  */
@@ -58,6 +58,21 @@ describe("createDealWithLeadSchema", () => {
       lead_id: other,
     });
     expect(r.success).toBe(true);
+  });
+
+  it("リードを要さないパイプライン（none）はリード無しで通る", () => {
+    // プロキュアメント・パートナーシップ。要否の正本は
+    // pipeline_types.requires_lead で、強制は create_deal_with_lead が行う
+    const r = createDealWithLeadSchema.safeParse({ ...withLead, lead_mode: "none" });
+    expect(r.success).toBe(true);
+  });
+
+  it("none でも相手先は要る", () => {
+    const r = createDealWithLeadSchema.safeParse({ ...base, lead_mode: "none" });
+    expect(r.success).toBe(false);
+    if (!r.success) {
+      expect(r.error.issues.some((i) => i.path.includes("company_id"))).toBe(true);
+    }
   });
 
   it("既存モードでリードが無いと落ちる", () => {

@@ -1,6 +1,6 @@
 import { getContactStatuses, getLeadSources } from "@/actions/masters";
 import { getCompanies } from "@/actions/companies";
-import { getCrmUsers } from "@/actions/users";
+import { getCrmUsers, getCurrentUser } from "@/actions/users";
 import { ContactNewForm } from "./contact-new-form";
 
 /**
@@ -32,11 +32,13 @@ export default async function ContactNewPage({
     leadSourcesResult,
     companiesResult,
     usersResult,
+    me,
   ] = await Promise.all([
     getContactStatuses(),
     getLeadSources(),
     getCompanies({ perPage: 1000 }),
     getCrmUsers(),
+    getCurrentUser(),
   ]);
 
   type MasterItem = { id: string; name: string };
@@ -64,6 +66,7 @@ export default async function ContactNewPage({
       masters={masters}
       initialCompanyId={initialCompanyId}
       initialAccountId={initialAccountId}
+      defaultOwnerUserId={me.data?.id}
     />
   );
 }

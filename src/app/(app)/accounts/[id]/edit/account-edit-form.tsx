@@ -375,7 +375,7 @@ export function AccountEditForm({
       <ConfirmDialog
         open={confirmDelete}
         title="取引先を削除"
-        message={`「${account.name}」を削除します。この操作は取り消せません。アクティブな商談が存在する場合は削除できません。`}
+        message={`「${account.name}」を削除します。この操作は取り消せません。アクティブなディールが存在する場合は削除できません。`}
         confirmLabel="削除する"
         danger
         onConfirm={handleDelete}

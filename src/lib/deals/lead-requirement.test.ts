@@ -8,9 +8,9 @@ import {
 } from "./lead-requirement";
 
 /**
- * UT-75: 商談を作れるリードかの判定（T-0069 / T-0070）
+ * UT-75: ディールを作れるリードかの判定（T-0069 / T-0070）
  *
- * セールスの商談は「商談を起こしてよい段階」（選定 = TQL 以上）のリードから作る。
+ * セールスのディールは「ディールを起こしてよい段階」（リード選定 = TQL 以上）のリードから作る。
  * DB のトリガーではなく `create_deal_with_lead` が最終的に強制するが、
  * 画面では**押す前に**知らせたい。判定はここに集約して二重実装しない。
  */
@@ -36,19 +36,19 @@ const lead = (stageValue: LeadForDeal["stage"]): LeadForDeal => ({
 });
 
 describe("evaluateLeadForDeal", () => {
-  it("選定（TQL）なら作れる", () => {
-    const v = evaluateLeadForDeal(lead({ id: "s", name: "選定", is_deal_ready: true }));
+  it("リード選定（TQL）なら作れる", () => {
+    const v = evaluateLeadForDeal(lead({ id: "s", name: "リード選定", is_deal_ready: true }));
     expect(v.ok).toBe(true);
   });
 
-  it("Sales / Opportunity でも作れる（2 本目以降の商談）", () => {
-    for (const name of ["Sales", "Opportunity"]) {
+  it("ディール / オポチュニティ でも作れる（2 本目以降のディール）", () => {
+    for (const name of ["ディール", "オポチュニティ"]) {
       expect(evaluateLeadForDeal(lead({ id: "s", name, is_deal_ready: true })).ok).toBe(true);
     }
   });
 
-  it("育成・獲得は作れない。ステージを上げれば作れると伝える", () => {
-    for (const name of ["育成", "獲得"]) {
+  it("ナーチャリング・リード獲得は作れない。ステージを上げれば作れると伝える", () => {
+    for (const name of ["ナーチャリング", "リード獲得"]) {
       const v = evaluateLeadForDeal(lead({ id: "s", name, is_deal_ready: false }));
       expect(v.ok).toBe(false);
       if (!v.ok) {
@@ -58,8 +58,8 @@ describe("evaluateLeadForDeal", () => {
     }
   });
 
-  it("**Dead も作れない**（終了したリードから商談を起こさない）", () => {
-    const v = evaluateLeadForDeal(lead({ id: "s", name: "Dead", is_deal_ready: false }));
+  it("**デッド も作れない**（終了したリードからディールを起こさない）", () => {
+    const v = evaluateLeadForDeal(lead({ id: "s", name: "デッド", is_deal_ready: false }));
     expect(v.ok).toBe(false);
   });
 
@@ -76,19 +76,19 @@ describe("evaluateLeadForDeal", () => {
 
 describe("pickRaiseTargetStage", () => {
   const stages = [
-    stage("獲得", { sort_order: 1 }),
-    stage("育成", { sort_order: 2 }),
-    stage("選定", { sort_order: 3, is_deal_ready: true }),
-    stage("Sales", { sort_order: 4, is_deal_ready: true, requires_deal: true }),
-    stage("Dead", { sort_order: 7 }),
+    stage("リード獲得", { sort_order: 1 }),
+    stage("ナーチャリング", { sort_order: 2 }),
+    stage("リード選定", { sort_order: 3, is_deal_ready: true }),
+    stage("ディール", { sort_order: 4, is_deal_ready: true, requires_deal: true }),
+    stage("デッド", { sort_order: 7 }),
   ];
 
-  it("商談を起こしてよく、まだ商談を前提としない段階（選定）を選ぶ", () => {
-    expect(pickRaiseTargetStage(stages)?.name).toBe("選定");
+  it("ディールを起こしてよく、まだディールを前提としない段階（リード選定）を選ぶ", () => {
+    expect(pickRaiseTargetStage(stages)?.name).toBe("リード選定");
   });
 
-  it("**Sales 以降は選ばない**（商談が無いうちは上げられない）", () => {
-    const onlySales = [stage("Sales", { is_deal_ready: true, requires_deal: true })];
+  it("**ディール 以降は選ばない**（ディールが無いうちは上げられない）", () => {
+    const onlySales = [stage("ディール", { is_deal_ready: true, requires_deal: true })];
     expect(pickRaiseTargetStage(onlySales)).toBeNull();
   });
 
@@ -101,7 +101,7 @@ describe("pickRaiseTargetStage", () => {
   });
 
   it("候補が無ければ null", () => {
-    expect(pickRaiseTargetStage([stage("獲得")])).toBeNull();
+    expect(pickRaiseTargetStage([stage("リード獲得")])).toBeNull();
   });
 });
 

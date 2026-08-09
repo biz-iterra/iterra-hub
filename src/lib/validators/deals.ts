@@ -2,15 +2,15 @@ import { z } from "zod";
 import { expectedUpdatedAtSchema, uuidString } from "./common";
 
 /**
- * 商談の相手先。
+ * ディールの相手先。
  *
  * **取引先は契約が成立するまで存在しない**（database-design.md §16）。
- * そのため商談は取引先・事業者情報・連絡先のいずれでも相手を示せる
+ * そのためディールは取引先・事業者情報・連絡先のいずれでも相手を示せる
  * （DB 側も `deals_counterparty_check` で「いずれか 1 つ以上」を要求する）。
  * 2026-08-04 まで画面と Zod が `account_id` を必須にしており、
- * 契約前の相手と商談を作れなかった。
+ * 契約前の相手とディールを作れなかった。
  *
- * **排他ではない。** 商談の相手は「Ａ社のＢさん」であることが普通で、
+ * **排他ではない。** ディールの相手は「Ａ社のＢさん」であることが普通で、
  * 事業者情報と連絡先を同時に持てる。2026-08-07 まで画面がラジオで 1 つしか
  * 選ばせておらず、DB 制約（いずれか 1 つ以上）より狭かった（T-0064）。
  *
@@ -44,11 +44,11 @@ const dateOrderRefine = (data: {
 };
 
 /**
- * 商談の新規作成。
+ * ディールの新規作成。
  *
  * **取引先（`account_id`）は受け取らない**（2026-08-08。T-0070）。
  * 取引先は契約が成立したときに `ensure_account_on_contract` が作るもので、
- * 商談を作る時点では存在しない。DB 制約に合わせて選べるようにしていたが、
+ * ディールを作る時点では存在しない。DB 制約に合わせて選べるようにしていたが、
  * 業務の流れとして筋が通っていなかった。
  *
  * **リードは `createDealWithLeadSchema` が受け取る。** こちらは
@@ -69,7 +69,7 @@ export const createDealSchema = z.object({
   expected_close_date: z.string().nullable().optional(),
   /**
    * プロジェクトの詳細から作ったときの紐づけ先。**deals の列ではない**
-   * （商談とプロジェクトは deal_projects で N:M）。作成後に紐づけを張る
+   * （ディールとプロジェクトは deal_projects で N:M）。作成後に紐づけを張る
    */
   project_id: uuidString().nullable().optional(),
 })
@@ -82,7 +82,7 @@ export const createDealSchema = z.object({
     path: ["review_completed_date"],
   });
 
-/** 商談の新規作成でリードを新しく作るときの入力 */
+/** ディールの新規作成でリードを新しく作るときの入力 */
 const newLeadForDealSchema = z.object({
   lead_name: z.string().min(1, "リード名を入力してください").max(200),
   account_type_id: uuidString("事業者種別を選んでください"),
@@ -96,15 +96,21 @@ const newLeadForDealSchema = z.object({
 });
 
 /**
- * リード起点の商談作成（T-0070）。
+ * リード起点のディール作成（T-0070）。
  *
- * **セールスの商談には元になったリードが必要**（`pipeline_types.requires_lead`）。
+ * **セールスのディールには元になったリードが必要**（`pipeline_types.requires_lead`）。
  * 既存のリードを選ぶか、その場でリードを作る。TQL 未満のリードは
- * `raise_stage_id` を渡して選定へ上げてから商談を作る。
+ * `raise_stage_id` を渡して選定へ上げてからディールを作る。
+ *
+ * `lead_mode: "none"` は**リードを要さないパイプライン**用
+ *（プロキュアメント・パートナーシップ。相手が既にいるところから始まる）。
+ * 要否の正本は DB の `pipeline_types.requires_lead` で、
+ * ここは画面が送ってきた形を受け止めるだけ。**最終的な強制は
+ * `create_deal_with_lead` が行う**（画面を通さない経路も塞ぐため）。
  */
 export const createDealWithLeadSchema = z
   .object({
-    lead_mode: z.enum(["existing", "new"]),
+    lead_mode: z.enum(["existing", "new", "none"]),
     lead_id: uuidString().nullable().optional(),
     new_lead: newLeadForDealSchema.nullable().optional(),
     /** TQL 未満のリードをその場で上げる先。人が明示的に同意したときだけ入る */

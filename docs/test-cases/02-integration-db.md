@@ -485,7 +485,7 @@ SELECT resolve_or_create_contact(
   SELECT promote_lead_to_deal(
     :lead, NULL, NULL, NULL, NULL, NULL,
     jsonb_build_object(
-      'name','昇格テスト商談',
+      'name','昇格テストディール',
       'pipeline_type_id','b0000000-0000-0000-0000-000000000001',
       'deal_stage_id',(SELECT id FROM deal_stages  WHERE deleted_at IS NULL ORDER BY sort_order LIMIT 1),
       'deal_status_id',(SELECT id FROM deal_statuses WHERE deleted_at IS NULL ORDER BY sort_order LIMIT 1),
@@ -719,7 +719,7 @@ INSERT INTO companies (name, owner_user_id) VALUES
 - 実行ロール: member（a0…03）
 - 対象データ: RLS-C1（自分）/ RLS-C2（他人）
 - 期待: `SELECT name FROM companies WHERE name LIKE 'RLS-%'` → **2 行とも見える**
-- 背景: 他の担当者の取引先に商談を起こせないと業務が回らないため、
+- 背景: 他の担当者の取引先にディールを起こせないと業務が回らないため、
   20260803000008 で参照だけを認証済み全員に広げた。**書き込みの範囲は変えていない**
   （他人の行の UPDATE / DELETE が 0 行であることは IT-RLS-04 で担保する）
 
@@ -1032,7 +1032,7 @@ SELECT register_freee_partner_company('<紐付け済みの partner_id>');
 ### IT-LEADSTAGE-01: ステージが要求する実体を欠く遷移を拒否する（2026-08-04 追加）
 
 - 対象: マイグレーション `20260805000002`（`check_lead_stage_requirements` / `trg_lead_stage_requirements`）
-- 背景: ステージが Sales / Opportunity / 取引先なのに商談も契約も無いリードを作れていた。
+- 背景: ステージが ディール / オポチュニティ / 取引先なのにディールも契約も無いリードを作れていた。
   規則と根拠は `docs/database-design.md` §24
 - 手順・期待:
 
@@ -1043,14 +1043,14 @@ SELECT slug, name, auto_promote_to_deal, requires_deal, requires_contract
 --   sales / opportunity / customer が requires_deal = t
 --   customer だけ requires_contract = t、name は「取引先」
 
--- 2. 商談なしで Sales へ → 拒否
-UPDATE leads SET stage_id = (SELECT id FROM lead_stages WHERE slug='sales') WHERE id = '<商談なしの lead>';
---   ERROR: 「Sales」へ進めるには商談が必要です。…
+-- 2. ディールなしで ディール へ → 拒否
+UPDATE leads SET stage_id = (SELECT id FROM lead_stages WHERE slug='sales') WHERE id = '<ディールなしの lead>';
+--   ERROR: 「ディール」へ進めるにはディールが必要です。…
 
--- 3. 商談なしで 取引先 へ → 拒否（Opportunity を飛ばした直行も塞がれる）
---   ERROR: 「取引先」へ進めるには商談が必要です。…
+-- 3. ディールなしで 取引先 へ → 拒否（オポチュニティ を飛ばした直行も塞がれる）
+--   ERROR: 「取引先」へ進めるにはディールが必要です。…
 
--- 4. 商談ありで Sales へ → 通る。**ステータス（商談化）が消えないこと**
+-- 4. ディールありで ディール へ → 通る。**ステータス（商談化）が消えないこと**
 --   auto_promote_to_deal で status を NULL にしていた旧実装の名残がないか確認する
 
 -- 5. 契約なしで 取引先 へ → 拒否
@@ -1058,8 +1058,8 @@ UPDATE leads SET stage_id = (SELECT id FROM lead_stages WHERE slug='sales') WHER
 
 -- 6. 契約を作ってから 取引先 へ → 通る
 
--- 7. 逆向き: 参照中の商談 / 唯一の契約の論理削除 → 拒否
-UPDATE deals     SET deleted_at = now() WHERE id = '<参照中の商談>';
+-- 7. 逆向き: 参照中のディール / 唯一の契約の論理削除 → 拒否
+UPDATE deals     SET deleted_at = now() WHERE id = '<参照中のディール>';
 UPDATE contracts SET deleted_at = now() WHERE id = '<唯一の契約>';
 --   ERROR: …先にリードのステージを下げてから削除してください
 
@@ -1098,7 +1098,7 @@ UNION ALL SELECT id, contact_code FROM contacts WHERE contact_code !~ '^CNT-[0-9
 UNION ALL SELECT id, deal_code FROM deals WHERE deal_code !~ '^DL-[0-9]{6}$'
 UNION ALL SELECT id, contract_code FROM contracts WHERE contract_code !~ '^CTR-[0-9]{6}$';
 
--- Q3. 商談の相手先欠落（CHECK deals_counterparty_check の実効確認）
+-- Q3. ディールの相手先欠落（CHECK deals_counterparty_check の実効確認）
 SELECT id, deal_code FROM deals
  WHERE account_id IS NULL AND company_id IS NULL AND contact_id IS NULL;
 
@@ -1229,7 +1229,7 @@ SELECT jobname, schedule FROM cron.job
 ### IT-MASTER-01: カテゴリ判定がスラッグに依存しない
 - 手順: ステージと流入元の `slug` をランダムな値へ書き換えてから
   `resolve_lead_category` を呼ぶ
-- 期待値: **判定が変わらない**（選定なら TQL、商談を伴うなら SQL、
+- 期待値: **判定が変わらない**（選定なら TQL、ディールを伴うなら SQL、
   相手からの流入なら Inquiry、それ以外は MQL）
 - 理由: スラッグは自動採番になった。判定に使うと**新しいステージが必ず MQL に落ちる**
   （例外は出ないので気づけない）
@@ -1270,7 +1270,7 @@ SELECT jobname, schedule FROM cron.job
 - 理由: **新しい機能を足すたびに増える。** アプリの grep だけでは
   DB 関数の中を見落とす（実際に 2 回見落とした）
 
-## 商談と契約の紐づけ・契約名の自動生成（2026-08-08 追加）
+## ディールと契約の紐づけ・契約名の自動生成（2026-08-08 追加）
 
 `docs/database-design.md` §16.6.1 / §16.6.2 の規則を DB 側で固定する。
 **契約名の組み立ては TS 側に実装が無い**（規則の正本は DB 関数だけ）ので、
@@ -1309,13 +1309,13 @@ SELECT jobname, schedule FROM cron.job
 - 期待値: `amount` と `_name` のみ。`contract_display_name` は**含まれない**
 - 理由: 同上（`log_entity_change` の `v_ignored`）
 
-### IT-CONTRACT-06: 商談に紐づかない契約を作れる
+### IT-CONTRACT-06: ディールに紐づかない契約を作れる
 - 手順: `INSERT INTO contracts (contract_name) VALUES ('…')`（`deal_id` なし）
 - 期待値: 通る。`deal_id IS NULL`
 - 理由: 2026-08-08 に NOT NULL を外した（T-0065）。紐づけ候補はこれだけ
 
 ### IT-CONTRACT-07: 後から紐づけると取引先が作られる
-- 手順: 取引先未作成の商談（相手先は事業者情報）へ `UPDATE contracts SET deal_id = …`
+- 手順: 取引先未作成のディール（相手先は事業者情報）へ `UPDATE contracts SET deal_id = …`
 - 期待値: `deals.account_id` が埋まる
 - 理由: `ensure_account_on_contract` は AFTER **INSERT** だけだったため、
   後から紐づけても取引先ができない穴があった。`AFTER UPDATE OF deal_id` を足した

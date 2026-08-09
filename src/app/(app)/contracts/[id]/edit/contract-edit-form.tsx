@@ -300,7 +300,7 @@ export function ContractEditForm({
         <div style={styles.card}>
           <h2 style={styles.sectionTitle}>基本情報</h2>
           <div className={styles.grid}>
-            {/* 商談は別レコードへの紐づけなので詳細ページで直す */}
+            {/* ディールは別レコードへの紐づけなので詳細ページで直す */}
             {/*
               契約名は保存時に DB が組み立てる。入力欄にすると人が直せると
               誤解されるので、テキストで見せるだけにする（disabled な input は

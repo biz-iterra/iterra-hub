@@ -55,7 +55,7 @@ leads(id, form_type, label, email, name, company, tel, source,
 
 | 項目 | 値 |
 |---|---|
-| ステージ | 獲得（`generation`） |
+| ステージ | リード獲得（`generation`） |
 | ステータス | 未着手（`not_started`） |
 | リードソース | Web問い合わせ（`web_form`） |
 | 顧客行動 | 問合せフォーム送信（`form_submit`） |

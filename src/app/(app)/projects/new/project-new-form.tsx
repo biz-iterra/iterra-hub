@@ -100,9 +100,12 @@ function onBlur(e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTM
 export function ProjectNewForm({
   statuses,
   owners,
+  defaultOwnerUserId,
 }: {
   statuses: SelectOption[];
   owners: SelectOption[];
+  /** 担当者の既定値（ログイン中の利用者） */
+  defaultOwnerUserId?: string;
 }) {
   const router = useRouter();
   const { showToast } = useToast();
@@ -112,7 +115,9 @@ export function ProjectNewForm({
     project_status_id: statuses[0]?.value ?? "",
     start_date: "",
     end_date: "",
-    owner_user_id: "",
+    // **担当者はログイン中の利用者を既定にする。**
+    // 自分が起票したものを自分に付けるのが大半で、毎回選ばせると付け忘れが出る
+    owner_user_id: defaultOwnerUserId ?? "",
     internal_memo: "",
   });
   const [saving, setSaving] = useState(false);

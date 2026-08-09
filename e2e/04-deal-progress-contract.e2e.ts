@@ -13,7 +13,7 @@ import {
 const UUID_RE = "[0-9a-f-]{36}";
 
 /**
- * E2E-04 [S] 商談進行 → 契約 → Account 自動作成
+ * E2E-04 [S] ディール進行 → 契約 → Account 自動作成
  * 仕様: docs/test-cases/08-e2e-scenarios.md §3
  *
  * ステージ移動・契約作成は manager が行う。deals の更新は「admin または owner」しか
@@ -22,7 +22,7 @@ const UUID_RE = "[0-9a-f-]{36}";
  * 設定しておく。
  */
 test.describe("E2E-04", () => {
-  test("商談のステージ移動→契約作成→取引先自動作成 @smoke", async ({ browser }) => {
+  test("ディールのステージ移動→契約作成→取引先自動作成 @smoke", async ({ browser }) => {
     const { context: adminCtx, page: adminPage } = await openAs(browser, "admin");
     const { context: managerCtx, page: managerPage } = await openAs(browser, "manager");
 
@@ -33,7 +33,7 @@ test.describe("E2E-04", () => {
       // ---- 準備（admin）: リード作成 → 担当者をマネージャーに設定 → Opportunity 昇格 ----
       await adminPage.goto("/leads/new");
       await fieldByLabel(adminPage, "リード名 *").fill(leadName);
-      await fieldByLabel(adminPage, "ステージ *").selectOption({ label: "獲得" });
+      await fieldByLabel(adminPage, "ステージ *").selectOption({ label: "リード獲得" });
       await selectFirstRealOption(fieldByLabel(adminPage, "ステータス *"));
       await fieldByLabel(adminPage, "会社名").fill(companyName);
       await fieldByLabel(adminPage, "事業者種別 *").selectOption({ label: "法人" });
@@ -54,14 +54,14 @@ test.describe("E2E-04", () => {
 
       await adminPage.getByRole("link", { name: "編集" }).click();
       await adminPage.waitForURL(new RegExp(`/leads/${UUID_RE}/edit$`));
-      await fieldByLabel(adminPage, "ステージ").selectOption({ label: "Opportunity" });
+      await fieldByLabel(adminPage, "ステージ").selectOption({ label: "オポチュニティ" });
       await adminPage.getByRole("button", { name: "保存" }).first().click();
       await adminPage.getByRole("button", { name: "昇格する" }).click();
-      await expectSuccessToast(adminPage, "商談に昇格しました");
+      await expectSuccessToast(adminPage, "ディールに昇格しました");
       await adminPage.waitForURL(new RegExp(`/leads/${UUID_RE}$`));
 
       const dealHref = await adminPage
-        .getByRole("link", { name: "商談昇格済み" })
+        .getByRole("link", { name: "ディール昇格済み" })
         .getAttribute("href");
       expect(dealHref).toMatch(new RegExp(`^/deals/${UUID_RE}$`));
       const dealId = extractIdFromHref(dealHref!);
@@ -96,7 +96,7 @@ test.describe("E2E-04", () => {
 
       // ---- 3. manager: /contracts/new で当該 Deal に契約を作成 ----
       await managerPage.goto("/contracts/new");
-      await managerPage.getByRole("combobox", { name: "商談" }).fill(leadName);
+      await managerPage.getByRole("combobox", { name: "ディール" }).fill(leadName);
       await managerPage
         .getByRole("option", { name: new RegExp(`${leadName} 案件`) })
         .click();
@@ -132,8 +132,8 @@ test.describe("E2E-04", () => {
       await expect(managerPage.getByRole("link", { name: companyName }).first()).toBeVisible();
 
       // ---- 後片付け（admin。削除操作は admin 限定）----
-      // **リードを先に消す。** リードが商談・契約を参照したままだと、
-      // ステージ要件のトリガーが契約・商談の削除を拒否する
+      // **リードを先に消す。** リードがディール・契約を参照したままだと、
+      // ステージ要件のトリガーが契約・ディールの削除を拒否する
       // （docs/database-design.md §24.3）
       await adminPage.goto(`/leads/${leadId}/edit`);
       await adminPage.getByRole("button", { name: "削除", exact: true }).click();
@@ -148,7 +148,7 @@ test.describe("E2E-04", () => {
       await adminPage.goto(`/deals/${dealId}/edit`);
       await adminPage.getByRole("button", { name: "削除", exact: true }).click();
       await adminPage.getByRole("button", { name: "削除する" }).click();
-      await expectSuccessToast(adminPage, "商談を削除しました");
+      await expectSuccessToast(adminPage, "ディールを削除しました");
 
       await adminPage.goto(`/accounts/${accountId}/edit`);
       await adminPage.getByRole("button", { name: "削除", exact: true }).click();

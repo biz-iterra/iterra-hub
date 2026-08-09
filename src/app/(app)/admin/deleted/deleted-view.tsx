@@ -17,7 +17,7 @@ const ENTITY_LABELS: Record<DeletedEntity, string> = {
   companies: "事業者情報",
   accounts: "取引先",
   contacts: "連絡先",
-  deals: "商談",
+  deals: "ディール",
   contracts: "契約",
   talents: "タレント",
   leads: "リード",

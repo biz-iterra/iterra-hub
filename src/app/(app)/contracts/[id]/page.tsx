@@ -248,12 +248,12 @@ export default async function ContractDetailPage({
             </div>
           </DetailSection>
 
-          {/* 商談情報カード */}
-          <DetailSection title="商談情報" icon={Handshake}>
+          {/* ディール情報カード */}
+          <DetailSection title="ディール情報" icon={Handshake}>
             <RelationField
-              label="商談"
+              label="ディール"
               value={contract.deal_id}
-              // 未選択に戻せる（T-0067）。どの商談にも紐づかない契約を持てる。
+              // 未選択に戻せる（T-0067）。どのディールにも紐づかない契約を持てる。
               // 「ステージは取引先なのに契約が無い」状態は DB のトリガーが拒む
               nullable
               emptyOptionLabel="-- 紐づけない --"

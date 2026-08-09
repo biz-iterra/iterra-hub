@@ -401,12 +401,12 @@ export function LeadNewForm({
             </div>
           </div>
           {/*
-            カテゴリは**選ばせない**（2026-08-08。T-0072）。
+            デマンドファネルは**選ばせない**（2026-08-08。T-0072）。
             トリガー trg_leads_set_category がステージと流入元から毎回上書きする
             完全な導出値で、選んでも反映されなかった
           */}
           <div style={{ maxWidth: 320 }}>
-            <label style={styles.label}>カテゴリ</label>
+            <label style={styles.label}>デマンドファネル</label>
             <p style={styles.helpText}>
               ステージと流入元から自動で決まります。保存後に詳細で確認できます。
             </p>

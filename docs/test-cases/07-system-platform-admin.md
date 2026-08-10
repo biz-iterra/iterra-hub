@@ -734,6 +734,10 @@
   - 3: 2 件とも `succeeded` になる（同時に処理しても取りこぼさない。`FOR UPDATE SKIP LOCKED` で二重処理はしない）
   - 4: `error: "管理者権限が必要です"`。`admin_bulk_jobs` へは 1 行も入らない
   - 画面を閉じて開き直しても実行中のジョブを拾い直し、案内が再度表示される
+- 補足（2026-08-10、T-0085）: ジョブを迂回して `supabase.rpc("recalculate_all_lead_scores")` /
+  `.rpc("record_contact_merge_candidates")` を authenticated から直接呼ぶ経路は
+  `42501`（権限がありません）で塞いである。**画面の正規機能は上記のとおり動くこと**が
+  同時に成り立つ必要がある（DB 側の検証は IT-BULK-GRANT-01〜03）
 - 自動化区分: 自動(Playwright) + SQL 検証
 
 ---

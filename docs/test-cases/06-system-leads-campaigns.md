@@ -873,6 +873,10 @@
     取込対象外のリードの `score` / `score_updated_at` は変化しない（全件再計算は週次 pg_cron が担う）
   - Account は作られない（契約成立まで作らない運用）
   - 取込履歴テーブルに取込日時 / ファイル名 / 文字コード / 行数 / 新規 / 追記 / エラー / 実行者の行が追加される
+- 補足（2026-08-10、T-0085）: `import_eight_leads` は authenticated から直接呼べない（`42501`）。
+  正規経路は `lead_import_jobs` への投入 → pg_cron のワーカー `process_lead_import_jobs`
+  （SECURITY DEFINER）で、**この手順が通ること自体が塞ぎ方の妥当性の確認になる**。
+  DB 側の検証は `02-integration-db.md` の IT-BULK-GRANT-01〜03
 - 自動化区分: 自動(Playwright)（SQL 併用）
 
 ### IMP-06: commit — 再取込の冪等性（空欄のみ補完）

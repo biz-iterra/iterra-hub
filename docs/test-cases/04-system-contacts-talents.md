@@ -391,6 +391,10 @@
   - 2: 案内が消え、トースト「統合候補が N 件見つかりました」。A の組だけが `contact_merge_candidates` に `reason = 'same_name_diff_company'`、`status = 'pending'` で記録される。B（カナ矛盾）と C（同一会社）は候補に挙がらない
   - (A,B) と (B,A) が別候補として二重登録されない（UUID 小さい側が contact_id）
   - 3: 既存候補は再記録されず（ON CONFLICT DO NOTHING）、トースト「新しい統合候補はありませんでした」
+- 補足（2026-08-10、T-0085）: 内側の `record_contact_merge_candidates` は authenticated から
+  直接呼べない（`42501`）。**入口の `detect_all_contact_merge_candidates()`（SECURITY DEFINER・
+  manager 以上）とワーカー経由の上記手順は従来どおり動くこと。** DB 側の検証は
+  `02-integration-db.md` の IT-BULK-GRANT-01〜03
 - 自動化区分: PW + SQL 検証
 
 ### CNT-29: マージ操作の manager 以上限定
@@ -570,12 +574,13 @@
   - 3: エラートースト「[social_accounts] 同じ SNS・チャットの ID が既に登録されています」。`contacts` にも行が作られない（DB 関数が単一トランザクションのため、一意制約違反で全体がロールバックされる）
   - 4: 完全な空行は無視され、通常どおり連絡先だけが作成される（SNS・チャット無し）
 - 自動化区分: PW + API
-- 既知の制約（本タスクでは対象外）: `contact_social_accounts` の一意制約
-  （`uq_contact_social_account`: `contact_id, service_id, account_id, workspace`）は
-  `workspace` が NULL のとき機能しない（PostgreSQL は UNIQUE 制約中の NULL 同士を区別しない）。
-  ワークスペースを持たないサービス（Chatwork・LINE 等）では、上記 3 の重複防止が働かない
-  組み合わせがある。既存の編集画面（`SocialAccountsEditor`）にも同じ穴があり、
-  今回の新規作成対応で新たに持ち込んだものではない（`docs/database-design.md` §25.1.1）。
+- 補足（2026-08-10、T-0084 で解消）: `uq_contact_social_account` は既定の `NULLS DISTINCT` で
+  作られていたため、`workspace` が NULL のサービス（Chatwork・LINE 等＝ Slack 以外すべて）では
+  上記 3 の重複防止が働かなかった。`UNIQUE NULLS NOT DISTINCT` へ張り替えて解消済み
+  （`20260810100001`）。**手順 3 は Chatwork（ワークスペースを持たないサービス）でも
+  必ず確認すること。** Slack で確認しただけでは以前も通ってしまっていた。
+  結合テストは IT-SOCIAL-UNIQUE-01〜04（`docs/test-cases/02-integration-db.md`）。
+  設計は `docs/database-design.md` §25.1.2。
 
 ---
 

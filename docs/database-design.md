@@ -4222,11 +4222,31 @@ SECURITY INVOKER なので **RLS がそのまま効く**（連絡先を作れな
 `SocialAccountsEditor`（その場で追加する版）と同じく **クライアント側でだけ**行う
 （`contact_social_accounts` に CHECK 制約は無い）。DB は一意制約
 （`uq_contact_social_account`: `contact_id, service_id, account_id, workspace`）だけを持つ。
-**この一意制約は `workspace` が NULL のとき機能しない**（PostgreSQL は既定で
-UNIQUE 制約中の NULL 同士を区別しないため、`workspace` を持たないサービス
-＝ ほとんどのサービスでは同じ ID を重複登録できてしまう）。既存の
-`SocialAccountsEditor` 経由でも同じ穴があり、今回の新規作成対応で新たに
-持ち込んだものではない。修正は別タスクとする。
+
+#### 25.1.2 workspace が NULL のときの一意制約（2026-08-10 解消、T-0084）
+
+`uq_contact_social_account` は既定の `NULLS DISTINCT` で作られていたため、
+**PostgreSQL が NULL 同士を別の値として扱い、`workspace` を持たないサービス
+（Chatwork・LINE・X …＝ Slack 以外すべて）では同じ ID を何度でも登録できた**。
+重複防止が実際に効いていたのは Slack だけ、という状態（DB で実証済み）。
+新規作成の対応（T-0026）が持ち込んだものではなく、編集画面の
+`SocialAccountsEditor` 経由でも同じ穴があった。
+
+`UNIQUE NULLS NOT DISTINCT`（PostgreSQL 15 以降）へ張り替えて解消した
+（`20260810100001`）。列の構成は変えていないので**ワークスペース違いは
+これまでどおり別物として通る**し、制約名も据え置いたため画面側の
+23505 判定（`createContact` / `addContactSocialAccount` の
+「同じ SNS・チャットの ID が既に登録されています」）はそのまま効く。
+
+- **制約を張る前に既存の重複を掃除する。** 残すのは `created_at` が最も古い
+  1 行（同時刻なら `id` 順で先頭）。この表は `deleted_at` を持たない従属テーブル
+  （連絡先の削除に `ON DELETE CASCADE` で追随する）なので掃除は物理削除で行い、
+  消えた行は `entity_change_logs` のトリガーが DELETE として記録する
+- マイグレーションは重複グループ数と削除行数を `RAISE NOTICE` する。
+  ローカル（`db reset` 直後）は対象 0 件
+- PostgreSQL 15 未満では `NULLS NOT DISTINCT` が使えないため、
+  マイグレーション冒頭の `DO` ブロックが `server_version_num` を見て明示的に落ちる
+  （黙って素通りさせない。その場合は部分ユニークインデックス 2 本方式へ書き換える）
 
 ### 25.2 親から子を追加する導線
 
@@ -4268,6 +4288,7 @@ DB は `deals_counterparty_check` で「account / company / contact のいずれ
 |---|---|
 | `20260805000003_create_contact_with_details.sql` | 連絡先と連絡手段・住所・取引先紐づけを 1 トランザクションで作る関数 |
 | `20260809110001_contact_with_details_social_accounts.sql` | `create_contact_with_details()` に `p_social_accounts` を追加（旧シグネチャを DROP してから作り直し）。T-0026 |
+| `20260810100001_contact_social_account_unique_nulls_not_distinct.sql` | 重複を掃除してから `uq_contact_social_account` を `NULLS NOT DISTINCT` へ張り替え。T-0084 |
 
 ## 26. freee との相互同期（2026-08-04）
 
@@ -4799,8 +4820,31 @@ SELECT / INSERT ともに `job_type` に応じた条件を 1 ポリシーにま�
 **UPDATE ポリシーは無い**（実行中のジョブを利用者が `queued` へ戻せてしまうため。
 状態を書くのはワーカーだけ）。DELETE は admin のみ（履歴の整理用）。
 
-### 27.5 マイグレーション
+### 27.5 バルク系関数は直接呼び出しから塞ぐ（2026-08-10、T-0085）
+
+`record_contact_merge_candidates(UUID)` / `recalculate_all_lead_scores()` /
+`import_eight_leads(JSONB×4)` は関数レベルの権限が既定（PUBLIC に EXECUTE）のままで、
+**認証済みなら誰でも PostgREST の `/rpc/` から直接起動できた**。書き込みの中身は
+各テーブルの RLS が守るが、全件を総当たりする処理を任意に走らせられること自体が
+負荷の口になる。`REVOKE ALL ... FROM PUBLIC, anon, authenticated` +
+`GRANT EXECUTE ... TO service_role` に揃えた（`process_admin_bulk_jobs` /
+`process_lead_import_jobs` が既に採っている書き方）。
+
+正規の経路はいずれも壊れない。
+
+| 経路 | 実行ロール | 塞いだ影響 |
+|---|---|---|
+| pg_cron のワーカー（`process_admin_bulk_jobs` / `process_lead_import_jobs`） | SECURITY DEFINER・所有者 `postgres` | 無し（所有者権限で通る） |
+| 週次 cron `recalculate_lead_scores_weekly` | `postgres` | 無し |
+| 名刺取込中の 1 件検出（`detect_contact_merge_candidates`）と手動の全件検出（`detect_all_contact_merge_candidates`） | どちらも SECURITY DEFINER・所有者 `postgres` | 無し（内側の `record_contact_merge_candidates` を所有者権限で呼ぶ） |
+| `scripts/verify-eight-import.mts` | `service_role` | 無し（GRANT を残した） |
+
+**1 件版は塞がない。** `recalculate_lead_score(UUID)`（取込後の反映などで使う）と
+入口関数 2 つは軽く、権限判定も自前で持つため対象外。
+
+### 27.6 マイグレーション
 
 | ファイル | 内容 |
 |---|---|
 | `20260809100001_admin_bulk_jobs.sql` | `admin_bulk_jobs` テーブル・RLS・`process_admin_bulk_jobs`・pg_cron 登録 |
+| `20260810100002_restrict_bulk_function_execute.sql` | バルク系 3 関数の EXECUTE を service_role とワーカーだけに絞る。T-0085 |

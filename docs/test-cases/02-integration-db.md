@@ -141,6 +141,12 @@ ROLLBACK;
 | `lead_kanban_cards` / `lead_progress_summary` | 20260802000018 | かんばん/集計ビュー関数 |
 | `record_email_message` / `find_contact_by_email` / `approve_email_contact_candidate` | 20260731000015 / 20260731000012 / 20260731000013 | Gmail 連携 |
 
+**EXECUTE を絞っている関数（2026-08-10、T-0085）:** `record_contact_merge_candidates(UUID)` /
+`recalculate_all_lead_scores()` / `import_eight_leads(jsonb×4)` /
+`process_admin_bulk_jobs()` / `process_lead_import_jobs()` は PUBLIC・anon・authenticated から
+REVOKE してあり、service_role と所有者（pg_cron の実行者）だけが呼べる。
+検証は IT-BULK-GRANT-01〜03。
+
 ### 2.2 トリガー（主要）
 
 | トリガー | テーブル | タイミング | 定義元 |
@@ -1442,3 +1448,73 @@ SELECT c.id, c.company_code, c.name FROM companies c
 - 理由: `companies` の UPDATE ポリシーは `is_admin() OR owner_user_id = auth.uid()`。
   **RLS で弾かれた UPDATE はエラーにならず 0 行になる**ため、`GET DIAGNOSTICS ROW_COUNT`
   を見ないと「連絡先はあるのに事業主が空」という T-0086 と同じ形が黙って再発する
+
+---
+
+## SNS・チャットの一意制約が workspace NULL でも効く（2026-08-10 追加、T-0084）
+
+`uq_contact_social_account`（マイグレーション `20260810100001`）の検証。
+設計は `docs/database-design.md` §25.1.2。**張り替え前は `NULLS DISTINCT` だったため
+Slack 以外のすべてのサービスで重複登録が通っていた**（DB で実証済み）ことが起点。
+自動化は `scripts/test-db/cases/11-social-account-unique.mjs`。
+
+### IT-SOCIAL-UNIQUE-01: workspace が NULL 同士でも二重登録を弾く
+- 手順: 同じ連絡先・Chatwork・同じ ID・`workspace = NULL` を 2 回 INSERT する
+- 期待値: 2 回目が `23505`（メッセージに `uq_contact_social_account` を含む）。行は 1 件だけ残る
+- 理由: **これが不具合の本体。** PostgreSQL の既定では UNIQUE 制約中の NULL 同士を
+  区別するため、`workspace` を使わないサービスでは制約が無いのと同じだった
+
+### IT-SOCIAL-UNIQUE-02: Slack はワークスペース違いなら共存する
+- 手順: 同じメンバー ID をワークスペース `T0AAAAAAA` / `T0BBBBBBB` で 1 件ずつ入れ、
+  さらに `T0AAAAAAA` を重ねて入れる
+- 期待値: 前者 2 件は共存（2 行）、3 件目は `23505`
+- 理由: `NULLS NOT DISTINCT` は NULL の扱いだけを変えるもので、**制約の目的
+  （ワークスペース違いは別物）を壊していない**ことを同時に押さえる
+
+### IT-SOCIAL-UNIQUE-03: 新規作成でも重複は全体ロールバックになる
+- 手順: authenticated（admin）で `create_contact_with_details(p_contact, p_social_accounts)` に
+  workspace を持たないサービスの同じ ID を 2 行渡す（CNT-41 手順 3 の DB 側）
+- 期待値: `23505` で失敗し、`contacts` の行も残らない
+- 理由: 画面のエラー文言（`[social_accounts] 同じ SNS・チャットの ID が既に登録されています`）は
+  `error.code === "23505"` と制約名で判定している。**制約名を据え置いたこと**の確認も兼ねる
+
+### IT-SOCIAL-UNIQUE-04: 重複掃除は各グループの最古 1 行を残す
+- 手順: トランザクション内で制約を旧定義（`NULLS DISTINCT`）へ戻し、`created_at` の異なる
+  重複 3 行を入れてから、マイグレーションと同じ `row_number() OVER (PARTITION BY ...)` で消す
+- 期待値: 2 行削除され、`created_at` が最も古い行だけが残る。そのあと
+  `NULLS NOT DISTINCT` を張り直せる
+- 理由: **掃除は制約より先に行う。** 重複が残っていると `ADD CONSTRAINT` 側が失敗して
+  マイグレーション全体が止まる。ウィンドウ関数の `PARTITION BY` は `GROUP BY` と同じく
+  NULL 同士を等しいと見なすため、`COALESCE` で NULL を空文字へ寄せてはいけない
+  （`workspace = ''` と NULL を混ぜてしまう）
+
+---
+
+## バルク系 DB 関数の直接呼び出しを塞ぐ（2026-08-10 追加、T-0085）
+
+マイグレーション `20260810100002` の検証。設計は `docs/database-design.md` §27.5。
+自動化は `scripts/test-db/cases/12-bulk-function-grants.mjs`。
+
+対象は `record_contact_merge_candidates(UUID)` / `recalculate_all_lead_scores()` /
+`import_eight_leads(JSONB×4)` の 3 つ。
+
+### IT-BULK-GRANT-01: authenticated から直接叩けない
+- 手順: `SET LOCAL ROLE authenticated`（admin の JWT）で 3 関数をそれぞれ呼ぶ
+- 期待値: いずれも `42501`（permission denied for function ...）
+- 理由: 書き込みの中身は RLS が守るが、**全件を総当たりする処理を任意に起動できること**
+  自体が負荷の口になる。PostgREST の `/rpc/` は関数が存在すれば誰にでも見えている
+
+### IT-BULK-GRANT-02: EXECUTE は service_role とワーカーだけ
+- 手順: `has_function_privilege()` で PUBLIC / anon / authenticated / service_role / postgres を確認
+- 期待値: 前 3 つが false、後 2 つが true
+- 理由: `REVOKE ... FROM PUBLIC` だけでは、後から `authenticated` へ個別 GRANT が
+  足された場合に気づけない。**権限表そのものを固定する**
+
+### IT-BULK-GRANT-03: 正規の経路は塞がない
+- 手順: ① manager で `detect_all_contact_merge_candidates()` を呼ぶ
+  ② admin で `admin_bulk_jobs` へ `contact_merge_detection` を 1 件 INSERT
+  ③ postgres（pg_cron 相当）で `process_admin_bulk_jobs()` を実行
+- 期待値: ① は件数を返す（SECURITY DEFINER の入口なので内側の REVOKE の影響を受けない）。
+  ③ は 1 を返し、ジョブが `succeeded`・`error_message` は NULL
+- 理由: **塞いだ結果として画面の正規機能が壊れるのが最悪の結果。**
+  入口関数とワーカーはいずれも SECURITY DEFINER・所有者 postgres で通ることを実測で押さえる

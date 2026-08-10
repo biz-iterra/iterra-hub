@@ -30,6 +30,8 @@ import { register as registerMasterIntegrity } from "./cases/07-master-integrity
 import { register as registerLeadStageRules } from "./cases/08-lead-stage-rules.mjs";
 import { register as registerContractNaming } from "./cases/09-contract-naming.mjs";
 import { register as registerCompanyWithContact } from "./cases/10-company-with-contact.mjs";
+import { register as registerSocialAccountUnique } from "./cases/11-social-account-unique.mjs";
+import { register as registerBulkFunctionGrants } from "./cases/12-bulk-function-grants.mjs";
 
 const { Client } = pg;
 
@@ -47,6 +49,8 @@ async function main() {
   registerLeadStageRules(harness.test);
   registerContractNaming(harness.test);
   registerCompanyWithContact(harness.test);
+  registerSocialAccountUnique(harness.test);
+  registerBulkFunctionGrants(harness.test);
 
   console.log(`[test:db] connecting to ${dbUrl.replace(/:[^:@/]+@/, ":***@")}`);
   console.log(`[test:db] ${harness.cases.length} cases registered`);

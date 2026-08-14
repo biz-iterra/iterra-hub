@@ -588,7 +588,18 @@ function SimpleMasterTab({
   const handleUpdate = async (values: Record<string, unknown>) => {
     if (!editItem) return;
     setLoading(true);
-    const result = await onUpdate(editItem.id, values);
+    /*
+     * 楽観ロック（T-0096）。編集を開いた時点の `updated_at` を送る。
+     * **監査カラムを持たない古い Lead 系マスタには `updated_at` が無い。**
+     * その場合は送らず、Server Action 側も条件に足さない
+     */
+    const expectedUpdatedAt = (editItem as Record<string, unknown>).updated_at;
+    const result = await onUpdate(editItem.id, {
+      ...values,
+      ...(typeof expectedUpdatedAt === "string"
+        ? { expected_updated_at: expectedUpdatedAt }
+        : {}),
+    });
     setLoading(false);
     if (result.error) {
       reportError(result.error);

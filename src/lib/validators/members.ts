@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { expectedUpdatedAtSchema } from "./common";
 
 /**
  * 社内メンバー。
@@ -41,6 +42,9 @@ export type CreateMemberInput = z.infer<typeof createMemberSchema>;
  * 片側だけ変えると本人がログインできなくなる。宛先が変わったときは
  * 新しいアドレスで追加し、古い方を停止する。
  */
-export const updateMemberSchema = createMemberSchema.omit({ email: true });
+// 楽観ロック: 編集開始時点の updated_at（T-0096）
+export const updateMemberSchema = createMemberSchema
+  .omit({ email: true })
+  .extend({ expected_updated_at: expectedUpdatedAtSchema });
 
 export type UpdateMemberInput = z.infer<typeof updateMemberSchema>;

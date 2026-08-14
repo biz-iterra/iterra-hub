@@ -74,6 +74,8 @@ export function MembersView({ members }: { members: MemberRow[] }) {
     full_name: "",
     full_name_kana: "",
     role: "member",
+    // 楽観ロック: 編集を開いた時点の updated_at をそのまま返す（T-0096）
+    expected_updated_at: "",
   });
 
   function startEdit(m: MemberRow) {
@@ -82,6 +84,7 @@ export function MembersView({ members }: { members: MemberRow[] }) {
       full_name: m.full_name,
       full_name_kana: m.full_name_kana ?? "",
       role: m.role,
+      expected_updated_at: m.updated_at,
     });
   }
 

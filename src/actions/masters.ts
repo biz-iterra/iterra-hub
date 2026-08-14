@@ -30,6 +30,7 @@ import {
   leadScoreRuleSchema, leadScoreRuleUpdateSchema,
 } from "@/lib/validators";
 import { toUserMessage } from "@/lib/db-error";
+import { conflictErrorMessage } from "@/lib/validators/common";
 import { MASTER_LABELS } from "@/lib/master-labels";
 import { pickDefaultBadgeColor } from "@/lib/master-color";
 import type { z } from "zod";
@@ -242,7 +243,17 @@ export async function updateMasterRecord<K extends MasterTableName>(
   const adminError = await requireAdmin(supabase, user.id);
   if (adminError) return { data: null, error: adminError };
 
-  const parsed = schema.safeParse(input);
+  /*
+   * 楽観ロック（T-0096）。
+   * **マスタは複数の admin が同じ画面を開くので後勝ちが起きやすい。**
+   * `expected_updated_at` は各マスタの Zod スキーマには無いので、
+   * 検証にかける前にここで取り除く。
+   * 監査カラムを持たない古い Lead 系マスタには `updated_at` が無く、
+   * 画面からも渡されない。**渡されたときだけ**条件に足す
+   */
+  const { expected_updated_at: expectedUpdatedAt, ...values } = input;
+
+  const parsed = schema.safeParse(values);
   if (!parsed.success) return { data: null, error: parsed.error.issues[0].message };
 
   const auditUpdate = hasAuditColumns(tableName) ? { last_updated_by: user.id } : {};
@@ -253,12 +264,24 @@ export async function updateMasterRecord<K extends MasterTableName>(
     tableName,
     parsed.data as Record<string, unknown>
   );
-  const { data, error } = await supabase.from(tableName).update({ ...withColor, ...auditUpdate }).eq("id", id).select().single();
+  let query = supabase
+    .from(tableName)
+    .update({ ...withColor, ...auditUpdate })
+    .eq("id", id);
+  if (typeof expectedUpdatedAt === "string" && expectedUpdatedAt) {
+    query = query.eq("updated_at", expectedUpdatedAt);
+  }
+
+  const { data, error } = await query.select().maybeSingle();
   if (error) {
     return {
       data: null,
       error: toUserMessage(error, { entityLabel: masterLabel(tableName), operation: "update" }),
     };
+  }
+  // 0 行更新は「他の人が先に保存した」。行が消えている場合も同じ案内でよい
+  if (!data) {
+    return { data: null, error: conflictErrorMessage(masterLabel(tableName)) };
   }
   return { data, error: null };
 }

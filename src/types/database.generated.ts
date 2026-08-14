@@ -7848,6 +7848,25 @@ export type Database = {
           rest: string
         }[]
       }
+      update_entity_address: {
+        Args: {
+          p_actor?: string
+          p_address_line1: string
+          p_address_line2: string
+          p_city: string
+          p_expected_updated_at?: string
+          p_fax?: string
+          p_label?: string
+          p_link_id: string
+          p_memo?: string
+          p_owner_id: string
+          p_owner_type: string
+          p_phone?: string
+          p_postal_code: string
+          p_prefecture: string
+        }
+        Returns: undefined
+      }
       upsert_company_domain: {
         Args: { p_company_id: string; p_input: string; p_is_primary?: boolean }
         Returns: {

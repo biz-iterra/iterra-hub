@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { toUserMessage } from "@/lib/db-error";
+import { conflictErrorMessage } from "@/lib/validators/common";
 import { createClient } from "@/lib/supabase/server";
 import { UUID_REGEX } from "@/lib/validators/common";
 import { companyIntegrationProfileSchema } from "@/lib/validators/companies";
@@ -68,6 +69,11 @@ export type CompanyIntegrationProfileView = {
   };
   /** 主担当。プロファイルで別の人を指定していると食い違うので、画面で知らせる */
   primaryContactId: string | null;
+  /**
+   * 楽観ロック用（T-0103）。**まだ保存されていなければ null。**
+   * 画面はこの値をそのまま保存へ返す
+   */
+  updatedAt: string | null;
 };
 
 const INTEGRATIONS = ["freee"] as const;
@@ -98,7 +104,7 @@ export async function getCompanyIntegrationProfile(
       supabase
         .from("company_integration_profiles")
         .select(
-          "contact_id, contact_email_id, entity_address_id, phone_entity_address_id, financial_info_id"
+          "contact_id, contact_email_id, entity_address_id, phone_entity_address_id, financial_info_id, updated_at"
         )
         .eq("company_id", companyId)
         .eq("integration", integration)
@@ -132,7 +138,12 @@ export async function getCompanyIntegrationProfile(
     };
   }
 
-  const profile = profileRes.data ?? EMPTY_PROFILE;
+  // updated_at は profile とは別に返す（EMPTY_PROFILE の形を崩さないため）
+  const { updated_at: _profileUpdatedAt, ...profileValues } = profileRes.data ?? {
+    ...EMPTY_PROFILE,
+    updated_at: null,
+  };
+  const profile = profileValues;
 
   // 担当者の候補は「その事業者に関わる連絡先」（主たる所属 + 兼務）。
   // ビューは ID しか返さないので、氏名はここで引く
@@ -210,6 +221,7 @@ export async function getCompanyIntegrationProfile(
         })),
       },
       primaryContactId: company.data?.primary_contact_id ?? null,
+      updatedAt: profileRes.data?.updated_at ?? null,
     },
     error: null,
   };
@@ -223,6 +235,11 @@ export async function saveCompanyIntegrationProfile(params: {
   entityAddressId: string | null;
   phoneEntityAddressId: string | null;
   financialInfoId: string | null;
+  /**
+   * 楽観ロック: 画面が持っている時点の updated_at（T-0103）。
+   * **既存行を更新するときだけ効く。** 初回保存には競合相手がいない
+   */
+  expectedUpdatedAt?: string;
 }): Promise<ActionResult<null>> {
   const { supabase, user, role } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
@@ -242,25 +259,74 @@ export async function saveCompanyIntegrationProfile(params: {
     return { data: null, error: parsed.error.issues[0]?.message ?? "入力が正しくありません" };
   }
 
-  const { error } = await supabase.from("company_integration_profiles").upsert(
-    {
-      company_id: parsed.data.company_id,
-      integration: parsed.data.integration,
-      contact_id: parsed.data.contact_id ?? null,
-      contact_email_id: parsed.data.contact_email_id ?? null,
-      entity_address_id: parsed.data.entity_address_id ?? null,
-      phone_entity_address_id: parsed.data.phone_entity_address_id ?? null,
-      financial_info_id: parsed.data.financial_info_id ?? null,
-      last_updated_by: user.id,
-    },
-    { onConflict: "company_id,integration" }
-  );
+  const values = {
+    contact_id: parsed.data.contact_id ?? null,
+    contact_email_id: parsed.data.contact_email_id ?? null,
+    entity_address_id: parsed.data.entity_address_id ?? null,
+    phone_entity_address_id: parsed.data.phone_entity_address_id ?? null,
+    financial_info_id: parsed.data.financial_info_id ?? null,
+    last_updated_by: user.id,
+  };
 
-  if (error) {
+  /*
+   * 楽観ロック（T-0103）。
+   *
+   * **upsert のままでは載せられない。** 行が無ければ作る性質上、
+   * `WHERE updated_at = ...` を足すと初回保存が必ず 0 行になって失敗する。
+   * そこで「既に行があるか」で分岐し、更新のときだけ条件を足す。
+   *
+   * `expectedUpdatedAt` を渡さない呼び出し（差分画面の個別操作など）は
+   * これまでどおり素通しになる
+   */
+  const { data: existing, error: findError } = await supabase
+    .from("company_integration_profiles")
+    .select("id, updated_at")
+    .eq("company_id", parsed.data.company_id)
+    .eq("integration", parsed.data.integration)
+    .maybeSingle();
+
+  if (findError) {
     return {
       data: null,
-      error: toUserMessage(error, { entityLabel: "連携プロファイル", operation: "update" }),
+      error: toUserMessage(findError, { entityLabel: "連携プロファイル" }),
     };
+  }
+
+  if (existing) {
+    let query = supabase
+      .from("company_integration_profiles")
+      .update(values)
+      .eq("id", existing.id);
+    if (params.expectedUpdatedAt) {
+      query = query.eq("updated_at", params.expectedUpdatedAt);
+    }
+
+    const { data: updated, error } = await query.select("id").maybeSingle();
+    if (error) {
+      return {
+        data: null,
+        error: toUserMessage(error, { entityLabel: "連携プロファイル", operation: "update" }),
+      };
+    }
+    if (!updated) {
+      return { data: null, error: conflictErrorMessage("この連携プロファイル") };
+    }
+  } else {
+    const { error } = await supabase.from("company_integration_profiles").insert({
+      company_id: parsed.data.company_id,
+      integration: parsed.data.integration,
+      ...values,
+    });
+    if (error) {
+      // 同時に 2 人が初回保存すると一意制約に当たる。競合として案内する
+      if (error.code === "23505") {
+        return { data: null, error: conflictErrorMessage("この連携プロファイル") };
+      }
+      return {
+        data: null,
+        error: toUserMessage(error, { entityLabel: "連携プロファイル", operation: "create" }),
+      };
+    }
   }
 
   revalidatePath(`/companies/${parsed.data.company_id}`);

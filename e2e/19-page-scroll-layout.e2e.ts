@@ -156,6 +156,23 @@ test.describe("E2E-19", () => {
     expect(scrolled, "本文がスクロールできていない（前提が崩れている）").toBeGreaterThan(0);
 
     /*
+     * **必須の空欄を先に埋める。** どの連絡先が 1 行目に来るかは seed 次第で、
+     * 必須項目が空のまま保存すると**ブラウザの標準検証で止まって
+     * Server Action まで行かない**（トーストも出ないので原因が分からない）
+     */
+    for (const input of await page.locator("input[required]").all()) {
+      if ((await input.inputValue()) === "") await input.fill("検証");
+    }
+    for (const select of await page.locator("select[required]").all()) {
+      if ((await select.inputValue()) === "") {
+        const values = await select.locator("option").evaluateAll((os) =>
+          os.map((o) => (o as HTMLOptionElement).value).filter(Boolean)
+        );
+        if (values.length > 0) await select.selectOption(values[0]);
+      }
+    }
+
+    /*
      * **サーバーまで届く入力エラーを選ぶ。** 姓や名を空にしても
      * `required` が付いているのでブラウザの標準検証で止まり、
      * Server Action へ行かない（＝先頭へ戻す処理も走らない）。

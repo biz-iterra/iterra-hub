@@ -90,4 +90,92 @@ test.describe("E2E-19", () => {
       "モーダルを開いている間に背面が動いた"
     ).toBe(before);
   });
+
+  test("低い画面でもモーダルの上端が切れない", async ({ page }) => {
+    // オーバーレイは中央寄せなので、上へはみ出した分は親のスクロールでも救えない。
+    // maxHeight が無いと見出しに永久に到達できなくなる（T-0092）
+    await page.setViewportSize({ width: 1280, height: 560 });
+    await page.goto("/admin");
+    await expect(page.locator("h1").first()).toBeVisible({ timeout: 15_000 });
+
+    await page.getByRole("button", { name: /追加/ }).first().click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toBeVisible();
+
+    const box = await dialog.boundingBox();
+    expect(box, "モーダルの位置が取れない").not.toBeNull();
+    expect(box!.y, "モーダルの上端が画面の外にある").toBeGreaterThanOrEqual(0);
+    expect(
+      box!.y + box!.height,
+      "モーダルの下端が画面の外にある"
+    ).toBeLessThanOrEqual(560);
+  });
+
+  test("貼り付いた右カラムでも下端の操作に届く", async ({ page }) => {
+    /*
+     * リード詳細の「社内対応を追加」は `position: sticky` で貼り付く。
+     * 高さの上限が無いと、フォームが表示領域より高い画面では
+     * 下端（追加ボタン）まで永久にスクロールできない（T-0093）
+     */
+    await page.setViewportSize({ width: 1440, height: 620 });
+    await page.goto("/leads");
+    await expect(page.locator("h1").first()).toBeVisible({ timeout: 15_000 });
+    await page.locator("table tbody tr").first().locator("td").first().click();
+    await page.waitForURL(/\/leads\/[0-9a-f-]{36}$/, { timeout: 20_000 });
+
+    await page.getByRole("button", { name: "社内対応" }).click();
+    const addButton = page.getByRole("button", { name: /追加する/ });
+    await expect(addButton).toBeAttached({ timeout: 20_000 });
+
+    // 貼り付いた側を最後まで送れば、ボタンが画面の中に入る
+    await addButton.scrollIntoViewIfNeeded();
+    await expect(addButton).toBeInViewport();
+  });
+
+  test("入力エラーを出したら本文が先頭まで戻る", async ({ page }) => {
+    // window.scrollTo() は効かない。scrollAppToTop が <main> を動かす（T-0090）
+    await page.goto("/contacts");
+    await expect(page.locator("h1").first()).toBeVisible({ timeout: 15_000 });
+    // **氏名のセルを押す。** 行のどこでもよいわけではなく、所属のセルには
+    // 事業者情報へのリンクが入っていて、そちらへ飛んでしまう
+    await page.locator("table tbody tr").first().locator("td").first().click();
+    await page.waitForURL(/\/contacts\/[0-9a-f-]{36}$/, { timeout: 20_000 });
+    await page.goto(`${page.url()}/edit`);
+    await expect(page.getByRole("button", { name: "保存" })).toBeVisible({
+      timeout: 20_000,
+    });
+
+    // 本文を下まで送ってから、フォーム末尾の保存を押せる状態にする
+    await page.evaluate(() => {
+      const main = document.querySelector("main");
+      if (main) main.scrollTop = main.scrollHeight;
+    });
+    const scrolled = await page.evaluate(
+      () => document.querySelector("main")?.scrollTop ?? 0
+    );
+    expect(scrolled, "本文がスクロールできていない（前提が崩れている）").toBeGreaterThan(0);
+
+    /*
+     * **サーバーまで届く入力エラーを選ぶ。** 姓や名を空にしても
+     * `required` が付いているのでブラウザの標準検証で止まり、
+     * Server Action へ行かない（＝先頭へ戻す処理も走らない）。
+     * フリガナは任意で `max(50)` だけなので、51 文字以上が Zod で弾かれる
+     */
+    const kana = page
+      .locator("label")
+      .filter({ hasText: "フリガナ（姓）" })
+      .first()
+      .locator("xpath=following-sibling::input[1]");
+    await kana.fill("ア".repeat(60));
+    expect(await kana.inputValue(), "maxlength で切られている").toHaveLength(60);
+    await page.getByRole("button", { name: "保存" }).click();
+
+    // エラーは画面の上に出る。そこまで戻っていないと何も起きていないように見える
+    await expect
+      .poll(
+        async () => page.evaluate(() => document.querySelector("main")?.scrollTop ?? 0),
+        { timeout: 10_000, message: "入力エラーを出しても本文が先頭に戻らない" }
+      )
+      .toBeLessThanOrEqual(1);
+  });
 });

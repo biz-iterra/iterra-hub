@@ -7486,6 +7486,10 @@ export type Database = {
         }
         Returns: Json
       }
+      create_lead_with_owners: {
+        Args: { p_lead: Json; p_sub_owner_ids?: string[] }
+        Returns: string
+      }
       crm_account_type_to_freee: { Args: { p_type: string }; Returns: string }
       default_phone_label: { Args: { p_phone: string }; Returns: string }
       detect_all_contact_merge_candidates: { Args: never; Returns: number }

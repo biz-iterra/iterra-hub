@@ -56,12 +56,12 @@
 | ゲート | 実施日 | 実施者 | 結果 | 備考 |
 |---|---|---|---|---|
 | Gate 1 コミット前 4 チェック | 2026-08-14 | Claude | 合格 | typecheck / test（515 件）/ build / lint すべて 0 件 |
-| Gate 2 CI | — | — | 未 | ブランチ `fix/scroll-layout-and-audit` を push していない |
+| Gate 2 CI | 2026-08-14 | Claude | 合格 | main へマージして push。CI（1m55s）と Docker Publish（1m24s）がともに success |
 | Gate 3-1 db reset + 結合 (02) | 2026-08-14 | Claude | 合格 | `npm run test:db` 78 件すべて緑（IT-DEALHIST-01〜04 を新設） |
 | Gate 3-2 システム (03〜07 該当章) | 2026-08-14 | Claude | 合格 | 総ざらい（`@sweep`）で確認。CMN-13〜15 / ADM-03b / CNT-42 を追加（後 2 つは手動） |
 | Gate 3-3 E2E スモーク (08 ランク S) | 2026-08-14 | Claude | 合格 | **E2E 36 件すべて緑**（7.5 分）+ 総ざらい緑。途中経過は下記 |
 | Gate 4 受入 (09) | — | — | 未 | 利用者による確認待ち |
-| Gate 5 デプロイ後スモーク | — | — | 未 | **本番未反映。** マイグレーション 4 本の適用が必要 |
+| Gate 5 デプロイ後スモーク | 2026-08-14 | Claude | 進行中 | **本番 DB へマイグレーション 6 本を適用済み**（`migration list` で 6 本とも remote 側に載ったことを確認）。**NAS のコンテナ更新は未実施** — SSH がポート 22 で拒否され（UGOS 側で無効）、利用者の作業が要る |
 
 ### 検出した不具合と処置
 

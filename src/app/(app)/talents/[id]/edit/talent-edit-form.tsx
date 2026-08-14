@@ -671,6 +671,8 @@ export function TalentEditForm({
       end_date: editFormValues.is_current ? null : editFormValues.end_date || null,
       is_current: editFormValues.is_current,
       sort_order: parseInt(editFormValues.sort_order, 10),
+      // 楽観ロック: 一覧が持っている時点の updated_at（T-0096）
+      expected_updated_at: careers.find((c) => c.id === editingId)?.updated_at,
     });
 
     setEditSaving(false);

@@ -39,7 +39,8 @@ export type SocialService = Pick<
 
 export type ContactSocialAccount = Pick<
   Row<"contact_social_accounts">,
-  "id" | "contact_id" | "service_id" | "account_id" | "workspace" | "display_name" | "note"
+  // updated_at は楽観ロックに使う（T-0096）
+  "id" | "contact_id" | "service_id" | "account_id" | "workspace" | "display_name" | "note" | "updated_at"
 > & { service: SocialService | null };
 
 const SERVICE_COLUMNS =
@@ -75,7 +76,7 @@ export async function getContactSocialAccounts(
   const { data, error } = await supabase
     .from("contact_social_accounts")
     .select(
-      `id, contact_id, service_id, account_id, workspace, display_name, note, service:social_services(${SERVICE_COLUMNS})`
+      `id, contact_id, service_id, account_id, workspace, display_name, note, updated_at, service:social_services(${SERVICE_COLUMNS})`
     )
     .eq("contact_id", contactId)
     .order("created_at");
@@ -134,12 +135,18 @@ export async function updateContactSocialAccount(
     return { data: null, error: `[${issue.path.join(".")}] ${issue.message}` };
   }
 
-  const { data, error } = await supabase
+  // 楽観ロック（T-0096）。スキーマには無いので検証前に取り出してある
+  const expectedUpdatedAt = (input as Record<string, unknown>).expected_updated_at;
+
+  let query = supabase
     .from("contact_social_accounts")
     .update({ ...parsed.data, last_updated_by: user.id })
-    .eq("id", id)
-    .select("contact_id")
-    .maybeSingle();
+    .eq("id", id);
+  if (typeof expectedUpdatedAt === "string" && expectedUpdatedAt) {
+    query = query.eq("updated_at", expectedUpdatedAt);
+  }
+
+  const { data, error } = await query.select("contact_id").maybeSingle();
 
   if (error) {
     if (error.code === "23505") {

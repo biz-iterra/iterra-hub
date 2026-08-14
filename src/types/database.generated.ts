@@ -1606,6 +1606,7 @@ export type Database = {
           is_primary: boolean
           label: string
           last_updated_by: string | null
+          updated_at: string
         }
         Insert: {
           contact_id: string
@@ -1616,6 +1617,7 @@ export type Database = {
           is_primary?: boolean
           label?: string
           last_updated_by?: string | null
+          updated_at?: string
         }
         Update: {
           contact_id?: string
@@ -1626,6 +1628,7 @@ export type Database = {
           is_primary?: boolean
           label?: string
           last_updated_by?: string | null
+          updated_at?: string
         }
         Relationships: [
           {
@@ -1722,6 +1725,7 @@ export type Database = {
           label: string
           last_updated_by: string | null
           phone: string
+          updated_at: string
         }
         Insert: {
           contact_id: string
@@ -1732,6 +1736,7 @@ export type Database = {
           label?: string
           last_updated_by?: string | null
           phone: string
+          updated_at?: string
         }
         Update: {
           contact_id?: string
@@ -1742,6 +1747,7 @@ export type Database = {
           label?: string
           last_updated_by?: string | null
           phone?: string
+          updated_at?: string
         }
         Relationships: [
           {

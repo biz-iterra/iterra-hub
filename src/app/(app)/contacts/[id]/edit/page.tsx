@@ -124,12 +124,14 @@ export default async function ContactEditPage({
     value: e.email,
     label: e.label,
     is_primary: e.is_primary,
+    updated_at: e.updated_at,
   }));
   const phones = (detail?.contact_phones ?? []).map((p) => ({
     id: p.id,
     value: p.phone,
     label: p.label,
     is_primary: p.is_primary,
+    updated_at: p.updated_at,
   }));
 
   return (

@@ -29,6 +29,11 @@ type Draft = {
   account_id: string;
   workspace: string;
   display_name: string;
+  /**
+   * 楽観ロック: 編集を開いた時点の updated_at（T-0096）。
+   * 追加のときは無い（新規行に競合相手はいない）
+   */
+  expected_updated_at?: string;
 };
 
 const EMPTY: Draft = { service_id: "", account_id: "", workspace: "", display_name: "" };
@@ -396,6 +401,8 @@ export function SocialAccountsEditor({
                       account_id: account.account_id,
                       workspace: account.workspace ?? "",
                       display_name: account.display_name ?? "",
+                      // 楽観ロック: 画面が持っている時点の値（T-0096）
+                      expected_updated_at: account.updated_at,
                     });
                     setEditing(account.id);
                   }}

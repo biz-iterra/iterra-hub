@@ -1,6 +1,7 @@
 "use server";
 
 import { toUserMessage } from "@/lib/db-error";
+import { conflictErrorMessage } from "@/lib/validators/common";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import type { EntityAddress } from "@/types/relations";
@@ -27,6 +28,8 @@ export type AddressInput = {
   phone?: string | null;
   fax?: string | null;
   memo?: string | null;
+  /** 楽観ロック: 画面が持っている時点の entity_addresses.updated_at（T-0096） */
+  expected_updated_at?: string;
 };
 
 const OWNER_PATH: Record<AddressOwnerType, string> = {
@@ -108,7 +111,7 @@ export async function getEntityAddresses(
   const { data, error } = await supabase
     .from("entity_addresses")
     .select(
-      "id, label, is_primary, phone, fax, memo, address:addresses(id, postal_code, prefecture, city, address_line1, address_line2, raw_text)"
+      "id, label, is_primary, phone, fax, memo, updated_at, address:addresses(id, postal_code, prefecture, city, address_line1, address_line2, raw_text)"
     )
     .eq(`${ownerType}_id`, ownerId)
     .order("is_primary", { ascending: false })
@@ -192,7 +195,7 @@ export async function updateEntityAddress(
 
   if (addrError) return { data: null, error: toUserMessage(addrError, { entityLabel: "住所" }) };
 
-  const { error } = await auth.supabase
+  let linkQuery = auth.supabase
     .from("entity_addresses")
     .update({
       label: input.label ?? "main",
@@ -202,8 +205,15 @@ export async function updateEntityAddress(
       last_updated_by: auth.userId,
     })
     .eq("id", linkId);
+  // 楽観ロック（T-0096）。渡されたときだけ条件に足す
+  if (input.expected_updated_at) {
+    linkQuery = linkQuery.eq("updated_at", input.expected_updated_at);
+  }
+
+  const { data: updatedLink, error } = await linkQuery.select("id").maybeSingle();
 
   if (error) return { data: null, error: toUserMessage(error, { entityLabel: "住所" }) };
+  if (!updatedLink) return { data: null, error: conflictErrorMessage("この住所") };
   refresh(ownerType, ownerId);
   return { data: null, error: null };
 }

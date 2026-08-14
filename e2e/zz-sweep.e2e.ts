@@ -110,6 +110,26 @@ test.describe("変更した画面の総ざらい", () => {
         .first()
         .locator("xpath=following-sibling::select[1]");
       await statusSelect.selectOption({ index: 1 });
+
+      /*
+       * **事業種別を個人事業主にすると「事業主（本人の連絡先）」が出て、
+       * 姓と名が必須になる**（T-0087。同時作成のチェックは既定でオン）。
+       * 埋めずに押すとブラウザの標準検証で送信が止まり、トーストも
+       * JS エラーも出ないまま画面が変わらない。原因の分からない
+       * タイムアウトになるので、ここで必ず埋める
+       */
+      for (const [label, value] of [
+        ["姓", "検証"],
+        ["名", "太郎"],
+      ] as const) {
+        await page
+          .locator("label")
+          .filter({ hasText: new RegExp(`^${label}`) })
+          .first()
+          .locator("xpath=following-sibling::input[1]")
+          .fill(value);
+      }
+
       await page.getByRole("button", { name: "作成" }).click();
       await page.waitForURL(/\/companies\/[0-9a-f-]{36}$/, { timeout: 20_000 });
       soleId = page.url().split("/").pop()!;

@@ -1518,3 +1518,36 @@ Slack 以外のすべてのサービスで重複登録が通っていた**（DB 
   ③ は 1 を返し、ジョブが `succeeded`・`error_message` は NULL
 - 理由: **塞いだ結果として画面の正規機能が壊れるのが最悪の結果。**
   入口関数とワーカーはいずれも SECURITY DEFINER・所有者 postgres で通ることを実測で押さえる
+
+## ディールの履歴はトリガーが記録する（2026-08-14 追加、T-0095）
+
+マイグレーション `20260814100002` の検証。自動化は
+`scripts/test-db/cases/13-deal-history-trigger.mjs`。
+
+直す前はアプリが `deals` を UPDATE したあと `deal_stage_histories` /
+`deal_status_histories` を別文で INSERT していた。supabase-js は複数文を単一
+トランザクションにできないので、**履歴の INSERT だけ失敗すると更新は残って
+履歴が欠ける**。ステージの滞留日数はこの 2 表が正本なので、集計が実態とずれる。
+同じ書き込みが「更新」と「カンバンの D&D」の 2 箇所にあり、片方だけ直す事故も
+起きやすかった。
+
+### IT-DEALHIST-01: ステージ変更で 1 行だけ増える
+- 手順: `deals.deal_stage_id` を同じパイプラインの別ステージへ更新する（`last_updated_by` も指定）
+- 期待値: `deal_stage_histories` がちょうど 1 行増え、`from_stage_id` / `to_stage_id` / `changed_by` が入る
+- 理由: **2 行増えたらアプリ側の INSERT が残っている**（二重記録）。1 行であることが要点
+
+### IT-DEALHIST-02: ステータス変更は stage_id 付きで記録される
+- 手順: 同じステージ内で `deal_status_id` だけを別のものへ更新する
+- 期待値: `deal_status_histories` が 1 行増え、`stage_id` に更新後のステージが入る
+- 理由: `stage_id` は NOT NULL。ステータスだけ動かしたときに何を入れるかが実装の分かれ目
+
+### IT-DEALHIST-03: 関係ない列の更新では増えない
+- 手順: `name` だけを更新する
+- 期待値: 履歴 2 表とも件数が変わらない
+- 理由: トリガーの `WHEN` 句が効いていること。全 UPDATE で発火すると履歴が膨らむ
+
+### IT-DEALHIST-04: 実行者不明なら書かない
+- 手順: `auth.uid()` が NULL の接続で、`last_updated_by = NULL` のままステージを更新する
+- 期待値: 履歴は増えず、**更新自体は通る**
+- 理由: `changed_by` は NOT NULL。誰がやったか分からない行を残すより書かない方がよく、
+  かつ**履歴が書けないことで業務の更新を止めない**

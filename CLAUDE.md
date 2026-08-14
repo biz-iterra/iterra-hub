@@ -185,6 +185,13 @@ lock を触ったら push 前に `npm ci` がローカルで通ることを確�
   参照は上記のとおり全員可（`talent_skills` / `talent_careers` / `deal_services` は参照も親準拠のまま）
 - **financial_info:** SELECT は manager/admin のみ、CUD は admin のみ
 - **履歴テーブル:** INSERT ONLY を原則とする（UPDATE/DELETE 不可）。ただし `lead_activities` は例外で、`caller_user_id` 本人と manager/admin による UPDATE を許可（`last_edited_at` / `last_edited_by_user_id` で監査証跡を保全。マイグレーション: 20260426000001）。admin のみ DELETE 可能（誤記録修正用）
+- **活動・履歴の参照範囲は親に合わせる。** `deal_activities` / `deal_activity_emails` /
+  `deal_stage_histories` / `deal_status_histories` は `is_deal_accessible(deal_id)`、
+  `lead_activities` は `is_lead_accessible(lead_id)`。**「記録者本人だけ」にしない**
+  （担当を引き継いだ人に前任者の記録が見えなくなる。2026-08-14 に `deal_activities` を是正。T-0097）。
+  ただし**更新**は記録者本人と admin に限る（他人の対応内容は書き換えさせない）
+- **`*_change_histories` 4 表は使っていない。** 変更履歴の正本は `entity_change_logs`
+  （トリガーが全経路を記録）。書き込み口は閉じてあるので、新しい履歴をここに足さない（T-0098）
 
 ## UI表示名と内部名の対応
 

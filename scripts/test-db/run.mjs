@@ -32,6 +32,7 @@ import { register as registerContractNaming } from "./cases/09-contract-naming.m
 import { register as registerCompanyWithContact } from "./cases/10-company-with-contact.mjs";
 import { register as registerSocialAccountUnique } from "./cases/11-social-account-unique.mjs";
 import { register as registerBulkFunctionGrants } from "./cases/12-bulk-function-grants.mjs";
+import { register as registerDealHistoryTrigger } from "./cases/13-deal-history-trigger.mjs";
 
 const { Client } = pg;
 
@@ -51,6 +52,7 @@ async function main() {
   registerCompanyWithContact(harness.test);
   registerSocialAccountUnique(harness.test);
   registerBulkFunctionGrants(harness.test);
+  registerDealHistoryTrigger(harness.test);
 
   console.log(`[test:db] connecting to ${dbUrl.replace(/:[^:@/]+@/, ":***@")}`);
   console.log(`[test:db] ${harness.cases.length} cases registered`);

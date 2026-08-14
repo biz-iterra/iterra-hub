@@ -12,60 +12,25 @@ ITERRA CRM（顧客関係管理）システム。
 
 ## 技術スタック
 
-- 言語: TypeScript
-- フレームワーク: Next.js 16.2 (App Router / Turbopack) + React 19 + Tailwind CSS v4 + shadcn/ui v4 (base-ui)
-  - `next.config.ts` で `experimental.turbopackFileSystemCacheForDev` を有効化（dev のファイルシステムキャッシュ）
-- データベース: PostgreSQL (Supabase)
-- BaaS: Supabase (Auth + RLS + Storage)
-- バリデーション: Zod
+（依存の一覧は `package.json` / `next.config.ts` を見る。ここには読み取れない前提だけ残す）
+
 - 形態素解析: kuromoji（事業者名のフリガナ自動生成。辞書 17MB はサーバー側でのみ読む）
-- テスト: Vitest（判定ロジックのユニットテスト）
 - インフラ: 自社 NAS 上の Docker + Cloudflare Tunnel（`hub.iterra.online`）+ Supabase (Free / Tokyo)
   - **Vercel は使用しない。** Hobby プランは商用利用が規約で認められておらず基幹システムに適さない
   - Cloudflare Access で社内メンバー限定の認証層を前置
   - イメージは CI でビルドし GHCR 経由で NAS へ配布
   - 構成と手順は `docs/deployment-nas.md`
 
-## ディレクトリ構造
+## 構成で迷いやすい点
 
-```
-├── docs/                  # 設計書・手順書
-│   ├── database-design.md # DB設計書
-│   ├── deployment-nas.md  # 本番Supabase構築 + NASデプロイ手順
-│   ├── lead-import-eight.md # Eight 名刺CSV取込の設計（実装済み: /admin/leads/import）
-│   ├── lead-import-inquiry.md # コーポレートサイトの問い合わせ取込（D1 → /api/leads/inquiry-sync）
-│   ├── google-contacts-sync.md # 連絡先の Google コンタクト同期（設計のみ・実装は T-0045）
-│   ├── operation-manual.md # 操作マニュアル（§13 バックアップと復旧）
-│   ├── test-strategy.md   # テスト戦略（テストレベル定義とデプロイゲートの正本）
-│   ├── test-cases/        # レベル別詳細テストケース（01-unit 〜 09-acceptance）
-│   ├── test-checklist.md  # デプロイゲート実施記録（リリースごとに追記）
-│   ├── team-structure.md  # エージェント体制（engineer/qa/reviewer/designer/operator の 5 ロール）
-│   └── archive/           # 役目を終えたドキュメント（現行仕様の参照には使わない）
-├── supabase/
-│   ├── config.toml        # ローカルSupabase設定（ポート: 5433x系 / db.seed.sql_paths）
-│   ├── migrations/        # DBマイグレーション
-│   ├── seeds/             # 用途別に分割したseed（本番投入の可否で分ける）
-│   │   ├── 01-masters.sql        # 業務マスタ（本番投入する）
-│   │   ├── 02-dev-users.sql      # テストユーザー（開発専用）
-│   │   ├── 03-dev-samples.sql    # サンプル取引データ（開発専用）
-│   │   ├── 04-leads.sql          # リード実業務データ 3,008件（本番投入する）
-│   │   ├── prod-retired-users.sql        # 退職済み担当者（本番のみ・手動実行）
-│   │   └── prod-disable-system-account.sql # システム用アカウントの封じ込め（本番のみ）
-│   └── seed-talent-classification.sql # スキル体系（T/D/B/M）+ タレント分類マスタ
-├── scripts/               # 補助スクリプト（seed生成・UUID置換等）
-├── Dockerfile             # NAS実行用イメージ（standalone出力）
-├── docker-compose.yml     # app + cloudflared
-├── src/
-│   ├── app/(auth)/        # 認証不要ページ (login)
-│   ├── app/(app)/         # 認証必須ページ（エンティティ別の一覧・詳細・編集。構成は ls で確認）
-│   ├── app/api/health/    # ヘルスチェック（Docker healthcheck / 外形監視用）
-│   ├── lib/supabase/      # Supabaseクライアント (client, server, middleware, admin)
-│   ├── lib/talent-classification/ # 系統・グレード・職種の判定ロジック（純粋関数）
-│   ├── lib/validators/    # Zodスキーマ（common, masters, companies, accounts, contacts, deals, contracts, talents, activities）
-│   └── types/             # 型定義（database.generated.ts が正本。database.ts はそこから導出）
-├── src/middleware.ts       # 認証 + ロール別ルーティング
-└── .env.local.example     # 環境変数テンプレート
-```
+（配置そのものは `ls` で確認する。ここには読み取れない前提だけ残す）
+
+- `docs/archive/` は役目を終えた文書。現行仕様の参照には使わない
+- `src/types/database.generated.ts` が型の正本。`database.ts` はそこから導出する
+- `supabase/seeds/` は本番投入の可否で分ける。`01-masters.sql` / `04-leads.sql`（リード実業務データ
+  3,008 件）は本番投入する。`02-dev-users.sql` / `03-dev-samples.sql` は開発専用、
+  `prod-*.sql` は本番のみ・手動実行
+- ローカル Supabase のポートは 5433x 系（`supabase/config.toml`）
 
 ## 開発ルール
 
@@ -88,6 +53,15 @@ ITERRA CRM（顧客関係管理）システム。
   独自の `onKeyDown` を持つ入力欄は先頭で `isComposingKey(e)` を見て早期 return する。
   見た目が既定でよければ `SearchInput` をそのまま使う。**同じ不具合を何度も出しているため、
   検索欄を足すときは E2E-14（`e2e/14-ime-search.e2e.ts`）も一緒に確認すること**
+- **縦にスクロールするのは `<main>` であって `window` ではない。**
+  外枠（`AppShell`）が `h-screen overflow-hidden` で、その中の `<main>` だけが `overflow-y: auto`。
+  `window.scrollTo()` も `document.body.style.overflow` も**何も起きない**（エラーも出ない）。
+  先頭へ戻す・背面を止める操作は `src/lib/app-scroll.ts` と `useScrollLock`
+  （`src/hooks/useScrollLock.ts`）を通す。
+  **`<main>` の `position: relative` を外さないこと。** `.sr-only` のような `position: absolute` の
+  要素の包含ブロックが `<html>` になり、表示領域より下に出た分だけ文書がスクロールできるようになる。
+  外枠ごと画面が流れてサイドバーとヘッダーが画面外へ出る（T-0089。本番で 782px ずれていた）。
+  スクロールバーを全体で非表示にしているため**ずれていることが画面から見えない**。回帰は E2E-19
 - **入力必須の印は `RequiredMark`（`src/components/ui/RequiredMark.tsx`）を使う。** ラベル文字列に `*` を直接書かない。
   どの欄に付けるかの正本は Zod スキーマ（`src/lib/validators/`）。スキーマの必須を変えたらフォームの印も同じ作業内で合わせる
 - トーストは種別ごとの時間で自動消滅する（error は約10秒、success/info は約4秒）。

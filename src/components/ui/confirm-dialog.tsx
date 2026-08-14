@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useId, type CSSProperties } from "react";
+import { useScrollLock } from "@/hooks/useScrollLock";
 import { formActionsClass } from "@/lib/layout";
 
 export type ConfirmDialogProps = {
@@ -106,6 +107,8 @@ function ConfirmDialogInner({
   // 支援技術にモーダルだと伝える（T-0048）。本文も読み上げ対象に含める
   const titleId = useId();
   const messageId = useId();
+  // 開いている間は背面を止める（T-0091）
+  useScrollLock(true);
 
   const handleConfirm = async () => {
     setLoading(true);

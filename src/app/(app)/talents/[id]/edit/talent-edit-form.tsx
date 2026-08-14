@@ -8,6 +8,7 @@ import { updateTalent, deleteTalent, addTalentCareer, updateTalentCareer, remove
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import { isFieldValidationError } from "@/lib/errors";
+import { scrollAppToTop } from "@/lib/app-scroll";
 import type { TalentCareerRow } from "@/types/relations";
 import { formContainerClass, fieldGridClass, fieldGrid3Class, formFooterClass } from "@/lib/layout";
 import { RequiredMark } from "@/components/ui/RequiredMark";
@@ -545,7 +546,8 @@ export function TalentEditForm({
     if (result.error) {
       if (isFieldValidationError(result.error)) {
         setError(result.error);
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        // スクロールするのは <main>。window では動かない
+        scrollAppToTop();
       } else {
         showToast({ type: "error", message: result.error });
       }

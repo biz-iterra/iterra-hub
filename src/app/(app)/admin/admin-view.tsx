@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useId, type FormEvent } from "react";
+import { useScrollLock } from "@/hooks/useScrollLock";
 import { AlertTriangle, ArrowUpRight, Loader2, RefreshCw } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 import { CompanyVerificationPanel } from "./company-verification-panel";
@@ -300,6 +301,7 @@ const styles = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
+    padding: "1rem",
   } as React.CSSProperties,
   modal: {
     backgroundColor: "#fff",
@@ -308,6 +310,9 @@ const styles = {
     maxWidth: 480,
     width: "100%",
     padding: "1.5rem",
+    // 中央寄せなので、上限が無いと画面より高いときに**上端が切れて到達できない**（T-0092）
+    maxHeight: "calc(100vh - 2rem)",
+    overflowY: "auto",
   } as React.CSSProperties,
   error: { color: "var(--color-error)", fontSize: "0.875rem" } as React.CSSProperties,
 };
@@ -326,6 +331,8 @@ function Modal({
   // 支援技術にモーダルだと伝える。**これが無いと E2E も入力欄を位置でしか
   // 指定できず、ヘッダーの検索欄を誤って掴む事故が起きた**（T-0048）
   const titleId = useId();
+  // 開いている間は背面を止める（T-0091）
+  useScrollLock(true);
 
   return (
     <div style={styles.overlay} onClick={onClose}>

@@ -8,6 +8,7 @@ import { updateContact, deleteContact } from "@/actions/contacts";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import { isFieldValidationError } from "@/lib/errors";
+import { scrollAppToTop } from "@/lib/app-scroll";
 import { formContainerClass, fieldGridClass, fieldGrid3Class, formFooterClass } from "@/lib/layout";
 import {
   ContactChannelsEditor,
@@ -260,7 +261,8 @@ export function ContactEditForm({
       if (result.error) {
         if (isFieldValidationError(result.error)) {
           setError(result.error);
-          window.scrollTo({ top: 0, behavior: "smooth" });
+          // スクロールするのは <main>。window では動かない
+          scrollAppToTop();
         } else {
           showToast({ type: "error", message: result.error });
         }

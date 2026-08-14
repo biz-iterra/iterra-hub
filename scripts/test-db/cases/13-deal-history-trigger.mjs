@@ -141,7 +141,7 @@ export function register(test) {
 
   test(
     "IT-DEALHIST-04",
-    "実行者が分からない更新では履歴を書かない（changed_by は NOT NULL）",
+    "実行者が分からない更新では履歴を書かない（作成者で代用しない）",
     async (ctx) => {
       const deal = await anyDeal(ctx);
       const toStage = await otherStage(ctx, deal);
@@ -159,8 +159,77 @@ export function register(test) {
       const after = Number(
         await ctx.val(`SELECT count(*) FROM deal_stage_histories WHERE deal_id = $1`, [deal.id])
       );
-      // **誰がやったか分からない行を残すより、書かない方がよい**
+      /*
+       * `deals.created_by` は NOT NULL なので必ず値がある。**そこへ落とさないこと**が要点。
+       * 作った人と直した人は別で、「誰が動かしたか」を作成者の名前で埋めると履歴が嘘になる。
+       * 誰がやったか分からない行を残すより、書かない方がよい
+       */
       ctx.assertEqual(after, before, "実行者不明なら履歴を残さず、更新自体は通す");
+    }
+  );
+
+  test(
+    "IT-DEALHIST-05",
+    "ディールを作ると初回履歴が 1 組だけ入る（DB 関数と二重にならない）",
+    async (ctx) => {
+      const actor = await ctx.val(`SELECT id FROM crm_users ORDER BY created_at LIMIT 1`);
+      const base = await anyDeal(ctx);
+      const lead = await ctx.val(
+        `SELECT id FROM leads WHERE deleted_at IS NULL ORDER BY created_at LIMIT 1`
+      );
+
+      // 相手先は account / company / contact のいずれか 1 つが必須（deals_counterparty_check）
+      const company = await ctx.val(
+        `SELECT id FROM companies WHERE deleted_at IS NULL ORDER BY created_at LIMIT 1`
+      );
+
+      const newId = await ctx.val(
+        `INSERT INTO deals (name, pipeline_type_id, deal_stage_id, deal_status_id,
+                            owner_user_id, created_by, last_updated_by, lead_id, company_id)
+         VALUES ('検証-履歴', $1, $2, $3, $4, $4, $4, $5, $6)
+         RETURNING id`,
+        [base.pipeline_type_id, base.deal_stage_id, base.deal_status_id, actor, lead, company]
+      );
+
+      const stage = Number(
+        await ctx.val(`SELECT count(*) FROM deal_stage_histories WHERE deal_id = $1`, [newId])
+      );
+      const status = Number(
+        await ctx.val(`SELECT count(*) FROM deal_status_histories WHERE deal_id = $1`, [newId])
+      );
+      // **2 になったら DB 関数側の INSERT が残っている**（二重記録）
+      ctx.assertEqual(stage, 1, "ステージ履歴は 1 行だけ");
+      ctx.assertEqual(status, 1, "ステータス履歴は 1 行だけ");
+
+      const row = await ctx.one(
+        `SELECT from_stage_id, to_stage_id FROM deal_stage_histories WHERE deal_id = $1`,
+        [newId]
+      );
+      ctx.assertEqual(row.from_stage_id, null, "初回なので遷移前は NULL");
+      ctx.assertEqual(row.to_stage_id, base.deal_stage_id, "作成時のステージが入る");
+    }
+  );
+
+  test(
+    "IT-DEALHIST-06",
+    "履歴を直接 INSERT できない（書き込み口はトリガーだけ）",
+    async (ctx) => {
+      const deal = await anyDeal(ctx);
+      const actor = await ctx.val(`SELECT id FROM crm_users WHERE role = 'admin' LIMIT 1`);
+
+      await ctx.setRole(actor);
+      const err = await ctx.expectError(
+        () =>
+          ctx.query(
+            `INSERT INTO deal_stage_histories (deal_id, from_stage_id, to_stage_id, changed_by)
+             VALUES ($1, NULL, $2, $3)`,
+            [deal.id, deal.deal_stage_id, actor]
+          ),
+        /row-level security|policy/i,
+        "IT-DEALHIST-06"
+      );
+      ctx.assertEqual(err.code, "42501", "RLS で拒否される");
+      await ctx.resetRole();
     }
   );
 }

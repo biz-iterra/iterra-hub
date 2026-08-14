@@ -22,6 +22,13 @@ const UUID_RE = "[0-9a-f-]{36}";
  * 設定しておく。
  */
 test.describe("E2E-04", () => {
+  /*
+   * **画面をまたぐ手順が多く、後片付けまで含めると既定の 90 秒に収まらない。**
+   * dev サーバーは初回ヒットするルートのコンパイルに数十秒かかることがあり、
+   * db reset 直後は特に遅い。切れると後片付けの途中で止まってデータが残る
+   */
+  test.setTimeout(240_000);
+
   test("ディールのステージ移動→契約作成→取引先自動作成 @smoke", async ({ browser }) => {
     const { context: adminCtx, page: adminPage } = await openAs(browser, "admin");
     const { context: managerCtx, page: managerPage } = await openAs(browser, "manager");

@@ -40,6 +40,7 @@ import type {
 } from "@/types/relations";
 import { detailContainerClass, fieldGridClass, tableScrollClass } from "@/lib/layout";
 import { useSearchField } from "@/hooks/useSearchField";
+import { useScrollLock } from "@/hooks/useScrollLock";
 
 type Tab = "basic" | "leads";
 
@@ -132,6 +133,8 @@ function AttachLeadsModal({
   onAttached: (leads: UnassignedLeadRow[]) => void;
   onClose: () => void;
 }) {
+  // 開いている間は背面を止める（T-0091）
+  useScrollLock(true);
   const [search, setSearch] = useState("");
   /*
    * 表示は draft、検索に使うのは search。

@@ -8,6 +8,7 @@ import { updateTalent, deleteTalent, addTalentCareer, updateTalentCareer, remove
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import { isFieldValidationError } from "@/lib/errors";
+import { scrollAppToTop } from "@/lib/app-scroll";
 import type { TalentCareerRow } from "@/types/relations";
 import { formContainerClass, fieldGridClass, fieldGrid3Class, formFooterClass } from "@/lib/layout";
 import { RequiredMark } from "@/components/ui/RequiredMark";
@@ -545,7 +546,8 @@ export function TalentEditForm({
     if (result.error) {
       if (isFieldValidationError(result.error)) {
         setError(result.error);
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        // スクロールするのは <main>。window では動かない
+        scrollAppToTop();
       } else {
         showToast({ type: "error", message: result.error });
       }
@@ -669,6 +671,8 @@ export function TalentEditForm({
       end_date: editFormValues.is_current ? null : editFormValues.end_date || null,
       is_current: editFormValues.is_current,
       sort_order: parseInt(editFormValues.sort_order, 10),
+      // 楽観ロック: 一覧が持っている時点の updated_at（T-0096）
+      expected_updated_at: careers.find((c) => c.id === editingId)?.updated_at,
     });
 
     setEditSaving(false);

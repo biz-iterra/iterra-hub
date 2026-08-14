@@ -306,7 +306,8 @@ export async function addTalentSkill(
 // ---------- スキル更新 ----------
 export async function updateTalentSkill(
   id: string,
-  input: z.infer<typeof updateTalentSkillSchema>
+  // expected_updated_at はスキーマの外。楽観ロックにだけ使う（T-0096）
+  input: z.infer<typeof updateTalentSkillSchema> & { expected_updated_at?: string }
 ): Promise<ActionResult<Row<"talent_skills">>> {
   const { supabase, user, role } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
@@ -322,14 +323,24 @@ export async function updateTalentSkill(
     return { data: null, error: "このタレントを編集する権限がありません" };
   }
 
-  const { data, error } = await supabase
+  /*
+   * 楽観ロック（T-0096）。スキーマには無いので input から直接読む。
+   * 渡されたときだけ条件に足す
+   */
+  const expectedUpdatedAt = (input as Record<string, unknown>).expected_updated_at;
+
+  let query = supabase
     .from("talent_skills")
     .update({ ...parsed.data, last_updated_by: user.id })
-    .eq("id", id)
-    .select()
-    .single();
+    .eq("id", id);
+  if (typeof expectedUpdatedAt === "string" && expectedUpdatedAt) {
+    query = query.eq("updated_at", expectedUpdatedAt);
+  }
+
+  const { data, error } = await query.select().maybeSingle();
 
   if (error) return { data: null, error: toUserMessage(error, { entityLabel: "タレント" }) };
+  if (!data) return { data: null, error: conflictErrorMessage("このスキル") };
   return { data, error: null };
 }
 
@@ -382,7 +393,8 @@ export async function addTalentCareer(
 // ---------- キャリア更新 ----------
 export async function updateTalentCareer(
   id: string,
-  input: z.infer<typeof updateTalentCareerSchema>
+  // expected_updated_at はスキーマの外。楽観ロックにだけ使う（T-0096）
+  input: z.infer<typeof updateTalentCareerSchema> & { expected_updated_at?: string }
 ): Promise<ActionResult<Row<"talent_careers">>> {
   const { supabase, user, role } = await getAuthenticatedUser();
   if (!supabase || !user) return { data: null, error: "認証が必要です" };
@@ -398,14 +410,24 @@ export async function updateTalentCareer(
     return { data: null, error: "このタレントを編集する権限がありません" };
   }
 
-  const { data, error } = await supabase
+  /*
+   * 楽観ロック（T-0096）。スキーマには無いので input から直接読む。
+   * 渡されたときだけ条件に足す
+   */
+  const expectedUpdatedAt = (input as Record<string, unknown>).expected_updated_at;
+
+  let query = supabase
     .from("talent_careers")
     .update({ ...parsed.data, last_updated_by: user.id })
-    .eq("id", id)
-    .select()
-    .single();
+    .eq("id", id);
+  if (typeof expectedUpdatedAt === "string" && expectedUpdatedAt) {
+    query = query.eq("updated_at", expectedUpdatedAt);
+  }
+
+  const { data, error } = await query.select().maybeSingle();
 
   if (error) return { data: null, error: toUserMessage(error, { entityLabel: "タレント" }) };
+  if (!data) return { data: null, error: conflictErrorMessage("この経歴") };
   return { data, error: null };
 }
 

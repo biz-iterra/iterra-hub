@@ -1606,6 +1606,7 @@ export type Database = {
           is_primary: boolean
           label: string
           last_updated_by: string | null
+          updated_at: string
         }
         Insert: {
           contact_id: string
@@ -1616,6 +1617,7 @@ export type Database = {
           is_primary?: boolean
           label?: string
           last_updated_by?: string | null
+          updated_at?: string
         }
         Update: {
           contact_id?: string
@@ -1626,6 +1628,7 @@ export type Database = {
           is_primary?: boolean
           label?: string
           last_updated_by?: string | null
+          updated_at?: string
         }
         Relationships: [
           {
@@ -1722,6 +1725,7 @@ export type Database = {
           label: string
           last_updated_by: string | null
           phone: string
+          updated_at: string
         }
         Insert: {
           contact_id: string
@@ -1732,6 +1736,7 @@ export type Database = {
           label?: string
           last_updated_by?: string | null
           phone: string
+          updated_at?: string
         }
         Update: {
           contact_id?: string
@@ -1742,6 +1747,7 @@ export type Database = {
           label?: string
           last_updated_by?: string | null
           phone?: string
+          updated_at?: string
         }
         Relationships: [
           {
@@ -7486,6 +7492,10 @@ export type Database = {
         }
         Returns: Json
       }
+      create_lead_with_owners: {
+        Args: { p_lead: Json; p_sub_owner_ids?: string[] }
+        Returns: string
+      }
       crm_account_type_to_freee: { Args: { p_type: string }; Returns: string }
       default_phone_label: { Args: { p_phone: string }; Returns: string }
       detect_all_contact_merge_candidates: { Args: never; Returns: number }
@@ -7837,6 +7847,25 @@ export type Database = {
           city: string
           rest: string
         }[]
+      }
+      update_entity_address: {
+        Args: {
+          p_actor?: string
+          p_address_line1: string
+          p_address_line2: string
+          p_city: string
+          p_expected_updated_at?: string
+          p_fax?: string
+          p_label?: string
+          p_link_id: string
+          p_memo?: string
+          p_owner_id: string
+          p_owner_type: string
+          p_phone?: string
+          p_postal_code: string
+          p_prefecture: string
+        }
+        Returns: undefined
       }
       upsert_company_domain: {
         Args: { p_company_id: string; p_input: string; p_is_primary?: boolean }

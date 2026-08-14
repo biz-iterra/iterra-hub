@@ -18,6 +18,7 @@
  */
 
 import { useCallback, useEffect, useId, useRef, useState, useTransition } from "react";
+import { useScrollLock } from "@/hooks/useScrollLock";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FileText, Link2, Plus, Unlink, X } from "lucide-react";
@@ -336,6 +337,8 @@ function LinkContractModal({
   const router = useRouter();
   const { showToast } = useToast();
   const titleId = useId();
+  // 開いている間は背面を止める（T-0091）
+  useScrollLock(true);
   const [search, setSearch] = useState("");
   const [rows, setRows] = useState<LinkableContract[]>([]);
   const [saving, setSaving] = useState(false);

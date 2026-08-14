@@ -1,6 +1,7 @@
 "use server";
 
 import { toUserMessage } from "@/lib/db-error";
+import { conflictErrorMessage } from "@/lib/validators/common";
 import { createClient } from "@/lib/supabase/server";
 import { UUID_REGEX } from "@/lib/validators/common";
 import {
@@ -219,14 +220,21 @@ export async function updateTalentAchievement(
     return { data: null, error: parsed.error.issues[0].message };
   }
 
-  const { data, error } = await supabase
-    .from("talent_achievements")
-    .update(parsed.data)
-    .eq("id", id)
-    .select()
-    .single();
+  /*
+   * 楽観ロック（T-0096）。スキーマには無いので input から直接読む。
+   * 渡されたときだけ条件に足す
+   */
+  const expectedUpdatedAt = (input as Record<string, unknown>).expected_updated_at;
+
+  let query = supabase.from("talent_achievements").update(parsed.data).eq("id", id);
+  if (typeof expectedUpdatedAt === "string" && expectedUpdatedAt) {
+    query = query.eq("updated_at", expectedUpdatedAt);
+  }
+
+  const { data, error } = await query.select().maybeSingle();
 
   if (error) return { data: null, error: toUserMessage(error, { entityLabel: "タレント分類" }) };
+  if (!data) return { data: null, error: conflictErrorMessage("この実績") };
   return { data: data as TalentAchievement, error: null };
 }
 

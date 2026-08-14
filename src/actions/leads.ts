@@ -22,6 +22,7 @@ import {
   type LeadRow,
 } from "@/lib/leads/promote-helpers";
 import type { z } from "zod";
+import type { Json } from "@/types/database.generated";
 import type {
   LeadDetail,
   LeadListRow,
@@ -305,29 +306,32 @@ export async function createLead(
   const rawSubOwnerIds = d.sub_owner_user_ids ?? [];
   const subOwnerIds = rawSubOwnerIds.filter((uid) => uid !== d.owner_user_id);
 
-  // sub_owner_user_ids は leads テーブルには存在しないため除外して insert
+  // sub_owner_user_ids は leads テーブルには存在しないため除外して渡す
   const { sub_owner_user_ids: _sub, ...leadInsertData } = d;
 
-  const { data: lead, error } = await supabase
-    .from("leads")
-    .insert({
+  /*
+   * **リード本体と副担当は DB 関数で 1 トランザクションにまとめる**（T-0094）。
+   * 以前はここで 2 回 INSERT しており、副担当だけ失敗しても `console.warn` を
+   * 出して成功として返していた。画面には成功と出るのに副担当が付かない。
+   */
+  const { data: newLeadId, error } = await supabase.rpc("create_lead_with_owners", {
+    p_lead: {
       ...leadInsertData,
       status_id: resolvedStatusId,
-      created_by: user.id,
-      last_updated_by: user.id,
-    })
+    } as unknown as Json,
+    p_sub_owner_ids: subOwnerIds,
+  });
+
+  if (error) return { ok: false, errors: { _: [toUserMessage(error, { entityLabel: "リード", operation: "create" })] } };
+
+  const { data: lead, error: fetchErr } = await supabase
+    .from("leads")
     .select(LEAD_SELECT)
+    .eq("id", newLeadId)
     .single();
 
-  if (error) return { ok: false, errors: { _: [error.message] } };
-
-  // 副担当を lead_owners に bulk insert（best effort）
-  if (subOwnerIds.length > 0) {
-    const rows = subOwnerIds.map((uid) => ({ lead_id: lead.id, user_id: uid }));
-    const { error: ownerErr } = await supabase.from("lead_owners").insert(rows);
-    if (ownerErr) {
-      console.warn("[createLead] lead_owners insert WARN:", ownerErr.message);
-    }
+  if (fetchErr || !lead) {
+    return { ok: false, errors: { _: [toUserMessage(fetchErr ?? { message: "作成したリードを取得できませんでした" }, { entityLabel: "リード" })] } };
   }
 
   // score / temperature_id / breakdowns を DB 関数で算出（失敗はログのみ。Lead 登録自体は成功扱い）

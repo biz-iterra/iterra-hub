@@ -20,6 +20,8 @@ export type ChannelRow = {
   value: string;
   label: string | null;
   is_primary: boolean;
+  /** 楽観ロックに使う。編集を開いた時点の値をそのまま更新へ渡す（T-0096） */
+  updated_at: string;
 };
 
 const LABELS: Record<Channel, { value: string; text: string }[]> = {
@@ -82,7 +84,14 @@ export function ContactChannelsEditor({
   }
 
   async function changeLabel(row: ChannelRow, next: string) {
-    const { error } = await updateContactChannelLabel(contactId, channel, row.id, next);
+    // 楽観ロック: 画面が持っている時点の updated_at を渡す（T-0096）
+    const { error } = await updateContactChannelLabel(
+      contactId,
+      channel,
+      row.id,
+      next,
+      row.updated_at
+    );
     if (error) {
       showToast({ type: "error", message: error });
       return;

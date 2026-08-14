@@ -69,6 +69,8 @@ export function IntegrationProfileSection({
         entityAddressId: draft.entityAddressId || null,
         phoneEntityAddressId: draft.phoneEntityAddressId || null,
         financialInfoId: draft.financialInfoId || null,
+        // 楽観ロック: 画面が持っている時点の値（T-0103）。未保存なら送らない
+        expectedUpdatedAt: view.updatedAt ?? undefined,
       });
       if (res.error) {
         showToast({ type: "error", message: res.error });

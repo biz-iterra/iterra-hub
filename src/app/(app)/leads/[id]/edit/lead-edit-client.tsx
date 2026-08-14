@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition, type CSSProperties } from "react";
+import { useScrollLock } from "@/hooks/useScrollLock";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -787,6 +788,8 @@ function PromoteConfirmDialog({
 }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // 開いている間は背面を止める（T-0091）。**フックなので早期 return より前に置く**
+  useScrollLock(open);
 
   if (!open) return null;
 
@@ -818,6 +821,9 @@ function PromoteConfirmDialog({
     maxWidth: 480,
     width: "100%",
     padding: "1.5rem",
+    // 中央寄せなので、上限が無いと画面より高いときに**上端が切れて到達できない**（T-0092）
+    maxHeight: "calc(100vh - 2rem)",
+    overflowY: "auto",
   };
   const titleStyle: CSSProperties = {
     color: "var(--color-text-title)",

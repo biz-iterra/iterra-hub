@@ -1,6 +1,7 @@
 "use server";
 
 import { toUserMessage } from "@/lib/db-error";
+import { conflictErrorMessage } from "@/lib/validators/common";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import type { EntityAddress } from "@/types/relations";
@@ -27,6 +28,8 @@ export type AddressInput = {
   phone?: string | null;
   fax?: string | null;
   memo?: string | null;
+  /** 楽観ロック: 画面が持っている時点の entity_addresses.updated_at（T-0096） */
+  expected_updated_at?: string;
 };
 
 const OWNER_PATH: Record<AddressOwnerType, string> = {
@@ -108,7 +111,7 @@ export async function getEntityAddresses(
   const { data, error } = await supabase
     .from("entity_addresses")
     .select(
-      "id, label, is_primary, phone, fax, memo, address:addresses(id, postal_code, prefecture, city, address_line1, address_line2, raw_text)"
+      "id, label, is_primary, phone, fax, memo, updated_at, address:addresses(id, postal_code, prefecture, city, address_line1, address_line2, raw_text)"
     )
     .eq(`${ownerType}_id`, ownerId)
     .order("is_primary", { ascending: false })
@@ -168,42 +171,38 @@ export async function updateEntityAddress(
   const auth = await authorize(ownerType, ownerId);
   if ("error" in auth) return { data: null, error: auth.error };
 
-  const { data: link, error: linkError } = await auth.supabase
-    .from("entity_addresses")
-    .select("id, address_id")
-    .eq("id", linkId)
-    .eq(`${ownerType}_id`, ownerId)
-    .maybeSingle();
+  /*
+   * **住所本体（addresses）と紐付け（entity_addresses）を 1 トランザクションで直す**（T-0104）。
+   * 以前はここで 2 回 UPDATE しており、片方だけ通ると「住所は変わったのに
+   * ラベル・電話が古いまま」という食い違いが残った。追加側（add_entity_address）は
+   * 元から DB 関数なので、更新側だけが取り残されていた。
+   * 楽観ロック（T-0096）も関数の中で見る。アプリ側で先に確かめると、
+   * 確認してから更新するまでの間に他の人が保存できてしまう
+   */
+  const { error } = await auth.supabase.rpc("update_entity_address", {
+    p_owner_type: ownerType,
+    p_owner_id: ownerId,
+    p_link_id: linkId,
+    p_postal_code: input.postal_code ?? "",
+    p_prefecture: input.prefecture ?? "",
+    p_city: input.city ?? "",
+    p_address_line1: input.address_line1 ?? "",
+    p_address_line2: input.address_line2 ?? "",
+    p_label: input.label ?? "main",
+    p_phone: input.phone ?? "",
+    p_fax: input.fax ?? "",
+    p_memo: input.memo ?? "",
+    p_actor: auth.userId,
+    p_expected_updated_at: input.expected_updated_at ?? undefined,
+  });
 
-  if (linkError) return { data: null, error: toUserMessage(linkError, { entityLabel: "住所" }) };
-  if (!link) return { data: null, error: "住所が見つかりません" };
-
-  const { error: addrError } = await auth.supabase
-    .from("addresses")
-    .update({
-      postal_code: input.postal_code || null,
-      prefecture: input.prefecture || null,
-      city: input.city || null,
-      address_line1: input.address_line1 || null,
-      address_line2: input.address_line2 || null,
-      last_updated_by: auth.userId,
-    })
-    .eq("id", link.address_id);
-
-  if (addrError) return { data: null, error: toUserMessage(addrError, { entityLabel: "住所" }) };
-
-  const { error } = await auth.supabase
-    .from("entity_addresses")
-    .update({
-      label: input.label ?? "main",
-      phone: input.phone || null,
-      fax: input.fax || null,
-      memo: input.memo || null,
-      last_updated_by: auth.userId,
-    })
-    .eq("id", linkId);
-
-  if (error) return { data: null, error: toUserMessage(error, { entityLabel: "住所" }) };
+  if (error) {
+    // 関数は競合を CONFLICT: の接頭辞で返す。利用者には共通の文言に揃える
+    if (error.message?.includes("CONFLICT:")) {
+      return { data: null, error: conflictErrorMessage("この住所") };
+    }
+    return { data: null, error: toUserMessage(error, { entityLabel: "住所" }) };
+  }
   refresh(ownerType, ownerId);
   return { data: null, error: null };
 }

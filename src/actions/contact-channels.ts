@@ -1,6 +1,7 @@
 "use server";
 
 import { toUserMessage } from "@/lib/db-error";
+import { conflictErrorMessage } from "@/lib/validators/common";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 
@@ -135,7 +136,9 @@ export async function updateContactChannelLabel(
   contactId: string,
   channel: Channel,
   id: string,
-  label: string
+  label: string,
+  /** 楽観ロック: 画面が持っている時点の updated_at（T-0096） */
+  expectedUpdatedAt?: string
 ): Promise<ActionResult<null>> {
   const auth = await authorize(contactId);
   if ("error" in auth) return { data: null, error: auth.error };
@@ -146,13 +149,20 @@ export async function updateContactChannelLabel(
   }
 
   const table = channel === "email" ? "contact_emails" : "contact_phones";
-  const { error } = await auth.supabase
+  let query = auth.supabase
     .from(table)
     .update({ label, last_updated_by: auth.userId })
     .eq("id", id)
     .eq("contact_id", contactId);
+  if (expectedUpdatedAt) query = query.eq("updated_at", expectedUpdatedAt);
+
+  const { data: updated, error } = await query.select("id").maybeSingle();
 
   if (error) return { data: null, error: toUserMessage(error, { entityLabel: "連絡先" }) };
+  // 0 行更新は「他の人が先に保存した」。行が消えている場合も同じ案内でよい
+  if (!updated) {
+    return { data: null, error: conflictErrorMessage(channel === "email" ? "このメール" : "この電話") };
+  }
   refresh(contactId);
   return { data: null, error: null };
 }

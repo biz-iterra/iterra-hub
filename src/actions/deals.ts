@@ -461,29 +461,10 @@ export async function updateDeal(
     return { data: null, error: conflictErrorMessage("このディール") };
   }
 
-  // ステージ変更履歴
-  if (fields.deal_stage_id && fields.deal_stage_id !== current.deal_stage_id) {
-    await supabase.from("deal_stage_histories").insert({
-      deal_id: id,
-      from_stage_id: current.deal_stage_id,
-      to_stage_id: fields.deal_stage_id,
-      changed_by: user.id,
-    });
-  }
-
-  // ステータス変更履歴（stage_id は NOT NULL のため必ず渡す）
-  if (fields.deal_status_id && fields.deal_status_id !== current.deal_status_id) {
-    await supabase.from("deal_status_histories").insert({
-      deal_id: id,
-      stage_id: fields.deal_stage_id ?? current.deal_stage_id,
-      from_status_id: current.deal_status_id,
-      to_status_id: fields.deal_status_id,
-      changed_by: user.id,
-    });
-  }
-
-  // 全フィールド変更履歴
-  // 変更履歴は entity_change_logs のトリガーが自動記録する（20260728000002）
+  // ステージ・ステータスの履歴はトリガーが記録する（20260814100002）。
+  // ここから INSERT すると更新とは別のトランザクションになり、
+  // 履歴だけ欠ける形で壊れる（T-0095）。
+  // 全フィールドの変更履歴も entity_change_logs のトリガー任せ（20260728000002）
 
   revalidateDealLists();
   revalidatePath(`/deals/${id}`);
@@ -588,24 +569,7 @@ export async function moveDealCard(
   if (error) return { data: null, error: toUserMessage(error, { entityLabel: "ディール" }) };
   if (!deal) return { data: null, error: conflictErrorMessage("このディール") };
 
-  if (stageChanged) {
-    await supabase.from("deal_stage_histories").insert({
-      deal_id: dealId,
-      from_stage_id: current.deal_stage_id,
-      to_stage_id: newStageId,
-      changed_by: user.id,
-    });
-  }
-
-  if (statusChanged) {
-    await supabase.from("deal_status_histories").insert({
-      deal_id: dealId,
-      stage_id: newStageId,
-      from_status_id: current.deal_status_id,
-      to_status_id: newStatusId,
-      changed_by: user.id,
-    });
-  }
+  // 履歴はトリガーが記録する（20260814100002。理由は updateDeal 側のコメント）
 
   revalidateDealLists();
   revalidatePath("/dashboard");

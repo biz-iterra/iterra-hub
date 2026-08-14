@@ -103,6 +103,8 @@ export function AddressesEditor({
       label: a.label ?? "main",
       phone: a.phone ?? "",
       fax: a.fax ?? "",
+      // 楽観ロック: 画面が持っている時点の値をそのまま返す（T-0096）
+      expected_updated_at: a.updated_at,
     });
   }
 

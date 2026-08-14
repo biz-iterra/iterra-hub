@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { createMemberSchema, updateMemberSchema } from "@/lib/validators/members";
+import { conflictErrorMessage } from "@/lib/validators/common";
 
 /**
  * 社内メンバー（`crm_users` + Supabase Auth のユーザー）。
@@ -31,6 +32,8 @@ export type MemberRow = {
   /** Auth 側の最終ログイン。一度も入っていなければ null */
   last_sign_in_at: string | null;
   created_at: string;
+  /** 楽観ロックに使う。編集を開いた時点の値をそのまま更新へ渡す（T-0096） */
+  updated_at: string;
   /** Auth 側で入室を止めているか。is_active と食い違っていたら要確認 */
   is_banned: boolean;
 };
@@ -70,7 +73,7 @@ export async function getMembers(): Promise<ActionResult<MemberRow[]>> {
   const [{ data: crmUsers, error }, authList] = await Promise.all([
     admin
       .from("crm_users")
-      .select("id, email, full_name, full_name_kana, role, is_active, created_at")
+      .select("id, email, full_name, full_name_kana, role, is_active, created_at, updated_at")
       .order("created_at"),
     // 社内メンバーなので 1 ページに収まる想定。増えたらページを送ること
     admin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
@@ -94,6 +97,7 @@ export async function getMembers(): Promise<ActionResult<MemberRow[]>> {
         is_active: u.is_active,
         last_sign_in_at: authUser?.last_sign_in_at ?? null,
         created_at: u.created_at,
+        updated_at: u.updated_at,
         is_banned: Boolean(bannedUntil && new Date(bannedUntil) > new Date()),
       };
     }),
@@ -215,7 +219,11 @@ export async function updateMember(
     }
   }
 
-  const { error } = await admin
+  /*
+   * 楽観ロック（T-0096）。**service_role で更新するため RLS では守れない。**
+   * 編集開始時点の updated_at を条件に足し、0 行更新なら競合として返す
+   */
+  let updateQuery = admin
     .from("crm_users")
     .update({
       full_name: parsed.data.full_name,
@@ -223,8 +231,14 @@ export async function updateMember(
       role: parsed.data.role,
     })
     .eq("id", memberId);
+  if (parsed.data.expected_updated_at) {
+    updateQuery = updateQuery.eq("updated_at", parsed.data.expected_updated_at);
+  }
+
+  const { data: updated, error } = await updateQuery.select("id").maybeSingle();
 
   if (error) return { data: null, error: toUserMessage(error, { entityLabel: "メンバー" }) };
+  if (!updated) return { data: null, error: conflictErrorMessage("このメンバー") };
 
   revalidatePath("/admin/members");
   return { data: null, error: null };

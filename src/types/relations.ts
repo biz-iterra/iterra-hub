@@ -110,8 +110,9 @@ export type DealDetail = DealWithRelations & {
 // ============================================================
 
 /** contact_emails / contact_phones の一覧表示に使う列 */
-type ContactEmailRef = Ref<"contact_emails", "id" | "email" | "label" | "is_primary">;
-type ContactPhoneRef = Ref<"contact_phones", "id" | "phone" | "label" | "is_primary">;
+// updated_at は楽観ロックに使う（T-0096）。画面が持っている値をそのまま更新へ渡す
+type ContactEmailRef = Ref<"contact_emails", "id" | "email" | "label" | "is_primary" | "updated_at">;
+type ContactPhoneRef = Ref<"contact_phones", "id" | "phone" | "label" | "is_primary" | "updated_at">;
 
 /** 所属先としてのアカウント参照（account_contacts 経由） */
 type AccountContactRef = {
@@ -196,7 +197,8 @@ export type ReferredCardRow = Ref<
  */
 export type EntityAddress = Ref<
   "entity_addresses",
-  "id" | "label" | "is_primary" | "phone" | "fax" | "memo"
+  // updated_at は楽観ロックに使う（T-0096）
+  "id" | "label" | "is_primary" | "phone" | "fax" | "memo" | "updated_at"
 > & {
   address: Ref<
     "addresses",

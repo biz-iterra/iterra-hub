@@ -111,10 +111,9 @@ export function register(test) {
     "持ち主が違う紐付けは更新できない",
     async (ctx) => {
       const o = await makeAddress(ctx);
-      const other = await ctx.val(
-        `SELECT id FROM contacts WHERE deleted_at IS NULL AND id <> $1 ORDER BY created_at LIMIT 1`,
-        [o.contactId]
-      );
+      // **seed の連絡先が 1 件しかない環境がある**（db reset 直後）。
+      // 「持ち主が違う」ことさえ示せればよいので、実在しない UUID を渡す
+      const other = await ctx.val(`SELECT gen_random_uuid()`);
 
       await ctx.expectError(
         () =>

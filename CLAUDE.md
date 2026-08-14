@@ -162,6 +162,9 @@ lock を触ったら push 前に `npm ci` がローカルで通ることを確�
 - **認証チェック:** 全 Server Action で `supabase.auth.getUser()` を呼び、未認証なら即リターン
 - **ロールチェック:** admin 専用操作（マスタ CRUD、論理削除）は `role !== "admin"` で拒否
 - **オーナーチェック:** update 系で admin 以外は `owner_user_id === user.id` を確認。RLS に依存せず Server Action 側でも検証する
+  - **例外: プロジェクトは manager 以上なら担当者でなくても更新できる**（`updateProject`）。
+    プロジェクトは複数の担当が横断して動かすもので、担当者本人しか触れないと進行が止まるため。
+    例外を増やすときは、なぜ担当者以外が触ってよいのかをここに書く（T-0099）
 - **manager/admin 限定:** contracts の全操作は `is_manager_or_above()` で制限
 
 ### 詳細ページ（[id] ルート）の必須チェック
